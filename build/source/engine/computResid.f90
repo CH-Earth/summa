@@ -288,6 +288,7 @@ subroutine computResid(&
 
     ! compute the residual vector for the aquifer
     if(ixAqWat/=integerMissing) rVec(ixAqWat) = sMul(ixAqWat)*( scalarAquiferStorageTrial - scalarAquiferStorage ) - ( fVec(ixAqWat)*dt + rAdd(ixAqWat) )
+
     if(globalPrintFlag)then
       write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
       write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
