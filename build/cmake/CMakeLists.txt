@@ -159,7 +159,7 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
     if(CMAKE_BUILD_TYPE MATCHES Actors)
         find_package(CAF REQUIRED)
         set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
-        set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io)
+        set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io -lnetcdf)
     endif()
 
 else()
@@ -205,7 +205,7 @@ else()
                        ${PARENT_DIR}/build/includes/job_actor
                        ${PARENT_DIR}/build/includes/file_access_actor
                        ${PARENT_DIR}/build/includes/hru_actor)
-        set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io)
+        set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io -lnetcdf)
     endif()
 
 endif()
@@ -237,7 +237,7 @@ set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
 set(NOAHMP_DIR ${F_MASTER}/build/source/noah-mp)
 
 # Define Actors specific directories
-set(ACTORS_DIR ${PARENT_DIR}/build/source/actors)
+set(ACTORS_DIR ${PARENT_DIR}/build/source)
 set(FILE_ACCESS_DIR ${ACTORS_DIR}/file_access_actor)
 set(JOB_ACTOR_DIR   ${ACTORS_DIR}/job_actor)
 set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
@@ -440,9 +440,12 @@ set(FILE_ACCESS_ACTOR
     ${ACTORS_DIR}/file_access_actor/output_container.cpp)
 set(JOB_ACTOR
     ${ACTORS_DIR}/job_actor/GRU.cpp
-    ${ACTORS_DIR}/job_actor/job_actor.cpp)
+    ${ACTORS_DIR}/job_actor/job_actor.cpp
+    ${ACTORS_DIR}/job_actor/distributed_job_actor.cpp
+    ${ACTORS_DIR}/job_actor/node_actor.cpp)
 set(HRU_ACTOR
-    ${ACTORS_DIR}/hru_actor/hru_actor.cpp)
+    ${ACTORS_DIR}/hru_actor/hru_actor.cpp
+    ${ACTORS_DIR}/hru_actor/hru_batch_actor.cpp)
 
 
 #=========================================================================================
