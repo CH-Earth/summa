@@ -1416,8 +1416,6 @@ subroutine enthalpy2T_soil(&
       dH_dT        = denthLiq_dT + denthIce_dT + denthSoil_dT + denthAir_dT + iden_water * LH_fus * dfLiq_dT
 
       ! compute change in T and update
-      print*,enthLiq, enthIce, enthSoil,enthAir,- iden_water * LH_fus * (volFracWat - fLiq), 'enthLiq, enthIce, enthSoil, enthAir, phaseChange'
-      print*,T,H,mLayerEnthalpy,dH_dT,-(H - mLayerEnthalpy)/dH_dT,Tcrit,'T, H, mLayerEnthalpy, dH_dT, dT, Tcrit'
       T = T - (H - mLayerEnthalpy)/dH_dT
 
       if(computJac)then
