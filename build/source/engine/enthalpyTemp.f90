@@ -500,7 +500,6 @@ subroutine T2enthTemp(&
   real(rkind)                      :: enthIce                   ! enthalpy of the ice region (J m-3)
   real(rkind)                      :: enthAir                   ! enthalpy of air (J m-3)
   real(rkind)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
-  real(rkind)                      :: enthWater                 ! enthalpy of total water (J m-3)
   logical(lgt),parameter           :: doTest=.false.            ! flag to run unit test
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
@@ -610,7 +609,8 @@ subroutine T2enthTemp(&
               diff0      = Tcrit - Tfreeze
               ! *** compute enthalpy of water for unfrozen conditions
               if(mlayerTempTrial(iLayer)>=Tcrit)then
-                enthWater = iden_water * Cp_water * volFracWat * diffT ! valid for temperatures below freezing also
+                enthLiq= iden_water * Cp_water * volFracWat * diffT
+                enthIce= 0._rkind
 
               ! *** compute enthalpy of water for frozen conditions
               else
@@ -659,7 +659,6 @@ subroutine T2enthTemp(&
 
                 enthLiq   = iden_water * Cp_water * (integral_unf + integral_frz_upp - integral_frz_low)
                 enthIce   = iden_ice * Cp_ice * ( volFracWat * diffT - (integral_unf + integral_frz_upp - integral_frz_low) )
-                enthWater = enthLiq + enthIce
 
                 if(doTest)then
           
@@ -681,7 +680,7 @@ subroutine T2enthTemp(&
               enthSoil = soil_dens_intr * Cp_soil * ( 1._rkind - theta_sat ) * diffT
               enthAir  = iden_air * Cp_air * ( 1._rkind - theta_sat - volFracWat ) * diffT
 
-              mLayerEnthTemp(iLayer) = enthWater + enthSoil + enthAir
+              mLayerEnthTemp(iLayer) = enthLiq + enthIce + enthSoil + enthAir
 
             end associate soilVars
 
@@ -918,34 +917,71 @@ subroutine enthalpy2T_veg(&
     dT_dEnthalpy = 0._rkind
     dT_dWat      = 0._rkind
 
-    do while( abs(scalarCanopyEnthalpy-H)>1.e-6_rkind )
-      ! compute iteration enthalpy function, H
+    do while( abs((H - scalarCanopyEnthalpy)/dH_dT)>1.e-6_rkind )
       diffT    = T - Tfreeze
-      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-      fLiq     = fracLiquid(T, snowfrz_scale)
+      if(T>=Tfreeze)then
+        ! compute iteration enthalpy function
+        fLiq    = 1._rkind
+        enthLiq = Cp_water * scalarCanopyWat * diffT / canopyDepth
+        enthIce = 0._rkind
+
+        ! compute derivative of iteration with respect to iteration T
+        dfLiq_dT    = 0._rkind
+        denthLiq_dT = Cp_water * scalarCanopyWat / canopyDepth
+        denthIce_dT = 0._rkind
+      else  
+        ! compute iteration enthalpy function
+        integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+        fLiq     = fracLiquid(T, snowfrz_scale)
+        enthLiq  = Cp_water * scalarCanopyWat * integral / canopyDepth
+        enthIce  = Cp_ice * scalarCanopyWat * ( diffT - integral ) / canopyDepth
+
+        ! compute derivative of iteration with respect to iteration T
+        ! NOTE: dintegral_dT = fLiq
+        dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
+        denthLiq_dT = Cp_water * scalarCanopyWat * fLiq / canopyDepth
+        denthIce_dT = Cp_ice * scalarCanopyWat * (1._rkind - fLiq) / canopyDepth
+      endif
+
+      ! compute iteration enthalpy function, H
       enthVeg  = specificHeatVeg * maxMassVegetation * diffT / canopyDepth
-      enthLiq  = Cp_water * scalarCanopyWat * integral / canopyDepth
-      enthIce  = Cp_ice * scalarCanopyWat * ( diffT - integral ) / canopyDepth
       H        = enthVeg + enthLiq + enthIce - LH_fus * (1._rkind - fLiq) * scalarCanopyWat / canopyDepth
 
       ! compute derivative of iteration H with respect to iteration T
-      ! NOTE: dintegral_dT = fLiq, d2integral_dT2 = dfLiq_dT
-      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
       denthVeg_dT = specificHeatVeg * maxMassVegetation / canopyDepth
-      denthLiq_dT = Cp_water * scalarCanopyWat * fLiq / canopyDepth
-      denthIce_dT = Cp_ice * scalarCanopyWat * (1._rkind - fLiq) / canopyDepth
       dH_dT       = denthVeg_dT + denthLiq_dT + denthIce_dT + LH_fus * dfLiq_dT * scalarCanopyWat / canopyDepth
 
       ! compute change in T and update
       T = T - (H - scalarCanopyEnthalpy)/dH_dT
 
       if(computJac)then
+        if(T>=Tfreeze)then
+          ! compute second derivatives
+          d2fLiq_dT2    = 0._rkind
+          d2enthLiq_dT2  = 0._rkind
+          d2enthIce_dT2  = 0._rkind
+
+          ! compute derivative of iteration with respect to canopy water
+          denthLiq_dWat  = Cp_water * diffT / canopyDepth
+          denthIce_dWat  = 0._rkind
+          denthLiq_dT__dWat  = Cp_water / canopyDepth
+          denthIce_dT__dWat  = 0._rkind
+        else 
+          ! compute second derivatives
+          ! NOTE: d2integral_dT2 = dfLiq_dT    
+          d2fLiq_dT2    = 2._rkind * snowfrz_scale**2_i4b * ( 3._rkind * diffT**2_i4b - 1._rkind ) / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**3_i4b
+          d2enthLiq_dT2 = Cp_water * scalarCanopyWat * dfLiq_dT / canopyDepth
+          d2enthIce_dT2 = -Cp_ice * scalarCanopyWat * dfLiq_dT / canopyDepth
+
+          ! compute derivative of iteration H with respect to canopy water
+          denthLiq_dWat = Cp_water * integral / canopyDepth
+          denthIce_dWat = Cp_ice * ( diffT - integral ) / canopyDepth
+          denthLiq_dT__dWat = Cp_water * fLiq / canopyDepth
+          denthIce_dT__dWat = Cp_ice * (1._rkind - fLiq) / canopyDepth
+        endif
+
         ! compute second derivatives
-        ! NOTE: d2integral_dT2 = dfLiq_dT
-        d2fLiq_dT2    = 2._rkind * snowfrz_scale**2_i4b * ( 3._rkind * diffT**2_i4b - 1._rkind ) / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**3_i4b
         d2enthVeg_dT2 = 0._rkind
-        d2enthLiq_dT2 = Cp_water * scalarCanopyWat * dfLiq_dT / canopyDepth
-        d2enthIce_dT2 = -Cp_ice * scalarCanopyWat * dfLiq_dT / canopyDepth
         d2H_dT2       = d2enthVeg_dT2 + d2enthLiq_dT2 + d2enthIce_dT2 + LH_fus * d2fLiq_dT2 * scalarCanopyWat / canopyDepth
 
         ! compute derivative of iteration H with respect to canopy enthalpy
@@ -954,13 +990,8 @@ subroutine enthalpy2T_veg(&
 
         ! compute derivative of iteration H with respect to canopy water
         denthVeg_dWat = 0._rkind
-        denthLiq_dWat = Cp_water * integral / canopyDepth
-        denthIce_dWat = Cp_ice * ( diffT - integral ) / canopyDepth
         dH_dWat       = dH_dT * dT_dWat + denthVeg_dWat + denthLiq_dWat + denthIce_dWat - LH_fus * (1._rkind - fLiq) / canopyDepth
-
         denthVeg_dT__dWat = 0._rkind
-        denthLiq_dT__dWat = Cp_water * fLiq / canopyDepth
-        denthIce_dT__dWat = Cp_ice * (1._rkind - fLiq) / canopyDepth
         dH_dT__dWat   = d2H_dT2 * dT_dWat + denthVeg_dT__dWat + denthLiq_dT__dWat + denthIce_dT__dWat + LH_fus * dfLiq_dT / canopyDepth
 
         ! update derivatives
@@ -1059,50 +1090,82 @@ subroutine enthalpy2T_snow(&
   dT_dEnthalpy = 0._rkind
   dT_dWat      = 0._rkind
 
-  do while( abs(mLayerEnthalpy-H)>1.e-6_rkind )
-    ! compute iteration enthalpy function, H
+  do while( abs((H - mLayerEnthalpy)/dH_dT)>1.e-6_rkind )
     diffT    = T - Tfreeze
-    integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-    fLiq     = fracLiquid(T, snowfrz_scale)
-    enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
-    enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
+    if(T>=Tfreeze)then
+      ! compute iteration enthalpy function
+      integral = diffT
+      fLiq    = 1._rkind
+      enthLiq = iden_water * Cp_water * mLayerVolFracWat * diffT
+      enthIce = 0._rkind
+
+      ! compute derivative of iteration with respect to iteration T
+      dfLiq_dT    = 0._rkind
+      denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat
+      denthIce_dT = 0._rkind
+    else
+      ! compute iteration enthalpy function
+      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+      fLiq     = fracLiquid(T, snowfrz_scale)
+      enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
+      enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
+
+      ! compute derivative of iteration with respect to iteration T
+      ! NOTE: dintegral_dT = fLiq
+      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
+      denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
+      denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
+    endif
+    ! compute iteration enthalpy function, H
     enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
-    H        = enthLiq + enthIce + enthAir - iden_water * LH_fus * (1._rkind - fLiq) * mLayerVolFracWat
+    H        = enthLiq + enthIce + enthAir - iden_ice * LH_fus * (1._rkind - fLiq) * mLayerVolFracWat
 
     ! compute derivative of iteration H with respect to iteration T
-    ! NOTE: dintegral_dT = fLiq
-    dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
-    denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
-    denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
     denthAir_dT = iden_air * Cp_air * (1._rkind - mLayerVolFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) )
-    dH_dT       = denthLiq_dT + denthIce_dT + denthAir_dT + iden_water * LH_fus * dfLiq_dT * mLayerVolFracWat
+    dH_dT       = denthLiq_dT + denthIce_dT + denthAir_dT + iden_ice * LH_fus * dfLiq_dT * mLayerVolFracWat
 
     ! compute change in T and update
     T = T - (H - mLayerEnthalpy)/dH_dT
 
     if(computJac)then
+      if(T>=Tfreeze)then
+        ! compute second derivatives
+        d2fLiq_dT2    = 0._rkind
+        d2enthLiq_dT2  = 0._rkind
+        d2enthIce_dT2  = 0._rkind
+
+        ! compute derivative of iteration with respect to layer water content
+        denthLiq_dWat  = iden_water * Cp_water * diffT
+        denthIce_dWat  = 0._rkind
+        denthLiq_dT__dWat  = iden_water * Cp_water
+        denthIce_dT__dWat  = 0._rkind
+      else 
+        ! compute second derivatives
+        ! NOTE: d2integral_dT2 = dfLiq_dT    
+        d2fLiq_dT2    = 2._rkind * snowfrz_scale**2_i4b * ( 3._rkind * diffT**2_i4b - 1._rkind ) / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**3_i4b
+        d2enthLiq_dT2 = iden_water * Cp_water * mLayerVolFracWat * dfLiq_dT
+        d2enthIce_dT2 = -iden_water * Cp_ice * mLayerVolFracWat * dfLiq_dT
+
+        ! compute derivative of iteration with respect to layer water content
+        denthLiq_dWat = iden_water * Cp_water * integral
+        denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
+        denthLiq_dT__dWat = iden_water * Cp_water * fLiq
+        denthIce_dT__dWat = iden_water * Cp_ice * (1._rkind - fLiq)
+      endif
+
       ! compute second derivatives
-      ! NOTE: d2integral_dT2 = dfLiq_dT    
-      d2fLiq_dT2    = 2._rkind * snowfrz_scale**2_i4b * ( 3._rkind * diffT**2_i4b - 1._rkind ) / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**3_i4b
-      d2enthLiq_dT2 = iden_water * Cp_water * mLayerVolFracWat * dfLiq_dT
-      d2enthIce_dT2 = -iden_water * Cp_ice * mLayerVolFracWat * dfLiq_dT
       d2enthAir_dT2 = iden_air * Cp_air * ( mLayerVolFracWat * dfLiq_dT *( (iden_water/iden_ice) - 1._rkind ) )
-      d2H_dT2       = d2enthLiq_dT2 + d2enthIce_dT2 + d2enthAir_dT2 + iden_water * LH_fus * d2fLiq_dT2 * mLayerVolFracWat
+      d2H_dT2       = d2enthLiq_dT2 + d2enthIce_dT2 + d2enthAir_dT2 + iden_ice * LH_fus * d2fLiq_dT2 * mLayerVolFracWat
 
       ! compute derivative of iteration H with respect to layer enthalpy
       dH_dEnthalpy     = dH_dT * dT_dEnthalpy
       dH_dT__dEnthalpy = d2H_dT2 * dT_dEnthalpy
 
-      ! compute derivative ofiteration H with respect to layer water content
-      denthLiq_dWat = iden_water * Cp_water * integral
-      denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
+      ! compute derivative of iteration H with respect to layer water content
       denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
-      dH_dWat       = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
-
-      denthLiq_dT__dWat = iden_water * Cp_water * fLiq
-      denthIce_dT__dWat = iden_water * Cp_ice * (1._rkind - fLiq)
+      dH_dWat       = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_ice * LH_fus * (1._rkind - fLiq)
       denthAir_dT__dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq )
-      dH_dT__dWat       = d2H_dT2 * dT_dWat + denthLiq_dT__dWat + denthIce_dT__dWat + denthAir_dT__dWat + iden_water * LH_fus * dfLiq_dT
+      dH_dT__dWat       = d2H_dT2 * dT_dWat + denthLiq_dT__dWat + denthIce_dT__dWat + denthAir_dT__dWat + iden_ice * LH_fus * dfLiq_dT
 
       ! update derivatives
       dT_dEnthalpy = dT_dEnthalpy - ( dH_dEnthalpy - 1._rkind - dH_dT__dEnthalpy * (H - mLayerEnthalpy)/dH_dT ) / dH_dT
@@ -1237,7 +1300,7 @@ subroutine enthalpy2T_soil(&
   ! initialize error control
   err=0; message="enthalpy2T_soil/"
 
-  Tcrit             = crit_soilT( mLayerMatricHead )
+  Tcrit             = crit_soilT(mLayerMatricHead)
   volFracWat        = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
   dTcrit_dPsi0      = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead<=0._rkind)
   dvolFracWat_dPsi0 = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
@@ -1288,61 +1351,101 @@ subroutine enthalpy2T_soil(&
       dintegral_frz_low_dWat = 0._rkind
     end if
 
-    ! get the upper limit of the integral
     xConst = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-    do while( abs(mLayerEnthalpy-H)>1.e-6_rkind )
+    do while( abs((H - mLayerEnthalpy)/dH_dT)>1.e-6_rkind )
       diffT        = T - Tfreeze
-      mLayerPsiLiq = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution, DIFFERENT from the liquid water matric potential used in the flux calculations
-      arg          = (vGn_alpha * mLayerPsiLiq)**vGn_n
 
-      if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
-        ! make associate to the the lookup table
-        lookVars2: associate(&
-          Tk => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup,  & ! temperature (K)
-          Ly => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup,   & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
-          L2 => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup        & ! second derivative of the interpolating function
-          ) ! end associate statement
+      if(T>=Tcrit)then
+        ! compute iteration enthalpy function
+        fLiq    = volFracWat
+        enthLiq = iden_water * Cp_water * volFracWat * diffT 
+        enthIce = 0._rkind
 
-          ! get the upper limit of the integral
-          call splint(Tk,Ly,L2,T,integral_frz_upp,dL,err,cmessage)
-          if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-          dintegral_frz_upp_dT = dL
-          if(computJac) d2integral_frz_upp_dT2 = 0._rkind
+        ! compute derivative of iteration with respect to iteration T
+        dfLiq_dT     = 0._rkind
+        denthLiq_dT  = iden_water * Cp_water * volFracWat
+        denthIce_dT  = 0._rkind
+      else
+        mLayerPsiLiq = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution, DIFFERENT from the liquid water matric potential used in the flux calculations
+        arg          = (vGn_alpha * mLayerPsiLiq)**vGn_n
 
-        end associate lookVars2
+        ! get the upper limit of the integral
+        if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
+          ! make associate to the the lookup table
+          lookVars2: associate(&
+            Tk => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup,  & ! temperature (K)
+            Ly => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup,   & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
+            L2 => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup        & ! second derivative of the interpolating function
+            ) ! end associate statement
 
-      else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
-        gauss_hg_T             = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-        integral_frz_upp       = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
-        dintegral_frz_upp_dT   = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! fLiq
-        if(computJac) d2integral_frz_upp_dT2 = dTheta_dTk(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m) ! dfLiq_dT
-      end if
+            ! integral of mLayerPsiLiq from Tfreeze to layer temperature
+            call splint(Tk,Ly,L2,T,integral_frz_upp,dL,err,cmessage)
+            if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+            dintegral_frz_upp_dT = dL
+            if(computJac) d2integral_frz_upp_dT2 = 0._rkind
+
+          end associate lookVars2
+
+        else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
+          gauss_hg_T             = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+          integral_frz_upp       = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+          dintegral_frz_upp_dT   = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! fLiq
+          if(computJac) d2integral_frz_upp_dT2 = dTheta_dTk(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m) ! dfLiq_dT
+        end if
+
+        ! compute iteration enthalpy function
+        ! NOTE: here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
+        fLiq     = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
+        enthLiq  = iden_water * Cp_water * (integral_unf + integral_frz_upp - integral_frz_low)
+        enthIce  = iden_ice * Cp_ice * ( volFracWat * diffT - (integral_unf + integral_frz_upp - integral_frz_low) )
+
+        ! compute derivative of iteration with respect to iteration T
+        dfLiq_dT     = dTheta_dTk(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
+        denthLiq_dT  = iden_water * Cp_water * dintegral_frz_upp_dT
+        denthIce_dT  = iden_ice * Cp_ice * ( volFracWat  - dintegral_frz_upp_dT ) 
+      endif
 
       ! compute iteration enthalpy function, H
-      ! NOTE: here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
-      fLiq     = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
-      enthLiq  = iden_water * Cp_water * (integral_unf + integral_frz_upp - integral_frz_low)
-      enthIce  = iden_ice * Cp_ice * ( volFracWat * diffT - (integral_unf + integral_frz_upp - integral_frz_low) )
       enthSoil = soil_dens_intr * Cp_soil * ( 1._rkind - theta_sat ) * diffT
       enthAir  = iden_air * Cp_air * ( 1._rkind - theta_sat - volFracWat ) * diffT
       H        = enthLiq + enthIce + enthSoil + enthAir  - iden_water * LH_fus * (volFracWat - fLiq)
 
       ! compute derivative of iteration H with respect to iteration T
-      dfLiq_dT     = dTheta_dTk(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
-      denthLiq_dT  = iden_water * Cp_water * dintegral_frz_upp_dT
-      denthIce_dT  = iden_ice * Cp_ice * ( volFracWat  - dintegral_frz_upp_dT )
       denthSoil_dT = soil_dens_intr * Cp_soil * ( 1._rkind - theta_sat )
       denthAir_dT  = iden_air * Cp_air * ( 1._rkind - theta_sat - volFracWat ) 
       dH_dT        = denthLiq_dT + denthIce_dT + denthSoil_dT + denthAir_dT + iden_water * LH_fus * dfLiq_dT
- 
+
       ! compute change in T and update
+      print*,enthLiq, enthIce, enthSoil,enthAir,- iden_water * LH_fus * (volFracWat - fLiq), 'enthLiq, enthIce, enthSoil, enthAir, phaseChange'
+      print*,T,H,mLayerEnthalpy,dH_dT,-(H - mLayerEnthalpy)/dH_dT,Tcrit,'T, H, mLayerEnthalpy, dH_dT, dT, Tcrit'
       T = T - (H - mLayerEnthalpy)/dH_dT
 
       if(computJac)then
+        if(T>=Tcrit)then
+          ! compute second derivatives
+          d2fLiq_dT2     = 0._rkind
+          d2enthLiq_dT2  = 0._rkind
+          d2enthIce_dT2  = 0._rkind
+
+          ! compute derivative of iteration with respect to layer water content
+          denthLiq_dWat  = iden_water * Cp_water * diffT
+          denthIce_dWat  = 0._rkind
+          denthLiq_dT__dWat  = iden_water * Cp_water
+          denthIce_dT__dWat  = 0._rkind
+        else
+          ! compute second derivatives
+          d2fLiq_dT2     = d2Theta_dTk2(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
+          d2enthLiq_dT2  = iden_water * Cp_water * d2integral_frz_upp_dT2
+          d2enthIce_dT2  = -iden_ice * Cp_ice * d2integral_frz_upp_dT2
+
+          ! compute derivative of iteration with respect to layer water content
+          denthLiq_dWat  = iden_water * Cp_water * (dintegral_unf_dWat - dintegral_frz_low_dWat)
+          denthIce_dWat  = iden_ice * Cp_ice * ( dvolFracWat_dPsi0 * diffT - (dintegral_unf_dWat - dintegral_frz_low_dWat) )
+          denthLiq_dT__dWat  = 0._rkind
+          denthIce_dT__dWat  = iden_ice * Cp_ice * dvolFracWat_dPsi0
+        endif
+
         ! compute second derivatives
-        d2fLiq_dT2     = d2Theta_dTk2(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
-        d2enthLiq_dT2  = iden_water * Cp_water * d2integral_frz_upp_dT2
-        d2enthIce_dT2  = -iden_ice * Cp_ice * d2integral_frz_upp_dT2
         d2enthSoil_dT2 = 0._rkind
         d2enthAir_dT2  = 0._rkind
         d2H_dT2        = d2enthLiq_dT2 + d2enthIce_dT2 + d2enthSoil_dT2 + d2enthAir_dT2 + iden_water * LH_fus * d2fLiq_dT2
@@ -1351,15 +1454,10 @@ subroutine enthalpy2T_soil(&
         dH_dEnthalpy     = dH_dT * dT_dEnthalpy
         dH_dT__dEnthalpy = d2H_dT2 * dT_dEnthalpy
 
-        ! compute derivative ofiteration H with respect to layer water content
-        denthLiq_dWat  = iden_water * Cp_water * (dintegral_unf_dWat - dintegral_frz_low_dWat)
-        denthIce_dWat  = iden_ice * Cp_ice * ( dvolFracWat_dPsi0 * diffT - (dintegral_unf_dWat - dintegral_frz_low_dWat) )
+        ! compute derivative of iteration H with respect to layer water content
         denthSoil_dWat = 0._rkind
-        denthAir_dWat  = -iden_air * Cp_air * dvolFracWat_dPsi0 * diffT
-        dH_dWat        = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * dvolFracWat_dPsi0
-
-        denthLiq_dT__dWat  = 0._rkind
-        denthIce_dT__dWat  = iden_ice * Cp_ice * dvolFracWat_dPsi0
+        denthAir_dWat  = -iden_air * Cp_air * dvolFracWat_dPsi0 * diffT      
+        dH_dWat        = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * dvolFracWat_dPsi0  
         denthSoil_dT__dWat = 0._rkind
         denthAir_dT__dWat  = -iden_air * Cp_air * dvolFracWat_dPsi0
         dH_dT__dWat        = d2H_dT2 * dT_dWat + denthLiq_dT__dWat + denthIce_dT__dWat + denthSoil_dT__dWat + denthAir_dT__dWat
