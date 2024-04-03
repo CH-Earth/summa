@@ -1355,16 +1355,18 @@ subroutine enthalpy2T_soil(&
     do while( abs((H - mLayerEnthalpy)/dH_dT)>1.e-6_rkind )
       diffT        = T - Tfreeze
 
-      if(T>=Tcrit)then
+      ! NOTE: this should be T>=Tcrit, but we need to smooth the function from Tcrit to Tfreeze for the Newton-Raphson method
+      ! Newton-Raphson step should not find a solution of T>Tcrit so does not affect the solution
+      if(T>=Tfreeze)then 
         ! compute iteration enthalpy function
-        fLiq    = volFracWat
-        enthLiq = iden_water * Cp_water * volFracWat * diffT 
-        enthIce = 0._rkind
+        fLiq    = theta_sat ! should be volFracWat if were not smoothing the function
+        enthLiq = iden_water * Cp_water * fLiq * diffT
+        enthIce = iden_ice * Cp_ice * (volFracWat - fLiq) * diffT
 
         ! compute derivative of iteration with respect to iteration T
         dfLiq_dT     = 0._rkind
-        denthLiq_dT  = iden_water * Cp_water * volFracWat
-        denthIce_dT  = 0._rkind
+        denthLiq_dT  = iden_water * Cp_water * fLiq
+        denthIce_dT  = iden_ice * Cp_ice * (volFracWat - fLiq)
       else
         mLayerPsiLiq = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution, DIFFERENT from the liquid water matric potential used in the flux calculations
         arg          = (vGn_alpha * mLayerPsiLiq)**vGn_n
@@ -1419,17 +1421,17 @@ subroutine enthalpy2T_soil(&
       T = T - (H - mLayerEnthalpy)/dH_dT
 
       if(computJac)then
-        if(T>=Tcrit)then
+        if(T>=Tfreeze)then ! should be T>=Tcrit if were not smoothing the function
           ! compute second derivatives
           d2fLiq_dT2     = 0._rkind
           d2enthLiq_dT2  = 0._rkind
           d2enthIce_dT2  = 0._rkind
 
           ! compute derivative of iteration with respect to layer water content
-          denthLiq_dWat  = iden_water * Cp_water * diffT
-          denthIce_dWat  = 0._rkind
-          denthLiq_dT__dWat  = iden_water * Cp_water
-          denthIce_dT__dWat  = 0._rkind
+          denthLiq_dWat  = 0._rkind ! should be iden_water * Cp_water * diffT if were not smoothing the function
+          denthIce_dWat  = iden_ice * Cp_ice * diffT ! should be 0._rkind if were not smoothing the function
+          denthLiq_dT__dWat  = 0._rkind ! should be iden_water * Cp_water if were not smoothing the function
+          denthIce_dT__dWat  = iden_ice * Cp_ice ! should be 0._rkind if were not smoothing the function
         else
           ! compute second derivatives
           d2fLiq_dT2     = d2Theta_dTk2(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
