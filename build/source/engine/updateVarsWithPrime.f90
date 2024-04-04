@@ -109,7 +109,7 @@ contains
 ! **********************************************************************************************************
 subroutine updateVarsWithPrime(&
                      ! input
-                     updateT,                                   & ! intent(in):    flag if need to update temperature from enthalpy
+                     enthalpyStateVec,                          & ! intent(in):    flag if enthalpy is the state variable
                      use_lookup,                                & ! intent(in):    flag to use the lookup table for soil enthalpy
                      computJac,                                 & ! intent(in):    flag if computing for Jacobian update
                      do_adjustTemp,                             & ! intent(in):    flag to adjust temperature to account for the energy used in melt+freeze
@@ -152,7 +152,7 @@ subroutine updateVarsWithPrime(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input
-  logical(lgt)     ,intent(in)       :: updateT                         ! flag if need to update temperature from enthalpy
+  logical(lgt)     ,intent(in)       :: enthalpyStateVec                ! flag if enthalpy is the state variable
   logical(lgt)     ,intent(in)       :: use_lookup                      ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
   logical(lgt)     ,intent(in)       :: computJac                       ! flag if computing for Jacobian update
   logical(lgt)     ,intent(in)       :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
@@ -414,9 +414,9 @@ subroutine updateVarsWithPrime(&
       endif  ! if hydrology state variable or uncoupled solution
 
       ! compute temperature from enthalpy and water content 
-      ! NOTE: always do no matter coupling state if enthalpy is the state variable (updateT==.true.)
+      ! NOTE: always do no matter coupling state if enthalpy is the state variable
       if(ixDomainType==iname_cas)then
-        if(updateT)then
+        if(enthalpyStateVec)then
           call enthalpy2T_cas(&
                    computJac,                  & ! intent(in):  flag if computing for Jacobian update
                    scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
@@ -429,7 +429,7 @@ subroutine updateVarsWithPrime(&
         endif
         cycle ! no more to do on canopy air space
       elseif(ixDomainType==iname_veg)then
-        if(updateT)then
+        if(enthalpyStateVec)then
           call enthalpy2T_veg(&
                    computJac,                  & ! intent(in):    flag if computing for Jacobian update          
                    canopyDepth,                & ! intent(in):    canopy depth (m)
@@ -448,7 +448,7 @@ subroutine updateVarsWithPrime(&
           dCanopyTemp_dCanWat   = 1._rkind
         endif
       elseif(ixDomainType==iname_snow)then
-        if(updateT)then
+        if(enthalpyStateVec)then
           call enthalpy2T_snow(&
                    computJac,                      & ! intent(in):    flag if computing for Jacobian update       
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
@@ -464,7 +464,7 @@ subroutine updateVarsWithPrime(&
           dTemp_dTheta(iLayer)    = 1._rkind
         endif
       elseif(ixDomainType==iname_soil)then
-        if(updateT)then
+        if(enthalpyStateVec)then
           call enthalpy2T_soil(&
                    computJac,                              & ! intent(in):    flag if computing for Jacobian update
                    use_lookup,                             & ! intent(in):    flag to use the lookup table for soil enthalpy

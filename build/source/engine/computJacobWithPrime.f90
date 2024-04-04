@@ -76,11 +76,11 @@ USE mDecisions_module,only:  &
  moisture,                   & ! moisture-based form of Richards' equation
  mixdform                      ! mixed form of Richards' equation
 
-! look-up values for the choice of heat capacity computation
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:  &
- closedForm,                 & ! heat capacity closed form in backward Euler residual
- enthalpyFDlu,               & ! enthalpy with lookup tables finite difference in backward Euler residual
- enthalpyFD                    ! enthalpy with hypergeometric function finite difference in backward Euler residual
+ closedForm,                 & ! use temperature
+ enthalpyFDlu,               & ! use enthalpy with lookup tables
+ enthalpyFD                    ! use enthalpy with analytical solution
 
 implicit none
 ! define constants
@@ -109,7 +109,7 @@ subroutine computJacobWithPrime(&
                       specificStorage,            & ! intent(in):    specific storage coefficient (m-1)
                       theta_sat,                  & ! intent(in):    soil porosity (-)
                       ixRichards,                 & ! intent(in):    choice of option for Richards' equation
-                      useEnthalpy,                & ! intent(in):    flag if enthalpy is state variable
+                      enthalpyStateVec,           & ! intent(in):    flag if enthalpy is state variable
                       ! input: data structures
                       model_decisions,            & ! intent(in):    model decisions
                       indx_data,                  & ! intent(in):    index data
@@ -142,7 +142,7 @@ subroutine computJacobWithPrime(&
   real(rkind),intent(in)               :: specificStorage            ! specific storage coefficient (m-1)
   real(rkind),intent(in)               :: theta_sat(:)               ! soil porosity (-)
   integer(i4b),intent(in)              :: ixRichards                 ! choice of option for Richards' equation
-  logical(lgt),intent(in)              :: useEnthalpy                ! flag if enthalpy is state variable
+  logical(lgt),intent(in)              :: enthalpyStateVec           ! flag if enthalpy is state variable
   ! input: data structures
   type(model_options),intent(in)       :: model_decisions(:)         ! model decisions
   type(var_ilength),intent(in)         :: indx_data                  ! indices defining model states and layers
@@ -353,7 +353,7 @@ subroutine computJacobWithPrime(&
     end do
 
     ! if using enthalpy as a state variable, zero out usual RHS terms and add them end of the iteration loop
-    if(useEnthalpy)then 
+    if(enthalpyStateVec)then 
       dMat(ixCasNrg) = 0._rkind
       dMat(ixVegNrg) = 0._rkind
       do iLayer=1,nLayers
@@ -1060,7 +1060,7 @@ subroutine computJacobWithPrime(&
     ! * if desired, modify to use enthalpy as a state variable instead of temperature 
     ! NOTE, dMat has been set to 0 and now 1._rkind * cj is added instead 
     ! ----------------------------------------
-    if(useEnthalpy)then 
+    if(enthalpyStateVec)then 
       aJac(:,ixCasNrg) = aJac(:,ixCasNrg) * dCanairTemp_dEnthalpy
       if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixCasNrg) = aJac(ixDiag,   ixCasNrg) + 1._rkind * cj
       if(ixMatrix==ixFullMatrix) aJac(ixCasNrg, ixCasNrg) = aJac(ixCasNrg, ixCasNrg) + 1._rkind * cj

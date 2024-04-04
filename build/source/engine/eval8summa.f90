@@ -60,11 +60,11 @@ USE var_lookup,only:iLookDIAG                    ! named variables for structure
 USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
 USE var_lookup,only:iLookDERIV                   ! named variables for structure elements
 
-! look-up values for the choice of heat capacity computation
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:  &
- closedForm,                 & ! heat capacity closed form in backward Euler residual
- enthalpyFDlu,               & ! enthalpy with lookup tables finite difference in backward Euler residual
- enthalpyFD                    ! enthalpy with hypergeometric function finite difference in backward Euler residual
+ closedForm,                 & ! use temperature
+ enthalpyFDlu,               & ! use enthalpy with lookup tables
+ enthalpyFD                    ! use enthalpy with analytical solution
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:  &

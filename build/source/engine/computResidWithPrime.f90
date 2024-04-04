@@ -61,7 +61,7 @@ subroutine computResidWithPrime(&
                       nSnow,                     & ! intent(in):  number of snow layers
                       nSoil,                     & ! intent(in):  number of soil layers
                       nLayers,                   & ! intent(in):  total number of layers
-                      useEnthalpy,               & ! intent(in):  flag if enthalpy is state variable
+                      enthalpyStateVec,               & ! intent(in):  flag if enthalpy is state variable
                       ! input: flux vectors
                       sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
                       fVec,                      & ! intent(in):  flux vector
@@ -99,7 +99,7 @@ subroutine computResidWithPrime(&
   integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
-  logical(lgt),intent(in)         :: useEnthalpy               ! flag if enthalpy is state variable
+  logical(lgt),intent(in)         :: enthalpyStateVec               ! flag if enthalpy is state variable
   ! input: flux vectors
   real(qp),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
   real(rkind),intent(in)          :: fVec(:)                   ! flux vector
@@ -179,7 +179,7 @@ subroutine computResidWithPrime(&
 
     ! add melt freeze terms only if not using enthalpy terms 
     ! NOTE: would need to use these if were using enthTemp terms
-    if(.not.useEnthalpy)then
+    if(.not.enthalpyStateVec)then
       ! compute energy associated with melt freeze for the vegetation canopy
       if(ixVegNrg/=integerMissing) rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*scalarCanopyIcePrime/canopyDepth   ! energy associated with melt/freeze (J m-3)
  
@@ -214,7 +214,7 @@ subroutine computResidWithPrime(&
     ! compute the residual vector for the vegetation canopy
     ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
     ! --> energy balance
-    if(useEnthalpy)then
+    if(enthalpyStateVec)then
       if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = scalarCanairEnthalpyPrime - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
       if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = scalarCanopyEnthalpyPrime - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     else
@@ -231,7 +231,7 @@ subroutine computResidWithPrime(&
     ! compute the residual vector for the snow and soil sub-domains for energy
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        if(useEnthalpy)then
+        if(enthalpyStateVec)then
           rVec( ixSnowSoilNrg(iLayer) ) = mLayerEnthalpyPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
         else
           rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) &

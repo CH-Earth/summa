@@ -88,6 +88,13 @@ USE mDecisions_module,only:         &
                       kinsol       ,&      ! SUNDIALS backward Euler solution using Kinsol
                       ida                  ! SUNDIALS solution using IDA
 
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
+USE mDecisions_module,only:       &
+                    closedForm,   & ! use temperature
+                    enthalpyFDlu, & ! use enthalpy with lookup tables
+                    enthalpyFD      ! use enthalpy with analytical solution
+
+
 ! privacy
 implicit none
 private
@@ -123,28 +130,28 @@ subroutine coupled_em(&
                       ! error control
                       err,message)         ! intent(out):   error control
   ! structure allocations
-  USE allocspace_module,only:allocLocal           ! allocate local data structures
-  USE allocspace_module,only:resizeData           ! clone a data structure
+  USE allocspace_module,only:allocLocal             ! allocate local data structures
+  USE allocspace_module,only:resizeData             ! clone a data structure
   ! simulation of fluxes and residuals given a trial state vector
-  USE soil_utils_module,only:liquidHead           ! compute the liquid water matric potential
+  USE soil_utils_module,only:liquidHead             ! compute the liquid water matric potential
   ! preliminary subroutines
-  USE vegPhenlgy_module,only:vegPhenlgy           ! compute vegetation phenology
-  USE vegNrgFlux_module,only:wettedFrac           ! compute wetted fraction of the canopy (used in sw radiation fluxes)
-  USE snowAlbedo_module,only:snowAlbedo           ! compute snow albedo
-  USE vegSWavRad_module,only:vegSWavRad           ! compute canopy sw radiation fluxes
-  USE canopySnow_module,only:canopySnow           ! compute interception and unloading of snow from the vegetation canopy
-  USE volicePack_module,only:newsnwfall           ! compute change in the top snow layer due to throughfall and unloading
-  USE volicePack_module,only:volicePack           ! merge and sub-divide snow layers, if necessary
-  USE diagn_evar_module,only:diagn_evar           ! compute diagnostic energy variables -- thermal conductivity and heat capacity
+  USE vegPhenlgy_module,only:vegPhenlgy             ! compute vegetation phenology
+  USE vegNrgFlux_module,only:wettedFrac             ! compute wetted fraction of the canopy (used in sw radiation fluxes)
+  USE snowAlbedo_module,only:snowAlbedo             ! compute snow albedo
+  USE vegSWavRad_module,only:vegSWavRad             ! compute canopy sw radiation fluxes
+  USE canopySnow_module,only:canopySnow             ! compute interception and unloading of snow from the vegetation canopy
+  USE volicePack_module,only:newsnwfall             ! compute change in the top snow layer due to throughfall and unloading
+  USE volicePack_module,only:volicePack             ! merge and sub-divide snow layers, if necessary
+  USE diagn_evar_module,only:diagn_evar             ! compute diagnostic energy variables -- thermal conductivity and heat capacity
   ! the model solver
-  USE indexState_module,only:indexState           ! define indices for all model state variables and layers
-  USE opSplittin_module,only:opSplittin           ! solve the system of thermodynamic and hydrology equations for a given substep
-  USE time_utils_module,only:elapsedSec           ! calculate the elapsed time
+  USE indexState_module,only:indexState             ! define indices for all model state variables and layers
+  USE opSplittin_module,only:opSplittin             ! solve the system of thermodynamic and hydrology equations for a given substep
+  USE time_utils_module,only:elapsedSec             ! calculate the elapsed time
   ! additional subroutines
-  USE tempAdjust_module,only:tempAdjust           ! adjust snow temperature associated with new snowfall
-  USE var_derive_module,only:calcHeight           ! module to calculate height at layer interfaces and layer mid-point
-  USE computSnowDepth_module,only:computSnowDepth ! compute snow depth
-  USE enthalpyTemp_module,only:enthTemp2enthalpy  ! add phase change terms to delta temperature component of enthalpy
+  USE tempAdjust_module,only:tempAdjust             ! adjust snow temperature associated with new snowfall
+  USE var_derive_module,only:calcHeight             ! module to calculate height at layer interfaces and layer mid-point
+  USE computSnowDepth_module,only:computSnowDepth   ! compute snow depth
+  USE enthalpyTemp_module,only:enthTemp_or_enthalpy ! add phase change terms to delta temperature component of enthalpy or vice versa
 
   implicit none
 
@@ -276,7 +283,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: lastInnerStep          ! flag to denote if the last time step in maxstep subStep
   logical(lgt)                         :: do_outer               ! flag to denote if doing the outer steps surrounding the call to opSplittin
   real(rkind)                          :: dt_solvInner           ! seconds in the maxstep subStep that have been completed
-
+  logical(lgt),parameter               :: computNrgBalance_var=.true. ! flag to compute enthalpy, must have computNrgBalance true in varSubStep (will compute enthalpy for BE even if not using enthalpy formulation)
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="coupled_em/"
@@ -1453,40 +1460,63 @@ subroutine coupled_em(&
   ! save the total soil water (Liquid+Ice)
   diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1) = balanceSoilWater1
 
-  ! save the enthalpy and total enthalpy
+  ! save the enthalpy or temperature component of enthalpy, and total enthalpy
   ! associate local variables with information in the data structures
   associate(&
+    ixNrgConserv             => model_decisions(iLookDECISIONS%nrgConserv)%iDecision     ,& ! choice of variable in energy conservation backward Euler residual
+    ixNumericalMethod        => model_decisions(iLookDECISIONS%num_method)%iDecision     ,& ! choice of numerical solver
     ! canopy enthalpy
-    scalarCanopyIce          => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)          ,&  ! ice content of the vegetation canopy (kg m-2)
-    scalarCanopyEnthTemp     => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)     ,&  ! temperature component of enthalpy of the vegetation canopy (K)
-    scalarCanopyEnthalpy     => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)     ,&  ! enthalpy of the vegetation canopy (J m-3)
+    scalarCanopyIce          => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)          ,& ! ice content of the vegetation canopy (kg m-2)
+    scalarCanopyEnthTemp     => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)     ,& ! temperature component of enthalpy of the vegetation canopy (K)
+    scalarCanopyEnthalpy     => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)     ,& ! enthalpy of the vegetation canopy (J m-3)
     ! snow+soil enthalpy
-    mLayerVolFracIce         => prog_data%var(iLookPROG%mLayerVolFracIce)%dat            ,&  ! volumetric ice content in each snow+soil layer (-)
-    mLayerDepth              => prog_data%var(iLookPROG%mLayerDepth)%dat                 ,&  ! depth of each snow+soil layer (m)
-    mLayerEnthTemp           => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat              ,&  ! temperature component of enthalpy of each snow+soil layer (K)
-    mLayerEnthalpy           => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat              ,&  ! enthalpy of each snow+soil layer (J m-3)
-    scalarTotalSoilEnthalpy  => diag_data%var(iLookDIAG%scalarTotalSoilEnthalpy)%dat(1)  ,&  ! total enthalpy of the soil column (J m-3)
-    scalarTotalSnowEnthalpy  => diag_data%var(iLookDIAG%scalarTotalSnowEnthalpy)%dat(1)   &  ! total enthalpy of the snow column (J m-3)
+    mLayerVolFracIce         => prog_data%var(iLookPROG%mLayerVolFracIce)%dat            ,& ! volumetric ice content in each snow+soil layer (-)
+    mLayerDepth              => prog_data%var(iLookPROG%mLayerDepth)%dat                 ,& ! depth of each snow+soil layer (m)
+    mLayerEnthTemp           => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat              ,& ! temperature component of enthalpy of each snow+soil layer (K)
+    mLayerEnthalpy           => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat              ,& ! enthalpy of each snow+soil layer (J m-3)
+    scalarTotalSoilEnthalpy  => diag_data%var(iLookDIAG%scalarTotalSoilEnthalpy)%dat(1)  ,& ! total enthalpy of the soil column (J m-3)
+    scalarTotalSnowEnthalpy  => diag_data%var(iLookDIAG%scalarTotalSnowEnthalpy)%dat(1)   & ! total enthalpy of the snow column (J m-3)
     ) ! (association of local variables with information in the data structures
 
-    ! initialize the enthalpy
-    scalarCanopyEnthalpy = scalarCanopyEnthTemp
-    mLayerEnthalpy       = mLayerEnthTemp
-
-    ! compute enthalpy for current values
-    call enthTemp2enthalpy(&
-                    ! input: data structures
-                    diag_data,             & ! intent(in):    model diagnostic variables for a local HRU
-                    indx_data,             & ! intent(in):    model indices
-                    ! input: ice content change
-                    scalarCanopyIce,       & ! intent(in):    value for canopy ice content (kg m-2)
-                    mLayerVolFracIce,      & ! intent(in):    vector of volumetric ice water content (-)
-                    ! input/output: enthalpy
-                    scalarCanopyEnthalpy,  & ! intent(inout): value for enthalpy of the vegetation canopy (J m-3)
-                    mLayerEnthalpy,        & ! intent(inout): vector of enthalpy of each snow+soil layer (J m-3)
-                    ! output: error control    
-                    err,cmessage)            ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if((ixNrgConserv .ne. closedForm .or. computNrgBalance_var) .and. ixNumericalMethod .ne. ida)then ! computeEnthalpy = .true., use enthTemp to conserve energy or compute energy balance  
+      ! initialize the enthalpy
+      scalarCanopyEnthalpy = scalarCanopyEnthTemp
+      mLayerEnthalpy       = mLayerEnthTemp
+      ! compute enthalpy for current values
+      call enthTemp_or_enthalpy(&
+                      ! input: data structures
+                      .true.,                & ! intent(in):    flag to convert enthTemp to enthalpy
+                      diag_data,             & ! intent(in):    model diagnostic variables for a local HRU
+                      indx_data,             & ! intent(in):    model indices
+                      ! input: ice content change
+                      scalarCanopyIce,       & ! intent(in):    value for canopy ice content (kg m-2)
+                      mLayerVolFracIce,      & ! intent(in):    vector of volumetric ice water content (-)
+                      ! input/output: enthalpy
+                      scalarCanopyEnthalpy,  & ! intent(inout): enthTemp to enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthalpy,        & ! intent(inout): enthTemp to enthalpy of each snow+soil layer (J m-3)
+                      ! output: error control    
+                      err,cmessage)            ! intent(out): error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    end if
+    if(ixNrgConserv .ne. closedForm .and. ixNumericalMethod==ida) then ! enthalpyStateVec = .true., enthalpy as state variable
+      ! initialize the temperature component of enthalpy
+      scalarCanopyEnthTemp = scalarCanopyEnthalpy
+      mLayerEnthTemp       = mLayerEnthalpy                 
+      call enthTemp_or_enthalpy(&
+                      ! input: data structures
+                      .false.,               & ! intent(in):    flag to convert enthalpy to enthTemp
+                      diag_data,             & ! intent(in):    model diagnostic variables for a local HRU
+                      indx_data,             & ! intent(in):    model indices
+                      ! input: ice content change
+                      scalarCanopyIce,       & ! intent(in):    value for canopy ice content (kg m-2)
+                      mLayerVolFracIce,      & ! intent(in):    vector of volumetric ice water content (-)
+                      ! input/output: enthalpy
+                      scalarCanopyEnthTemp,  & ! intent(inout): enthTemp to enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthTemp,        & ! intent(inout): enthTemp to enthalpy of each snow+soil layer (J m-3)
+                      ! output: error control    
+                      err,cmessage)            ! intent(out): error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
     ! save the total soil enthalpy
     scalarTotalSoilEnthalpy = sum(mLayerEnthalpy(nSnow+1:nLayers) * mLayerDepth(nSnow+1:nLayers))/sum(mLayerDepth(nSnow+1:nLayers))
     ! save the total snow enthalpy

@@ -147,10 +147,10 @@ integer(i4b),parameter,public :: pahaut_76           = 314    ! Pahaut 1976, win
 ! look-up values for the choice of snow unloading from the canopy
 integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
 integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
-! look-up values for the choice of energy conservation residual
-integer(i4b),parameter,public :: enthalpyFD           = 323    ! enthalpy with hypergeometric function finite difference in backward Euler residual
-integer(i4b),parameter,public :: closedForm           = 324    ! heat capacity closed form in backward Euler residual
-integer(i4b),parameter,public :: enthalpyFDlu         = 325    ! enthalpy with lookup tables finite difference in backward Euler residual
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
+integer(i4b),parameter,public :: enthalpyFD           = 323    ! use enthalpy with analytical solution
+integer(i4b),parameter,public :: closedForm           = 324    ! use temperature
+integer(i4b),parameter,public :: enthalpyFDlu         = 325    ! use enthalpy with lookup tables
 ! -----------------------------------------------------------------------------------------------------------
 
 contains
@@ -412,12 +412,13 @@ subroutine mDecisions(err,message)
   endif
 #endif
 
-  ! choice of variable in energy conservation backward Euler residual, choice enthalpyFD has changes the residual computation and has better coincidence of energy conservation for backward Euler solution  
-  ! NOTE: choice does not change the residual for the IDA solution, as they are equivalent
+  ! choice of variable in either energy backward Euler residual (only, mixed form of equation) or IDA state variable 
+  ! for backward Euler solution, enthalpyFD has better coincidence of energy conservation
+  ! in IDA solution, enthalpyFD makes the state variables to be enthalpy and the residual is computed in enthalpy space
   select case(trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision))
-    case('closedForm'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm        ! heat capacity closed form in backward Euler residual
-    case('enthalpyFD'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFD        ! enthalpy with hypergeometric function finite difference in backward Euler residual
-    case('enthalpyFDlu'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFDlu      ! enthalpy with lookup tables finite difference in backward Euler residual
+    case('closedForm'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm        ! use temperature
+    case('enthalpyFD'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFD        ! use enthalpy with analytical solution
+    case('enthalpyFDlu'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFDlu      ! use enthalpy with lookup tables
     case default
       if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
         model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility
