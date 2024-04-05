@@ -1,4 +1,4 @@
-# written by A. Van Beusekom (2023)
+# written by A. Van Beusekom (2024)
 
 ## Visualize statistics per GRU
 ## Needs:
