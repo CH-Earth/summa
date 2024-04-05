@@ -24,11 +24,10 @@ viz_dir = Path('/home/avanb/scratch/statistics')
 testing = False
 if testing: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1en'] #cm','be1en','be1lu'] #maybe make this an argument
+    method_name=['be1en','be1en'] #cm','be1en','be1lu'] #maybe make this an argument
 else:
     import sys
-    # The first input argument specifies the run where the files are
-    method_name=['be1','be1en','be1lu'] #maybe make this an argument
+    method_name=['sundials_1en4','sundials_1en6','sundials_1en8'] #maybe make this an argument
 
 # Simulation statistics file locations
 viz_fl2 = method_name.copy()
@@ -61,7 +60,7 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t,stat):
     c = i-r*2
 
     # Data
-    for m in method_name:
+    for mm,m in enumerate(method_name):
         # Get the statistics, remove 9999 (should be nan, but just in case)
         s = np.fabs(summa[m][var].sel(stat=stat)).where(lambda x: x != 9999)
         s0 = np.fabs(summa[m][comp].sel(stat='std')).where(lambda x: x != 9999)
@@ -71,6 +70,26 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t,stat):
 
         axs[c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)
 
+        # Create a mask that is True where `s.values` and `s0.values` are not NaN
+        mask = ~np.isnan(s.values) & ~np.isnan(s0.values)
+
+        # Use the mask to filter `s.values` and `s0.values`
+        filtered_s_values = s.values[mask]
+        filtered_s0_values = s0.values[mask]
+
+        # Fit a linear regression model
+        coefficients = np.polyfit(filtered_s_values, filtered_s0_values, 1)
+        polynomial = np.poly1d(coefficients)
+
+        # Calculate the R-squared value
+        correlation_matrix = np.corrcoef(filtered_s_values, filtered_s0_values)
+        correlation_xy = correlation_matrix[0,1]
+        r_squared = correlation_xy**2
+        # Add the R-squared value to the plot
+        axs[c].text(0.05, 0.9-0.03*mm, f'{m} R² = {r_squared:.2f}', transform=axs[c].transAxes)
+        print(m,stat,'Coefficients:', coefficients, 'R-squared:', r_squared)
+
+
     if stat == 'mean': word = ' mean'
     if stat == 'amax': word = ' max'
  
@@ -78,8 +97,8 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t,stat):
     for j, m in enumerate(method_name):
        lgnd.legendHandles[j]._sizes = [80]
     axs[c].set_title(plt_t)
-    #axs[c].set_xscale('log')
-    #axs[c].set_yscale('log')
+    axs[c].set_xscale('log')
+    axs[c].set_yscale('log')
     
     axs[c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_t))
     axs[c].set_ylabel(stat0_word + ' [{}]'.format(leg_t0))
