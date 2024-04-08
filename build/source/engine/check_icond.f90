@@ -337,7 +337,6 @@ contains
                      ! output: error control    
                      err,cmessage)                   ! intent(out): error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     print*,scalarCanairTemp,scalarCanairEnthalpy
 
     end if ! (if enthalpy is the state variable)
     
