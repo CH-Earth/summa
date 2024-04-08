@@ -427,7 +427,7 @@ subroutine updateVarsWithPrime(&
         else
             dCanairTemp_dEnthalpy = 1._rkind
         endif
-        !print*, scalarCanairEnthalpyTrial, scalarCanairTempTrial, 'scalarCanairTempTrial'
+
         cycle ! no more to do on canopy air space
       elseif(ixDomainType==iname_veg)then
         if(enthalpyStateVec)then
@@ -444,7 +444,7 @@ subroutine updateVarsWithPrime(&
                    dCanopyTemp_dCanWat,        & ! intent(inout): derivative of canopy temperature with canopy water
                    err,cmessage)                 ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-          !print*, scalarCanopyEnthalpyTrial, scalarCanopyTempTrial, 'scalarCanopyTempTrial'
+
         else
           dCanopyTemp_dEnthalpy = 1._rkind
           dCanopyTemp_dCanWat   = 1._rkind
@@ -461,7 +461,7 @@ subroutine updateVarsWithPrime(&
                    dTemp_dTheta(iLayer),           & ! intent(inout): derivative of layer temperature with volumetric total water content
                    err,cmessage)                     ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-          !print*, mLayerEnthalpyTrial(iLayer), mLayerTempTrial(iLayer), 'mLayerTempTrial snow'
+
         else
           dTemp_dEnthalpy(iLayer) = 1._rkind
           dTemp_dTheta(iLayer)    = 1._rkind
@@ -487,7 +487,7 @@ subroutine updateVarsWithPrime(&
                    dTemp_dPsi0(ixControlIndex),            & ! intent(inout): derivative of layer temperature with total water matric potential
                    err,cmessage)                             ! intent(out):   error control
            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-           !print*, mLayerEnthalpyTrial(iLayer), mLayerTempTrial(iLayer), 'mLayerTempTrial soil'
+
         else
           dTemp_dEnthalpy(iLayer)     = 1._rkind
           dTemp_dTheta(iLayer)        = 1._rkind
