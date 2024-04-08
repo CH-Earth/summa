@@ -418,7 +418,7 @@ contains
  USE netcdf                                            ! netcdf capability
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
  USE time_utils_module,only:compJulDay                 ! convert calendar date to julian day
- USE get_ixname_module,only:get_ixforce                ! identify index of named variable
+ USE get_ixname_module,only:get_ixForce                ! identify index of named variable
  ! dummy variables
  real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step
  integer(i4b) ,intent(in)          :: ncId             ! NetCDF ID

@@ -948,7 +948,7 @@ subroutine read_output_file(err,message)
           case('1');    iFreq = iLookFREQ%timestep  ! assume timestep-level output
           case('24');   iFreq = iLookFREQ%day       ! assume daily output
           ! define cases where temporal aggregation is defined using a text string
-          case default; iFreq = get_ixfreq(freqName)
+          case default; iFreq = get_ixFreq(freqName)
         end select
 
         ! * check that we could find the index
