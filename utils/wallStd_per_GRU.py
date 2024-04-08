@@ -86,7 +86,7 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t,stat):
         correlation_xy = correlation_matrix[0,1]
         r_squared = correlation_xy**2
         # Add the R-squared value to the plot
-        axs[c].text(0.05, 0.9-0.03*mm, f'{m} R² = {r_squared:.2f}', transform=axs[c].transAxes)
+        axs[c].text(0.8, 0.5-0.03*mm, f'{m} R² = {r_squared:.2f}', transform=axs[c].transAxes)
         print(m,stat,'Coefficients:', coefficients, 'R-squared:', r_squared)
 
 

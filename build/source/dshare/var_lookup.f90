@@ -962,9 +962,9 @@ MODULE var_lookup
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12)
  ! number of possible output statistics
- type(iLook_stat),    public,parameter :: iLookStat     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
+ type(iLook_stat),    public,parameter :: iLookSTAT     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
  ! number of possible output frequencies
- type(iLook_freq),    public,parameter :: iLookFreq     =ilook_freq    (  1,  2,  3,  4)
+ type(iLook_freq),    public,parameter :: iLookFREQ     =ilook_freq    (  1,  2,  3,  4)
  ! named variables in the lookup table structure
  type(iLook_vLookup), public,parameter :: iLookLOOKUP   =ilook_vLookup (  1,  2,  3)
  ! define maximum number of variables of each type
@@ -983,8 +983,8 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarBpar      = storage_size(iLookBPAR)/iLength
  integer(i4b),parameter,public :: maxvarBvar      = storage_size(iLookBVAR)/iLength
  integer(i4b),parameter,public :: maxvarVarType   = storage_size(iLookVarType)/iLength
- integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookStat)/iLength
- integer(i4b),parameter,public :: maxvarFreq      = storage_size(iLookFreq)/iLength
+ integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookSTAT)/iLength
+ integer(i4b),parameter,public :: maxvarFreq      = storage_size(iLookFREQ)/iLength
  integer(i4b),parameter,public :: maxvarLookup    = storage_size(iLookLOOKUP)/iLength
 
  ! ***********************************************************************************************************

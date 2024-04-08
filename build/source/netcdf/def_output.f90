@@ -269,7 +269,7 @@ contains
  subroutine def_variab(ncid,iFreq,spatialDesire,timeDesire,metaData,ivtype,err,message)
  USE var_lookup,only:iLookvarType                   ! look up structure for variable typed
  USE data_types,only:var_info                       ! derived type for metaData
- USE var_lookup,only:iLookStat                      ! index into stats structure
+ USE var_lookup,only:iLookSTAT                      ! index into stats structure
  USE var_lookup,only:maxVarFreq                     ! # of available output frequencies
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixname_module,only:get_statName            ! statistics names for variable defs in output file
@@ -366,7 +366,7 @@ contains
   iStat = metaData(iVar)%statIndex(iFreq)
 
   ! create full variable name (append statistics info)
-  if(iStat==iLookStat%inst)then
+  if(iStat==iLookSTAT%inst)then
    catName = trim(metaData(iVar)%varName)
   else
    catName = trim(metaData(iVar)%varName)//'_'//trim(get_statName(iStat))
@@ -386,7 +386,7 @@ contains
 
   ! modify units for the summation
   catName = trim(metaData(iVar)%varunit)
-  if (iStat==iLookStat%totl) then
+  if (iStat==iLookSTAT%totl) then
 
    ! make sure that the units of this variable allow for integration
    if ((index(catName,'s-1')<=0).and.(index(catName,'s-2')<=0).and.(index(catName,'W m-2')<=0)) then

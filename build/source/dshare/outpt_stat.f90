@@ -35,7 +35,7 @@ contains
  USE nrtype
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE var_lookup,only:iLookVarType                   ! named variables for variable types
- USE var_lookup,only:iLookStat                      ! named variables for output statistics types
+ USE var_lookup,only:iLookSTAT                      ! named variables for output statistics types
  implicit none
 
  ! input variables
@@ -81,7 +81,7 @@ contains
 
    ! calculate statistics
    if (trim(meta(iVar)%varName)=='time') then
-    stat(iVar)%dat(iLookStat%inst) = tdata
+    stat(iVar)%dat(iLookSTAT%inst) = tdata
    else
     call calc_stats(meta(iVar),stat(iVar),tdata,resetStats,finalizeStats,statCounter,err,cmessage)
    end if
@@ -107,7 +107,7 @@ contains
  USE globalData,only:data_step        ! forcing timestep
  ! structures of named variables
  USE var_lookup,only:iLookVarType     ! named variables for variable types
- USE var_lookup,only:iLookFreq        ! named variables for output frequency
+ USE var_lookup,only:iLookFREQ        ! named variables for output frequency
  USE var_lookup,only:iLookSTAT        ! named variables for output statistics
  USE var_lookup,only:iLookTIME        ! named variables for time information
  implicit none
@@ -143,20 +143,20 @@ contains
    if(meta%varType/=iLookVarType%outstat) cycle     ! only calculate stats for scalars
    select case(meta%statIndex(iFreq))               ! act depending on the statistic
     ! -------------------------------------------------------------------------------------
-    case (iLookStat%totl)                           ! * summation over period                  
+    case (iLookSTAT%totl)                           ! * summation over period                  
      tstat(iFreq) = 0._rkind                           !     - resets stat at beginning of period
-    case (iLookStat%mean)                           ! * mean over period                       
+    case (iLookSTAT%mean)                           ! * mean over period                       
      tstat(iFreq) = 0._rkind                           !     - resets stat at beginning of period
-    case (iLookStat%vari)                           ! * variance over period                   
+    case (iLookSTAT%vari)                           ! * variance over period                   
      tstat(iFreq) = 0._rkind                           !     - resets E[X^2] term in var calc    
      tstat(maxVarFreq+iFreq) = 0._rkind                !     - resets E[X]^2 term                 
-    case (iLookStat%mini)                           ! * minimum over period                    
+    case (iLookSTAT%mini)                           ! * minimum over period                    
      tstat(iFreq) = huge(tstat(iFreq))              !     - resets stat at beginning of period 
-    case (iLookStat%maxi)                           ! * maximum over period                    
+    case (iLookSTAT%maxi)                           ! * maximum over period                    
      tstat(iFreq) = -huge(tstat(iFreq))             !     - resets stat at beginning of period 
-    case (iLookStat%mode)                           ! * mode over period      
+    case (iLookSTAT%mode)                           ! * mode over period      
      tstat(iFreq) = realMissing                     !     - does not work
-    case (iLookStat%inst)                           ! * instantaneous -- no need to reset
+    case (iLookSTAT%inst)                           ! * instantaneous -- no need to reset
     case default
      message=trim(message)//'unable to identify type of statistic [reset]'
      err=20; return
@@ -173,20 +173,20 @@ contains
   if(meta%varType/=iLookVarType%outstat) cycle        ! only calculate stats for scalars
   select case(meta%statIndex(iFreq))                  ! act depending on the statistic
    ! -------------------------------------------------------------------------------------
-   case (iLookStat%inst)                              ! * instantaneous value 
+   case (iLookSTAT%inst)                              ! * instantaneous value 
     tstat(iFreq) = tdata                              !     - data at a given time
-   case (iLookStat%totl)                              ! * summation over period                    
+   case (iLookSTAT%totl)                              ! * summation over period                    
     tstat(iFreq) = tstat(iFreq) + tdata*data_step     !     - increment data 
-   case (iLookStat%mean)                              ! * mean over period                       
+   case (iLookSTAT%mean)                              ! * mean over period                       
     tstat(iFreq) = tstat(iFreq) + tdata               !     -  increment data
-   case (iLookStat%vari)                              ! * variance over period                   
+   case (iLookSTAT%vari)                              ! * variance over period                   
     tstat(iFreq) = tstat(iFreq) + tdata**2                     ! - E[X^2] term in var calc    
     tstat(maxVarFreq+iFreq) = tstat(maxVarFreq+iFreq) + tdata  ! - E[X]^2 term                 
-   case (iLookStat%mini)                              ! * minimum over period                    
+   case (iLookSTAT%mini)                              ! * minimum over period                    
     if (tdata<tstat(iFreq)) tstat(iFreq) = tdata      !     - check value 
-   case (iLookStat%maxi)                              ! * maximum over period                    
+   case (iLookSTAT%maxi)                              ! * maximum over period                    
     if (tdata>tstat(iFreq)) tstat(iFreq) = tdata      !     - check value 
-   case (iLookStat%mode)                              ! * mode over period (does not workind)       
+   case (iLookSTAT%mode)                              ! * mode over period (does not workind)       
     tstat(iFreq) = realMissing
    case default
     message=trim(message)//'unable to identify type of statistic [calculating stats]'
@@ -204,9 +204,9 @@ contains
    if(meta%varType/=iLookVarType%outstat) cycle        ! only calculate stats for scalars
    select case(meta%statIndex(iFreq))                  ! act depending on the statistic
     ! -------------------------------------------------------------------------------------
-    case (iLookStat%mean)                              ! * mean over period
+    case (iLookSTAT%mean)                              ! * mean over period
      tstat(iFreq) = tstat(iFreq)/statCounter(iFreq)    !     - normalize sum into mean
-    case (iLookStat%vari)                              ! * variance over period
+    case (iLookSTAT%vari)                              ! * variance over period
      tstat(maxVarFreq+iFreq) = tstat(maxVarFreq+1)/statCounter(iFreq)            ! E[X] term
      tstat(iFreq) = tstat(iFreq)/statCounter(iFreq) - tstat(maxVarFreq+iFreq)**2 ! full variance
     case default ! do nothing -- don't need finalization for most stats

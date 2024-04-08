@@ -269,14 +269,15 @@ subroutine eval8summaWithPrime(&
     if (.not.insideSUN) then
       call checkFeas(&
                     ! input
-                    stateVec,     & ! intent(in):    model state vector (mixed units)
-                    mpar_data,    & ! intent(in):    model parameters
-                    prog_data,    & ! intent(in):    model prognostic variables for a local HRU
-                    indx_data,    & ! intent(in):    indices defining model states and layers
+                    stateVec,                   & ! intent(in):    model state vector (mixed units)
+                    mpar_data,                  & ! intent(in):    model parameters
+                    prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
+                    indx_data,                  & ! intent(in):    indices defining model states and layers
+                    ixNrgConserv.ne.closedForm, & ! intent(in):    flag to indicate if we are using enthalpy as state variable
                     ! output: feasibility
-                    feasible,     & ! intent(inout): flag to denote the feasibility of the solution
+                    feasible,                   & ! intent(inout): flag to denote the feasibility of the solution
                   ! output: error control
-                    err,cmessage)   ! intent(out):   error control
+                    err,cmessage)                 ! intent(out):   error control
 
       ! early return for non-feasible solutions
       if(.not.feasible)then
@@ -287,8 +288,7 @@ subroutine eval8summaWithPrime(&
       end if
     end if ! ( feasibility check )
 
-    if(ixNrgConserv == enthalpyFD .or. ixNrgConserv == enthalpyFDlu)then
-      ! use enthalpy as state variable, do not need state terms but do need flux term
+    if(ixNrgConserv == enthalpyFD .or. ixNrgConserv == enthalpyFDlu)then ! use enthalpy as state variable, do not need state terms but do need flux term
       updateStateCp = .false.
       updateFluxCp  = .true.
       needStateCm   = .false.

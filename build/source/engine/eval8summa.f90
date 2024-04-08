@@ -298,14 +298,15 @@ subroutine eval8summa(&
     if (.not.insideSUN) then
       call checkFeas(&
                     ! input
-                    stateVec,     & ! intent(in):    model state vector (mixed units)
-                    mpar_data,    & ! intent(in):    model parameters
-                    prog_data,    & ! intent(in):    model prognostic variables for a local HRU
-                    indx_data,    & ! intent(in):    indices defining model states and layers
+                    stateVec,                   & ! intent(in):    model state vector (mixed units)
+                    mpar_data,                  & ! intent(in):    model parameters
+                    prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
+                    indx_data,                  & ! intent(in):    indices defining model states and layers
+                    .false.,                    & ! intent(in):    currently never using enthalpy as state vector in BE
                     ! output: feasibility
-                    feasible,     & ! intent(inout): flag to denote the feasibility of the solution
+                    feasible,                   & ! intent(inout): flag to denote the feasibility of the solution
                   ! output: error control
-                    err,cmessage)   ! intent(out):   error control
+                    err,cmessage)                 ! intent(out):   error control
 
       ! early return for non-feasible solutions
       if(.not.feasible)then

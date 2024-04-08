@@ -418,6 +418,7 @@ subroutine checkFeas(&
                       mpar_data,                                 & ! intent(in):    model parameters
                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                       indx_data,                                 & ! intent(in):    indices defining model states and layers
+                      enthalpyStateVec,                          & ! intent(in):    flag if enthalpy is state variable
                       ! output: feasibility
                       feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control
@@ -430,6 +431,7 @@ subroutine checkFeas(&
   type(var_dlength),intent(in)    :: mpar_data                 ! model parameters
   type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
   type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
+  logical(lgt),intent(in)         :: enthalpyStateVec          ! flag if enthalpy is state variable
   ! output: feasibility
   logical(lgt),intent(inout)      :: feasible                  ! flag to denote the feasibility of the solution
   ! output: error control
@@ -473,7 +475,7 @@ subroutine checkFeas(&
     feasible=.true.
     ! check that the canopy air space temperature is reasonable
     if(ixCasNrg/=integerMissing)then
-      if(stateVec(ixCasNrg) > canopyTempMax) then 
+      if(stateVec(ixCasNrg) > canopyTempMax .and. .not.enthalpyStateVec)then 
         feasible=.false.
         message=trim(message)//'canopy air space temp high'
         !write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
@@ -482,7 +484,7 @@ subroutine checkFeas(&
 
     ! check that the canopy air space temperature is reasonable
     if(ixVegNrg/=integerMissing)then
-      if(stateVec(ixVegNrg) > canopyTempMax)then
+      if(stateVec(ixVegNrg) > canopyTempMax .and. .not.enthalpyStateVec)then
         feasible=.false.
         message=trim(message)//'canopy temp high'
         !write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
@@ -500,7 +502,7 @@ subroutine checkFeas(&
 
     ! check snow temperature is below freezing
     if(count(ixSnowOnlyNrg/=integerMissing)>0)then
-      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze))then
+      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze) .and. .not.enthalpyStateVec)then
         feasible=.false.
         message=trim(message)//'snow temp high'
         !do iLayer=1,nSnow

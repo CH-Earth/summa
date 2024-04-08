@@ -1087,11 +1087,11 @@ subroutine opSplittin(&
 
      ! make sure firstFluxCall fluxes are included in the mask
      if (firstFluxCall .and. addFirstFlux) then 
-      if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarSoilResistance) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarStomResistSunlit) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarStomResistShaded) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarPhotosynthesisSunlit) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
      fluxMask%var(iVar)%dat = desiredFlux
@@ -1108,11 +1108,11 @@ subroutine opSplittin(&
 
      ! make sure firstFluxCall fluxes are included in the mask
      if (firstFluxCall .and. addFirstFlux) then 
-      if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarSoilResistance) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarStomResistSunlit) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarStomResistShaded) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarPhotosynthesisSunlit) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
      if (nDomains==1) then ! no domain splitting

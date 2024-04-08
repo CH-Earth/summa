@@ -38,7 +38,7 @@ USE globalData,only:bpar_meta                 ! basin parameter metadata structu
 ! named variables
 USE var_lookup,only:maxvarFreq                ! maximum number of output files
 USE var_lookup,only:iLookTIME                 ! named variables for time data structure
-USE var_lookup,only:iLookFreq                 ! named variables for the frequency structure
+USE var_lookup,only:iLookFREQ                 ! named variables for the frequency structure
 
 ! safety: set private unless specified otherwise
 implicit none

@@ -67,6 +67,12 @@ USE mDecisions_module,only:       &
   qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
   bigBucket,                      & ! a big bucket (lumped aquifer model)
   noExplicit                         ! no explicit groundwater parameterization
+
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
+USE mDecisions_module,only:       &
+  closedForm,                     & ! use temperature
+  enthalpyFDlu,                   & ! use enthalpy with lookup tables
+  enthalpyFD                        ! use enthalpy with analytical solution
  
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:       &
@@ -482,14 +488,15 @@ subroutine summaSolve4ida(&
       feasible=.true.
       call checkFeas(&
                       ! input
-                      stateVec,            & ! intent(in):    model state vector (mixed units)
-                      eqns_data%mpar_data, & ! intent(in):    model parameters
-                      eqns_data%prog_data, & ! intent(in):    model prognostic variables for a local HRU
-                      eqns_data%indx_data, & ! intent(in):    indices defining model states and layers
+                      stateVec,                                             & ! intent(in):    model state vector (mixed units)
+                      eqns_data%mpar_data,                                  & ! intent(in):    model parameters
+                      eqns_data%prog_data,                                  & ! intent(in):    model prognostic variables for a local HRU
+                      eqns_data%indx_data,                                  & ! intent(in):    indices defining model states and layers
+        model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm, & ! intent(in):    flag to indicate if we are using enthalpy as state variable
                       ! output: feasibility
-                      feasible,            & ! intent(inout):   flag to denote the feasibility of the solution
+                      feasible,                                             & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control
-                      err,cmessage)           ! intent(out):   error control
+                      err,cmessage)                                           ! intent(out):   error control
     
       ! early return for non-feasible solutions, right now will just fail if goes infeasible
       if(.not.feasible)then

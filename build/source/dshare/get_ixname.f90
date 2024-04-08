@@ -1129,17 +1129,17 @@ contains
  ! public function get_ixfreq: get the index of the named variables for the output frequencies
  ! *******************************************************************************************************************
  function get_ixfreq(varName)
- USE var_lookup,only:iLookFreq                       ! indices of the named variables
+ USE var_lookup,only:iLookFREQ                       ! indices of the named variables
  implicit none
  ! define dummy variables
  character(*), intent(in) :: varName                 ! variable name
  integer(i4b)             :: get_ixfreq              ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('day'     ); get_ixFreq = iLookFreq%day      ! daily aggregation
-  case('month'   ); get_ixFreq = iLookFreq%month    ! monthly aggregation
-  case('annual'  ); get_ixFreq = iLookFreq%annual   ! yearly (annual) aggregation
-  case('timestep'); get_ixFreq = iLookFreq%timestep ! timestep-level output (no temporal aggregation)
+  case('day'     ); get_ixFreq = iLookFREQ%day      ! daily aggregation
+  case('month'   ); get_ixFreq = iLookFREQ%month    ! monthly aggregation
+  case('annual'  ); get_ixFreq = iLookFREQ%annual   ! yearly (annual) aggregation
+  case('timestep'); get_ixFreq = iLookFREQ%timestep ! timestep-level output (no temporal aggregation)
   ! get to here if cannot find the variable
   case default
    get_ixfreq = integerMissing
@@ -1150,20 +1150,20 @@ contains
  ! public function get_ixStat: get the named variables for the statistics
  ! ***************************************************************************************************************
  function get_ixStat(varName)
- USE var_lookup,only:iLookStat                   ! indices of the possible output statistics
+ USE var_lookup,only:iLookSTAT                   ! indices of the possible output statistics
  implicit none
  ! define dummy variables
  character(*), intent(in) :: varName             ! variable name
  integer(i4b)             :: get_ixStat          ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('total'   ); get_ixStat = iLookStat%totl
-  case('instant' ); get_ixStat = iLookStat%inst
-  case('mean'    ); get_ixStat = iLookStat%mean
-  case('variance'); get_ixStat = iLookStat%vari
-  case('minimum' ); get_ixStat = iLookStat%mini
-  case('maximum' ); get_ixStat = iLookStat%maxi
-  case('mode'    ); get_ixStat = iLookStat%mode
+  case('total'   ); get_ixStat = iLookSTAT%totl
+  case('instant' ); get_ixStat = iLookSTAT%inst
+  case('mean'    ); get_ixStat = iLookSTAT%mean
+  case('variance'); get_ixStat = iLookSTAT%vari
+  case('minimum' ); get_ixStat = iLookSTAT%mini
+  case('maximum' ); get_ixStat = iLookSTAT%maxi
+  case('mode'    ); get_ixStat = iLookSTAT%mode
   ! get to here if cannot find the variable
   case default
    get_ixStat = integerMissing
@@ -1174,17 +1174,17 @@ contains
  ! public function get_freqName: get the name of the output frequency type
  ! ***************************************************************************************************************
  function get_freqName(ifreq)
- USE var_lookup,only:iLookFreq                   ! indices of the possible output frequencies
+ USE var_lookup,only:iLookFREQ                   ! indices of the possible output frequencies
  implicit none
  ! define dummy variables
  integer(i4b), intent(in) :: ifreq               ! output frequency index
  character(LEN=10)        :: get_freqName        ! name of the output frequency
  ! get the index of the named variables
  select case(ifreq)
-  case(iLookFreq%day);      get_freqName='day'
-  case(iLookFreq%month);    get_freqName='month'
-  case(iLookFreq%annual);   get_freqName='annual'
-  case(iLookFreq%timestep); get_freqName='timestep'
+  case(iLookFREQ%day);      get_freqName='day'
+  case(iLookFREQ%month);    get_freqName='month'
+  case(iLookFREQ%annual);   get_freqName='annual'
+  case(iLookFREQ%timestep); get_freqName='timestep'
   ! get to here if cannot find the variable
   case default
    get_freqName = 'unknown'
@@ -1195,20 +1195,20 @@ contains
  ! public function get_statName: get the name of the output statistics type
  ! ***************************************************************************************************************
  function get_statName(istat)
- USE var_lookup,only:iLookStat                   ! indices of the possible output statistics
+ USE var_lookup,only:iLookSTAT                   ! indices of the possible output statistics
  implicit none
  ! define dummy variables
  integer(i4b), intent(in) :: istat               ! stat type name
  character(LEN=10)         :: get_statName       ! name of the statistic
  ! get the index of the named variables
  select case(istat)
-  case(iLookStat%totl);get_statName='total'
-  case(iLookStat%inst);get_statName='instant'
-  case(iLookStat%mean);get_statName='mean'
-  case(iLookStat%vari);get_statName='variance'
-  case(iLookStat%mini);get_statName='minimum'
-  case(iLookStat%maxi);get_statName='maximum'
-  case(iLookStat%mode);get_statName='mode'
+  case(iLookSTAT%totl);get_statName='total'
+  case(iLookSTAT%inst);get_statName='instant'
+  case(iLookSTAT%mean);get_statName='mean'
+  case(iLookSTAT%vari);get_statName='variance'
+  case(iLookSTAT%mini);get_statName='minimum'
+  case(iLookSTAT%maxi);get_statName='maximum'
+  case(iLookSTAT%mode);get_statName='mode'
   ! get to here if cannot find the variable
   case default
    get_statName = 'unknown'

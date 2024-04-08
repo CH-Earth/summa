@@ -547,7 +547,7 @@ subroutine varSubstep(&
             do ixLayer=ixMin(1),ixMax(1)
               if(fluxMask%var(iVar)%dat(ixLayer)) then
                 ! special case of the transpiration sink from soil layers: only computed for the top soil layer
-                if(iVar==iLookFlux%mLayerTranspire)then
+                if(iVar==iLookFLUX%mLayerTranspire)then
                   if(ixLayer==1) flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
                 ! standard case
                 else

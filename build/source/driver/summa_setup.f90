@@ -42,11 +42,11 @@ USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 ! metadata structures
 USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 
-! look-up values for the choice of heat capacity computation
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:&
-  closedForm,&                          ! heat capacity closed form in backward Euler residual
-  enthalpyFDlu,&                        ! enthalpy with lookup tables finite difference in backward Euler residual
-  enthalpyFD                            ! enthalpy with hypergeometric function finite difference in backward Euler residual
+  closedForm,&                          ! use temperature
+  enthalpyFDlu,&                        ! use enthalpy with lookup tables
+  enthalpyFD                            ! use enthalpy with analytical solution
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&

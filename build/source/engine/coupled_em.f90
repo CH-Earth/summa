@@ -1498,6 +1498,7 @@ subroutine coupled_em(&
                       err,cmessage)            ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
+
     if(ixNrgConserv .ne. closedForm .and. ixNumericalMethod==ida) then ! enthalpyStateVec = .true., enthalpy as state variable
       ! initialize the temperature component of enthalpy
       scalarCanopyEnthTemp = scalarCanopyEnthalpy

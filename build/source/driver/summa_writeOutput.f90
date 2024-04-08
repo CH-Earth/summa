@@ -56,7 +56,7 @@ USE var_lookup,only:iLookTIME                 ! named variables for time data st
 USE var_lookup,only:iLookDIAG                 ! named variables for local column model diagnostic variables
 USE var_lookup,only:iLookPROG                 ! named variables for local column model prognostic variables
 USE var_lookup,only:iLookINDEX                ! named variables for local column index variables
-USE var_lookup,only:iLookFreq                 ! named variables for the frequency structure
+USE var_lookup,only:iLookFREQ                 ! named variables for the frequency structure
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -176,7 +176,7 @@ contains
   finalizeStats(:) = .false.  ! do not finalize stats on the first time step
 
   ! set stats flag for the timestep-level output
-  finalizeStats(iLookFreq%timestep)=.true.
+  finalizeStats(iLookFREQ%timestep)=.true.
 
   ! initialize number of hru and gru in global data
   nGRUrun = nGRU

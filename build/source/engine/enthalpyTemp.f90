@@ -518,7 +518,7 @@ subroutine T2enthTemp(&
 
     ! initialize error control
     err=0; message="T2enthTemp/"
-
+  
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
 

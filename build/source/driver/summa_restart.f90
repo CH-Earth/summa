@@ -68,6 +68,16 @@ contains
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
   localColumn, & ! separate groundwater representation in each local soil column
   singleBasin    ! single groundwater store over the entire basin
+! look-up values for the numerical method
+USE mDecisions_module,only:&
+  numrec      ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+  kinsol      ,& ! SUNDIALS backward Euler solution using Kinsol
+  ida            ! SUNDIALS solution using IDA
+ ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
+ USE mDecisions_module,only:&
+  closedForm,   & ! use temperature
+  enthalpyFDlu, & ! use enthalpy with lookup tables
+  enthalpyFD      ! use enthalpy with analytical solution
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -80,26 +90,30 @@ contains
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
  character(LEN=256)                    :: restartFile        ! restart file name
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
+ logical(lgt)                          :: enthalpyStateVec   ! flag if enthalpy is a state variable (ida)
+ logical(lgt)                          :: use_lookup         ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
- summaVars: associate(&
-
+ summaVars: associate(& 
+  ! model decisions
+  ixNumericalMethod    => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& !choice of numerical solver
+  ixNrgConserv         => model_decisions(iLookDECISIONS%nrgConserv)%iDecision   ,& !choice of variable in energy conservation backward Euler residual
+  spatial_gw           => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& !choice of method for the spatial representation of groundwater
+  ! lookup table data structure
+  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
   ! primary data structures (variable length vectors)
   indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
   mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
   progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
   diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
   fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
   nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
-
  ) ! assignment to variables in the data structures
  
  ! ---------------------------------------------------------------------------------------
@@ -130,11 +144,19 @@ contains
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! check initial conditions
+! check initial conditions
+ enthalpyStateVec = .false.
+ use_lookup       = .false.
+ if(ixNrgConserv .ne. closedForm .and. ixNumericalMethod==ida) enthalpyStateVec = .true. ! enthalpy as state variable
+ if(ixNrgConserv==enthalpyFDlu) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
  call check_icond(nGRU,                         & ! intent(in):    number of response units
-                  progStruct,                   & ! intent(in):    model prognostic (state) variables
+                  progStruct,                   & ! intent(inout): model prognostic variables
+                  diagStruct,                   & ! intent(inout): model diagnostic variables
                   mparStruct,                   & ! intent(in):    model parameters
-                  indxStruct,                   & ! intent(in):    layer indexes
+                  indxStruct,                   & ! intent(inout): layer indexes
+                  lookupStruct,                 & ! intent(in):    lookup tables
+                  enthalpyStateVec,             & ! intent(in):    flag if enthalpy is the state variable
+                  use_lookup,                   & ! intent(in):    flag to use the lookup table for soil enthalpy
                   err,cmessage)                   ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -196,7 +218,7 @@ contains
   !  and ensure that basin-average aquifer storage is zero when groundwater is included in the local columns (localColumn).
 
   ! select groundwater option
-  select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
+  select case(spatial_gw)
 
    ! the basin-average aquifer storage is not used if the groundwater is included in the local column
    case(localColumn)

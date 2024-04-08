@@ -362,6 +362,7 @@ subroutine summaSolve4kinsol(&
                     eqns_data%mpar_data,                       & ! intent(in):    model parameters
                     eqns_data%prog_data,                       & ! intent(in):    model prognostic variables for a local HRU
                     eqns_data%indx_data,                       & ! intent(in):    indices defining model states and layers
+                    .false.,                                   & ! intent(in):    currently never using enthalpy as state vector in BE
                     ! output: feasibility
                     feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control

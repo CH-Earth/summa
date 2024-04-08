@@ -945,8 +945,8 @@ subroutine read_output_file(err,message)
         ! * identify index in  vector
         select case(freqName)
           ! define cases where temporal aggregation is numeric
-          case('1');    iFreq = iLookFreq%timestep  ! assume timestep-level output
-          case('24');   iFreq = iLookFreq%day       ! assume daily output
+          case('1');    iFreq = iLookFREQ%timestep  ! assume timestep-level output
+          case('24');   iFreq = iLookFREQ%day       ! assume daily output
           ! define cases where temporal aggregation is defined using a text string
           case default; iFreq = get_ixfreq(freqName)
         end select
