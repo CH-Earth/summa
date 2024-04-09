@@ -153,7 +153,7 @@ USE mDecisions_module,only:&
                   progStruct,                   & ! intent(inout): model prognostic variables
                   diagStruct,                   & ! intent(inout): model diagnostic variables
                   mparStruct,                   & ! intent(in):    model parameters
-                  indxStruct,                   & ! intent(inout): layer indexes
+                  indxStruct,                   & ! intent(in):    layer indexes
                   lookupStruct,                 & ! intent(in):    lookup tables
                   enthalpyStateVec,             & ! intent(in):    flag if enthalpy is the state variable
                   use_lookup,                   & ! intent(in):    flag to use the lookup table for soil enthalpy

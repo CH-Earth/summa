@@ -198,7 +198,7 @@ subroutine varSubstep(&
   real(rkind)                        :: sumBalance(in_varSubstep % nSubset)    ! sum of substeps balance
   logical(lgt),parameter             :: computMassBalance = .true.             ! flag to compute the mass balance, will affect step length, default true
   logical(lgt),parameter             :: computNrgBalance = .true.              ! flag to compute the energy balance, will not effect solution but will not compute nrg balance if false (saves expense)
-  logical(lgt)                       :: computeEnthalpy                        ! flag to compute enthalpy regardless of the model decision
+  logical(lgt)                       :: computeEnthTemp                        ! flag to compute enthalpy regardless of the model decision
   logical(lgt)                       :: enthalpyStateVec                       ! flag if enthalpy is a state variable (ida)
   logical(lgt)                       :: use_lookup                             ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
 
@@ -277,10 +277,10 @@ subroutine varSubstep(&
     failedMinimumStep=.false.
 
     ! set the flag to compute enthalpy, may want to have this true always if want to output enthalpy
-    computeEnthalpy  = .false.
+    computeEnthTemp  = .false.
     enthalpyStateVec = .false.
     use_lookup       = .false.
-    if((ixNrgConserv .ne. closedForm .or. computNrgBalance) .and. ixNumericalMethod .ne. ida) computeEnthalpy = .true. ! use enthTemp to conserve energy or compute energy balance
+    if((ixNrgConserv .ne. closedForm .or. computNrgBalance) .and. ixNumericalMethod .ne. ida) computeEnthTemp = .true. ! use enthTemp to conserve energy or compute energy balance
     if(ixNrgConserv .ne. closedForm .and. ixNumericalMethod==ida) enthalpyStateVec = .true. ! enthalpy as state variable
     if(ixNrgConserv==enthalpyFDlu) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
 
@@ -450,7 +450,7 @@ subroutine varSubstep(&
 
       ! update prognostic variables, update balances, and check them for possible step reduction if numrec or kinsol
       call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                    & ! input: states
-                      doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthalpy,enthalpyStateVec,use_lookup,& ! input: model control
+                      doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthTemp,enthalpyStateVec,use_lookup,& ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! output: balances, flags, and error control
       if(err/=0)then
@@ -627,7 +627,7 @@ end subroutine varSubstep
 ! private subroutine updateProg: update prognostic variables
 ! **********************************************************************************************************
 subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                           & ! input: states
-                      doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthalpy,enthalpyStateVec,use_lookup,& ! input: model control
+                      doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthTemp,enthalpyStateVec,use_lookup,& ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! input-output: balances, flags, and error control
 USE getVectorz_module,only:varExtract                              ! extract variables from the state vector
@@ -635,8 +635,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   USE updateVarsWithPrime_module,only:updateVarsWithPrime          ! update prognostic variables
 #endif
   USE updateVars_module,only:updateVars                            ! update prognostic variables
-  USE enthalpyTemp_module,only:T2enthTemp                          ! compute enthalpy
-  USE enthalpyTemp_module,only:enthTemp_or_enthalpy                   ! add phase change terms to delta temperature component of enthalpy
+  USE enthalpyTemp_module,only:enthTemp_or_enthalpy                ! add phase change terms to delta temperature component of enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                            ! time step (s)
@@ -650,7 +649,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)      ,intent(in)    :: stateVecPrime(:)              ! trial state vector (mixed units)
   logical(lgt)     ,intent(in)    :: computMassBalance             ! flag to check the mass balance
   logical(lgt)     ,intent(in)    :: computNrgBalance              ! flag to check the energy balance
-  logical(lgt)     ,intent(in)    :: computeEnthalpy               ! flag to compute enthalpy
+  logical(lgt)     ,intent(in)    :: computeEnthTemp               ! flag to compute enthalpy
   logical(lgt)     ,intent(in)    :: enthalpyStateVec              ! flag if enthalpy is a state variable (ida)
   logical(lgt)     ,intent(in)    :: use_lookup                    ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
   ! data structures
@@ -980,62 +979,40 @@ USE getVectorz_module,only:varExtract                              ! extract var
 #endif
       case(kinsol, numrec)
 
-         ! update diagnostic variables
+        ! update diagnostic variables
         call updateVars(&
                  ! input
-                 doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                 mpar_data,                & ! intent(in):    model parameters for a local HRU
-                 indx_data,                & ! intent(in):    indices defining model states and layers
-                 prog_data,                & ! intent(in):    model prognostic variables for a local HRU
-                 diag_data,                & ! intent(inout): model diagnostic variables for a local HRU
-                 deriv_data,               & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                 computeEnthTemp,           & ! intent(in):    flag if computing temperature compoment of enthalpy
+                 use_lookup,                & ! intent(in):    flag to use the lookup table for soil enthalpy
+                 doAdjustTemp,              & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 mpar_data,                 & ! intent(in):    model parameters for a local HRU
+                 indx_data,                 & ! intent(in):    indices defining model states and layers
+                 prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
+                 diag_data,                 & ! intent(inout): model diagnostic variables for a local HRU
+                 deriv_data,                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                 lookup_data,               & ! intent(in):    lookup table data structure
+                 scalarCanairTempTrial,     & ! intent(in):    trial value of canopy air space temperature (K)
                  ! output: variables for the vegetation canopy
-                 scalarCanopyTempTrial,    & ! intent(inout): trial value of canopy temperature (K)
-                 scalarCanopyWatTrial,     & ! intent(inout): trial value of canopy total water (kg m-2)
-                 scalarCanopyLiqTrial,     & ! intent(inout): trial value of canopy liquid water (kg m-2)
-                 scalarCanopyIceTrial,     & ! intent(inout): trial value of canopy ice content (kg m-2)
+                 scalarCanopyTempTrial,     & ! intent(inout): trial value of canopy temperature (K)
+                 scalarCanopyWatTrial,      & ! intent(inout): trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial,      & ! intent(inout): trial value of canopy liquid water (kg m-2)
+                 scalarCanopyIceTrial,      & ! intent(inout): trial value of canopy ice content (kg m-2)
                  ! output: variables for the snow-soil domain
-                 mLayerTempTrial,          & ! intent(inout): trial vector of layer temperature (K)
-                 mLayerVolFracWatTrial,    & ! intent(inout): trial vector of volumetric total water content (-)
-                 mLayerVolFracLiqTrial,    & ! intent(inout): trial vector of volumetric liquid water content (-)
-                 mLayerVolFracIceTrial,    & ! intent(inout): trial vector of volumetric ice water content (-)
-                 mLayerMatricHeadTrial,    & ! intent(inout): trial vector of total water matric potential (m)
-                 mLayerMatricHeadLiqTrial, & ! intent(inout): trial vector of liquid water matric potential (m)
+                 mLayerTempTrial,           & ! intent(inout): trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial,     & ! intent(inout): trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial,     & ! intent(inout): trial vector of volumetric liquid water content (-)
+                 mLayerVolFracIceTrial,     & ! intent(inout): trial vector of volumetric ice water content (-)
+                 mLayerMatricHeadTrial,     & ! intent(inout): trial vector of total water matric potential (m)
+                 mLayerMatricHeadLiqTrial,  & ! intent(inout): trial vector of liquid water matric potential (m)
+                 ! output: enthalpy state variables  
+                 scalarCanairEnthalpyTrial, & ! intent(inout): trial value for enthalpy of the canopy air space (J m-3)
+                 scalarCanopyEnthTempTrial, & ! intent(inout): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                 mLayerEnthTempTrial,       & ! intent(inout): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)                     
                  ! output: error control
-                 err,cmessage)               ! intent(out):   error control
+                 err,cmessage)                ! intent(out):   error control
+
     end select
-
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-    ! ----
-    ! * update enthalpy
-    !------------------------
-    if(computeEnthalpy)then ! update diagnostic enthalpy variables if needed
-      ! compute enthalpy at t_{n+1}
-      call T2enthTemp(&
-                  use_lookup,                  & ! intent(in):  flag to use the lookup table for soil enthalpy
-                  ! input: data structures
-                  diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
-                  mpar_data,                   & ! intent(in):  parameter data structure
-                  indx_data,                   & ! intent(in):  model indices
-                  lookup_data,                 & ! intent(in):  lookup table data structure
-                  ! input: state variables for the vegetation canopy
-                  scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
-                  scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
-                  scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
-                  ! input: variables for the snow-soil domain
-                  mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
-                  mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
-                  mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
-                  ! output: enthalpy
-                  scalarCanairEnthalpyTrial,   & ! intent(out): enthalpy of the canopy air space (J m-3)
-                  scalarCanopyEnthTempTrial,   & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                  mLayerEnthTempTrial,         & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
-                  ! output: error control
-                  err,cmessage)                  ! intent(out): error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      
-    endif
 
     if(computNrgBalance)then
       ! compute energy balance if didn't do inside solver substeps
@@ -1360,7 +1337,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
 
     ! -----
     ! * update enthalpy as a diagnostic variable... 
-    !   if computeEnthalpy then enthTemp will change, if enthalpyStateVec then enthalpy will change
+    !   if computeEnthTemp then enthTemp will change, if enthalpyStateVec then enthalpy will change
     ! --------------------------------
     scalarCanairEnthalpy = scalarCanairEnthalpyTrial ! equivalent to scalarCanairEnthTemp
     scalarCanopyEnthTemp = scalarCanopyEnthTempTrial

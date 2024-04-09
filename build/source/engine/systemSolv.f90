@@ -79,12 +79,6 @@ USE data_types,only:&
                     io_type_summaSolve4numrec, & ! class for summaSolve4numrec arguments
                     out_type_summaSolve4numrec   ! class for summaSolve4numrec arguments
 
-! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
-USE mDecisions_module,only:       &
-                    closedForm,   & ! use temperature
-                    enthalpyFDlu, & ! use enthalpy with lookup tables
-                    enthalpyFD      ! use enthalpy with analytical solution
-
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:&
                     localColumn,  & ! separate groundwater representation in each local soil column
@@ -162,7 +156,6 @@ subroutine systemSolv(&
   ! state vector and solver
   USE getVectorz_module,only:getScaling                   ! get the scaling vectors
   USE enthalpyTemp_module,only:T2enthalpy_snwWat          ! convert temperature to liq+ice enthalpy for a snow layer
-  USE enthalpyTemp_module,only:T2enthTemp                 ! compute enthalpy
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                      ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime ! get the fluxes and residuals
@@ -394,17 +387,10 @@ contains
   ! initialize the trial state vectors
   stateVecTrial = stateVecInit
 
-  associate(&
-   ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision,& ! intent(in): [i4b] choice of numerical solver
-   ixNrgConserv      => model_decisions(iLookDECISIONS%nrgConserv)%iDecision & ! intent(in): [i4b] choice of variable in energy conservation backward Euler residual
-   &)
-   if ((ixNrgConserv.ne.closedForm .or. computNrgBalance) .and. ixNumericalMethod.ne.ida) then
-    call enthalpy_function_evaluations; if (return_flag) return
-   end if
-
   ! compute the initial flux and the residual vector, also gets values needed for the Jacobian matrix 
-   if (ixNrgConserv.ne.closedForm .and. ixNumericalMethod==ida) then
-    call initial_flux_and_residual_vectors_prime; if (return_flag) return ! if we add enthalpy state variable option to non-ida, we do not need this anymore
+  associate(ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision) ! intent(in): [i4b] choice of numerical solver
+   if (ixNumericalMethod==ida) then
+    call initial_flux_and_residual_vectors_prime; if (return_flag) return
    else
     call initial_flux_and_residual_vectors; if (return_flag) return
    end if
@@ -439,47 +425,6 @@ contains
    end if
   end associate
  end subroutine initial_function_evaluations
-
- subroutine enthalpy_function_evaluations
-  ! ** Compute H_T at the beginning of the data step without phase change **
-  associate(&
-   ixNrgConserv         => model_decisions(iLookDECISIONS%nrgConserv)%iDecision,& ! intent(in): [i4b] choice of variable in energy conservation backward Euler residual
-   scalarCanairTemp     => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)    ,& ! intent(in): [dp] temperature of the canopy air space (K)
-   scalarCanopyTemp     => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)    ,& ! intent(in): [dp] temperature of the vegetation canopy (K)
-   scalarCanopyWat      => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)     ,& ! intent(in): [dp] mass of total water on the vegetation canopy (kg m-2)
-   mLayerTemp           => prog_data%var(iLookPROG%mLayerTemp)%dat             ,& ! intent(in): [dp(:)] temperature of each snow/soil layer (K)
-   mLayerVolFracWat     => prog_data%var(iLookPROG%mLayerVolFracWat)%dat       ,& ! intent(in): [dp(:)] volumetric fraction of total water (-)
-   mLayerMatricHead     => prog_data%var(iLookPROG%mLayerMatricHead)%dat       ,& ! intent(inout): [dp(:)] matric head (m)
-   scalarCanairEnthalpy => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1),& ! intent(out): [dp] enthalpy of the canopy air space (J m-3)
-   scalarCanopyEnthTemp => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1),& ! intent(out): [dp] temperature component of enthalpy of the vegetation canopy (J m-3)
-   mLayerEnthTemp       => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat          & ! intent(out): [dp(:)] temperature component of enthalpy of the snow+soil layers (J m-3)
-   &)
-
-   ! will need enthalpy change, compute H_T at the beginning of the data step
-   call T2enthTemp(&
-                 ixNrgConserv==enthalpyFDlu,  & ! intent(in):  flag to use the lookup table for soil enthalpy
-                 ! input: data structures
-                 diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
-                 mpar_data,                   & ! intent(in):  parameter data structure
-                 indx_data,                   & ! intent(in):  model indices
-                 lookup_data,                 & ! intent(in):  lookup table data structure
-                 ! input: state variables for the vegetation canopy
-                 scalarCanairTemp,            & ! intent(in):  value of canopy air temperature (K)
-                 scalarCanopyTemp,            & ! intent(in):  value of canopy temperature (K)
-                 scalarCanopyWat,             & ! intent(in):  value of canopy total water (kg m-2)
-                 ! input: variables for the snow-soil domain
-                 mLayerTemp,                  & ! intent(in):  vector of layer temperature (K)
-                 mLayerVolFracWat,            & ! intent(in):  vector of volumetric total water content (-)
-                 mLayerMatricHead,            & ! intent(in):  vector of total water matric potential (m)
-                 ! output: enthalpy
-                 scalarCanairEnthalpy,        & ! intent(out): enthalpy of the canopy air space (J m-3)
-                 scalarCanopyEnthTemp,        & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                 mLayerEnthTemp,              & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
-                 ! output: error control
-                 err,cmessage)                  ! intent(out): error control
-  end associate
-  if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
- end subroutine enthalpy_function_evaluations
 
  subroutine initial_flux_and_residual_vectors
   ! ** Compute initial flux and residual vectors ** 

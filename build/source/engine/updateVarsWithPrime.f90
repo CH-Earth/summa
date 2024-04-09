@@ -22,8 +22,6 @@ module updateVarsWithPrime_module
 
 ! data types
 USE nrtype
-USE data_types,only:zLookup         ! z(:)%var(:)%lookup(:)
-
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -65,6 +63,7 @@ USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
+                    zLookup,      & ! data vector with variable length dimension (rkind)
                     var_dlength     ! data vector with variable length dimension (rkind)
 
 ! provide access to indices that define elements of the data structures
@@ -263,8 +262,8 @@ subroutine updateVarsWithPrime(&
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                   ,& ! intent(in):  [dp(:)]  soil porosity (-)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                   ,& ! intent(in):  [dp(:)]  soil residual volumetric water content (-)
     ! model diagnostic variables (heat capacity, enthalpy)
-    specificHeatVeg   => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)                ,& ! intent(in):  [dp   ]  specific heat of vegetation (J kg-1 K-1)
-    maxMassVegetation => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1)              ,& ! intent(in):  [dp   ]  maximum mass of vegetation (kg m-2)
+    specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)          ,& ! intent(in):  [dp   ]  specific heat of vegetation (J kg-1 K-1)
+    maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1)        ,& ! intent(in):  [dp   ]  maximum mass of vegetation (kg m-2)
     canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)         ,& ! intent(in):  [dp   ]  canopy depth (m)
     scalarBulkVolHeatCapVeg => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)   ,& ! intent(in):  [dp   ]  volumetric heat capacity of the vegetation (J m-3 K-1)
     mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat           ,& ! intent(in):  [dp(:)]  volumetric heat capacity in each layer (J m-3 K-1)
@@ -368,6 +367,22 @@ subroutine updateVarsWithPrime(&
         print*, 'isNrgState     = ', isNrgState
       endif
 
+      ! compute temperature from enthalpy for canopy air space
+      if(ixDomainType==iname_cas)then
+        if(enthalpyStateVec)then
+          call enthalpy2T_cas(&
+                   computJac,                  & ! intent(in):  flag if computing for Jacobian update
+                   scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
+                   scalarCanairTempTrial,      & ! intent(out): trial value for canopy air temperature (K)
+                   dCanairTemp_dEnthalpy,      & ! intent(out): derivative of canopy air temperature with enthalpy
+                   err,cmessage)                 ! intent(out): error control
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        else
+            dCanairTemp_dEnthalpy = 0._rkind
+        endif
+        cycle ! no more to do on canopy air space
+      end if
+
       ! update hydrology state variables for the uncoupled solution
       if(.not.isNrgState .and. .not.isCoupled)then
 
@@ -413,23 +428,8 @@ subroutine updateVarsWithPrime(&
 
       endif  ! if hydrology state variable or uncoupled solution
 
-      ! compute temperature from enthalpy and water content 
-      ! NOTE: always do no matter coupling state if enthalpy is the state variable
-      if(ixDomainType==iname_cas)then
-        if(enthalpyStateVec)then
-          call enthalpy2T_cas(&
-                   computJac,                  & ! intent(in):  flag if computing for Jacobian update
-                   scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
-                   scalarCanairTempTrial,      & ! intent(out): trial value for canopy air temperature (K)
-                   dCanairTemp_dEnthalpy,      & ! intent(out): derivative of canopy air temperature with enthalpy
-                   err,cmessage)                 ! intent(out): error control
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-        else
-            dCanairTemp_dEnthalpy = 1._rkind
-        endif
-
-        cycle ! no more to do on canopy air space
-      elseif(ixDomainType==iname_veg)then
+      ! compute temperature from enthalpy and water content for remaining domains 
+      if(ixDomainType==iname_veg)then
         if(enthalpyStateVec)then
           call enthalpy2T_veg(&
                    computJac,                  & ! intent(in):    flag if computing for Jacobian update          
@@ -444,10 +444,9 @@ subroutine updateVarsWithPrime(&
                    dCanopyTemp_dCanWat,        & ! intent(inout): derivative of canopy temperature with canopy water
                    err,cmessage)                 ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
         else
-          dCanopyTemp_dEnthalpy = 1._rkind
-          dCanopyTemp_dCanWat   = 1._rkind
+          dCanopyTemp_dEnthalpy = 0._rkind
+          dCanopyTemp_dCanWat   = 0._rkind
         endif
       elseif(ixDomainType==iname_snow)then
         if(enthalpyStateVec)then
@@ -461,10 +460,9 @@ subroutine updateVarsWithPrime(&
                    dTemp_dTheta(iLayer),           & ! intent(inout): derivative of layer temperature with volumetric total water content
                    err,cmessage)                     ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
         else
-          dTemp_dEnthalpy(iLayer) = 1._rkind
-          dTemp_dTheta(iLayer)    = 1._rkind
+          dTemp_dEnthalpy(iLayer) = 0._rkind
+          dTemp_dTheta(iLayer)    = 0._rkind
         endif
       elseif(ixDomainType==iname_soil)then
         if(enthalpyStateVec)then
@@ -487,11 +485,10 @@ subroutine updateVarsWithPrime(&
                    dTemp_dPsi0(ixControlIndex),            & ! intent(inout): derivative of layer temperature with total water matric potential
                    err,cmessage)                             ! intent(out):   error control
            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
         else
-          dTemp_dEnthalpy(iLayer)     = 1._rkind
-          dTemp_dTheta(iLayer)        = 1._rkind
-          dTemp_dPsi0(ixControlIndex) = 1._rkind 
+          dTemp_dEnthalpy(iLayer)     = 0._rkind
+          dTemp_dTheta(iLayer)        = 0._rkind
+          dTemp_dPsi0(ixControlIndex) = 0._rkind 
         endif
       endif 
 

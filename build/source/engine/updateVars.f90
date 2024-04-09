@@ -63,6 +63,7 @@ USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
+                    zLookup,      & ! data vector with variable length dimension (rkind)
                     var_dlength     ! data vector with variable length dimension (rkind)
 
 ! provide access to indices that define elements of the data structures
@@ -77,14 +78,18 @@ USE updatState_module,only:updateSnow     ! update snow states
 USE updatState_module,only:updateSoil     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
-USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
-USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
-USE soil_utils_module,only:dTheta_dTk     ! differentiate the freezing curve w.r.t. temperature (soil)
-USE soil_utils_module,only:dTheta_dPsi    ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
-USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
-USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
-USE soil_utils_module,only:liquidHead     ! compute the liquid water matric potential
+USE snow_utils_module,only:fracliquid          ! compute the fraction of liquid water (snow)
+USE snow_utils_module,only:dFracLiq_dTk        ! differentiate the freezing curve w.r.t. temperature (snow)
+USE soil_utils_module,only:dTheta_dTk          ! differentiate the freezing curve w.r.t. temperature (soil)
+USE soil_utils_module,only:dTheta_dPsi         ! derivative in the soil water characteristic (soil)
+USE soil_utils_module,only:matricHead          ! compute the matric head based on volumetric water content
+USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of liquid water
+USE soil_utils_module,only:crit_soilT          ! compute critical temperature below which ice exists
+USE soil_utils_module,only:liquidHead          ! compute the liquid water matric potential
+USE enthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
+USE enthalpyTemp_module,only:T2enthTemp_veg   ! convert temperature to enthalpy for vegetation
+USE enthalpyTemp_module,only:T2enthTemp_snow   ! convert temperature to enthalpy for snow
+USE enthalpyTemp_module,only:T2enthTemp_soil   ! convert temperature to enthalpy for soil 
 
 ! IEEE check
 USE, intrinsic :: ieee_arithmetic         ! check values (NaN, etc.)
@@ -100,12 +105,16 @@ contains
 ! **********************************************************************************************************
 subroutine updateVars(&
                       ! input
+                      computeEnthTemp,                           & ! intent(in):    flag if computing temperature compoment of enthalpy
+                      use_lookup,                                & ! intent(in):    flag to use the lookup table for soil enthalpy 
                       do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                       mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                       indx_data,                                 & ! intent(in):    indices defining model states and layers
                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                       deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                      lookup_data,                               & ! intent(in):    lookup table data structure
+                      scalarCanairTempTrial,                     & ! intent(in):    trial value of canopy air space temperature (K)
                       ! output: variables for the vegetation canopy
                       scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
                       scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
@@ -118,18 +127,26 @@ subroutine updateVars(&
                       mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
                       mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
                       mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
+                      ! output: enthalpy variables  
+                      scalarCanairEnthalpyTrial,                 & ! intent(inout): trial value for enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthTempTrial,                 & ! intent(inout): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthTempTrial,                       & ! intent(inout): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)                          
                       ! output: error control
                       err,message)                                 ! intent(out):   error control
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input
+  logical(lgt)     ,intent(in)       :: computeEnthTemp                 ! flag if computing temperature compoment of enthalpy
+  logical(lgt)     ,intent(in)       :: use_lookup                      ! flag to use the lookup table for soil enthalpy
   logical(lgt)     ,intent(in)       :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
   type(var_dlength),intent(in)       :: mpar_data                       ! model parameters for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)    :: diag_data                       ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)    :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
+  type(zLookup)    ,intent(in)       :: lookup_data                     ! lookup tables
+  real(rkind),intent(in)             :: scalarCanairTempTrial           ! trial value of canopy air space temperature (K)
   ! output: variables for the vegetation canopy
   real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
   real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
@@ -142,6 +159,10 @@ subroutine updateVars(&
   real(rkind),intent(inout)          :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
   real(rkind),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
   real(rkind),intent(inout)          :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
+  ! output: enthalpy variables
+  real(rkind),intent(inout)          :: scalarCanairEnthalpyTrial       ! trial value for enthalpy of the canopy air space (J m-3)
+  real(rkind),intent(inout)          :: scalarCanopyEnthTempTrial       ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),intent(inout)          :: mLayerEnthTempTrial(:)          ! trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
   ! output: error control
   integer(i4b),intent(out)           :: err                             ! error code
   character(*),intent(out)           :: message                         ! error message
@@ -206,7 +227,10 @@ subroutine updateVars(&
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in):  [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ! snow parameters
     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):  [dp]     scaling parameter for the snow freezing curve (K-1)
-    ! depth-varying model parameters 
+    ! depth-varying model parameters (heat capacity, enthalpy)
+    specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)       ,& ! intent(in):  [dp   ]  specific heat of vegetation (J kg-1 K-1)
+    maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1)     ,& ! intent(in):  [dp   ]  maximum mass of vegetation (kg m-2)
+    soil_dens_intr          => mpar_data%var(iLookPARAM%soil_dens_intr)%dat           ,& ! intent(in):  [dp(:)]  intrinsic soil density (kg m-3)
     vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat               ,& ! intent(in):  [dp(:)]  van Genutchen "m" parameter (-)
     vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat                    ,& ! intent(in):  [dp(:)]  van Genutchen "n" parameter (-)
     vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat                ,& ! intent(in):  [dp(:)]  van Genutchen "alpha" parameter (m-1)
@@ -268,7 +292,7 @@ subroutine updateVars(&
 
       ! get the layer index
       select case(ixDomainType)
-        case(iname_cas);     cycle ! canopy air space: do nothing
+        case(iname_cas);     iLayer = 0
         case(iname_veg);     iLayer = 0
         case(iname_snow);    iLayer = ixControlIndex
         case(iname_soil);    iLayer = ixControlIndex + nSnow
@@ -278,13 +302,18 @@ subroutine updateVars(&
 
       ! get the index of the other (energy or mass) state variable within the full state vector
       select case(ixDomainType)
+        case(iname_cas)             ; ixOther = integerMissing
         case(iname_veg)             ; ixOther = merge(ixHydCanopy(1),    ixNrgCanopy(1),    ixStateType(ixFullVector)==iname_nrgCanopy)
         case(iname_snow, iname_soil); ixOther = merge(ixHydLayer(iLayer),ixNrgLayer(iLayer),ixStateType(ixFullVector)==iname_nrgLayer)
         case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
       end select
 
       ! get the index in the local state vector
-      ixOtherLocal = ixMapFull2Subset(ixOther)  ! ixOtherLocal could equal integerMissing
+      if(ixDomainType==iname_cas)then
+        ixOtherLocal = integerMissing
+      else
+        ixOtherLocal = ixMapFull2Subset(ixOther)  ! ixOtherLocal could equal integerMissing
+      endif
       if(ixOtherLocal/=integerMissing) computedCoupling(ixOtherLocal)=.true.
 
       ! check if we have a coupled solution
@@ -303,6 +332,22 @@ subroutine updateVars(&
         print*, 'do_adjustTemp  = ', do_adjustTemp
         print*, 'isCoupled      = ', isCoupled
         print*, 'isNrgState     = ', isNrgState
+      endif
+
+      ! calculate temperature component of enthalpy for canopy air space
+      if(ixDomainType==iname_cas)then
+        if(computeEnthTemp)then
+          call T2enthTemp_cas(&
+                      ! input
+                      scalarCanairTempTrial,       & ! intent(in): canopy air temperature (K)
+                      ! output
+                      scalarCanairEnthalpyTrial,   & ! intent(out): enthalpy of the canopy air space (J m-3)
+                      err,cmessage)                  ! intent(out):   error control
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        else
+          scalarCanairEnthalpyTrial = realMissing
+        endif
+        cycle ! no more to do on canopy air space
       endif
 
       ! update hydrology state variables for the uncoupled solution
@@ -618,6 +663,58 @@ subroutine updateVars(&
         case(iname_veg);              scalarCanopyTempTrial   = xTemp
         case(iname_snow, iname_soil); mLayerTempTrial(iLayer) = xTemp
       end select
+
+      ! calculate temperature component of enthalpy for remaining domains
+      if(ixDomainType==iname_veg)then
+        if(computeEnthTemp)then
+          call T2enthTemp_veg(&
+                      ! input
+                      canopyDepth,                 & ! intent(in): canopy depth (m)
+                      specificHeatVeg,             & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+                      maxMassVegetation,           & ! intent(in): maximum mass of vegetation (kg m-2)
+                      snowfrz_scale,               & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
+                      scalarCanopyTempTrial,       & ! intent(in): canopy temperature (K)
+                      scalarCanopyWatTrial,        & ! intent(in): canopy water content (kg m-2)
+                      ! output
+                      scalarCanopyEnthTempTrial,   & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
+                      err,cmessage)                  ! intent(out):   error control
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        else
+          scalarCanopyEnthTempTrial = realMissing
+        endif
+      elseif(ixDomainType==iname_snow)then
+        if(computeEnthTemp)then
+          call T2enthTemp_snow(&
+                      ! input
+                      snowfrz_scale,                   & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                      mLayerTempTrial(iLayer),         & ! intent(in):  layer temperature (K)
+                      mLayerVolFracWatTrial(iLayer),   & ! intent(in):  volumetric total water content (-)
+                      ! output
+                      mLayerEnthTempTrial(iLayer),     & ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+                      err,cmessage)                      ! intent(out): error control
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        else
+          mLayerEnthTempTrial(iLayer) = realMissing
+        endif
+      elseif(ixDomainType==iname_soil)then
+        if(computeEnthTemp)then
+          call T2enthTemp_soil(&
+                      ! input
+                      use_lookup,                            & ! intent(in):  flag to use the lookup table for soil enthalpy
+                      soil_dens_intr(ixControlIndex),        & ! intent(in):  intrinsic soil density (kg m-3)
+                      vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
+                      ixControlIndex,                        & ! intent(in):  index of the control volume within the domain
+                      lookup_data,                           & ! intent(in):  lookup table data structure
+                      mLayerTempTrial(iLayer),               & ! intent(in): layer temperature (K)
+                      mLayerMatricHeadTrial(ixControlIndex), & ! intent(in): matric head (m)
+                     ! output
+                      mLayerEnthTempTrial(iLayer),           & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      err,cmessage)                            ! intent(out): error control      
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        else
+          mLayerEnthTempTrial(iLayer) = realMissing
+        endif
+      endif
 
       ! =======================================================================================================================================
       ! =======================================================================================================================================

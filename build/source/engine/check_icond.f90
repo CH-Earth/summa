@@ -64,9 +64,11 @@ contains
  USE updatState_module,only:updateSnow                   ! update snow states
  USE updatState_module,only:updateSoil                   ! update soil states
  USE indexState_module,only:indexState                   ! index the state variables
- USE enthalpyTemp_module,only:T2enthTemp                 ! convert temperature to enthalpy
- USE enthalpyTemp_module,only:enthTemp_or_enthalpy       ! add phase change terms to delta temperature component of enthalpy or vice versa
-
+ USE enthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
+ USE enthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
+ USE enthalpyTemp_module,only:T2enthTemp_snow            ! convert temperature to enthalpy for snow
+ USE enthalpyTemp_module,only:T2enthTemp_soil            ! convert temperature to enthalpy for soil
+ 
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
@@ -76,7 +78,7 @@ contains
  type(gru_hru_doubleVec),intent(inout) :: diagData         ! diagnostic vars
  type(gru_hru_doubleVec),intent(inout) :: progData         ! prognostic vars
  type(gru_hru_doubleVec),intent(in)    :: mparData         ! parameters
- type(gru_hru_intVec),intent(inout)    :: indxData         ! layer indexes
+ type(gru_hru_intVec),intent(in)       :: indxData         ! layer indexes
  type(gru_hru_z_vLookup),intent(in)    :: lookupData       ! lookup table data
  logical(lgt),intent(in)               :: enthalpyStateVec ! flag if enthalpy is the state variable
  logical(lgt),intent(in)               :: use_lookup       ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
@@ -135,31 +137,35 @@ contains
    ! associate local variables with variables in the data structures
    associate(&
    ! state variables in the canopy air space
-   scalarCanairTemp     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanairTemp)%dat(1)     , & ! canopy air temperature (K)
-   scalarCanairEnthalpy => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%scalarCanairEnthalpy)%dat(1) , & ! canopy air enthalpy (J m-3)
+   scalarCanairTemp     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanairTemp)%dat(1)     ,& ! canopy air temperature (K)
+   scalarCanairEnthalpy => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%scalarCanairEnthalpy)%dat(1) ,& ! canopy air enthalpy (J m-3)
    ! state variables in the vegetation canopy
-   scalarCanopyTemp     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)     , & ! canopy temperature (K)
-   scalarCanopyEnthTemp => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1) , & ! canopy temperature component of enthalpy (J m-3)
-   scalarCanopyEnthalpy => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1) , & ! canopy enthalpy (J m-3)
-   scalarCanopyWat      => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)      , & ! mass of water on the vegetation canopy (kg m-2)
-   scalarCanopyIce      => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyIce)%dat(1)      , & ! mass of ice on the vegetation canopy (kg m-2)
+   scalarCanopyTemp     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)     ,& ! canopy temperature (K)
+   scalarCanopyEnthTemp => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1) ,& ! canopy temperature component of enthalpy (J m-3)
+   scalarCanopyEnthalpy => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1) ,& ! canopy enthalpy (J m-3)
+   scalarCanopyLiq      => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1)      ,& ! mass of liquid water on the vegetation canopy (kg m-2)
+   scalarCanopyIce      => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyIce)%dat(1)      ,& ! mass of ice on the vegetation canopy (kg m-2)
+   heightCanopyTop      => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)     ,& ! height of the top of the canopy layer (m)
+   heightCanopyBottom   => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)  ,& ! height of the bottom of the canopy layer (m)
+   specificHeatVeg      => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%specificHeatVeg)%dat(1)     ,& ! specific heat of vegetation (J kg-1 K-1)
+   maxMassVegetation    => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%maxMassVegetation)%dat(1)   ,& ! maximum mass of vegetation (kg m-2)
    ! state variables in the snow+soil domain
-   mLayerTemp           => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat              , & ! temperature (K)
-   mLayerEnthTemp       => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%mLayerEnthTemp)%dat          , & ! temperature component of enthalpy (J m-3)
-   mLayerEnthalpy       => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%mLayerEnthalpy)%dat          , & ! enthalpy (J m-3)
-   mLayerVolFracWat     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracWat)%dat        , & ! volumetric fraction of total water in each snow layer (-)
-   mLayerVolFracLiq     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat        , & ! volumetric fraction of liquid water in each snow layer (-)
-   mLayerVolFracIce     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat        , & ! volumetric fraction of ice in each snow layer (-)
-   mLayerMatricHead     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat        , & ! matric head (m)
-   mLayerLayerType      => indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat              , & ! type of layer (ix_soil or ix_snow)
+   mLayerTemp           => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat              ,& ! temperature (K)
+   mLayerEnthTemp       => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%mLayerEnthTemp)%dat          ,& ! temperature component of enthalpy (J m-3)
+   mLayerEnthalpy       => diagData%gru(iGRU)%hru(iHRU)%var(iLookDIAG%mLayerEnthalpy)%dat          ,& ! enthalpy (J m-3)
+   mLayerVolFracLiq     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! volumetric fraction of liquid water in each snow layer (-)
+   mLayerVolFracIce     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce)%dat        ,& ! volumetric fraction of ice in each snow layer (-)
+   mLayerMatricHead     => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead)%dat        ,& ! matric head (m)
+   mLayerLayerType      => indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat              ,& ! type of layer (ix_soil or ix_snow)
    ! depth varying soil properties
-   vGn_alpha            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_alpha)%dat              , & ! van Genutchen "alpha" parameter (m-1)
-   vGn_n                => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n)%dat                  , & ! van Genutchen "n" parameter (-)
-   theta_sat            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)%dat              , & ! soil porosity (-)
-   theta_res            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)%dat              , & ! soil residual volumetric water content (-)
+   soil_dens_intr       => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%soil_dens_intr)%dat         ,& ! intrinsic soil density             (kg m-3)
+   vGn_alpha            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_alpha)%dat              ,& ! van Genutchen "alpha" parameter (m-1)
+   vGn_n                => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n)%dat                  ,& ! van Genutchen "n" parameter (-)
+   theta_sat            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat)%dat              ,& ! soil porosity (-)
+   theta_res            => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)%dat              ,& ! soil residual volumetric water content (-)
    ! snow parameters
-   snowfrz_scale        => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%snowfrz_scale)%dat(1)       , & ! scaling parameter for the snow freezing curve (K-1)
-   FCapil               => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%FCapil)%dat(1)                & ! fraction of pore space in tension storage (-)
+   snowfrz_scale        => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%snowfrz_scale)%dat(1)       ,& ! scaling parameter for the snow freezing curve (K-1)
+   FCapil               => mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%FCapil)%dat(1)               & ! fraction of pore space in tension storage (-)
    )  ! (associate local variables with model parameters)
 
    ! compute the constant in the freezing curve function (m K-1)
@@ -172,7 +178,32 @@ contains
     err=20; return
    else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
     ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
-	write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'Warning: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
+	 write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'Warning: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
+   end if
+   scalarTheta = scalarCanopyIce + scalarCanopyLiq
+
+   if(enthalpyStateVec)then ! enthalpy as state variable (cold start often only has temperature)
+      call T2enthTemp_cas(&
+                  ! input
+                  scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
+                  ! output
+                  scalarCanairEnthalpy,   & ! intent(out): enthalpy of the canopy air space (J m-3)
+                  err,cmessage)             ! intent(out):   error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+      call T2enthTemp_veg(&
+                  ! input
+                  (heightCanopyTop-heightCanopyBottom), & ! intent(in): canopy depth (m)
+                  specificHeatVeg,        & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+                  maxMassVegetation,      & ! intent(in): maximum mass of vegetation (kg m-2)
+                  snowfrz_scale,          & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
+                  scalarCanopyTemp,       & ! intent(in): canopy temperature (K)
+                  scalarTheta,            & ! intent(in): canopy water content (kg m-2)
+                  ! output
+                  scalarCanopyEnthTemp,   & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
+                  err,cmessage)             ! intent(out):   error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+      scalarCanopyEnthalpy = scalarCanopyEnthTemp - LH_fus * scalarCanopyIce/ (heightCanopyTop-heightCanopyBottom)
    end if
 
    ! number of layers
@@ -246,15 +277,28 @@ contains
       ! ensure consistency among state variables
       call updateSnow(&
                       ! input
-                      mLayerTemp(iLayer),                        & ! intent(in): temperature (K)
-                      scalarTheta,                               & ! intent(in): mass fraction of total water (-)
-                      snowfrz_scale,                             & ! intent(in): scaling parameter for the snow freezing curve (K-1)
+                      mLayerTemp(iLayer),             & ! intent(in): temperature (K)
+                      scalarTheta,                    & ! intent(in): volumetric fraction of total water (-)
+                      snowfrz_scale,                  & ! intent(in): scaling parameter for the snow freezing curve (K-1)
                       ! output
-                      mLayerVolFracLiq(iLayer),                  & ! intent(out): volumetric fraction of liquid water (-)
-                      mLayerVolFracIce(iLayer),                  & ! intent(out): volumetric fraction of ice (-)
-                      fLiq,                                      & ! intent(out): fraction of liquid water (-)
-                      err,cmessage)                                ! intent(out): error control
+                      mLayerVolFracLiq(iLayer),       & ! intent(out): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce(iLayer),       & ! intent(out): volumetric fraction of ice (-)
+                      fLiq,                           & ! intent(out): fraction of liquid water (-)
+                      err,cmessage)                     ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+      if(enthalpyStateVec)then ! enthalpy as state variable (cold start often only has temperature)
+         call T2enthTemp_snow(&
+                      ! input
+                      snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
+                      mLayerTemp(iLayer),             & ! intent(in):  layer temperature (K)
+                      scalarTheta,                    & ! intent(in):  volumetric total water content (-)
+                      ! output
+                      mLayerEnthTemp(iLayer),         & ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+                      err,cmessage)                     ! intent(out): error control
+         if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+         mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+      endif
 
      ! ** soil
      case(iname_soil)
@@ -262,83 +306,37 @@ contains
       ! ensure consistency among state variables
       call updateSoil(&
                       ! input
-                      mLayerTemp(iLayer),                                                    & ! intent(in): layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow),                                        & ! intent(in): matric head (m)
+                      mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
+                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in): matric head (m)
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
                       ! output
-                      scalarTheta,                                                           & ! intent(out): volumetric fraction of total water (-)
-                      mLayerVolFracLiq(iLayer),                                              & ! intent(out): volumetric fraction of liquid water (-)
-                      mLayerVolFracIce(iLayer),                                              & ! intent(out): volumetric fraction of ice (-)
-                      err,cmessage)                                                            ! intent(out): error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+                      scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)
+                      mLayerVolFracLiq(iLayer),        & ! intent(out): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce(iLayer),        & ! intent(out): volumetric fraction of ice (-)
+                      err,cmessage)                      ! intent(out): error control
+      if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
+
+      if(enthalpyStateVec)then ! enthalpy as state variable (cold start often only has temperature)
+         call T2enthTemp_soil(&
+                      ! input
+                      use_lookup,                      & ! intent(in):  flag to use the lookup table for soil enthalpy
+                      soil_dens_intr(iSoil),           & ! intent(in):  intrinsic soil density (kg m-3)
+                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
+                      iSoil,                           & ! intent(in):  index of the control volume within the domain
+                      lookupData%gru(iGRU)%hru(iHRU),  & ! intent(in):  lookup table data structure
+                      mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
+                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in): matric head (m)
+                     ! output
+                      mLayerEnthTemp(iLayer),          & ! intent(out): temperature component of enthalpy soil layer (J m-3)
+                      err,cmessage)                      ! intent(out): error control      
+         if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
+         mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
+      endif
 
      case default; err=10; message=trim(message)//'unknown case for model layer'; return
     end select
 
    end do  ! (looping through layers)
-
-   ! *****
-   ! if the model is using enthalpy as a state variable, compute the enthalpy starting point (cold start often only has temperature)
-   ! ***********************************************************************************************************************
-   if(enthalpyStateVec)then ! enthalpy as state variable
-
-      ! initialize indices
-      call indexState(.true.,                       & ! intent(in):    compute enthalpy in canopy
-                      .false.,                      & ! intent(in):    do not compute enthalpy in aquifer
-                      nSnow,nSoil,nLayers,          & ! intent(in):    number of snow and soil layers, and total number of layers
-                      indxData%gru(iGRU)%hru(iHRU), & ! intent(inout): indices defining model states and layers
-                      err,cmessage)                   ! intent(out):   error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     ! initialize state subset as full state vector
-     nState = indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nState)%dat(1)
-     indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ixMapFull2Subset)%dat    = (/ (i,i=1,nState) /)
-     indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ixMapSubset2Full)%dat    = (/ (i,i=1,nState) /)
-     indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ixDomainType_subset)%dat = indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ixDomainType)%dat
-
-     ! compute temperature component of enthalpy from temperature
-     call T2enthTemp(&
-                 use_lookup,                     & ! intent(in):  flag to use the lookup table for soil enthalpy
-                 ! input: data structures
-                 diagData%gru(iGRU)%hru(iHRU),   & ! intent(in):  model diagnostic variables for a local HRU
-                 mparData%gru(iGRU)%hru(iHRU),   & ! intent(in):  parameter data structure
-                 indxData%gru(iGRU)%hru(iHRU),   & ! intent(in):  model indices
-                 lookupData%gru(iGRU)%hru(iHRU), & ! intent(in):  lookup table data structure
-                 ! input: state variables for the vegetation canopy
-                 scalarCanairTemp,               & ! intent(in):  value of canopy air temperature (K)
-                 scalarCanopyTemp,               & ! intent(in):  value of canopy temperature (K)
-                 scalarCanopyWat,                & ! intent(in):  value of canopy total water (kg m-2)
-                 ! input: variables for the snow-soil domain
-                 mLayerTemp,                     & ! intent(in):  vector of layer temperature (K)
-                 mLayerVolFracWat,               & ! intent(in):  vector of volumetric total water content (-)
-                 mLayerMatricHead,               & ! intent(in):  vector of total water matric potential (m)
-                 ! output: enthalpy
-                 scalarCanairEnthalpy,           & ! intent(out): enthalpy of the canopy air space (J m-3)
-                 scalarCanopyEnthTemp,           & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                 mLayerEnthTemp,                 & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
-                 ! output: error control
-                 err,cmessage)                     ! intent(out): error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-     ! initialize the enthalpy
-     scalarCanopyEnthalpy = scalarCanopyEnthTemp
-     mLayerEnthalpy       = mLayerEnthTemp
-     ! compute enthalpy for current values
-     call enthTemp_or_enthalpy(&
-                     ! input: data structures
-                     .true.,                       & ! intent(in):    flag to convert enthTemp to enthalpy
-                     diagData%gru(iGRU)%hru(iHRU), & ! intent(in):    model diagnostic variables for a local HRU
-                     indxData%gru(iGRU)%hru(iHRU), & ! intent(in):    model indices
-                     ! input: ice content change
-                     scalarCanopyIce,              & ! intent(in):    value for canopy ice content (kg m-2)
-                     mLayerVolFracIce,             & ! intent(in):    vector of volumetric ice water content (-)
-                     ! input/output: enthalpy
-                     scalarCanopyEnthalpy,         & ! intent(inout): enthTemp to enthalpy of the vegetation canopy (J m-3)
-                     mLayerEnthalpy,               & ! intent(inout): enthTemp to enthalpy of each snow+soil layer (J m-3)
-                     ! output: error control    
-                     err,cmessage)                   ! intent(out): error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    end if ! (if enthalpy is the state variable)
     
    ! end association to variables in the data structures
    end associate
