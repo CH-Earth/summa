@@ -978,11 +978,10 @@ USE getVectorz_module,only:varExtract                              ! extract var
                     err,cmessage)                       ! intent(out):   error control
 #endif
       case(kinsol, numrec)
-
         ! update diagnostic variables
         call updateVars(&
                  ! input
-                 computeEnthTemp,           & ! intent(in):    flag if computing temperature compoment of enthalpy
+                 computeEnthTemp,           & ! intent(in):    flag if computing temperature component of enthalpy
                  use_lookup,                & ! intent(in):    flag to use the lookup table for soil enthalpy
                  doAdjustTemp,              & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  mpar_data,                 & ! intent(in):    model parameters for a local HRU

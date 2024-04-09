@@ -288,7 +288,8 @@ subroutine coupled_em(&
   real(rkind)                          :: dt_solvInner           ! seconds in the maxstep subStep that have been completed
   logical(lgt),parameter               :: computNrgBalance_var=.true. ! flag to compute enthalpy, must have computNrgBalance true in varSubStep (will compute enthalpy for BE even if not using enthalpy formulation)
   logical(lgt)                         :: computeEnthalpy        ! flag to compute enthalpy regardless of the model decision
-  logical(lgt)                         :: enthalpyStateVec       ! flag if enthalpy is a state variable (ida)
+  logical(lgt)                         :: mixdFormNrg            ! flag to use temperature compenent of enthalpy in residual to conserve energy (BE only)
+  logical(lgt)                         :: enthalpyStateVec       ! flag if enthalpy is a state variable (IDA)
   logical(lgt)                         :: use_lookup             ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
 
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -421,9 +422,14 @@ subroutine coupled_em(&
       ! set the flag to compute enthalpy, may want to have this true always if want to output enthalpy
       computeEnthalpy  = .false.
       enthalpyStateVec = .false.
+      mixdFormNrg      = .false.
       use_lookup       = .false.
-      if((ixNrgConserv .ne. closedForm .or. computNrgBalance_var) .and. ixNumericalMethod .ne. ida) computeEnthalpy = .true. ! use enthTemp to conserve energy or compute energy balance
-      if(ixNrgConserv .ne. closedForm .and. ixNumericalMethod==ida) enthalpyStateVec = .true. ! enthalpy as state variable
+      if(ixNumericalMethod.ne.ida)then
+       if(ixNrgConserv.ne.closedForm .or. computNrgBalance_var) computeEnthalpy = .true. ! compute energy balance
+       if(ixNrgConserv.ne.closedForm) mixdFormNrg = .true. ! use enthTemp to conserve energy
+      else ! enthalpy state variable only implemented for IDA, energy conserved in IDA without using enthTemp
+       if(ixNrgConserv.ne.closedForm) enthalpyStateVec = .true. ! enthalpy as state variable
+      endif
       if(ixNrgConserv==enthalpyFDlu) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
 
       ! save the liquid water and ice on the vegetation canopy
@@ -631,7 +637,7 @@ subroutine coupled_em(&
     end if ! if computing fluxes over vegetation
 
     ! change enthalpy based on new canopy temperature
-    if(enthalpyStateVec)then
+    if(enthalpyStateVec .or. mixdFormNrg)then
       ! associate local variables with variables in the data structures
       enthalpyVeg: associate(&
         ! state variables in the vegetation canopy
@@ -790,7 +796,7 @@ subroutine coupled_em(&
         end if
 
         ! get enthalpy from temperature if new layering
-        if( enthalpyStateVec .and. modifiedLayers )then
+        if( (enthalpyStateVec .or. mixdFormNrg) .and. modifiedLayers )then
           ! associate local variables with variables in the data structures
           enthalpySnow: associate(&
             ! variables in the snow and soil domains
@@ -945,7 +951,7 @@ subroutine coupled_em(&
             mLayerVolFracWat(      1:nSnow  ) = mLayerVolFracLiq(      1:nSnow  ) + mLayerVolFracIce(      1:nSnow  )*(iden_ice/iden_water)
           mLayerVolFracWat(nSnow+1:nLayers)   = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
 
-          if(enthalpyStateVec .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind)then ! compute enthalpy of the top soil layer if changed with surface melt pond
+          if( (enthalpyStateVec .or. mixdFormNrg) .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind )then ! compute enthalpy of the top soil layer if changed with surface melt pond
             call T2enthTemp_soil(&
                      ! input
                       use_lookup,                                               & ! intent(in):  flag to use the lookup table for soil enthalpy
@@ -1346,7 +1352,7 @@ subroutine coupled_em(&
                                                             * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
       prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
                                                         + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
-      if(enthalpyStateVec)then ! compute enthalpy of the top snow layer
+      if(enthalpyStateVec .or. mixdFormNrg)then ! compute enthalpy of the top snow layer
         call T2enthTemp_snow(&
                        snowfrz_scale,                                     & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(1),        & ! temperature of the top layer (K)

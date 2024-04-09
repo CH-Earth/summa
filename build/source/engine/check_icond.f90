@@ -39,7 +39,7 @@ contains
                         mparData,                      & ! model parameters
                         indxData,                      & ! layer index data
                         lookupData,                    & ! lookup table data
-                        enthalpyStateVec,              & ! flag if enthalpy is the state variable
+                        checkEnthalpy,                 & ! flag if to check enthalpy for consistency
                         use_lookup,                    & ! flag to use the lookup table for soil enthalpy                             
                         err,message)                     ! error control
  ! --------------------------------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ contains
  type(gru_hru_doubleVec),intent(in)    :: mparData         ! parameters
  type(gru_hru_intVec),intent(in)       :: indxData         ! layer indexes
  type(gru_hru_z_vLookup),intent(in)    :: lookupData       ! lookup table data
- logical(lgt),intent(in)               :: enthalpyStateVec ! flag if enthalpy is the state variable
+ logical(lgt),intent(in)               :: checkEnthalpy    ! if true either need enthTemp as starting residual value, or for state variable initialization
  logical(lgt),intent(in)               :: use_lookup       ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
  integer(i4b),intent(out)              :: err              ! error code
  character(*),intent(out)              :: message          ! returned error message
@@ -182,7 +182,7 @@ contains
    end if
    scalarTheta = scalarCanopyIce + scalarCanopyLiq
 
-   if(enthalpyStateVec)then ! enthalpy as state variable (cold start often only has temperature)
+   if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
       call T2enthTemp_cas(&
                   ! input
                   scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
@@ -287,7 +287,7 @@ contains
                       err,cmessage)                     ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-      if(enthalpyStateVec)then ! enthalpy as state variable (cold start often only has temperature)
+      if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
          call T2enthTemp_snow(&
                       ! input
                       snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
@@ -316,7 +316,7 @@ contains
                       err,cmessage)                      ! intent(out): error control
       if(err/=0)then; message=trim(cmessage)//trim(cmessage); return; end if  ! (check for errors)
 
-      if(enthalpyStateVec)then ! enthalpy as state variable (cold start often only has temperature)
+      if(checkEnthalpy)then ! enthalpy as state variable (cold start often only has temperature)
          call T2enthTemp_soil(&
                       ! input
                       use_lookup,                      & ! intent(in):  flag to use the lookup table for soil enthalpy
