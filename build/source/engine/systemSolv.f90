@@ -390,9 +390,9 @@ contains
   ! compute the initial flux and the residual vector, also gets values needed for the Jacobian matrix 
   associate(ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision) ! intent(in): [i4b] choice of numerical solver
    if (ixNumericalMethod==ida) then
-    call initial_flux_and_residual_vectors_prime; if (return_flag) return
+     call initial_flux_and_residual_vectors_prime; if (return_flag) return
    else
-    call initial_flux_and_residual_vectors; if (return_flag) return
+     call initial_flux_and_residual_vectors; if (return_flag) return
    end if
   end associate
 
