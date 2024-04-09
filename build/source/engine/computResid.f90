@@ -80,7 +80,7 @@ subroutine computResid(&
                       nSnow,                     & ! intent(in):  number of snow layers
                       nSoil,                     & ! intent(in):  number of soil layers
                       nLayers,                   & ! intent(in):  total number of layers
-                      mixdFormNrg,               & ! intent(in):  flag to use enthalpy formulation
+                      mixdformNrg,               & ! intent(in):  flag to use enthalpy formulation
                       ! input: flux vectors
                       sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
                       fVec,                      & ! intent(in):  flux vector
@@ -118,7 +118,7 @@ subroutine computResid(&
   integer(i4b),intent(in)            :: nSnow                     ! number of snow layers
   integer(i4b),intent(in)            :: nSoil                     ! number of soil layers
   integer(i4b),intent(in)            :: nLayers                   ! total number of layers in the snow+soil domain
-  logical(lgt),intent(in)            :: mixdFormNrg          ! flag to use enthalpy formulation
+  logical(lgt),intent(in)            :: mixdformNrg               ! flag to use enthalpy formulation
   ! input: flux vectors
   real(qp),intent(in)                :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
   real(rkind),intent(in)             :: fVec(:)                   ! flux vector
@@ -247,7 +247,7 @@ subroutine computResid(&
     ! compute the residual vector for the vegetation canopy
     ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
     ! --> energy balance
-    if(mixdFormNrg)then
+    if(mixdformNrg)then
       if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = ( scalarCanairEnthalpyTrial - scalarCanairEnthalpy ) - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
       if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = ( scalarCanopyEnthTempTrial - scalarCanopyEnthTemp ) - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     else
@@ -265,7 +265,7 @@ subroutine computResid(&
     ! compute the residual vector for the snow and soil sub-domains for energy
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        if(mixdFormNrg)then
+        if(mixdformNrg)then
           rVec( ixSnowSoilNrg(iLayer) ) = ( mLayerEnthTempTrial(iLayer) - mLayerEnthTemp(iLayer) ) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
         else
           rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) )*( mLayerTempTrial(iLayer) - mLayerTemp(iLayer) ) + mLayerCmTrial(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer) ) &
