@@ -500,7 +500,6 @@ subroutine T2enthTemp_veg(&
   endif
 
   scalarCanopyEnthTemp = enthVeg + enthLiq + enthIce
-  print*,scalarCanopyEnthTemp
 
 end subroutine T2enthTemp_veg
 
