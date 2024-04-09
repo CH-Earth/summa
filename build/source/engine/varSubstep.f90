@@ -815,12 +815,15 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ! ------------------
 
     ! initialize to state variable from the last update
+    scalarCanairTempTrial     = scalarCanairTemp
     scalarCanairEnthalpyTrial = scalarCanairEnthalpy
+    scalarCanopyTempTrial     = scalarCanopyTemp
     scalarCanopyEnthalpyTrial = scalarCanopyEnthalpy
     scalarCanopyEnthTempTrial = scalarCanopyEnthTemp
     scalarCanopyWatTrial      = scalarCanopyWat
     scalarCanopyLiqTrial      = scalarCanopyLiq
     scalarCanopyIceTrial      = scalarCanopyIce
+    mLayerTempTrial           = mLayerTemp
     mLayerEnthalpyTrial       = mLayerEnthalpy
     mLayerEnthTempTrial       = mLayerEnthTemp
     mLayerVolFracWatTrial     = mLayerVolFracWat

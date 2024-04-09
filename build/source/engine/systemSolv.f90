@@ -485,11 +485,11 @@ contains
   ! Note: Need this extra subroutine to handle the case of enthalpy as a state variable, currently only implemented in the prime version
   !       If we implement it in the regular version, we can remove this subroutine
   associate(&
-   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! intent(in):  [i4b]   number of snow layers
-   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! intent(in):  [i4b]   number of soil layers
-   scalarCanopyTemp => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),& ! intent(out): [dp]    temperature of the vegetation canopy (K)
-   mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat         ,& ! intent(out): [dp(:)] temperature of each snow/soil layer (K)
-   mLayerMatricHead => prog_data%var(iLookPROG%mLayerMatricHead)%dat    & ! intent(out): [dp(:)] matric head (m) 
+   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! intent(in):    [i4b]   number of snow layers
+   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! intent(in):    [i4b]   number of soil layers
+   scalarCanopyTemp => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),& ! intent(inout): [dp]    temperature of the vegetation canopy (K)
+   mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat         ,& ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
+   mLayerMatricHead => prog_data%var(iLookPROG%mLayerMatricHead)%dat    & ! intent(out):   [dp(:)] matric head (m) 
    &)
    stateVecPrime(:) = 0._rkind ! prime initial values are 0
    firstSplitOper0 = firstSplitOper ! set the flag for the first split operation, do not want to reset it here
@@ -524,9 +524,9 @@ contains
                     diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                     flux_init,               & ! intent(inout): model fluxes for a local HRU
                     deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                    ! output: new values of variables needed in data window outside of internal IDA, for root finding
-                    scalarCanopyTemp,        & ! intent(out):   value for temperature of the vegetation canopy (K)
-                    mLayerTemp,              & ! intent(out):   vector of layer temperature (K)
+                    ! output: new values of variables needed in data window outside of internal IDA  for rootfinding and to start enthalpy calculations
+                    scalarCanopyTemp,        & ! intent(inout): value for temperature of the vegetation canopy (K)
+                    mLayerTemp,              & ! intent(inout): vector of layer temperature (K)
                     mLayerMatricHead,        & ! intent(out):   value for total water matric potential (m)
                     ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
                     scalarCanopyTempPrime,   & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)

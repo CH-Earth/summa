@@ -81,9 +81,9 @@ subroutine eval8summaWithPrime(&
                       diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
                       flux_data,                     & ! intent(inout): model fluxes for a local HRU
                       deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                      ! output: new values of variables needed in data window outside of internal IDA, for root finding
-                      scalarCanopyTempTrial,         & ! intent(out):   trial value for temperature of the vegetation canopy (K)
-                      mLayerTempTrial,               & ! intent(out):   trial vector of layer temperature (K)
+                      ! output: new values of variables needed in data window outside of internal IDA  for rootfinding and to start enthalpy calculations
+                      scalarCanopyTempTrial,         & ! intent(inout): trial value for temperature of the vegetation canopy (K)
+                      mLayerTempTrial,               & ! intent(inout): trial vector of layer temperature (K)
                       mLayerMatricHeadTrial,         & ! intent(out):   trial value for total water matric potential (m)
                       ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
                       scalarCanopyTempPrime,         & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)
@@ -145,9 +145,9 @@ subroutine eval8summaWithPrime(&
   type(var_dlength),intent(inout) :: diag_data                   ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
-  ! output: new values of variables needed in data window outside of internal IDA for root
-  real(rkind),intent(out)         :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
-  real(rkind),intent(out)         :: mLayerTempTrial(:)          ! trial vector of layer temperature (K)
+  ! output: new values of variables needed in data window outside of internal IDA  for rootfinding and to start enthalpy calculations
+  real(rkind),intent(inout)       :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
+  real(rkind),intent(inout)       :: mLayerTempTrial(:)          ! trial vector of layer temperature (K)
   real(rkind),intent(out)         :: mLayerMatricHeadTrial(:)    ! trial vector for total water matric potential (m)
   ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
   real(rkind),intent(out)         :: scalarCanopyTempPrime       ! prime value for temperature of the vegetation canopy (K s-1)
@@ -772,9 +772,9 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
                 eqns_data%flux_data,                     & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                 eqns_data%deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                ! output: new values of variables needed in data window outside of internal IDA
-                eqns_data%scalarCanopyTempTrial,         & ! intent(out):   trial value for temperature of the vegetation canopy (K)
-                eqns_data%mLayerTempTrial,               & ! intent(out):   trial vector of layer temperature (K)
+                ! output: new values of variables needed in data window outside of internal IDA  for rootfinding and to start enthalpy calculations
+                eqns_data%scalarCanopyTempTrial,         & ! intent(inout): trial value for temperature of the vegetation canopy (K)
+                eqns_data%mLayerTempTrial,               & ! intent(inout): trial vector of layer temperature (K)
                 eqns_data%mLayerMatricHeadTrial,         & ! intent(out):   trial value for total water matric potential (m)
                 ! output: new prime values of variables needed in data window outside of internal IDA
                 eqns_data%scalarCanopyTempPrime,         & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)

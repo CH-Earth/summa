@@ -439,7 +439,7 @@ subroutine updateVarsWithPrime(&
                    snowfrz_scale,              & ! intent(in):    scaling parameter for the snow freezing curve  (K-1)
                    scalarCanopyEnthalpyTrial,  & ! intent(in):    trial value for enthalpy of the vegetation canopy (J m-3)
                    scalarCanopyWatTrial,       & ! intent(in):    trial value for canopy total water (kg m-2)
-                   scalarCanopyTempTrial,      & ! intent(out):   trial value for canopy temperature (K)
+                   scalarCanopyTempTrial,      & ! intent(inout): trial value for canopy temperature (K)
                    dCanopyTemp_dEnthalpy,      & ! intent(inout): derivative of canopy temperature with enthalpy
                    dCanopyTemp_dCanWat,        & ! intent(inout): derivative of canopy temperature with canopy water
                    err,cmessage)                 ! intent(out):   error control
@@ -455,7 +455,7 @@ subroutine updateVarsWithPrime(&
                    snowfrz_scale,                  & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                    mLayerEnthalpyTrial(iLayer),    & ! intent(in):    enthalpy of snow+soil layer (J m-3)
                    mLayerVolFracWatTrial(iLayer),  & ! intent(in):    volumetric total water content (-)
-                   mLayerTempTrial(iLayer),        & ! intent(out):   layer temperature (K)
+                   mLayerTempTrial(iLayer),        & ! intent(inout): layer temperature (K)
                    dTemp_dEnthalpy(iLayer),        & ! intent(inout): derivative of layer temperature with enthalpy
                    dTemp_dTheta(iLayer),           & ! intent(inout): derivative of layer temperature with volumetric total water content
                    err,cmessage)                     ! intent(out):   error control
@@ -479,7 +479,7 @@ subroutine updateVarsWithPrime(&
                    lookup_data,                            & ! intent(in):    lookup table data structure
                    mLayerEnthalpyTrial(iLayer),            & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)
                    mLayerMatricHeadTrial(ixControlIndex),  & ! intent(in):    trial vector of total water matric potential (m)
-                   mLayerTempTrial(iLayer),                & ! intent(out):   trial vector of layer temperature (K)
+                   mLayerTempTrial(iLayer),                & ! intent(inout): trial vector of layer temperature (K)
                    dTemp_dEnthalpy(iLayer),                & ! intent(inout): derivative of layer temperature with enthalpy
                    dTemp_dTheta(iLayer),                   & ! intent(inout): derivative of layer temperature with volumetric total water content
                    dTemp_dPsi0(ixControlIndex),            & ! intent(inout): derivative of layer temperature with total water matric potential

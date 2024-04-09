@@ -835,7 +835,7 @@ subroutine enthalpy2T_veg(&
                       snowfrz_scale,          & ! intent(in):    scaling parameter for the snow freezing curve  (K-1)
                       scalarCanopyEnthalpy,   & ! intent(in):    enthalpy of the vegetation canopy (J m-3)
                       scalarCanopyWat,        & ! intent(in):    canopy total water (kg m-2)
-                      scalarCanopyTemp,       & ! intent(out):   canopy temperature (K)
+                      scalarCanopyTemp,       & ! intent(inout): canopy temperature (K)
                       dCanopyTemp_dEnthalpy,  & ! intent(inout): derivative of canopy temperature with enthalpy
                       dCanopyTemp_dCanWat,    & ! intent(inout): derivative of canopy temperature with canopy water
                       err,message)              ! intent(out):   error control
@@ -857,7 +857,7 @@ subroutine enthalpy2T_veg(&
   ! input: water state variables
   real(rkind),intent(in)           :: scalarCanopyWat       ! trial value for canopy total water (kg m-2)
    ! output: temperature diagnostic variables
-  real(rkind),intent(out)          :: scalarCanopyTemp      ! trial value for canopy temperature (K)
+  real(rkind),intent(inout)        :: scalarCanopyTemp      ! trial value for canopy temperature (K)
   ! output: derivatives
   real(rkind),intent(inout)        :: dCanopyTemp_dEnthalpy ! derivative of canopy temperature with enthalpy
   real(rkind),intent(inout)        :: dCanopyTemp_dCanWat   ! derivative of canopy temperature with canopy water
@@ -909,7 +909,7 @@ subroutine enthalpy2T_veg(&
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tfreeze )then
-    T            = Tfreeze ! initial guess, start by discontinuity
+    T            = min(scalarCanopyTemp,Tfreeze) ! initial guess
     H            = scalarCanopyEnthalpy + 1._rkind ! to start the iteration
     dT_dEnthalpy = 0._rkind
     dT_dWat      = 0._rkind
@@ -1017,7 +1017,7 @@ subroutine enthalpy2T_snow(&
                       snowfrz_scale,     & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
                       mLayerEnthalpy,    & ! intent(in):    enthalpy of snow+soil layer (J m-3)
                       mLayerVolFracWat,  & ! intent(in):    volumetric total water content (-)
-                      mLayerTemp,        & ! intent(out):   layer temperature (K)
+                      mLayerTemp,        & ! intent(inout): layer temperature (K)
                       dTemp_dEnthalpy,   & ! intent(inout): derivative of layer temperature with enthalpy
                       dTemp_dTheta,      & ! intent(inout): derivative of layer temperature with volumetric total water content
                       err,message)         ! intent(out):   error control
@@ -1037,7 +1037,7 @@ subroutine enthalpy2T_snow(&
   ! input: water state variables
   real(rkind),intent(in)           :: mLayerVolFracWat   ! volumetric total water content (-)
   ! output: temperature diagnostic variables
-  real(rkind),intent(out)          :: mLayerTemp         ! layer temperature (K)
+  real(rkind),intent(inout)        :: mLayerTemp         ! layer temperature (K)
   ! output: derivatives
   real(rkind),intent(inout)        :: dTemp_dEnthalpy    ! derivative of layer temperature with enthalpy
   real(rkind),intent(inout)        :: dTemp_dTheta       ! derivative of layer temperature with volumetric total water content
@@ -1082,7 +1082,7 @@ subroutine enthalpy2T_snow(&
   err=0; message="enthalpy2T_snow/"
 
   ! ***** iterate to find temperature, ice always exists
-  T            = Tfreeze ! initial guess, start by discontinuity
+  T            = mLayerTemp ! initial guess, will be less than Tfreeze since was a solution
   H            = mLayerEnthalpy + 1._rkind ! to start the iteration
   dT_dEnthalpy = 0._rkind
   dT_dWat      = 0._rkind
@@ -1196,7 +1196,7 @@ subroutine enthalpy2T_soil(&
                       lookup_data,              & ! intent(in):    lookup table data structure
                       mLayerEnthalpy,           & ! intent(in):    enthalpy of each snow+soil layer (J m-3)
                       mLayerMatricHead,         & ! intent(in):    total water matric potential (m)
-                      mLayerTemp,               & ! intent(out):   layer temperature (K)
+                      mLayerTemp,               & ! intent(inout): layer temperature (K)
                       dTemp_dEnthalpy,          & ! intent(inout): derivative of layer temperature with enthalpy
                       dTemp_dTheta,             & ! intent(inout): derivative of layer temperature with volumetric total water content
                       dTemp_dPsi0,              & ! intent(inout): derivative of layer temperature with total water matric potential
@@ -1229,7 +1229,7 @@ subroutine enthalpy2T_soil(&
   ! input: water state variables
   real(rkind),intent(in)           :: mLayerMatricHead       ! total water matric potential (m)
   ! output: temperature diagnostic variables
-  real(rkind),intent(out)          :: mLayerTemp             ! layer temperature (K)
+  real(rkind),intent(inout)        :: mLayerTemp             ! layer temperature (K)
   ! output: derivatives
   real(rkind),intent(inout)        :: dTemp_dEnthalpy        ! derivative of layer temperature with enthalpy
   real(rkind),intent(inout)        :: dTemp_dTheta           ! derivative of layer temperature with volumetric total water content
@@ -1309,7 +1309,7 @@ subroutine enthalpy2T_soil(&
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tcrit )then
-    T            = Tcrit ! initial guess, start by discontinuity
+    T            = min(mLayerTemp,Tcrit) ! initial guess
     H            = mLayerEnthalpy + 1._rkind ! to start the iteration
     dT_dEnthalpy = 0._rkind
     dT_dWat      = 0._rkind
