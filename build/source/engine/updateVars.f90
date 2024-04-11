@@ -705,8 +705,9 @@ subroutine updateVars(&
                       vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
                       ixControlIndex,                        & ! intent(in):  index of the control volume within the domain
                       lookup_data,                           & ! intent(in):  lookup table data structure
-                      mLayerTempTrial(iLayer),               & ! intent(in): layer temperature (K)
-                      mLayerMatricHeadTrial(ixControlIndex), & ! intent(in): matric head (m)
+                      realMissing,                           & ! intent(in):  lower value of integral (not computed)
+                      mLayerTempTrial(iLayer),               & ! intent(in):  layer temperature (K)
+                      mLayerMatricHeadTrial(ixControlIndex), & ! intent(in):  matric head (m)
                      ! output
                       mLayerEnthTempTrial(iLayer),           & ! intent(out): temperature component of enthalpy soil layer (J m-3)
                       err,cmessage)                            ! intent(out): error control      

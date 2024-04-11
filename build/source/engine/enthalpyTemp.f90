@@ -73,6 +73,7 @@ public::enthalpy2T_veg
 public::enthalpy2T_snow
 public::enthalpy2T_soil
 private::hyp_2F1_real
+private::brent, H_veg, H_snow, H_soil
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter               :: nlook=10001       ! number of elements in the lookup table
@@ -561,6 +562,7 @@ subroutine T2enthTemp_soil(&
                       vGn_m,                    & ! intent(in):  van Genutchen "m" parameter (-)
                       ixControlIndex,           & ! intent(in):  index of the control volume within the domain
                       lookup_data,              & ! intent(in):  lookup table data structure
+                      integral_frz_low0,        & ! intent(in):  integral_frz_low if computed outside, else realMissing
                       mLayerTemp,               & ! intent(in):  layer temperature (K)
                       mLayerMatricHead,         & ! intent(in):  total water matric potential (m)
                       mLayerEnthTemp,           & ! intent(out): temperature component of enthalpy soil layer (J m-3)
@@ -583,6 +585,7 @@ subroutine T2enthTemp_soil(&
   real(rkind),intent(in)           :: vGn_m                  ! van Genutchen "m" parameter (-)
   integer(i4b),intent(in)          :: ixControlIndex         ! index within a given model domain
   type(zLookup),intent(in)         :: lookup_data            ! lookup tables
+  real(rkind),intent(in)           :: integral_frz_low0      ! integral_frz_low if computed outside, else realMissing
   ! input: variables for the soil domain
   real(rkind),intent(in)           :: mLayerTemp             ! layer temperature (K)
   real(rkind),intent(in)           :: mLayerMatricHead       ! total water matric potential (m)
@@ -642,8 +645,12 @@ subroutine T2enthTemp_soil(&
 
         ! get the lower limit of the integral
         if(diff0<0._rkind)then
-          call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
-          if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+          if(integral_frz_low0>=0)then ! = realMissing if non-compute
+            integral_frz_low = integral_frz_low0
+          else
+            call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
+            if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+          endif
         else ! Tcrit=Tfreeze, i.e. mLayerMatricHeadTrial(ixControlIndex)>0
           integral_frz_low = 0._rkind
         end if
@@ -656,9 +663,13 @@ subroutine T2enthTemp_soil(&
     else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
       ! get the lower limit of the integral
       if(diff0<0._rkind)then
-        arg              = (vGn_alpha * mLayerMatricHead)**vGn_n
-        gauss_hg_T       = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-        integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+        if(integral_frz_low0>=0)then ! = realMissing if non-compute
+          integral_frz_low = integral_frz_low0
+        else
+          arg              = (vGn_alpha * mLayerMatricHead)**vGn_n
+          gauss_hg_T       = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+          integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+        endif
       else ! Tcrit=Tfreeze, i.e. mLayerMatricHeadTrial(ixControlIndex)>0
         integral_frz_low = 0._rkind
       end if
@@ -865,39 +876,25 @@ subroutine enthalpy2T_veg(&
   integer(i4b),intent(out)         :: err                   ! error code
   character(*),intent(out)         :: message               ! error message
   ! -------------------------------------------------------------------------------------------------------------------------
-  ! declare local variables, iteration variables
-  real(rkind)                      :: T                     ! iteration temperature (K)
-  real(rkind)                      :: H                     ! iteration enthalpy (J m-3)
-  real(rkind)                      :: diffT                 ! temperature difference of iteration temp from Tfreeze
-  real(rkind)                      :: integral              ! iteration integral of snow freezing curve
-  real(rkind)                      :: fLiq                  ! iteration fraction liquid water
-  real(rkind)                      :: enthVeg               ! iteration enthalpy of the vegetation (J m-3)
-  real(rkind)                      :: enthLiq               ! iteration enthalpy of the liquid region (J m-3)
-  real(rkind)                      :: enthIce               ! iteration enthalpy of the ice region (J m-3)  ! iteration variable derivatives
-  ! iteration variable derivatives
-  real(rkind)                      :: dT_dEnthalpy          ! derivative of iteration temperature with enthalpy state variable
-  real(rkind)                      :: dT_dWat               ! derivative of iteration temperature with water state variable
-  real(rkind)                      :: dH_dT                 ! derivative of iteration enthalpy with iteration temperature
-  real(rkind)                      :: d2H_dT2               ! second derivative of iteration enthalpy with iteration temperature
-  real(rkind)                      :: dH_dEnthalpy          ! derivative of iteration enthalpy with enthalpy state variable
-  real(rkind)                      :: dH_dT__dEnthalpy      ! derivative of iteration enthalpy with iteration temperature with enthalpy
-  real(rkind)                      :: dH_dWat               ! derivative of iteration enthalpy with water state variable
-  real(rkind)                      :: dH_dT__dWat           ! derivative of iteration enthalpy with iteration temperature with water state variable
-  real(rkind)                      :: dfLiq_dT              ! derivative of iteration fraction liquid water with iteration temperature
-  real(rkind)                      :: denthVeg_dT           ! derivative of iteration enthalpy of vegetation with iteration temperature
-  real(rkind)                      :: denthIce_dT           ! derivative of iteration enthalpy of ice with iteration temperature
-  real(rkind)                      :: denthLiq_dT           ! derivative of iteration enthalpy of liquid water with iteration temperature
-  real(rkind)                      :: d2fLiq_dT2            ! second derivative of iteration fraction liquid water with iteration temperature
-  real(rkind)                      :: d2enthVeg_dT2         ! second derivative of iteration enthalpy of vegetation with iteration temperature
-  real(rkind)                      :: d2enthLiq_dT2         ! second derivative of iteration enthalpy of liquid water with iteration temperature
-  real(rkind)                      :: d2enthIce_dT2         ! second derivative of iteration enthalpy of ice with iteration temperature
-  real(rkind)                      :: d2enthAir_dT2         ! second derivative of iteration enthalpy of air with iteration temperature
-  real(rkind)                      :: denthVeg_dWat         ! derivative of iteration enthalpy of vegetation with water state variable
-  real(rkind)                      :: denthIce_dWat         ! derivative of iteration enthalpy of ice with water state variable
-  real(rkind)                      :: denthLiq_dWat         ! derivative of iteration enthalpy of liquid water with water state variable
-  real(rkind)                      :: denthVeg_dT__dWat     ! derivative of iteration enthalpy of vegetation with iteration temperature and water state variable 
-  real(rkind)                      :: denthIce_dT__dWat     ! derivative of iteration enthalpy of ice with iteration temperaturewith  water state variable
-  real(rkind)                      :: denthLiq_dT__dWat     ! derivative of iteration enthalpy of liquid water with iteration temperature and water state variable
+   ! declare local variables
+  real(rkind)                      :: T                  ! temperature (K)
+  real(rkind)                      :: H                  ! enthalpy (J m-3)
+  real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
+  real(rkind)                      :: integral           ! integral of snow freezing curve
+  real(rkind)                      :: fLiq               ! fraction liquid 
+  real(rkind)                      :: vec(8)             ! vector of parameters for the enthalpy function
+   ! variable derivatives
+  real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
+  real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
+  real(rkind)                      :: dH_dT              ! derivative of enthalpy with temperature
+  real(rkind)                      :: dH_dWat            ! derivative of enthalpy with water state variable
+  real(rkind)                      :: dfLiq_dT           ! derivative of fraction liquid water with temperature
+  real(rkind)                      :: denthIce_dT        ! derivative of enthalpy of ice with temperature
+  real(rkind)                      :: denthLiq_dT        ! derivative of enthalpy of liquid water with temperature
+  real(rkind)                      :: denthVeg_dT        ! derivative of enthalpy of vegetation with temperature
+  real(rkind)                      :: denthIce_dWat      ! derivative of enthalpy of ice with water state variable
+  real(rkind)                      :: denthLiq_dWat      ! derivative of enthalpy of liquid water with water state variable
+  real(rkind)                      :: denthVeg_dWat      ! derivative of enthalpy of vegetation with water state variable 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="enthalpy2T_veg/"
@@ -909,94 +906,38 @@ subroutine enthalpy2T_veg(&
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tfreeze )then
-    T            = min(scalarCanopyTemp,Tfreeze) ! initial guess
-    H            = scalarCanopyEnthalpy + 1._rkind ! to start the iteration
-    dT_dEnthalpy = 0._rkind
-    dT_dWat      = 0._rkind
+    T = min(scalarCanopyTemp,Tfreeze) ! initial guess
 
-    do while( abs((H - scalarCanopyEnthalpy)/dH_dT)>1.e-6_rkind )
+    ! find the root of the function
+    ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
+    ! and the vector of parameters
+    vec      = 0._rkind
+    vec(1:5) = (/canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
+    T = brent(H_veg,-200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec)
+
+    ! compute Jacobian terms
+    if(computJac)then
+    ! NOTE: dintegral_dT = fLiq
       diffT    = T - Tfreeze
-      if(T>=Tfreeze)then
-        ! compute iteration enthalpy function
-        fLiq    = 1._rkind
-        enthLiq = Cp_water * scalarCanopyWat * diffT / canopyDepth
-        enthIce = 0._rkind
+      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+      fLiq     = fracLiquid(T, snowfrz_scale)
 
-        ! compute derivative of iteration with respect to iteration T
-        dfLiq_dT    = 0._rkind
-        denthLiq_dT = Cp_water * scalarCanopyWat / canopyDepth
-        denthIce_dT = 0._rkind
-      else  
-        ! compute iteration enthalpy function
-        integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-        fLiq     = fracLiquid(T, snowfrz_scale)
-        enthLiq  = Cp_water * scalarCanopyWat * integral / canopyDepth
-        enthIce  = Cp_ice * scalarCanopyWat * ( diffT - integral ) / canopyDepth
-
-        ! compute derivative of iteration with respect to iteration T
-        ! NOTE: dintegral_dT = fLiq
-        dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
-        denthLiq_dT = Cp_water * scalarCanopyWat * fLiq / canopyDepth
-        denthIce_dT = Cp_ice * scalarCanopyWat * (1._rkind - fLiq) / canopyDepth
-      endif
-
-      ! compute iteration enthalpy function, H
-      enthVeg  = specificHeatVeg * maxMassVegetation * diffT / canopyDepth
-      H        = enthVeg + enthLiq + enthIce - LH_fus * (1._rkind - fLiq) * scalarCanopyWat / canopyDepth
-
-      ! compute derivative of iteration H with respect to iteration T
+      ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
+      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
+      denthLiq_dT = Cp_water * scalarCanopyWat * fLiq / canopyDepth
+      denthIce_dT = Cp_ice * scalarCanopyWat * (1._rkind - fLiq) / canopyDepth
       denthVeg_dT = specificHeatVeg * maxMassVegetation / canopyDepth
       dH_dT       = denthVeg_dT + denthLiq_dT + denthIce_dT + LH_fus * dfLiq_dT * scalarCanopyWat / canopyDepth
 
-      ! compute change in T and update
-      T = T - (H - scalarCanopyEnthalpy)/dH_dT
+      ! w.r.t. layer water content
+      denthLiq_dWat  = Cp_water * diffT / canopyDepth
+      denthIce_dWat  = 0._rkind
+      denthVeg_dWat = 0._rkind
+      dH_dWat       = dH_dT * dT_dWat + denthVeg_dWat + denthLiq_dWat + denthIce_dWat - LH_fus * (1._rkind - fLiq) / canopyDepth
 
-      if(computJac)then
-        if(T>=Tfreeze)then
-          ! compute second derivatives
-          d2fLiq_dT2    = 0._rkind
-          d2enthLiq_dT2  = 0._rkind
-          d2enthIce_dT2  = 0._rkind
-
-          ! compute derivative of iteration with respect to canopy water
-          denthLiq_dWat  = Cp_water * diffT / canopyDepth
-          denthIce_dWat  = 0._rkind
-          denthLiq_dT__dWat  = Cp_water / canopyDepth
-          denthIce_dT__dWat  = 0._rkind
-        else 
-          ! compute second derivatives
-          ! NOTE: d2integral_dT2 = dfLiq_dT    
-          d2fLiq_dT2    = 2._rkind * snowfrz_scale**2_i4b * ( 3._rkind * diffT**2_i4b - 1._rkind ) / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**3_i4b
-          d2enthLiq_dT2 = Cp_water * scalarCanopyWat * dfLiq_dT / canopyDepth
-          d2enthIce_dT2 = -Cp_ice * scalarCanopyWat * dfLiq_dT / canopyDepth
-
-          ! compute derivative of iteration H with respect to canopy water
-          denthLiq_dWat = Cp_water * integral / canopyDepth
-          denthIce_dWat = Cp_ice * ( diffT - integral ) / canopyDepth
-          denthLiq_dT__dWat = Cp_water * fLiq / canopyDepth
-          denthIce_dT__dWat = Cp_ice * (1._rkind - fLiq) / canopyDepth
-        endif
-
-        ! compute second derivatives
-        d2enthVeg_dT2 = 0._rkind
-        d2H_dT2       = d2enthVeg_dT2 + d2enthLiq_dT2 + d2enthIce_dT2 + LH_fus * d2fLiq_dT2 * scalarCanopyWat / canopyDepth
-
-        ! compute derivative of iteration H with respect to canopy enthalpy
-        dH_dEnthalpy     = dH_dT * dT_dEnthalpy
-        dH_dT__dEnthalpy = d2H_dT2 * dT_dEnthalpy
-
-        ! compute derivative of iteration H with respect to canopy water
-        denthVeg_dWat = 0._rkind
-        dH_dWat       = dH_dT * dT_dWat + denthVeg_dWat + denthLiq_dWat + denthIce_dWat - LH_fus * (1._rkind - fLiq) / canopyDepth
-        denthVeg_dT__dWat = 0._rkind
-        dH_dT__dWat   = d2H_dT2 * dT_dWat + denthVeg_dT__dWat + denthLiq_dT__dWat + denthIce_dT__dWat + LH_fus * dfLiq_dT / canopyDepth
-
-        ! update derivatives
-        dT_dEnthalpy = dT_dEnthalpy - ( dH_dEnthalpy - 1._rkind - dH_dT__dEnthalpy * (H - scalarCanopyEnthalpy)/dH_dT ) / dH_dT
-        dT_dWat      = dT_dWat - ( dH_dWat - dH_dT__dWat * (H - scalarCanopyEnthalpy)/dH_dT ) / dH_dT
-      endif
-    end do
-
+      dT_dEnthalpy = 1._rkind / dH_dT
+      dT_dWat      = dH_dWat / dH_dT
+    endif
   endif ! (if ice exists)
 
   ! update temperature and derivatives
@@ -1007,7 +948,6 @@ subroutine enthalpy2T_veg(&
   endif
 
 end subroutine enthalpy2T_veg
-
 
 ! ************************************************************************************************************************
 ! public subroutine enthalpy2T_snow: compute temperature from enthalpy and total water content, snow layer
@@ -1045,140 +985,67 @@ subroutine enthalpy2T_snow(&
   integer(i4b),intent(out)         :: err                ! error code
   character(*),intent(out)         :: message            ! error message
   ! -------------------------------------------------------------------------------------------------------------------------
-  ! declare local variables, iteration variables
-  real(rkind)                      :: T                  ! iteration temperature (K)
-  real(rkind)                      :: H                  ! iteration enthalpy (J m-3)
-  real(rkind)                      :: diffT              ! temperature difference of iteration temp from Tfreeze
-  real(rkind)                      :: integral           ! iteration integral of snow freezing curve
-  real(rkind)                      :: fLiq               ! iteration fraction liquid 
-  real(rkind)                      :: enthLiq            ! iteration enthalpy of the liquid region (J m-3)
-  real(rkind)                      :: enthIce            ! iteration enthalpy of the ice region (J m-3)
-  real(rkind)                      :: enthAir            ! iteration enthalpy of air (J m-3)
-  ! iteration variable derivatives
-  real(rkind)                      :: dT_dEnthalpy       ! derivative of iteration temperature with enthalpy state variable
-  real(rkind)                      :: dT_dWat            ! derivative of iteration temperature with water state variable
-  real(rkind)                      :: dH_dT              ! derivative of iteration enthalpy with iteration temperature
-  real(rkind)                      :: d2H_dT2            ! second derivative of iteration enthalpy with iteration temperature
-  real(rkind)                      :: dH_dEnthalpy       ! derivative of iteration enthalpy with enthalpy state variable
-  real(rkind)                      :: dH_dT__dEnthalpy   ! derivative of iteration enthalpy with iteration temperature with enthalpy
-  real(rkind)                      :: dH_dWat            ! derivative of iteration enthalpy with water state variable
-  real(rkind)                      :: dH_dT__dWat        ! derivative of iteration enthalpy with iteration temperature with water state variable
-  real(rkind)                      :: dfLiq_dT           ! derivative of iteration fraction liquid water with iteration temperature
-  real(rkind)                      :: denthIce_dT        ! derivative of iteration enthalpy of ice with iteration temperature
-  real(rkind)                      :: denthLiq_dT        ! derivative of iteration enthalpy of liquid water with iteration temperature
-  real(rkind)                      :: denthAir_dT        ! derivative of iteration enthalpy of air with temperature
-  real(rkind)                      :: d2fLiq_dT2         ! second derivative of iteration fraction liquid water with iteration temperature
-  real(rkind)                      :: d2enthLiq_dT2      ! second derivative of iteration enthalpy of liquid water with iteration temperature
-  real(rkind)                      :: d2enthIce_dT2      ! second derivative of iteration enthalpy of ice with iteration temperature
-  real(rkind)                      :: d2enthAir_dT2      ! second derivative of iteration enthalpy of air with iteration temperature
-  real(rkind)                      :: denthIce_dWat      ! derivative of iteration enthalpy of ice with water state variable
-  real(rkind)                      :: denthLiq_dWat      ! derivative of iteration enthalpy of liquid water with water state variable
-  real(rkind)                      :: denthAir_dWat      ! derivative of iteration enthalpy of air with water state variable
-  real(rkind)                      :: denthIce_dT__dWat  ! derivative of iteration enthalpy of ice with iteration temperaturewith  water state variable
-  real(rkind)                      :: denthLiq_dT__dWat  ! derivative of iteration enthalpy of liquid water with iteration temperature and water state variable
-  real(rkind)                      :: denthAir_dT__dWat  ! derivative of iteration enthalpy of air with iteration temperature with water state variable
+  ! declare local variables
+  real(rkind)                      :: T                  ! temperature (K)
+  real(rkind)                      :: H                  ! enthalpy (J m-3)
+  real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
+  real(rkind)                      :: integral           ! integral of snow freezing curve
+  real(rkind)                      :: fLiq               ! fraction liquid 
+  real(rkind)                      :: vec(8)             ! vector of parameters for the enthalpy function
+   ! variable derivatives
+  real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
+  real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
+  real(rkind)                      :: dH_dT              ! derivative of enthalpy with temperature
+  real(rkind)                      :: dH_dWat            ! derivative of enthalpy with water state variable
+  real(rkind)                      :: dfLiq_dT           ! derivative of fraction liquid water with temperature
+  real(rkind)                      :: denthIce_dT        ! derivative of enthalpy of ice with temperature
+  real(rkind)                      :: denthLiq_dT        ! derivative of enthalpy of liquid water with temperature
+  real(rkind)                      :: denthAir_dT        ! derivative of enthalpy of air with temperature
+  real(rkind)                      :: denthIce_dWat      ! derivative of enthalpy of ice with water state variable
+  real(rkind)                      :: denthLiq_dWat      ! derivative of enthalpy of liquid water with water state variable
+  real(rkind)                      :: denthAir_dWat      ! derivative of enthalpy of air with water state variable
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="enthalpy2T_snow/"
 
   ! ***** iterate to find temperature, ice always exists
-  T            = mLayerTemp ! initial guess, will be less than Tfreeze since was a solution
-  H            = mLayerEnthalpy + 1._rkind ! to start the iteration
-  dT_dEnthalpy = 0._rkind
-  dT_dWat      = 0._rkind
+  T  = mLayerTemp ! initial guess, will be less than Tfreeze since was a solution
 
-  do while( abs((H - mLayerEnthalpy)/dH_dT)>1.e-6_rkind )
-    diffT    = T - Tfreeze
-    if(T>=Tfreeze)then
-      ! compute iteration enthalpy function
-      integral = diffT
-      fLiq    = 1._rkind
-      enthLiq = iden_water * Cp_water * mLayerVolFracWat * diffT
-      enthIce = 0._rkind
+  ! find the root of the function
+  ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
+  ! and the vector of parameters
+  vec = 0._rkind
+  vec(1:2) = (/snowfrz_scale, mLayerVolFracWat/)
+  T = brent(H_snow,-200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec)
 
-      ! compute derivative of iteration with respect to iteration T
-      dfLiq_dT    = 0._rkind
-      denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat
-      denthIce_dT = 0._rkind
-    else
-      ! compute iteration enthalpy function
-      integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-      fLiq     = fracLiquid(T, snowfrz_scale)
-      enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
-      enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
-
-      ! compute derivative of iteration with respect to iteration T
-      ! NOTE: dintegral_dT = fLiq
-      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
-      denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
-      denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
-    endif
-    ! compute iteration enthalpy function, H
-    enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
-    H        = enthLiq + enthIce + enthAir - iden_ice * LH_fus * (1._rkind - fLiq) * mLayerVolFracWat
-
-    ! compute derivative of iteration H with respect to iteration T
+  ! compute Jacobian terms
+  if(computJac)then
+ 
+    ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
+    dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
+    denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
+    denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
     denthAir_dT = iden_air * Cp_air * (1._rkind - mLayerVolFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) )
     dH_dT       = denthLiq_dT + denthIce_dT + denthAir_dT + iden_ice * LH_fus * dfLiq_dT * mLayerVolFracWat
 
-    ! compute change in T and update
-    T = T - (H - mLayerEnthalpy)/dH_dT
+    ! w.r.t. layer water content
+    denthLiq_dWat = iden_water * Cp_water * integral
+    denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
+    denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
+    dH_dWat       = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_ice * LH_fus * (1._rkind - fLiq)
 
-    if(computJac)then
-      if(T>=Tfreeze)then
-        ! compute second derivatives
-        d2fLiq_dT2    = 0._rkind
-        d2enthLiq_dT2  = 0._rkind
-        d2enthIce_dT2  = 0._rkind
-
-        ! compute derivative of iteration with respect to layer water content
-        denthLiq_dWat  = iden_water * Cp_water * diffT
-        denthIce_dWat  = 0._rkind
-        denthLiq_dT__dWat  = iden_water * Cp_water
-        denthIce_dT__dWat  = 0._rkind
-      else 
-        ! compute second derivatives
-        ! NOTE: d2integral_dT2 = dfLiq_dT    
-        d2fLiq_dT2    = 2._rkind * snowfrz_scale**2_i4b * ( 3._rkind * diffT**2_i4b - 1._rkind ) / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**3_i4b
-        d2enthLiq_dT2 = iden_water * Cp_water * mLayerVolFracWat * dfLiq_dT
-        d2enthIce_dT2 = -iden_water * Cp_ice * mLayerVolFracWat * dfLiq_dT
-
-        ! compute derivative of iteration with respect to layer water content
-        denthLiq_dWat = iden_water * Cp_water * integral
-        denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
-        denthLiq_dT__dWat = iden_water * Cp_water * fLiq
-        denthIce_dT__dWat = iden_water * Cp_ice * (1._rkind - fLiq)
-      endif
-
-      ! compute second derivatives
-      d2enthAir_dT2 = iden_air * Cp_air * ( mLayerVolFracWat * dfLiq_dT *( (iden_water/iden_ice) - 1._rkind ) )
-      d2H_dT2       = d2enthLiq_dT2 + d2enthIce_dT2 + d2enthAir_dT2 + iden_ice * LH_fus * d2fLiq_dT2 * mLayerVolFracWat
-
-      ! compute derivative of iteration H with respect to layer enthalpy
-      dH_dEnthalpy     = dH_dT * dT_dEnthalpy
-      dH_dT__dEnthalpy = d2H_dT2 * dT_dEnthalpy
-
-      ! compute derivative of iteration H with respect to layer water content
-      denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
-      dH_dWat       = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_ice * LH_fus * (1._rkind - fLiq)
-      denthAir_dT__dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq )
-      dH_dT__dWat       = d2H_dT2 * dT_dWat + denthLiq_dT__dWat + denthIce_dT__dWat + denthAir_dT__dWat + iden_ice * LH_fus * dfLiq_dT
-
-      ! update derivatives
-      dT_dEnthalpy = dT_dEnthalpy - ( dH_dEnthalpy - 1._rkind - dH_dT__dEnthalpy * (H - mLayerEnthalpy)/dH_dT ) / dH_dT
-      dT_dWat      = dT_dWat - ( dH_dWat - dH_dT__dWat * (H - mLayerEnthalpy)/dH_dT ) / dH_dT
-    endif
-  end do
+    dT_dEnthalpy = 1._rkind / dH_dT
+    dT_dWat      = dH_dWat / dH_dT
+  endif
 
   ! update temperature and derivatives
   mLayerTemp = T
-  if(computJac)then
+  if(computJac)then  
     dTemp_dEnthalpy = dT_dEnthalpy
     dTemp_dTheta    = dT_dWat
   endif
 
 end subroutine enthalpy2T_snow
-
 
 ! ************************************************************************************************************************
 ! public subroutine enthalpy2T_soil: compute temperature from enthalpy and total water content, soil layer
@@ -1249,50 +1116,32 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: integral_frz_low       ! lower limit of integral of frozen soil water content (from Tfreeze to Tcrit)
   real(rkind)                      :: xConst                 ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq           ! liquid water matric potential (m)
+  real(rkind)                      :: T                      ! temperature (K)
+  real(rkind)                      :: H                      ! enthalpy (J m-3)
+  real(rkind)                      :: diffT                  ! temperature difference of temp from Tfreeze
+  real(rkind)                      :: fLiq                   ! fraction liquid water
+  real(rkind)                      :: integral_frz_upp       ! upper limit of integral of frozen soil water content (from Tfreeze to soil temperature)
+  real(rkind)                      :: arg                    ! argument of soil hypergeometric function
+  real(rkind)                      :: gauss_hg_T             ! soil hypergeometric function result
+  real(rkind)                      :: vec(8)                 ! vector of parameters for the enthalpy function
+  ! variable derivatives
   real(rkind)                      :: dvolFracWat_dPsi0      ! derivative of the soil water content w.r.t. matric head
   real(rkind)                      :: dintegral_unf_dWat     ! derivative of integral of unfrozen soil water content with water content
   real(rkind)                      :: dintegral_frz_low_dWat ! derivative of integral of frozen soil water content with water content
-  ! iteration variables
-  real(rkind)                      :: T                      ! iteration temperature (K)
-  real(rkind)                      :: H                      ! iteration enthalpy (J m-3)
-  real(rkind)                      :: diffT                  ! temperature difference of iteration temp from Tfreeze
-  real(rkind)                      :: fLiq                   ! iteration fraction liquid water
-  real(rkind)                      :: integral_frz_upp       ! upper limit of iteration integral of frozen soil water content (from Tfreeze to soil temperature)
-  real(rkind)                      :: arg                    ! argument of iteration soil hypergeometric function
-  real(rkind)                      :: gauss_hg_T             ! iteration soil hypergeometric function result
-  real(rkind)                      :: enthSoil               ! iteration enthalpy of soil particles (J m-3)
-  real(rkind)                      :: enthLiq                ! iteration enthalpy of the liquid region (J m-3)
-  real(rkind)                      :: enthIce                ! iteration enthalpy of the ice region (J m-3)
-  real(rkind)                      :: enthAir                ! iteration enthalpy of air (J m-3)
-  ! iteration variable derivatives
-  real(rkind)                      :: dT_dEnthalpy           ! derivative of iteration temperature with enthalpy state variable
-  real(rkind)                      :: dT_dWat                ! derivative of iteration temperature with water state variable
-  real(rkind)                      :: dH_dT                  ! derivative of iteration enthalpy with iteration temperature
-  real(rkind)                      :: d2H_dT2                ! second derivative of iteration enthalpy with iteration temperature
-  real(rkind)                      :: dH_dEnthalpy           ! derivative of iteration enthalpy with enthalpy state variable
-  real(rkind)                      :: dH_dT__dEnthalpy       ! derivative of iteration enthalpy with iteration temperature with enthalpy
-  real(rkind)                      :: dH_dWat                ! derivative of iteration enthalpy with water state variable
-  real(rkind)                      :: dH_dT__dWat            ! derivative of iteration enthalpy with iteration temperature with water state variable
-  real(rkind)                      :: dfLiq_dT               ! derivative of iteration fraction liquid water with iteration temperature
-  real(rkind)                      :: dintegral_frz_upp_dT   ! derivative of iteration integral of frozen soil water content with iteration temperature
-  real(rkind)                      :: denthSoil_dT           ! derivative of iteration enthalpy of soil with iteration temperature
-  real(rkind)                      :: denthIce_dT            ! derivative of iteration enthalpy of ice with iteration temperature
-  real(rkind)                      :: denthLiq_dT            ! derivative of iteration enthalpy of liquid water with iteration temperature
-  real(rkind)                      :: denthAir_dT            ! derivative of iteration enthalpy of air with temperature
-  real(rkind)                      :: d2fLiq_dT2             ! second derivative of iteration fraction liquid water with iteration temperature
-  real(rkind)                      :: d2integral_frz_upp_dT2 ! second derivative of iteration integral of frozen soil water content with iteration temperature
-  real(rkind)                      :: d2enthSoil_dT2         ! second derivative of iteration enthalpy of soil with iteration temperature
-  real(rkind)                      :: d2enthLiq_dT2          ! second derivative of iteration enthalpy of liquid water with iteration temperature
-  real(rkind)                      :: d2enthIce_dT2          ! second derivative of iteration enthalpy of ice with iteration temperature
-  real(rkind)                      :: d2enthAir_dT2          ! second derivative of iteration enthalpy of air with iteration temperature
-  real(rkind)                      :: denthSoil_dWat         ! derivative of iteration enthalpy of soil with water state variable
-  real(rkind)                      :: denthIce_dWat          ! derivative of iteration enthalpy of ice with water state variable
-  real(rkind)                      :: denthLiq_dWat          ! derivative of iteration enthalpy of liquid water with water state variable
-  real(rkind)                      :: denthAir_dWat          ! derivative of iteration enthalpy of air with water state variable
-  real(rkind)                      :: denthSoil_dT__dWat     ! derivative of iteration enthalpy of soil with iteration temperature and water state variable
-  real(rkind)                      :: denthIce_dT__dWat      ! derivative of iteration enthalpy of ice with iteration temperaturewith  water state variable
-  real(rkind)                      :: denthLiq_dT__dWat      ! derivative of iteration enthalpy of liquid water with iteration temperature and water state variable
-  real(rkind)                      :: denthAir_dT__dWat      ! derivative of iteration enthalpy of air with iteration temperature with water state variable
+  real(rkind)                      :: dT_dEnthalpy           ! derivative of temperature with enthalpy state variable
+  real(rkind)                      :: dT_dWat                ! derivative of temperature with water state variable
+  real(rkind)                      :: dH_dT                  ! derivative of enthalpy with temperature
+  real(rkind)                      :: dH_dWat                ! derivative of enthalpy with water state variable
+  real(rkind)                      :: dfLiq_dT               ! derivative of fraction liquid water with temperature
+  real(rkind)                      :: dintegral_frz_upp_dT   ! derivative of integral of frozen soil water content with temperature
+  real(rkind)                      :: denthSoil_dT           ! derivative of enthalpy of soil with temperature
+  real(rkind)                      :: denthIce_dT            ! derivative of enthalpy of ice with temperature
+  real(rkind)                      :: denthLiq_dT            ! derivative of enthalpy of liquid water with temperature
+  real(rkind)                      :: denthAir_dT            ! derivative of enthalpy of air with temperature
+  real(rkind)                      :: denthSoil_dWat         ! derivative of enthalpy of soil with water state variable
+  real(rkind)                      :: denthIce_dWat          ! derivative of enthalpy of ice with water state variable
+  real(rkind)                      :: denthLiq_dWat          ! derivative of enthalpy of liquid water with water state variable
+  real(rkind)                      :: denthAir_dWat          ! derivative of enthalpy of air with water state variable
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="enthalpy2T_soil/"
@@ -1309,19 +1158,16 @@ subroutine enthalpy2T_soil(&
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tcrit )then
-    T            = min(mLayerTemp,Tcrit) ! initial guess
-    H            = mLayerEnthalpy + 1._rkind ! to start the iteration
-    dT_dEnthalpy = 0._rkind
-    dT_dWat      = 0._rkind
+    T = min(mLayerTemp,Tcrit) ! initial guess
 
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
     ! get the unfrozen water content of enthalpy
     integral_unf       = ( Tcrit - Tfreeze ) * volFracWat ! unfrozen water content
-    dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + ( Tcrit - Tfreeze ) * dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    if(computJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + ( Tcrit - Tfreeze ) * dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
     ! get the frozen water content of enthalpy, statrt with lower limit of the integral
     diff0 = Tcrit - Tfreeze
-    if(diff0<0._rkind)then
+    if (diff0<0._rkind)then
 
       if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
         ! make associate to the the lookup table
@@ -1348,122 +1194,58 @@ subroutine enthalpy2T_soil(&
       dintegral_frz_low_dWat = 0._rkind
     end if
 
-    xConst = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-    do while( abs((H - mLayerEnthalpy)/dH_dT)>1.e-6_rkind )
+    ! find the root of the function
+    ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
+    ! and the vector of parameters
+    vec(1:8) = (/soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
+    T = brent(H_soil,-200._rkind,Tcrit, T, 1.e-6_rkind, 0, vec, use_lookup, lookup_data, ixControlIndex)
+
+  ! compute Jacobian terms
+    if(computJac)then
+      ! NOTE: here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
+      xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
       diffT        = T - Tfreeze
+      mLayerPsiLiq = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution, DIFFERENT from the liquid water matric potential used in the flux calculations
+      arg          = (vGn_alpha * mLayerPsiLiq)**vGn_n
+      fLiq         = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
 
-      ! NOTE: this should be T>=Tcrit, but we need to smooth the function from Tcrit to Tfreeze for the Newton-Raphson method
-      ! Newton-Raphson step should not find a solution of T>Tcrit so does not affect the solution
-      if(T>=Tfreeze)then 
-        ! compute iteration enthalpy function
-        fLiq    = theta_sat ! should be volFracWat if were not smoothing the function
-        enthLiq = iden_water * Cp_water * (fLiq * diffT + integral_unf - integral_frz_low) ! should be iden_water*Cp_water*fLiq*diffT if were not smoothing the function
-        enthIce = iden_ice * Cp_ice * ( (volFracWat - fLiq) * diffT - (integral_unf - integral_frz_low) ) ! should be iden_ice*Cp_ice*(volFracWat - fLiq)*diffT if were not smoothing the function
+      ! get the upper limit of the integral
+      if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
+        ! make associate to the the lookup table
+        lookVars2: associate(&
+          Tk => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup,  & ! temperature (K)
+          Ly => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup,   & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
+          L2 => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup        & ! second derivative of the interpolating function
+          ) ! end associate statement
 
-        ! compute derivative of iteration with respect to iteration T
-        dfLiq_dT     = 0._rkind
-        denthLiq_dT  = iden_water * Cp_water * fLiq
-        denthIce_dT  = iden_ice * Cp_ice * (volFracWat - fLiq)
-      else
-        mLayerPsiLiq = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution, DIFFERENT from the liquid water matric potential used in the flux calculations
-        arg          = (vGn_alpha * mLayerPsiLiq)**vGn_n
+          ! integral of mLayerPsiLiq from Tfreeze to layer temperature
+          call splint(Tk,Ly,L2,T,integral_frz_upp,dL,err,cmessage)
+          if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+          dintegral_frz_upp_dT = dL
 
-        ! get the upper limit of the integral
-        if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
-          ! make associate to the the lookup table
-          lookVars2: associate(&
-            Tk => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup,  & ! temperature (K)
-            Ly => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup,   & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
-            L2 => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup        & ! second derivative of the interpolating function
-            ) ! end associate statement
+        end associate lookVars2
 
-            ! integral of mLayerPsiLiq from Tfreeze to layer temperature
-            call splint(Tk,Ly,L2,T,integral_frz_upp,dL,err,cmessage)
-            if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-            dintegral_frz_upp_dT = dL
-            if(computJac) d2integral_frz_upp_dT2 = 0._rkind
+      else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
+        gauss_hg_T             = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+        integral_frz_upp       = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+        dintegral_frz_upp_dT   = fLiq
+      end if
 
-          end associate lookVars2
-
-        else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
-          gauss_hg_T             = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-          integral_frz_upp       = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
-          dintegral_frz_upp_dT   = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! fLiq
-          if(computJac) d2integral_frz_upp_dT2 = dTheta_dTk(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m) ! dfLiq_dT
-        end if
-
-        ! compute iteration enthalpy function
-        ! NOTE: here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
-        fLiq     = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
-        enthLiq  = iden_water * Cp_water * (integral_unf + integral_frz_upp - integral_frz_low)
-        enthIce  = iden_ice * Cp_ice * ( volFracWat * diffT - (integral_unf + integral_frz_upp - integral_frz_low) )
-
-        ! compute derivative of iteration with respect to iteration T
-        dfLiq_dT     = dTheta_dTk(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
-        denthLiq_dT  = iden_water * Cp_water * dintegral_frz_upp_dT
-        denthIce_dT  = iden_ice * Cp_ice * ( volFracWat  - dintegral_frz_upp_dT ) 
-      endif
-
-      ! compute iteration enthalpy function, H
-      enthSoil = soil_dens_intr * Cp_soil * ( 1._rkind - theta_sat ) * diffT
-      enthAir  = iden_air * Cp_air * ( 1._rkind - theta_sat - volFracWat ) * diffT
-      H        = enthLiq + enthIce + enthSoil + enthAir  - iden_water * LH_fus * (volFracWat - fLiq)
-
-      ! compute derivative of iteration H with respect to iteration T
+      ! w.r.t. temperature
+      dfLiq_dT     = dTheta_dTk(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
+      denthLiq_dT  = iden_water * Cp_water * dintegral_frz_upp_dT
+      denthIce_dT  = iden_ice * Cp_ice * ( volFracWat  - dintegral_frz_upp_dT ) 
       denthSoil_dT = soil_dens_intr * Cp_soil * ( 1._rkind - theta_sat )
       denthAir_dT  = iden_air * Cp_air * ( 1._rkind - theta_sat - volFracWat ) 
       dH_dT        = denthLiq_dT + denthIce_dT + denthSoil_dT + denthAir_dT + iden_water * LH_fus * dfLiq_dT
 
-      ! compute change in T and update
-      T = T - (H - mLayerEnthalpy)/dH_dT
-
-      if(computJac)then
-        if(T>=Tfreeze)then ! should be T>=Tcrit if were not smoothing the function
-          ! compute second derivatives
-          d2fLiq_dT2     = 0._rkind
-          d2enthLiq_dT2  = 0._rkind
-          d2enthIce_dT2  = 0._rkind
-
-          ! compute derivative of iteration with respect to layer water content
-          denthLiq_dWat  = iden_water * Cp_water * (dintegral_unf_dWat - dintegral_frz_low_dWat) ! should be iden_water * Cp_water * diffT if were not smoothing the function
-          denthIce_dWat  = iden_ice * Cp_ice * ( diffT - (dintegral_unf_dWat - dintegral_frz_low_dWat) ) ! should be 0._rkind if were not smoothing the function
-          denthLiq_dT__dWat  = 0._rkind ! should be iden_water * Cp_water if were not smoothing the function
-          denthIce_dT__dWat  = iden_ice * Cp_ice ! should be 0._rkind if were not smoothing the function
-        else
-          ! compute second derivatives
-          d2fLiq_dT2     = d2Theta_dTk2(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
-          d2enthLiq_dT2  = iden_water * Cp_water * d2integral_frz_upp_dT2
-          d2enthIce_dT2  = -iden_ice * Cp_ice * d2integral_frz_upp_dT2
-
-          ! compute derivative of iteration with respect to layer water content
-          denthLiq_dWat  = iden_water * Cp_water * (dintegral_unf_dWat - dintegral_frz_low_dWat)
-          denthIce_dWat  = iden_ice * Cp_ice * ( dvolFracWat_dPsi0 * diffT - (dintegral_unf_dWat - dintegral_frz_low_dWat) )
-          denthLiq_dT__dWat  = 0._rkind
-          denthIce_dT__dWat  = iden_ice * Cp_ice * dvolFracWat_dPsi0
-        endif
-
-        ! compute second derivatives
-        d2enthSoil_dT2 = 0._rkind
-        d2enthAir_dT2  = 0._rkind
-        d2H_dT2        = d2enthLiq_dT2 + d2enthIce_dT2 + d2enthSoil_dT2 + d2enthAir_dT2 + iden_water * LH_fus * d2fLiq_dT2
-
-        ! compute derivative of iteration H with respect to layer enthalpy
-        dH_dEnthalpy     = dH_dT * dT_dEnthalpy
-        dH_dT__dEnthalpy = d2H_dT2 * dT_dEnthalpy
-
-        ! compute derivative of iteration H with respect to layer water content
-        denthSoil_dWat = 0._rkind
-        denthAir_dWat  = -iden_air * Cp_air * dvolFracWat_dPsi0 * diffT      
-        dH_dWat        = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * dvolFracWat_dPsi0  
-        denthSoil_dT__dWat = 0._rkind
-        denthAir_dT__dWat  = -iden_air * Cp_air * dvolFracWat_dPsi0
-        dH_dT__dWat        = d2H_dT2 * dT_dWat + denthLiq_dT__dWat + denthIce_dT__dWat + denthSoil_dT__dWat + denthAir_dT__dWat
-
-        ! update derivatives
-        dT_dEnthalpy = dT_dEnthalpy - ( dH_dEnthalpy - 1._rkind - dH_dT__dEnthalpy * (H - mLayerEnthalpy)/dH_dT ) / dH_dT
-        dT_dWat      = dT_dWat - ( dH_dWat - dH_dT__dWat * (H - mLayerEnthalpy)/dH_dT ) / dH_dT
-      endif
-    end do
+      ! w.r.t. layer water content
+      denthLiq_dWat  = iden_water * Cp_water * (dintegral_unf_dWat - dintegral_frz_low_dWat)
+      denthIce_dWat  = iden_ice * Cp_ice * ( dvolFracWat_dPsi0 * diffT - (dintegral_unf_dWat - dintegral_frz_low_dWat) )
+      denthSoil_dWat = 0._rkind
+      denthAir_dWat  = -iden_air * Cp_air * dvolFracWat_dPsi0 * diffT      
+      dH_dWat        = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * dvolFracWat_dPsi0  
+    endif
   end if ! (if ice exists)
 
   ! update temperature and derivatives
@@ -1475,7 +1257,6 @@ subroutine enthalpy2T_soil(&
   endif
 
 end subroutine enthalpy2T_soil
-
 
 !----------------------------------------------------------------------
 ! private function: compute hypergeometric function with real arguments into real result
@@ -1496,5 +1277,264 @@ end subroutine enthalpy2T_soil
   hyp_2F1_real = REAL(result, rkind)
    
 end function hyp_2F1_real
+
+!----------------------------------------------------------------------
+! private function: Brent's method to find a root of a function
+!----------------------------------------------------------------------
+function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixControlIndex)
+  !
+  ! Description of algorithm: 
+  ! Find a root of function f(x) given intial bracketing interval [a,b]
+  ! where f(a) and f(b) must have opposite signs. At a typical step we have
+  ! three points a, b, and c such that f(b)f(c)<0, and a may coincide with
+  ! c. The points a, b, and c change during the algorithm, and the root
+  ! always lies in either [b,c] or [c, b]. The value b is the best
+  ! approximation to the root and a is the previous value of b. 
+  ! 
+  ! The iteration uses following selection of algorithms 
+  ! when bracket shrinks reasonablly fast,
+  !  - Linear interporation if a == b
+  !  - Quadratic interporation if a != b and the point is in the bracket.
+  ! othrwise 
+  ! - Bisection.
+  ! 
+  ! Inputs:
+  !   fun: function to be solved
+  !   x1, x2: Upper bound and lower bound for a function
+  !   x0: initial guess for the root
+  !   tol: error tolerance. 
+  !   detail (optional): output result of iteration if detail is some value. 
+  !  
+  ! Based on zeroin.f in netlib
+
+  implicit none
+  real(rkind) :: brent
+  integer, parameter :: d = rkind
+  real(rkind), intent(IN) :: x1, x2, x0, tol, vec(8)
+  real(rkind), external :: fun
+  integer, intent(IN) :: detail
+  logical(lgt), intent(in), optional :: use_lookup
+  type(zLookup),intent(in), optional :: lookup_data
+  integer(i4b), intent(in), optional :: ixControlIndex
+  
+  integer :: i, exitflag, disp
+  real(rkind) :: a, b, c, diff,e, fa, fb, fc, p, q, r, s, tol1, xm, tmp, fx1, fx2
+  real(rkind), parameter :: EPS = epsilon(a)
+  integer, parameter :: imax = 100  ! maximum number of iteration
+  
+  exitflag = 0
+  if (detail /= 0) then
+    disp = 1
+  else
+    disp = 0
+  end if
+    
+  ! intialize values
+  a = x1
+  b = x2
+  c = x0
+  if(present(use_lookup))then
+    fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
+    fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
+    fc = fun(c, vec, use_lookup, lookup_data, ixControlIndex)
+  else  
+    fa = fun(a, vec)
+    fb = fun(b, vec)
+    fc = fun(c, vec)
+  end if
+  fx1 = fa
+  fx2 = fb
+    
+  ! check sign
+  if ( (fa>0. .and. fb>0. )  .or.  (fa>0. .and. fb>0. )) then
+    write(*,*)  'Error (brent.f90): Root must be bracked by two inputs'
+    write(*, "('f(x1) = ', 1F8.4, '   f(x2) = ', 1F8.4)") fa,fb
+    write(*,*) 'press any key to halt the program'
+    read(*,*)
+    stop
+  end if
+  
+  if (disp == 1 ) then 
+    write(*,*) 'Brents method to find a root of f(x)'
+    write(*,*) ' '
+    write(*,*) '  i           x          bracketsize            f(x)'
+  end if
+  
+  ! main iteration
+  do i = 1, imax
+    ! rename c and adjust bounding interval if both a(=b) and c are same sign
+    if ((fb > 0.  .and. fc > 0) .or. (fb <0. .and. fc < 0. ) ) then 
+      c = a
+      fc = fa
+      e = b-a
+      diff = e
+    end if
+    
+    ! if c is better guess than b, use it. 
+    if (abs(fc) < abs(fb) ) then 
+      a=b
+      b=c
+      c=a
+      fa=fb
+      fb=fc
+      fc= fa
+    end if
+    
+    ! convergence check
+    tol1=2.0_rkind* EPS * abs(b) + 0.5_rkind*tol
+    xm = 0.5_rkind * (c - b)
+    if (abs(xm) < tol1 .or. fb == 0.0_rkind )  then
+      exitflag = 1
+      exit
+    end if
+    
+    if (disp == 1) then 
+      tmp = c-b
+      write(*,"('  ', 1I2, 3F16.6)") i, b, abs(b-c), fb
+    end if
+     
+    ! try inverse quadratic interpolation
+    if (abs(e) >= tol1 .and. abs(fa) > abs(fb) ) then 
+      s = fb/fa
+        if (abs(a - c) < EPS) then 
+        p = 2.0_rkind *xm * s
+        q = 1.0_rkind  - s
+      else
+        q = fa/fc
+        r = fb/fc
+        p = s * (2.0_rkind * xm * q * (q -r ) - (b - a) * (r - 1.0_rkind))
+        q = (q - 1.0_rkind ) * (r - 1.0_rkind) * (s - 1.0_rkind) 
+      end if
+      
+      ! accept if q is not too small to stay in bound
+      if (p > 0.0_rkind) q = -q
+      p = abs(p)                
+      if (2.0 * p < min(3.0 * xm * q - abs(tol1* q), abs(e *q))) then 
+        e = d
+        diff = p / q
+      else   ! interpolation failed. use bisection
+        diff= xm 
+        e = d
+      end if
+    else  ! quadratic interpolation bounds moves too slowly, use bisection
+      diff = xm
+      e = d
+    end if
+    
+    ! update last bound
+    a = b
+    fa = fb
+    
+    ! move the best guess
+    if (abs(d) > tol1) then 
+      b = b + diff
+    else
+      b = b + sign(tol1, xm)
+    end if
+    
+    ! evaluate new trial root
+    if(present(use_lookup))then
+      fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
+    else
+      fb = fun(b, vec)
+    end if
+
+  end do 
+  
+  ! case for non convergence
+  if (exitflag /= 1 ) then 
+    write(*,*) 'Error (brent.f90) :  convergence was not attained'
+    write(*,*) 'Initial value:'
+    write(*,"(4F10.5)" )   x1, x2, fx1, fx2
+    write(*,*) ' '
+    write(*,*) 'final value:'
+    write(*,"('x = '  ,1F6.4, ':                f(x1) = ' ,  1F6.4  )" )  b,  fb  
+  else if( disp == 1) then
+    write(*,*) 'Brents method was converged.'
+    write(*,*) ''
+  end if
+  brent = b
+  return
+  
+  end function brent
+
+  !----------------------------------------------------------------------
+  ! private functions for temperature to enthalpy conversion for Brent's method
+  !----------------------------------------------------------------------
+  function H_veg ( scalarCanopyTemp, vec)
+    USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
+    implicit none
+    real(rkind) :: H_veg
+    real(rkind) , intent(IN) :: scalarCanopyTemp, vec(8) 
+    real(rkind) :: scalarCanopyEnthTemp, scalarCanopyWat, scalarCanopyIce
+    real(rkind) :: canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, fLiq
+    integer(i4b) :: err
+    character(256) :: cmessage
+  
+    canopyDepth       = vec(1)
+    specificHeatVeg   = vec(2)
+    maxMassVegetation = vec(3)
+    snowfrz_scale     = vec(4)
+    scalarCanopyWat   = vec(5)
+  
+    call T2enthTemp_veg(canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyTemp, &
+                        scalarCanopyWat, scalarCanopyEnthTemp, err, cmessage)
+    fLiq  = fracliquid(scalarCanopyTemp, snowfrz_scale)
+    H_veg = scalarCanopyEnthTemp - LH_fus * scalarCanopyWat* (1._rkind - fLiq)/ canopyDepth
+  
+  end function H_veg
+  !----------------------------------------------------------------------
+  function H_snow ( mLayerTemp, vec)
+    USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
+    implicit none
+    real(rkind) :: H_snow
+    real(rkind) , intent(IN) :: mLayerTemp, vec(8) 
+    real(rkind) :: mLayerEnthTemp, mLayerVolFracWat, mLayerVolFracIce, snowfrz_scale, fLiq
+    integer(i4b) :: err
+    character(256) :: cmessage
+  
+    snowfrz_scale   = vec(1)
+    mLayerVolFracWat = vec(2)
+  
+    call T2enthTemp_snow(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp, err, cmessage)
+    fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
+    H_snow = mLayerEnthTemp - iden_ice * LH_fus * (1._rkind - fLiq)
+  
+  end function H_snow
+  !----------------------------------------------------------------------
+  function H_soil ( mLayerTemp, vec, use_lookup, lookup_data, ixControlIndex)
+    USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
+    implicit none
+    real(rkind) :: H_soil
+    real(rkind) , intent(in) :: mLayerTemp, vec(8) 
+    logical(lgt), intent(in) :: use_lookup
+    type(zLookup),intent(in) :: lookup_data
+    integer(i4b), intent(in) :: ixControlIndex
+    real(rkind) :: mLayerEnthTemp, mLayerMatricHead, volFracWat, xConst, mLayerPsiLiq, fLiq
+    real(rkind) :: soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low
+    integer(i4b) :: err
+    character(256) :: cmessage
+  
+    soil_dens_intr   = vec(1)
+    vGn_alpha        = vec(2)
+    vGn_n            = vec(3)
+    theta_sat        = vec(4)
+    theta_res        = vec(5)
+    vGn_m            = vec(6)
+    integral_frz_low = vec(7)
+    mLayerMatricHead = vec(8)
+  
+    call T2enthTemp_soil(use_lookup, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, &
+                         ixControlIndex, lookup_data, integral_frz_low, mLayerTemp, mLayerMatricHead, &
+                         mLayerEnthTemp, err, cmessage)
+
+    volFracWat   = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
+    mLayerPsiLiq = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
+    fLiq         = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
+    H_soil = mLayerEnthTemp - iden_water * LH_fus * (volFracWat - fLiq) 
+  
+  end function H_soil
+
 
 end module enthalpyTemp_module

@@ -834,6 +834,7 @@ subroutine coupled_em(&
                              vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil), & ! intent(in): soil parameters
                              iSoil,                        & ! intent(in):  index of the control volume within the domain
                              lookup_data,                  & ! intent(in):  lookup table data structure
+                             realMissing,                  & ! intent(in):  lower value of integral (not computed)
                              mLayerTemp(iLayer),           & ! intent(in):  layer temperature (K)
                              mLayerMatricHead(iSoil),      & ! intent(in):  matric head (m)
                             ! output
@@ -953,6 +954,7 @@ subroutine coupled_em(&
                       vGn_alpha(1),vGn_n(1),theta_sat(1),theta_res(1),vGn_m(1), & ! intent(in):  van Genutchen soil parameters
                       1_i4b,                                                    & ! intent(in):  index of the control volume within the domain
                       lookup_data,                                              & ! intent(in):  lookup table data structure
+                      realMissing,                                              & ! intent(in):  lower value of integral (not computed)
                       prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),         & ! intent(in):  surface layer temperature (K)
                       mLayerMatricHead(1),                                      & ! intent(in):  surface layer matric head (m)
                      ! output

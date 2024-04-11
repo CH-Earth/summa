@@ -324,8 +324,9 @@ contains
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
                       iSoil,                           & ! intent(in):  index of the control volume within the domain
                       lookupData%gru(iGRU)%hru(iHRU),  & ! intent(in):  lookup table data structure
-                      mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in): matric head (m)
+                      realMissing,                     & ! intent(in):  lower value of integral (not computed)
+                      mLayerTemp(iLayer),              & ! intent(in):  layer temperature (K)
+                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in):  matric head (m)
                      ! output
                       mLayerEnthTemp(iLayer),          & ! intent(out): temperature component of enthalpy soil layer (J m-3)
                       err,cmessage)                      ! intent(out): error control      
