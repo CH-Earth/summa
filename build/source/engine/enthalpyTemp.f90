@@ -1354,7 +1354,6 @@ function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data
     endif   
     write(*,*)  'Error (brent.f90): Root must be bracketed by two inputs'
     write(*, "(' x1 = ', 1F8.4, ' x2 = ', 1F8.4, ' f(x1) = ', 1F15.4, ' f(x2) = ', 1F15.4)") a,b,fa,fb
-    print*,vec
     write(*,*) 'press any key to halt the program'
     read(*,*)
     stop
@@ -1506,7 +1505,6 @@ function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data
   
     call T2enthTemp_snow(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp, err, cmessage)
     fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
-    print*,mLayerTemp,mLayerVolFracWat * (1._rkind - fLiq)*iden_water/iden_ice,mLayerVolFracWat,mLayerEnthTemp,mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq)
     diff_H_snow = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
   end function diff_H_snow
