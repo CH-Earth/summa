@@ -90,7 +90,7 @@ USE mDecisions_module,only:&
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
  character(LEN=256)                    :: restartFile        ! restart file name
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
- logical(lgt)                          :: enthalpyStateVec   ! flag if enthalpy is a state variable (ida)
+ logical(lgt)                          :: checkEnthalpy      ! flag if checking enthalpy for consistency
  logical(lgt)                          :: use_lookup         ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
@@ -145,9 +145,9 @@ USE mDecisions_module,only:&
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
 ! check initial conditions
- enthalpyStateVec = .false.
- use_lookup       = .false.
- if(ixNrgConserv .ne. closedForm .and. ixNumericalMethod==ida) enthalpyStateVec = .true. ! enthalpy as state variable
+ checkEnthalpy = .false.
+ use_lookup    = .false.
+ if(ixNrgConserv .ne. closedForm) checkEnthalpy = .true. ! check enthalpy either for mixed form energy equation or enthalpy state variable
  if(ixNrgConserv==enthalpyFDlu) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
  call check_icond(nGRU,                         & ! intent(in):    number of response units
                   progStruct,                   & ! intent(inout): model prognostic variables
@@ -155,7 +155,7 @@ USE mDecisions_module,only:&
                   mparStruct,                   & ! intent(in):    model parameters
                   indxStruct,                   & ! intent(in):    layer indexes
                   lookupStruct,                 & ! intent(in):    lookup tables
-                  enthalpyStateVec,             & ! intent(in):    flag if enthalpy is the state variable
+                  checkEnthalpy,                & ! intent(in):    flag if need to start with consistent enthalpy
                   use_lookup,                   & ! intent(in):    flag to use the lookup table for soil enthalpy
                   err,cmessage)                   ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
