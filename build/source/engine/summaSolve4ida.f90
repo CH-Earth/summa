@@ -450,7 +450,7 @@ subroutine summaSolve4ida(&
     tret(1) = t0 ! initial time
     tretPrev = tret(1)
     nSteps = 0 ! initialize number of time steps taken in solver
-    
+
     do while(tret(1) < dt_cur)
     
       ! call this at beginning of step to reduce root bouncing (only looking in one direction)
@@ -462,7 +462,7 @@ subroutine summaSolve4ida(&
     
       eqns_data%firstFluxCall = .false. ! already called for initial
       eqns_data%firstSplitOper = .true. ! always true at start of dt_cur since no splitting
-    
+
       ! call IDASolve, advance solver just one internal step
       retvalr = FIDASolve(ida_mem, dt_cur, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
       ! early return if IDASolve failed
@@ -477,7 +477,11 @@ subroutine summaSolve4ida(&
       tooMuchMelt = .false.
       ! loop through non-missing energy state variables in the snow domain to see if need to merge
       do concurrent (i=1:nSnow,ixSnowOnlyNrg(i)/=integerMissing)
-        if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+        if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
+          if (eqns_data%mLayerTempTrial(i) > Tfreeze) tooMuchMelt = .true. !need to merge
+        else
+          if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+        endif
       enddo
       if(tooMuchMelt)exit
     

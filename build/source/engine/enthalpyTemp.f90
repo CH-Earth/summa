@@ -910,10 +910,10 @@ subroutine enthalpy2T_veg(&
 
     ! find the root of the function
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
-    ! and the vector of parameters
+    ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    T = brent(diff_H_veg,200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec)
+    T = brent(diff_H_veg,200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec, .false.)
 
     ! compute Jacobian terms
     if(computJac)then
@@ -1013,10 +1013,10 @@ subroutine enthalpy2T_snow(&
 
   ! find the root of the function
   ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
-  ! and the vector of parameters
+  ! and the vector of parameters, snow_layer
   vec = 0._rkind
   vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
-  T = brent(diff_H_snow,200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec)
+  T = brent(diff_H_snow,200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec, .true.)
 
   ! compute Jacobian terms
   if(computJac)then
@@ -1196,9 +1196,9 @@ subroutine enthalpy2T_soil(&
 
     ! find the root of the function
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
-    ! and the vector of parameters
+    ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    T = brent(diff_H_soil,200._rkind,Tcrit, T, 1.e-6_rkind, 0, vec, use_lookup, lookup_data, ixControlIndex)
+    T = brent(diff_H_soil,200._rkind,Tcrit, T, 1.e-6_rkind, 0, vec, .false., use_lookup, lookup_data, ixControlIndex)
 
   ! compute Jacobian terms
     if(computJac)then
@@ -1281,7 +1281,7 @@ end function hyp_2F1_real
 !----------------------------------------------------------------------
 ! private function: Brent's method to find a root of a function
 !----------------------------------------------------------------------
-function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixControlIndex)
+function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data, ixControlIndex)
   !
   ! Description of algorithm: 
   ! Find a root of function f(x) given intial bracketing interval [a,b]
@@ -1313,6 +1313,7 @@ function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixCo
   real(rkind), intent(IN) :: x1, x2, x0, tol, vec(9)
   real(rkind), external :: fun
   integer, intent(IN) :: detail
+  logical(lgt), intent(in) :: snow
   logical(lgt), intent(in), optional :: use_lookup
   type(zLookup),intent(in), optional :: lookup_data
   integer(i4b), intent(in), optional :: ixControlIndex
@@ -1347,8 +1348,13 @@ function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixCo
     
   ! check sign
   if ( (fa>0. .and. fb>0. )  .or.  (fa>0. .and. fb>0. )) then
-    write(*,*)  'Error (brent.f90): Root must be bracked by two inputs'
-    write(*, "(' x1 = ', 1F8.4, ' x2 = ', 1F8.4, ' f(x1) = ', 1F8.4, ' f(x2) = ', 1F8.4)") a,b,fa,fb
+    if (snow) then
+       brent = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
+       return
+    endif   
+    write(*,*)  'Error (brent.f90): Root must be bracketed by two inputs'
+    write(*, "(' x1 = ', 1F8.4, ' x2 = ', 1F8.4, ' f(x1) = ', 1F15.4, ' f(x2) = ', 1F15.4)") a,b,fa,fb
+    print*,vec
     write(*,*) 'press any key to halt the program'
     read(*,*)
     stop
@@ -1500,6 +1506,7 @@ function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixCo
   
     call T2enthTemp_snow(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp, err, cmessage)
     fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
+    print*,mLayerTemp,mLayerVolFracWat * (1._rkind - fLiq)*iden_water/iden_ice,mLayerVolFracWat,mLayerEnthTemp,mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq)
     diff_H_snow = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
   end function diff_H_snow
