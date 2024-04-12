@@ -1026,13 +1026,13 @@ subroutine enthalpy2T_snow(&
     denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
     denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
     denthAir_dT = iden_air * Cp_air * (1._rkind - mLayerVolFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) )
-    dH_dT       = denthLiq_dT + denthIce_dT + denthAir_dT + iden_ice * LH_fus * dfLiq_dT * mLayerVolFracWat
+    dH_dT       = denthLiq_dT + denthIce_dT + denthAir_dT + iden_water * LH_fus * dfLiq_dT * mLayerVolFracWat
 
     ! w.r.t. layer water content
     denthLiq_dWat = iden_water * Cp_water * integral
     denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
     denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
-    dH_dWat       = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_ice * LH_fus * (1._rkind - fLiq)
+    dH_dWat       = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
 
     dT_dEnthalpy = 1._rkind / dH_dT
     dT_dWat      = dH_dWat / dH_dT
@@ -1500,7 +1500,7 @@ function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixCo
   
     call T2enthTemp_snow(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp, err, cmessage)
     fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
-    diff_H_snow = mLayerEnthTemp - iden_ice * LH_fus * (1._rkind - fLiq) - mLayerEnthalpy
+    diff_H_snow = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
   end function diff_H_snow
   !----------------------------------------------------------------------
