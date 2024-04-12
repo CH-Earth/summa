@@ -73,7 +73,7 @@ public::enthalpy2T_veg
 public::enthalpy2T_snow
 public::enthalpy2T_soil
 private::hyp_2F1_real
-private::brent, H_veg, H_snow, H_soil
+private::brent, diff_H_veg, diff_H_snow, diff_H_soil
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter               :: nlook=10001       ! number of elements in the lookup table
@@ -882,7 +882,7 @@ subroutine enthalpy2T_veg(&
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
-  real(rkind)                      :: vec(8)             ! vector of parameters for the enthalpy function
+  real(rkind)                      :: vec(9)             ! vector of parameters for the enthalpy function
    ! variable derivatives
   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
@@ -912,8 +912,8 @@ subroutine enthalpy2T_veg(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters
     vec      = 0._rkind
-    vec(1:5) = (/canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    T = brent(H_veg,-200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec)
+    vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
+    T = brent(diff_H_veg,200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec)
 
     ! compute Jacobian terms
     if(computJac)then
@@ -991,7 +991,7 @@ subroutine enthalpy2T_snow(&
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
-  real(rkind)                      :: vec(8)             ! vector of parameters for the enthalpy function
+  real(rkind)                      :: vec(9)             ! vector of parameters for the enthalpy function
    ! variable derivatives
   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
@@ -1015,8 +1015,8 @@ subroutine enthalpy2T_snow(&
   ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
   ! and the vector of parameters
   vec = 0._rkind
-  vec(1:2) = (/snowfrz_scale, mLayerVolFracWat/)
-  T = brent(H_snow,-200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec)
+  vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
+  T = brent(diff_H_snow,200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec)
 
   ! compute Jacobian terms
   if(computJac)then
@@ -1123,7 +1123,7 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: integral_frz_upp       ! upper limit of integral of frozen soil water content (from Tfreeze to soil temperature)
   real(rkind)                      :: arg                    ! argument of soil hypergeometric function
   real(rkind)                      :: gauss_hg_T             ! soil hypergeometric function result
-  real(rkind)                      :: vec(8)                 ! vector of parameters for the enthalpy function
+  real(rkind)                      :: vec(9)                 ! vector of parameters for the enthalpy function
   ! variable derivatives
   real(rkind)                      :: dvolFracWat_dPsi0      ! derivative of the soil water content w.r.t. matric head
   real(rkind)                      :: dintegral_unf_dWat     ! derivative of integral of unfrozen soil water content with water content
@@ -1197,8 +1197,8 @@ subroutine enthalpy2T_soil(&
     ! find the root of the function
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters
-    vec(1:8) = (/soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    T = brent(H_soil,-200._rkind,Tcrit, T, 1.e-6_rkind, 0, vec, use_lookup, lookup_data, ixControlIndex)
+    vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
+    T = brent(diff_H_soil,200._rkind,Tcrit, T, 1.e-6_rkind, 0, vec, use_lookup, lookup_data, ixControlIndex)
 
   ! compute Jacobian terms
     if(computJac)then
@@ -1310,7 +1310,7 @@ function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixCo
   implicit none
   real(rkind) :: brent
   integer, parameter :: d = rkind
-  real(rkind), intent(IN) :: x1, x2, x0, tol, vec(8)
+  real(rkind), intent(IN) :: x1, x2, x0, tol, vec(9)
   real(rkind), external :: fun
   integer, intent(IN) :: detail
   logical(lgt), intent(in), optional :: use_lookup
@@ -1348,7 +1348,7 @@ function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixCo
   ! check sign
   if ( (fa>0. .and. fb>0. )  .or.  (fa>0. .and. fb>0. )) then
     write(*,*)  'Error (brent.f90): Root must be bracked by two inputs'
-    write(*, "('f(x1) = ', 1F8.4, '   f(x2) = ', 1F8.4)") fa,fb
+    write(*, "(' x1 = ', 1F8.4, ' x2 = ', 1F8.4, ' f(x1) = ', 1F8.4, ' f(x2) = ', 1F8.4)") a,b,fa,fb
     write(*,*) 'press any key to halt the program'
     read(*,*)
     stop
@@ -1461,68 +1461,71 @@ function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixCo
   !----------------------------------------------------------------------
   ! private functions for temperature to enthalpy conversion for Brent's method
   !----------------------------------------------------------------------
-  function H_veg ( scalarCanopyTemp, vec)
+  function diff_H_veg ( scalarCanopyTemp, vec)
     USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
     implicit none
-    real(rkind) :: H_veg
+    real(rkind) :: diff_H_veg
     real(rkind) , intent(IN) :: scalarCanopyTemp, vec(8) 
-    real(rkind) :: scalarCanopyEnthTemp, scalarCanopyWat, scalarCanopyIce
+    real(rkind) :: scalarCanopyEnthalpy, scalarCanopyEnthTemp, scalarCanopyWat, scalarCanopyIce
     real(rkind) :: canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, fLiq
     integer(i4b) :: err
     character(256) :: cmessage
   
-    canopyDepth       = vec(1)
-    specificHeatVeg   = vec(2)
-    maxMassVegetation = vec(3)
-    snowfrz_scale     = vec(4)
-    scalarCanopyWat   = vec(5)
+    scalarCanopyEnthalpy = vec(1)
+    canopyDepth          = vec(2)
+    specificHeatVeg      = vec(3)
+    maxMassVegetation    = vec(4)
+    snowfrz_scale        = vec(5)
+    scalarCanopyWat      = vec(6)
   
     call T2enthTemp_veg(canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyTemp, &
                         scalarCanopyWat, scalarCanopyEnthTemp, err, cmessage)
     fLiq  = fracliquid(scalarCanopyTemp, snowfrz_scale)
-    H_veg = scalarCanopyEnthTemp - LH_fus * scalarCanopyWat* (1._rkind - fLiq)/ canopyDepth
+    diff_H_veg = scalarCanopyEnthTemp - LH_fus * scalarCanopyWat* (1._rkind - fLiq)/ canopyDepth - scalarCanopyEnthalpy
   
-  end function H_veg
+  end function diff_H_veg
   !----------------------------------------------------------------------
-  function H_snow ( mLayerTemp, vec)
+  function diff_H_snow ( mLayerTemp, vec)
     USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
     implicit none
-    real(rkind) :: H_snow
-    real(rkind) , intent(IN) :: mLayerTemp, vec(8) 
-    real(rkind) :: mLayerEnthTemp, mLayerVolFracWat, mLayerVolFracIce, snowfrz_scale, fLiq
+    real(rkind) :: diff_H_snow
+    real(rkind) , intent(IN) :: mLayerTemp, vec(9) 
+    real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, mLayerVolFracIce, snowfrz_scale, fLiq
     integer(i4b) :: err
     character(256) :: cmessage
   
-    snowfrz_scale   = vec(1)
-    mLayerVolFracWat = vec(2)
+    mLayerEnthalpy   = vec(1)
+    snowfrz_scale    = vec(2)
+    mLayerVolFracWat = vec(3)
   
     call T2enthTemp_snow(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp, err, cmessage)
     fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
-    H_snow = mLayerEnthTemp - iden_ice * LH_fus * (1._rkind - fLiq)
+    diff_H_snow = mLayerEnthTemp - iden_ice * LH_fus * (1._rkind - fLiq) - mLayerEnthalpy
   
-  end function H_snow
+  end function diff_H_snow
   !----------------------------------------------------------------------
-  function H_soil ( mLayerTemp, vec, use_lookup, lookup_data, ixControlIndex)
+  function diff_H_soil ( mLayerTemp, vec, use_lookup, lookup_data, ixControlIndex)
     USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
     implicit none
-    real(rkind) :: H_soil
-    real(rkind) , intent(in) :: mLayerTemp, vec(8) 
+    real(rkind) :: diff_H_soil
+    real(rkind) , intent(in) :: mLayerTemp, vec(9) 
     logical(lgt), intent(in) :: use_lookup
     type(zLookup),intent(in) :: lookup_data
     integer(i4b), intent(in) :: ixControlIndex
-    real(rkind) :: mLayerEnthTemp, mLayerMatricHead, volFracWat, xConst, mLayerPsiLiq, fLiq
+    real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerMatricHead, volFracWat, xConst, mLayerPsiLiq, fLiq
     real(rkind) :: soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low
     integer(i4b) :: err
     character(256) :: cmessage
   
-    soil_dens_intr   = vec(1)
-    vGn_alpha        = vec(2)
-    vGn_n            = vec(3)
-    theta_sat        = vec(4)
-    theta_res        = vec(5)
-    vGn_m            = vec(6)
-    integral_frz_low = vec(7)
-    mLayerMatricHead = vec(8)
+    mLayerEnthalpy   = vec(1)
+    soil_dens_intr   = vec(2)
+    vGn_alpha        = vec(3)
+    vGn_n            = vec(4)
+    theta_sat        = vec(5)
+    theta_res        = vec(6)
+    vGn_m            = vec(7)
+    integral_frz_low = vec(8)
+    mLayerMatricHead = vec(9)
   
     call T2enthTemp_soil(use_lookup, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, &
                          ixControlIndex, lookup_data, integral_frz_low, mLayerTemp, mLayerMatricHead, &
@@ -1532,9 +1535,9 @@ function brent (fun, x1, x2, x0, tol, detail, vec, use_lookup, lookup_data, ixCo
     xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
     mLayerPsiLiq = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
     fLiq         = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
-    H_soil = mLayerEnthTemp - iden_water * LH_fus * (volFracWat - fLiq) 
+    diff_H_soil = mLayerEnthTemp - iden_water * LH_fus * (volFracWat - fLiq) - mLayerEnthalpy
   
-  end function H_soil
+  end function diff_H_soil
 
 
 end module enthalpyTemp_module
