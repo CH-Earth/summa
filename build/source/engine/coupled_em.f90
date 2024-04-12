@@ -319,8 +319,8 @@ subroutine coupled_em(&
 
   ! link canopy depth to the information in the data structure
   canopy: associate(&
-    snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)          ,& ! scaling parameter for the snow freezing curve (K-1)
-    canopyDepth       => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)       ,& ! depth of the vegetation canopy (m) 
+    snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)    ,& ! scaling parameter for the snow freezing curve (K-1)
+    canopyDepth       => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1) ,& ! depth of the vegetation canopy (m) 
     specificHeatVeg   => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)  ,& ! specific heat of vegetation (J kg-1 K-1)
     maxMassVegetation => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1) & ! maximum mass of vegetation (kg m-2)
     )
@@ -880,7 +880,7 @@ subroutine coupled_em(&
         call diagn_evar(&
                         ! input: control variables
                         computeVegFlux,         & ! intent(in): flag to denote if computing the vegetation flux
-                        diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1), & ! intent(in): canopy depth (m)
+                        diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1), & ! intent(in): canopy depth (m), send in specific value since diag_data may have changed
                         ! input/output: data structures
                         mpar_data,              & ! intent(in):    model parameters
                         indx_data,              & ! intent(in):    model layer indices
@@ -1138,7 +1138,7 @@ subroutine coupled_em(&
             if(enthalpyStateVec .or. computeEnthalpy)then ! recompute enthalpy of the canopy if changed water and ice content
               call T2enthTemp_veg(&
                           ! input
-                          canopyDepth,                                          & ! intent(in): canopy depth (m)
+                          diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),    & ! intent(in): canopy depth (m), send in specific value since diag_data may have changed
                           specificHeatVeg,                                      & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                           maxMassVegetation,                                    & ! intent(in): maximum mass of vegetation (kg m-2)
                           snowfrz_scale,                                        & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
@@ -1148,7 +1148,7 @@ subroutine coupled_em(&
                           diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1), & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
                           err,cmessage)                                           ! intent(out):   error control
               if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-              diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1) = diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1) - LH_fus * scalarCanopyIce/ canopyDepth
+              diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1) = diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1) - LH_fus * scalarCanopyIce/ diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)
             endif
           end if  ! (if computing the vegetation flux)
 
