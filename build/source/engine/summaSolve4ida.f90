@@ -479,7 +479,6 @@ subroutine summaSolve4ida(&
       do concurrent (i=1:nSnow,ixSnowOnlyNrg(i)/=integerMissing)
         if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
           if (eqns_data%mLayerTempTrial(i) > Tfreeze) tooMuchMelt = .true. !need to merge
-          if (eqns_data%mLayerTempTrial(i) > Tfreeze) print*, 'merged'
         else
           if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
         endif
