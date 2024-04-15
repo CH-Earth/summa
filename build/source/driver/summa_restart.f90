@@ -78,6 +78,10 @@ USE mDecisions_module,only:&
   closedForm,   & ! use temperature
   enthalpyFDlu, & ! use enthalpy with lookup tables
   enthalpyFD      ! use enthalpy with analytical solution
+  ! look-up values for the choice of full or empty aquifer at start
+ USE mDecisions_module,only:&
+  fullStart,    & ! start with full aquifer
+  emptyStart      ! start with empty aquifer
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -97,8 +101,9 @@ USE mDecisions_module,only:&
  summaVars: associate(& 
   ! model decisions
   ixNumericalMethod    => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& !choice of numerical solver
-  ixNrgConserv         => model_decisions(iLookDECISIONS%nrgConserv)%iDecision   ,& !choice of variable in energy conservation backward Euler residual
+  ixNrgConserv         => model_decisions(iLookDECISIONS%nrgConserv)%iDecision   ,& !choice of variable in either energy backward Euler residual or IDA state variable
   spatial_gw           => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& !choice of method for the spatial representation of groundwater
+  aquiferIni           => model_decisions(iLookDECISIONS%aquiferIni)%iDecision   ,& !choice of full or empty aquifer at start
   ! lookup table data structure
   lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
   ! primary data structures (variable length vectors)
@@ -227,7 +232,8 @@ USE mDecisions_module,only:&
    ! the local column aquifer storage is not used if the groundwater is basin-average
    ! (i.e., where multiple HRUs drain to a basin-average aquifer)
    case(singleBasin)
-    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._rkind ! Start with this full, since easier to spin up by draining than filling (filling we need to wait for precip). 
+    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._rkind ! Start with this full, since easier to spin up by draining than filling (filling we need to wait for precipitation) 
+    if (aquiferIni==emptyStart) bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! If want to compare model method outputs, empty start leads to quicker equilibrium
     do iHRU=1,gru_struc(iGRU)%hruCount
      progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
     end do

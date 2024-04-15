@@ -217,7 +217,7 @@ subroutine eval8summaWithPrime(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   associate(&
     ! model decisions
-    ixNrgConserv              => model_decisions(iLookDECISIONS%nrgConserv)%iDecision      ,& ! intent(in):  [i4b]    choice of variable in energy conservation backward Euler residual
+    ixNrgConserv              => model_decisions(iLookDECISIONS%nrgConserv)%iDecision      ,& ! intent(in):  [i4b]    choice of variable in either energy backward Euler residual or IDA state variable
     ixRichards                => model_decisions(iLookDECISIONS%f_Richards)%iDecision      ,& ! intent(in):  [i4b]    index of the form of Richards' equation
     ! snow parameters
     snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)            ,& ! intent(in):  [dp]     scaling parameter for the snow freezing curve (K-1)

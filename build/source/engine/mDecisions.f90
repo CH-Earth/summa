@@ -143,7 +143,7 @@ integer(i4b),parameter,public :: qInstant             = 302    ! instantaneous r
 integer(i4b),parameter,public :: constDens            = 311    ! Constant new snow density
 integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976
 integer(i4b),parameter,public :: hedAndPom            = 313    ! Hedstrom and Pomeroy (1998), expoential increase
-integer(i4b),parameter,public :: pahaut_76           = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
 ! look-up values for the choice of snow unloading from the canopy
 integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
 integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
@@ -151,6 +151,9 @@ integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 20
 integer(i4b),parameter,public :: enthalpyFD           = 323    ! use enthalpy with analytical solution
 integer(i4b),parameter,public :: closedForm           = 324    ! use temperature
 integer(i4b),parameter,public :: enthalpyFDlu         = 325    ! use enthalpy with lookup tables
+! look-up values for the choice of choice of full or empty aquifer at start
+integer(i4b),parameter,public :: fullStart            = 326    ! full aquifer at start
+integer(i4b),parameter,public :: emptyStart           = 327    ! empty aquifer at start
 ! -----------------------------------------------------------------------------------------------------------
 
 contains
@@ -412,20 +415,29 @@ subroutine mDecisions(err,message)
   endif
 #endif
 
-  ! choice of variable in either energy backward Euler residual (only, mixed form of equation) or IDA state variable 
+  ! choice of variable in either energy backward Euler residual or IDA state variable 
   ! for backward Euler solution, enthalpyFD has better coincidence of energy conservation
   ! in IDA solution, enthalpyFD makes the state variables to be enthalpy and the residual is computed in enthalpy space
   select case(trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision))
-    case('closedForm'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm        ! use temperature
-    case('enthalpyFD'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFD        ! use enthalpy with analytical solution
-    case('enthalpyFDlu'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFDlu      ! use enthalpy with lookup tables
+    case('closedForm'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm       ! use temperature
+    case('enthalpyFD'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFD       ! use enthalpy with analytical solution
+    case('enthalpyFDlu'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFDlu     ! use enthalpy with lookup tables
     case default
       if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
         model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility
       else
-        err=10; message=trim(message)//"unknown choice of variable in energy conservation backward Euler residual [option="//trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision)//"]"; return
+        err=10; message=trim(message)//"unknown choice of variable in either energy backward Euler residual or IDA state variable [option="//trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision)//"]"; return
       endif
   end select
+
+  ! choice of choice of full or empty aquifer at start
+  ! conventionally, start with this full, since easier to spin up by draining than filling (filling we need to wait for precipitation)
+  ! but, if want to compare model method outputs, empty start leads to quicker equilibrium
+  select case(trim(model_decisions(iLookDECISIONS%aquiferIni)%cDecision))
+    case('fullStart' ); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! start with full aquifer
+    case('emptyStart'); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = emptyStart       ! start with empty aquifer
+    case default;       model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! most users will want to start with full aquifer, make this decision on their behalf
+end select
 
   ! identify the method used to calculate flux derivatives
   select case(trim(model_decisions(iLookDECISIONS%fDerivMeth)%cDecision))
