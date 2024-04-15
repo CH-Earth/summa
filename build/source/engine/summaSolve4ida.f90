@@ -479,6 +479,7 @@ subroutine summaSolve4ida(&
       do concurrent (i=1:nSnow,ixSnowOnlyNrg(i)/=integerMissing)
         if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
           if (eqns_data%mLayerTempTrial(i) > Tfreeze) tooMuchMelt = .true. !need to merge
+          if (eqns_data%mLayerTempTrial(i) > Tfreeze) print*, 'merged'
         else
           if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
         endif
@@ -498,7 +499,7 @@ subroutine summaSolve4ida(&
                       eqns_data%mpar_data,                                  & ! intent(in):    model parameters
                       eqns_data%prog_data,                                  & ! intent(in):    model prognostic variables for a local HRU
                       eqns_data%indx_data,                                  & ! intent(in):    indices defining model states and layers
-        model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm, & ! intent(in):    flag to indicate if we are using enthalpy as state variable
+                      model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm, & ! intent(in): flag to indicate if we are using enthalpy as state variable
                       ! output: feasibility
                       feasible,                                             & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control
@@ -723,6 +724,7 @@ end subroutine setSolverParams
 ! find_rootdir: private routine to determine which direction to look for the root, by
 !  determining if the variable is greater or less than the root. Need to do this to prevent
 !  bouncing around solution
+!  Note: do not need to change if using enthalpy as state variable or not
 ! ----------------------------------------------------------------------------------------
 subroutine find_rootdir(eqns_data,rootdir)
 
@@ -754,7 +756,7 @@ subroutine find_rootdir(eqns_data,rootdir)
   nState = eqns_data%nState
   nSnow = eqns_data%nSnow
   nSoil = eqns_data%nSoil
-
+ 
   ! initialize
   ind = 0
 
@@ -833,6 +835,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   integer(i4b)               :: nState    ! number of states
   integer(i4b)               :: nSnow     ! number of snow layers
   integer(i4b)               :: nSoil     ! number of soil layers
+  logical(lgt)               :: enthalpyStateVec ! flag to indicate if we are using enthalpy as state variable
   real(rkind)                :: xPsi      ! matric head at layer (m)
   real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
 
@@ -846,6 +849,8 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   nState = eqns_data%nState
   nSnow = eqns_data%nSnow
   nSoil = eqns_data%nSoil
+  enthalpyStateVec = eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm
+
 
   ! get data array from SUNDIALS vector
   uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
@@ -856,7 +861,11 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   ! identify the critical point when vegetation begins to freeze
   if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
     ind = ind+1
-    gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)) - Tfreeze
+    if(enthalpyStateVec)then
+      gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1))
+    else
+      gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)) - Tfreeze
+    end if
   endif
 
   if(nSnow>0)then
@@ -864,7 +873,11 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
       ! identify the critical point when the snow layer begins to freeze
       if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
         ind = ind+1
-        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
+        if(enthalpyStateVec)then
+          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i))
+        else
+          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
+        end if
       endif
     end do
   endif
@@ -882,8 +895,12 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
       ! identify the critical point when the soil layer begins to freeze
       if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
         ind = ind+1
-        TcSoil = crit_soilT(xPsi)
-        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+        if(enthalpyStateVec)then
+          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i))
+        else 
+          TcSoil = crit_soilT(xPsi)
+          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+        end if
       endif
     end do
   endif
