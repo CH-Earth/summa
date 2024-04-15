@@ -478,7 +478,7 @@ subroutine summaSolve4ida(&
       ! loop through non-missing energy state variables in the snow domain to see if need to merge
       do concurrent (i=1:nSnow,ixSnowOnlyNrg(i)/=integerMissing)
         if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
-          if (eqns_data%mLayerTempTrial(i) > Tfreeze) tooMuchMelt = .true. !need to merge
+          if (eqns_data%mLayerTempTrial(i) > Tfreeze .or. stateVec(ixSnowOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
         else
           if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
         endif
