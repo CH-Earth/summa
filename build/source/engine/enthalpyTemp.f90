@@ -73,7 +73,7 @@ public::enthalpy2T_veg
 public::enthalpy2T_snow
 public::enthalpy2T_soil
 private::hyp_2F1_real
-private::brent, diff_H_veg, diff_H_snow, diff_H_soil
+private::brent, brent0, diff_H_veg, diff_H_snow, diff_H_soil
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter               :: nlook=10001       ! number of elements in the lookup table
@@ -913,7 +913,7 @@ subroutine enthalpy2T_veg(&
     ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    T = brent(diff_H_veg,200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec, .false.)
+    T = brent(diff_H_veg, T, 200._rkind, Tfreeze, vec, .false.)
 
     ! compute Jacobian terms
     if(computJac)then
@@ -1016,7 +1016,7 @@ subroutine enthalpy2T_snow(&
   ! and the vector of parameters, snow_layer
   vec = 0._rkind
   vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
-  T = brent(diff_H_snow,200._rkind,Tfreeze, T, 1.e-6_rkind, 0, vec, .true.)
+  T = brent(diff_H_snow, T, 200._rkind, Tfreeze, vec, .true.)
 
   ! compute Jacobian terms
   if(computJac)then
@@ -1198,7 +1198,7 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    T = brent(diff_H_soil,200._rkind,Tcrit, T, 1.e-6_rkind, 0, vec, .false., use_lookup, lookup_data, ixControlIndex)
+    T = brent(diff_H_soil, T, 200._rkind, Tcrit, vec, .false., use_lookup, lookup_data, ixControlIndex)
 
   ! compute Jacobian terms
     if(computJac)then
@@ -1281,7 +1281,7 @@ end function hyp_2F1_real
 !----------------------------------------------------------------------
 ! private function: Brent's method to find a root of a function
 !----------------------------------------------------------------------
-function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data, ixControlIndex)
+function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data, ixControlIndex)
   !
   ! Description of algorithm: 
   ! Find a root of function f(x) given intial bracketing interval [a,b]
@@ -1300,20 +1300,20 @@ function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data
   ! 
   ! Inputs:
   !   fun: function to be solved
+  !   tol_x: tolerance for x
+  !   tol_f: tolerance for f(x)
   !   x1, x2: Upper bound and lower bound for a function
-  !   x0: initial guess for the root
-  !   tol: error tolerance. 
-  !   detail (optional): output result of iteration if detail is some value. 
+  !   detail: output result of iteration if detail is >0 
   !  
   ! Based on zeroin.f in netlib
+  ! modified from fzero.f90 by Yoki Okawa, Jan 30, 2009
 
   implicit none
-  real(rkind) :: brent
+  real(rkind) :: brent0
   integer, parameter :: d = rkind
-  real(rkind), intent(IN) :: x1, x2, x0, tol, vec(9)
+  real(rkind), intent(IN) :: x1, x2, vec(9), tol_x, tol_f
   real(rkind), external :: fun
   integer, intent(IN) :: detail
-  logical(lgt), intent(in) :: snow
   logical(lgt), intent(in), optional :: use_lookup
   type(zLookup),intent(in), optional :: lookup_data
   integer(i4b), intent(in), optional :: ixControlIndex
@@ -1333,26 +1333,21 @@ function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data
   ! intialize values
   a = x1
   b = x2
-  c = x0
+  c = x2
   if(present(use_lookup))then
     fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
     fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
-    fc = fun(c, vec, use_lookup, lookup_data, ixControlIndex)
   else  
     fa = fun(a, vec)
     fb = fun(b, vec)
-    fc = fun(c, vec)
   end if
+  fc = fb
   fx1 = fa
   fx2 = fb
     
   ! check sign
   if ( (fa>0. .and. fb>0. )  .or.  (fa>0. .and. fb>0. )) then
-    if (snow) then
-       brent = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
-       return
-    endif   
-    write(*,*)  'Error (brent.f90): Root must be bracketed by two inputs'
+    write(*,*)  'Error (brent0.f90): Root must be bracketed by two inputs'
     write(*, "(' x1 = ', 1F8.4, ' x2 = ', 1F8.4, ' f(x1) = ', 1F15.4, ' f(x2) = ', 1F15.4)") a,b,fa,fb
     write(*,*) 'press any key to halt the program'
     read(*,*)
@@ -1362,7 +1357,7 @@ function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data
   if (disp == 1 ) then 
     write(*,*) 'Brents method to find a root of f(x)'
     write(*,*) ' '
-    write(*,*) '  i           x          bracketsize            f(x)'
+    write(*,*) '  i           x          bracketsize       f(x)'
   end if
   
   ! main iteration
@@ -1384,18 +1379,19 @@ function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data
       fb=fc
       fc= fa
     end if
-    
-    ! convergence check
-    tol1=2.0_rkind* EPS * abs(b) + 0.5_rkind*tol
-    xm = 0.5_rkind * (c - b)
-    if (abs(xm) < tol1 .or. fb == 0.0_rkind )  then
-      exitflag = 1
-      exit
-    end if
-    
+
     if (disp == 1) then 
       tmp = c-b
       write(*,"('  ', 1I2, 3F16.6)") i, b, abs(b-c), fb
+    end if
+    
+    ! convergence check
+    tol1=2.0_rkind* EPS * abs(b) + 0.5_rkind*tol_x
+    xm = 0.5_rkind * (c - b)
+    if (abs(xm) < tol1 .or. abs(fb) <= tol_f )  then
+      print*, (c - b), tol1, fb
+      exitflag = 1
+      exit
     end if
      
     ! try inverse quadratic interpolation
@@ -1448,7 +1444,7 @@ function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data
   
   ! case for non convergence
   if (exitflag /= 1 ) then 
-    write(*,*) 'Error (brent.f90) :  convergence was not attained'
+    write(*,*) 'Error (brent0.f90) :  convergence was not attained'
     write(*,*) 'Initial value:'
     write(*,"(4F10.5)" )   x1, x2, fx1, fx2
     write(*,*) ' '
@@ -1458,10 +1454,152 @@ function brent (fun, x1, x2, x0, tol, detail, vec, snow, use_lookup, lookup_data
     write(*,*) 'Brents method was converged.'
     write(*,*) ''
   end if
-  brent = b
+  brent0 = b
   return
   
-  end function brent
+  end function brent0
+
+!----------------------------------------------------------------------
+! private function: Find an initial guess of bracket and call brent0
+!----------------------------------------------------------------------
+  function brent (fun, x0, LowerBound, UpperBound, vec, snow, use_lookup, lookup_data, ixControlIndex)
+    ! 
+    ! Inputs
+    !   fun: function to evaluate
+    !   x0: Initial guess
+    !   LowerBound, UpperBound : Lower and upper bound of the function 
+    
+    implicit none
+    real(rkind) :: brent
+    integer, parameter :: d = rkind
+    real(rkind), intent(IN) :: x0, vec(9)
+    real(rkind), external :: fun
+    real(rkind), intent(IN) :: LowerBound, UpperBound
+    logical(lgt), intent(in) :: snow
+    logical(lgt), intent(in), optional :: use_lookup
+    type(zLookup),intent(in), optional :: lookup_data
+    integer(i4b), intent(in), optional :: ixControlIndex
+    
+    real(rkind) :: a , b , olda, oldb, fa, fb
+    real(rkind), parameter :: sqrt2 = sqrt(2.0_d)! change in dx
+    integer, parameter :: maxiter = 40, detail = 0
+    real(rkind) :: dx  ! change in bracket
+    integer :: iter, exitflag, disp
+    real(rkind) :: sgn
+    real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e-1_rkind
+    
+    if (snow) then
+      fb = fun(LowerBound, vec)
+      if (fb > 0.0_rkind) then
+        brent = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
+        return
+      end if
+    endif 
+
+    a  = x0 ! lower bracket
+    b =  x0 ! upper bracket
+    olda = a  
+    oldb = b 
+    exitflag = 0  ! flag to see we found the bracket
+    if(present(use_lookup))then
+      sgn = fun(x0, vec, use_lookup, lookup_data, ixControlIndex) ! sign of initial guess
+    else  
+      sgn = fun(x0, vec)
+    endif
+    ! set disp variable
+    if (detail /= 0) then
+      disp = 1
+    else
+      disp = 0
+    end if
+
+    if(abs(sgn) <= tol_f )  then
+      brent = x0
+      return
+    end if  
+    
+    ! set initial change dx
+    if (abs(x0)<0.00000002_rkind) then 
+      dx = 1.0_rkind/50.0_rkind
+    else
+      dx = 1.0_rkind/50.0_rkind * x0
+    end if
+    
+    if (disp == 1) then 
+      write(*,*) 'Search for initial guess for Brents method'
+      write(*,*) 'find two points whose sign for f(x) is different '
+      write(*,*) 'x1 searches downwards, x2 searches upwards with increasing increment'
+      write(*,*) ' '
+      write(*,*) '  i           x1               x2            f(x1)            f(x2)'
+    end if
+    
+    
+    ! main loop to extend a and b
+    do iter = 1, maxiter
+      if(present(use_lookup))then
+        fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
+        fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
+      else  
+        fa = fun(a, vec)
+        fb = fun(b, vec)
+      end if
+      
+      if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
+      
+      ! check if sign of functions changed or not
+      if ( (sgn >= 0 ) .and.  (fa <= 0) ) then  ! sign of a changed 
+        ! use a and olda as bracket
+        b = olda
+        exitflag = 1
+        exit
+      else if  ( (sgn <= 0 ) .and.  (fa >= 0  ) ) then ! sign of b changed
+        b = olda
+        exitflag = 1
+        exit
+      else if  ( (sgn >= 0 ) .and.  (fb <= 0  ) ) then ! sign of a changed
+        a = oldb
+        exitflag = 1
+        exit
+      else if  ( (sgn <= 0 ) .and.  (fb >= 0  ) ) then ! sign of a changed
+        a = oldb
+        exitflag = 1
+        exit
+      end if
+      
+      ! update boundary
+      olda = a 
+      oldb = b
+      a = a - dx
+      b = b+ dx
+      dx = dx * sqrt2
+      
+      ! boundary check
+      if (a < LowerBound ) a = LowerBound
+      if (b > UpperBound ) b = UpperBound
+    end do
+    
+    
+    if (exitflag /=  1 ) then   
+      write(*,*) ' Error (brent2) : Proper initial value for Brents method could not be found'
+      write(*,*) ' Change initial guess and try again. '
+      write(*,*) ' You might want to try disp = 1 option too'
+      write(*,*) '  i           x1               x2            f(x1)            f(x2)'
+      write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
+      write(*,*) '  press any key to abort the program'
+      read(*,*) 
+      stop
+    else if (disp == 1) then
+      write(*,*) '  Initial guess was found.'
+      write(*,*) ''
+    end if
+    
+    if(present(use_lookup))then
+      brent = brent0(fun, a, b, tol_x, tol_f, detail, vec, use_lookup, lookup_data, ixControlIndex)
+    else
+      brent = brent0(fun, a, b, tol_x, tol_f, detail, vec)
+    end if
+    
+    end function brent  
 
   !----------------------------------------------------------------------
   ! private functions for temperature to enthalpy conversion for Brent's method
