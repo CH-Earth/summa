@@ -913,7 +913,7 @@ subroutine enthalpy2T_veg(&
     ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    T = brent(diff_H_veg, T, 200._rkind, Tfreeze, vec, .false.)
+    T = brent(diff_H_veg, T, 200._rkind, Tfreeze, vec)
 
     ! compute Jacobian terms
     if(computJac)then
@@ -992,6 +992,7 @@ subroutine enthalpy2T_snow(&
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
   real(rkind)                      :: vec(9)             ! vector of parameters for the enthalpy function
+  real(rkind)                      :: l_bound            ! lower bound for the enthalpy function
    ! variable derivatives
   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
@@ -1016,7 +1017,16 @@ subroutine enthalpy2T_snow(&
   ! and the vector of parameters, snow_layer
   vec = 0._rkind
   vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
-  T = brent(diff_H_snow, T, 200._rkind, Tfreeze, vec, .true.)
+  if(mLayerEnthalpy>0._rkind)then
+    T = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
+  else
+    l_bound = diff_H_snow(200._rkind, vec)
+    if (l_bound > 0._rkind) then
+      T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
+    else
+      T = brent(diff_H_snow, T, 200._rkind, Tfreeze, vec)
+    end if
+  endif
 
   ! compute Jacobian terms
   if(computJac)then
@@ -1198,7 +1208,7 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    T = brent(diff_H_soil, T, 200._rkind, Tcrit, vec, .false., use_lookup, lookup_data, ixControlIndex)
+    T = brent(diff_H_soil, T, 200._rkind, Tcrit, vec, use_lookup, lookup_data, ixControlIndex)
 
   ! compute Jacobian terms
     if(computJac)then
@@ -1461,7 +1471,7 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
 !----------------------------------------------------------------------
 ! private function: Find an initial guess of bracket and call brent0
 !----------------------------------------------------------------------
-  function brent (fun, x0, LowerBound, UpperBound, vec, snow, use_lookup, lookup_data, ixControlIndex)
+  function brent (fun, x0, LowerBound, UpperBound, vec, use_lookup, lookup_data, ixControlIndex)
     ! 
     ! Inputs
     !   fun: function to evaluate
@@ -1474,7 +1484,6 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
     real(rkind), intent(IN) :: x0, vec(9)
     real(rkind), external :: fun
     real(rkind), intent(IN) :: LowerBound, UpperBound
-    logical(lgt), intent(in) :: snow
     logical(lgt), intent(in), optional :: use_lookup
     type(zLookup),intent(in), optional :: lookup_data
     integer(i4b), intent(in), optional :: ixControlIndex
@@ -1486,14 +1495,6 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
     integer :: iter, exitflag, disp
     real(rkind) :: sgn
     real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e-1_rkind
-    
-    if (snow) then
-      fb = fun(LowerBound, vec)
-      if (fb > 0.0_rkind) then
-        brent = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
-        return
-      end if
-    endif 
 
     a  = x0 ! lower bracket
     b =  x0 ! upper bracket
