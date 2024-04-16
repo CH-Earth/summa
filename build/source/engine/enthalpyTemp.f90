@@ -539,10 +539,17 @@ subroutine T2enthTemp_snow(&
   err=0; message="T2enthTemp_snow/"
 
   diffT    = mLayerTemp - Tfreeze  ! diffT<0._rkind because snow is frozen
-  integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-  enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
-  enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
-  enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
+
+  if(diffT==0._rkind)then ! only need for upper bound
+    enthLiq = 0._rkind
+    enthIce = 0._rkind
+    enthAir = 0._rkind
+  else
+    integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+    enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
+    enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
+    enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
+  endif
 
   mLayerEnthTemp = enthLiq + enthIce + enthAir
 
@@ -1291,7 +1298,7 @@ end function hyp_2F1_real
 !----------------------------------------------------------------------
 ! private function: Brent's method to find a root of a function
 !----------------------------------------------------------------------
-function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data, ixControlIndex)
+function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, use_lookup, lookup_data, ixControlIndex)
   !
   ! Description of algorithm: 
   ! Find a root of function f(x) given intial bracketing interval [a,b]
@@ -1321,7 +1328,7 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
   implicit none
   real(rkind) :: brent0
   integer, parameter :: d = rkind
-  real(rkind), intent(IN) :: x1, x2, vec(9), tol_x, tol_f
+  real(rkind), intent(IN) :: x1, x2, fx1, fx2, vec(9), tol_x, tol_f
   real(rkind), external :: fun
   integer, intent(IN) :: detail
   logical(lgt), intent(in), optional :: use_lookup
@@ -1329,7 +1336,7 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
   integer(i4b), intent(in), optional :: ixControlIndex
   
   integer :: i, exitflag, disp
-  real(rkind) :: a, b, c, diff,e, fa, fb, fc, p, q, r, s, tol1, xm, tmp, fx1, fx2
+  real(rkind) :: a, b, c, diff,e, fa, fb, fc, p, q, r, s, tol1, xm, tmp
   real(rkind), parameter :: EPS = epsilon(a)
   integer, parameter :: imax = 100  ! maximum number of iteration
   
@@ -1344,16 +1351,9 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
   a = x1
   b = x2
   c = x2
-  if(present(use_lookup))then
-    fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
-    fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
-  else  
-    fa = fun(a, vec)
-    fb = fun(b, vec)
-  end if
-  fc = fb
-  fx1 = fa
-  fx2 = fb
+  fa = fx1
+  fb = fx2
+  fc = fx2
     
   ! check sign
   if ( (fa>0. .and. fb>0. )  .or.  (fa>0. .and. fb>0. )) then
@@ -1387,12 +1387,12 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
       c=a
       fa=fb
       fb=fc
-      fc= fa
+      fc=fa
     end if
 
     if (disp == 1) then 
       tmp = c-b
-      write(*,"('  ', 1I2, 3F16.6)") i, b, abs(b-c), fb
+      write(*,"('  ', 1I2, 3F16.10)") i, b, abs(b-c), fb
     end if
     
     ! convergence check
@@ -1488,19 +1488,18 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
     type(zLookup),intent(in), optional :: lookup_data
     integer(i4b), intent(in), optional :: ixControlIndex
     
-    real(rkind) :: a , b , olda, oldb, fa, fb
+    real(rkind) :: a , b , olda, oldb, fa, fb, folda, foldb
     real(rkind), parameter :: sqrt2 = sqrt(2.0_d)! change in dx
     integer, parameter :: maxiter = 40, detail = 0
     real(rkind) :: dx  ! change in bracket
     integer :: iter, exitflag, disp
     real(rkind) :: sgn
-    real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e-1_rkind
+    real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e0_rkind
 
     a  = x0 ! lower bracket
     b =  x0 ! upper bracket
-    olda = a  
-    oldb = b 
     exitflag = 0  ! flag to see we found the bracket
+
     if(present(use_lookup))then
       sgn = fun(x0, vec, use_lookup, lookup_data, ixControlIndex) ! sign of initial guess
     else  
@@ -1512,8 +1511,10 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
     else
       disp = 0
     end if
+    fa = sgn
+    fb = sgn
 
-    if(abs(sgn) <= tol_f )  then
+    if(abs(sgn) <= tol_f ) then ! if solution didn't change, initial guess is the solution
       brent = x0
       return
     end if  
@@ -1531,11 +1532,24 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
       write(*,*) 'x1 searches downwards, x2 searches upwards with increasing increment'
       write(*,*) ' '
       write(*,*) '  i           x1               x2            f(x1)            f(x2)'
+      write(*,"(1I4,4F17.6)") 0, a, b, fa, fb
     end if
-    
     
     ! main loop to extend a and b
     do iter = 1, maxiter
+      ! update boundary
+      olda = a 
+      oldb = b
+      folda = fa
+      foldb = fb
+      a = a - dx
+      b = b + dx
+      dx = dx * sqrt2
+      
+      ! boundary check
+      if (a < LowerBound ) a = LowerBound
+      if (b > UpperBound ) b = UpperBound
+
       if(present(use_lookup))then
         fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
         fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
@@ -1547,38 +1561,24 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
       if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
       
       ! check if sign of functions changed or not
-      if ( (sgn >= 0 ) .and.  (fa <= 0) ) then  ! sign of a changed 
+      if (( (sgn >= 0 ) .and.  (fa <= 0) ) .or. & 
+          ( (sgn <= 0 ) .and.  (fa >= 0  ) ))then  ! sign of a changed 
         ! use a and olda as bracket
         b = olda
+        fb = folda
         exitflag = 1
         exit
-      else if  ( (sgn <= 0 ) .and.  (fa >= 0  ) ) then ! sign of b changed
-        b = olda
-        exitflag = 1
-        exit
-      else if  ( (sgn >= 0 ) .and.  (fb <= 0  ) ) then ! sign of a changed
+      else if  (( (sgn >= 0 ) .and.  (fb <= 0  ) ) .or. & 
+                ( (sgn <= 0 ) .and.  (fb >= 0  ) )) then ! sign of b changed
         a = oldb
-        exitflag = 1
-        exit
-      else if  ( (sgn <= 0 ) .and.  (fb >= 0  ) ) then ! sign of a changed
-        a = oldb
+        fa = foldb
         exitflag = 1
         exit
       end if
       
-      ! update boundary
-      olda = a 
-      oldb = b
-      a = a - dx
-      b = b+ dx
-      dx = dx * sqrt2
-      
-      ! boundary check
-      if (a < LowerBound ) a = LowerBound
-      if (b > UpperBound ) b = UpperBound
     end do
     
-    
+    ! case for non convergence
     if (exitflag /=  1 ) then   
       write(*,*) ' Error (brent2) : Proper initial value for Brents method could not be found'
       write(*,*) ' Change initial guess and try again. '
@@ -1593,10 +1593,11 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
       write(*,*) ''
     end if
     
+    ! call brent0
     if(present(use_lookup))then
-      brent = brent0(fun, a, b, tol_x, tol_f, detail, vec, use_lookup, lookup_data, ixControlIndex)
+      brent = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, use_lookup, lookup_data, ixControlIndex)
     else
-      brent = brent0(fun, a, b, tol_x, tol_f, detail, vec)
+      brent = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec)
     end if
     
     end function brent  
