@@ -1389,7 +1389,6 @@ function brent0 (fun, x1, x2, tol_x, tol_f, detail, vec, use_lookup, lookup_data
     tol1=2.0_rkind* EPS * abs(b) + 0.5_rkind*tol_x
     xm = 0.5_rkind * (c - b)
     if (abs(xm) < tol1 .or. abs(fb) <= tol_f )  then
-      print*, (c - b), tol1, fb
       exitflag = 1
       exit
     end if
