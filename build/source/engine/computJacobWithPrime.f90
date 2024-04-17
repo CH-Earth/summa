@@ -354,8 +354,8 @@ subroutine computJacobWithPrime(&
 
     ! if using enthalpy as a state variable, zero out usual RHS terms and add them end of the iteration loop
     if(enthalpyStateVec)then 
-      dMat(ixCasNrg) = 0._rkind
-      dMat(ixVegNrg) = 0._rkind
+      if(ixCasNrg/=integerMissing) dMat(ixCasNrg) = 0._rkind
+      if(ixVegNrg/=integerMissing) dMat(ixVegNrg) = 0._rkind
       do iLayer=1,nLayers
         if(ixSnowSoilNrg(iLayer)/=integerMissing) dMat(ixSnowSoilNrg(iLayer)) = 0._rkind
       end do
@@ -1061,14 +1061,18 @@ subroutine computJacobWithPrime(&
     ! NOTE, dMat has been set to 0 and now 1._rkind * cj is added instead 
     ! ----------------------------------------
     if(enthalpyStateVec)then 
-      aJac(:,ixCasNrg) = aJac(:,ixCasNrg) * dCanairTemp_dEnthalpy
-      if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixCasNrg) = aJac(ixDiag,   ixCasNrg) + 1._rkind * cj
-      if(ixMatrix==ixFullMatrix) aJac(ixCasNrg, ixCasNrg) = aJac(ixCasNrg, ixCasNrg) + 1._rkind * cj
+      if(ixCasNrg/=integerMissing)then
+        aJac(:,ixCasNrg) = aJac(:,ixCasNrg) * dCanairTemp_dEnthalpy
+        if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixCasNrg) = aJac(ixDiag,   ixCasNrg) + 1._rkind * cj
+        if(ixMatrix==ixFullMatrix) aJac(ixCasNrg, ixCasNrg) = aJac(ixCasNrg, ixCasNrg) + 1._rkind * cj
+      endif
       
-      aJac(:,ixVegHyd) = aJac(:,ixVegHyd) + aJac(:,ixVegNrg) * dCanopyTemp_dCanWat
-      aJac(:,ixVegNrg) = aJac(:,ixVegNrg) * dCanopyTemp_dEnthalpy
-      if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixVegNrg) = aJac(ixDiag,   ixVegNrg) + 1._rkind * cj
-      if(ixMatrix==ixFullMatrix) aJac(ixVegNrg, ixVegNrg) = aJac(ixVegNrg, ixVegNrg) + 1._rkind * cj
+      if(ixVegNrg/=integerMissing)then
+        if(ixVegHyd/=integerMissing) aJac(:,ixVegHyd) = aJac(:,ixVegHyd) + aJac(:,ixVegNrg) * dCanopyTemp_dCanWat
+        aJac(:,ixVegNrg) = aJac(:,ixVegNrg) * dCanopyTemp_dEnthalpy
+        if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixVegNrg) = aJac(ixDiag,   ixVegNrg) + 1._rkind * cj
+        if(ixMatrix==ixFullMatrix) aJac(ixVegNrg, ixVegNrg) = aJac(ixVegNrg, ixVegNrg) + 1._rkind * cj
+      endif
       
       if(nSnowSoilNrg>0)then
         do iLayer=1,nLayers
