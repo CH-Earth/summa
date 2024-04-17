@@ -171,6 +171,8 @@ subroutine computJacobWithPrime(&
   integer(i4b)                         :: nrgState        ! energy state variable
   integer(i4b)                         :: watState        ! hydrology state variable
   integer(i4b)                         :: nState          ! number of state variables
+  integer(i4b),allocatable             :: nrgRows(:)      ! indices of rows for energy column in banded matrix
+  integer(i4b),allocatable             :: watRows(:)      ! indices of rows for hydrology column in banded matrix
   ! indices of model layers
   integer(i4b)                         :: iLayer          ! index of model layer
   integer(i4b)                         :: jLayer          ! index of model layer within the full state vector (hydrology)
@@ -1055,12 +1057,20 @@ subroutine computJacobWithPrime(&
 
     end select  ! type of matrix
     ! *********************************************************************************************************************************************************
-
     ! -----
     ! * if desired, modify to use enthalpy as a state variable instead of temperature 
     ! NOTE, dMat has been set to 0 and now 1._rkind * cj is added instead 
     ! ----------------------------------------
     if(enthalpyStateVec)then 
+
+      allocate(watRows(nBands),nrgRows(nBands))
+      do jLayer=1,nBands-1
+        watRows(jLayer) = jLayer
+        nrgRows(jLayer) = jLayer + 1
+      end do
+      watRows(nBands) = nBands
+      nrgRows(nBands) = nBands
+
       if(ixCasNrg/=integerMissing)then
         aJac(:,ixCasNrg) = aJac(:,ixCasNrg) * dCanairTemp_dEnthalpy
         if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixCasNrg) = aJac(ixDiag,   ixCasNrg) + 1._rkind * cj
@@ -1068,7 +1078,11 @@ subroutine computJacobWithPrime(&
       endif
       
       if(ixVegNrg/=integerMissing)then
-        if(ixVegHyd/=integerMissing) aJac(:,ixVegHyd) = aJac(:,ixVegHyd) + aJac(:,ixVegNrg) * dCanopyTemp_dCanWat
+        if(ixMatrix==ixBandMatrix)then
+          if(ixVegHyd/=integerMissing) aJac(watRows,ixVegHyd) = aJac(watRows,ixVegHyd) + aJac(nrgRows,ixVegNrg) * dCanopyTemp_dCanWat
+        else if(ixMatrix==ixFullMatrix)then
+          if(ixVegHyd/=integerMissing) aJac(:,ixVegHyd) = aJac(:,ixVegHyd) + aJac(:,ixVegNrg) * dCanopyTemp_dCanWat
+        endif
         aJac(:,ixVegNrg) = aJac(:,ixVegNrg) * dCanopyTemp_dEnthalpy
         if(ixMatrix==ixBandMatrix) aJac(ixDiag,   ixVegNrg) = aJac(ixDiag,   ixVegNrg) + 1._rkind * cj
         if(ixMatrix==ixFullMatrix) aJac(ixVegNrg, ixVegNrg) = aJac(ixVegNrg, ixVegNrg) + 1._rkind * cj
@@ -1080,16 +1094,24 @@ subroutine computJacobWithPrime(&
           if(nrgState==integerMissing) cycle
           watState = ixSnowSoilHyd(iLayer)
           if(watstate/=integerMissing)then 
-            if(iLayer<=nSnow) aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dTheta(iLayer)
-            if(iLayer>nSnow)  aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dPsi0(iLayer-nSnow)
+            if(ixMatrix==ixBandMatrix)then
+              if(iLayer<=nSnow) aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
+              if(iLayer>nSnow)  aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow)
+            else if(ixMatrix==ixFullMatrix)then
+              if(iLayer<=nSnow) aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dTheta(iLayer)
+              if(iLayer>nSnow)  aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dPsi0(iLayer-nSnow)
+            endif
           endif
           aJac(:,nrgState) = aJac(:,nrgState) * dTemp_dEnthalpy(iLayer)
           if(ixMatrix==ixBandMatrix) aJac(ixDiag,   nrgState) = aJac(ixDiag,   nrgState) + 1._rkind * cj
           if(ixMatrix==ixFullMatrix) aJac(nrgState, nrgState) = aJac(nrgState, nrgState) + 1._rkind * cj
         enddo
       endif
+    else
+      allocate(watRows(0),nrgRows(0)) ! dummy allocation to avoid compiler warning
     endif
-
+    deallocate(watRows,nrgRows)
+    
     ! print the Jacobian
     if(globalPrintFlag)then
       select case(ixMatrix)
