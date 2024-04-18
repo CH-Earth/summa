@@ -1275,10 +1275,6 @@ subroutine coupled_em(&
             diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + innerBalanceLayerMass(iLayer)*lyr_wght
         end select
       end do
-      if(nSnow==0)then
-        diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1) = realMissing
-        diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = realMissing
-      endif
 
       if(do_outer)then
         deallocate(innerBalanceLayerNrg)
