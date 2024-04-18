@@ -1265,7 +1265,7 @@ subroutine coupled_em(&
       do iLayer=1,nLayers
         select case (indx_data%var(iLookINDEX%layerType)%dat(iLayer))
           case (iname_snow)
-            lyr_wght = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) / prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
+            lyr_wght = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) / sum( prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
             diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1) + innerBalanceLayerNrg(iLayer)*lyr_wght
             diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) + innerBalanceLayerMass(iLayer)*lyr_wght
             bal_snow = .true.
