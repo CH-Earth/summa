@@ -96,6 +96,7 @@ USE mDecisions_module,only:&
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
  logical(lgt)                          :: checkEnthalpy      ! flag if checking enthalpy for consistency
  logical(lgt)                          :: use_lookup         ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
+  real(rkind)                          :: aquifer_start      ! initial aquifer storage
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(& 
@@ -222,18 +223,31 @@ USE mDecisions_module,only:&
   ! For water balance calculations it is important to ensure that the local aquifer storage is zero if groundwater is treated as a basin-average state variable (singleBasin);
   !  and ensure that basin-average aquifer storage is zero when groundwater is included in the local columns (localColumn).
 
+  ! select aquifer option
+  select case(aquiferIni)
+   case(fullStart)
+    aquifer_start  = 1._rkind ! Start with full aquifer, since easier to spin up by draining than filling (filling we need to wait for precipitation) 
+   case(emptyStart)
+    aquifer_start  = 0._rkind ! Start with empty aquifer ! If want to compare model method outputs, empty start leads to quicker equilibrium
+   case default
+    message=trim(message)//'unable to identify decision for initial aquifer storage'
+    return
+  end select  ! aquifer option
+
   ! select groundwater option
   select case(spatial_gw)
 
    ! the basin-average aquifer storage is not used if the groundwater is included in the local column
    case(localColumn)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
+    do iHRU=1,gru_struc(iGRU)%hruCount
+      progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start
+    end do
 
    ! the local column aquifer storage is not used if the groundwater is basin-average
    ! (i.e., where multiple HRUs drain to a basin-average aquifer)
    case(singleBasin)
-    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._rkind ! Start with this full, since easier to spin up by draining than filling (filling we need to wait for precipitation) 
-    if (aquiferIni==emptyStart) bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! If want to compare model method outputs, empty start leads to quicker equilibrium
+    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = aquifer_start 
     do iHRU=1,gru_struc(iGRU)%hruCount
      progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
     end do

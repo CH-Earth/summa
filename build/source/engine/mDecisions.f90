@@ -437,7 +437,7 @@ subroutine mDecisions(err,message)
     case('fullStart' ); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! start with full aquifer
     case('emptyStart'); model_decisions(iLookDECISIONS%aquiferIni)%iDecision = emptyStart       ! start with empty aquifer
     case default;       model_decisions(iLookDECISIONS%aquiferIni)%iDecision = fullStart        ! most users will want to start with full aquifer, make this decision on their behalf
-end select
+  end select
 
   ! identify the method used to calculate flux derivatives
   select case(trim(model_decisions(iLookDECISIONS%fDerivMeth)%cDecision))
