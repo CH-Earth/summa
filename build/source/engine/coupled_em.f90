@@ -102,7 +102,10 @@ contains
                        ! model control
                        hruId,             & ! intent(in):    hruId
                        dt_init,           & ! intent(inout): used to initialize the size of the sub-step
+                       dt_init_factor,    & ! intent(in):    Used to adjust the length of the timestep in event of HRU failure (Summa-Actors feature)
                        computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                       fracJulDay,        & ! intent(in):    fraction of the Julian day
+                       yearLength,        & ! intent(in):    length of the year (days)
                        ! data structures (input)
                        type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
                        attr_data,         & ! intent(in):    local attributes for each HRU
@@ -143,7 +146,10 @@ contains
  implicit none
  ! model control
  integer(8),intent(in)                :: hruId                  ! hruId
- real(rkind),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
+ real(rkind),intent(inout)            :: dt_init                ! used to initialize the size of the sub-step
+ integer(i4b),intent(in)              :: dt_init_factor         ! Used to adjust the length of the timestep in event of HRU failure (Summa-Actors feature)
+ real(rkind),intent(in)               :: fracJulDay             ! fraction of the Julian day
+ integer(i4b),intent(in)              :: yearLength             ! length of the year (days)
  logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! data structures (input)
  type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
@@ -394,6 +400,8 @@ contains
  call vegPhenlgy(&
                  ! input/output: data structures
                  model_decisions,             & ! intent(in):    model decisions
+                 fracJulDay,                  & ! intent(in):    fraction of julian day
+                 yearLength,                  & ! intent(in):    length of the year
                  type_data,                   & ! intent(in):    type of vegetation and soil
                  attr_data,                   & ! intent(in):    spatial attributes
                  mpar_data,                   & ! intent(in):    model parameters
@@ -553,7 +561,7 @@ contains
 
  ! initialize the length of the sub-step
  dt_solv = 0._rkind   ! length of time step that has been completed (s)
- dt_init = min(data_step,maxstep)  ! initial substep length (s)
+ dt_init = min(data_step,maxstep) / dt_init_factor ! initial substep length (s)
  dt_sub  = dt_init                 ! length of substep
  dtSave  = dt_init                 ! length of substep
 

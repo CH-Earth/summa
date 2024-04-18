@@ -104,7 +104,7 @@ contains
                        err,message)           ! intent(out):   error control
 
  ! ----- define downstream subroutines -----------------------------------------------------------------------------------
-
+ USE globalData,only:fracJulDay,yearLength,tmZoneOffsetFracDay   ! fraction of julian day and length of year (Summa-Actors has these as local vars)
  USE module_sf_noahmplsm,only:redprm          ! module to assign more Noah-MP parameters
  USE derivforce_module,only:derivforce        ! module to compute derived forcing data
  USE coupled_em_module,only:coupled_em        ! module to run the coupled energy and mass model
@@ -136,6 +136,7 @@ contains
  ! ----- define local variables ------------------------------------------------------------------------------------------
 
  ! local variables
+ integer(i4b)                      :: dt_init_factor=1    ! factor to divide dt_init by (Summa-Actors feature) 1 keeps Summa's original behavior
  character(len=256)                :: cmessage            ! error message
  real(rkind)          , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
 
@@ -188,13 +189,14 @@ contains
  ! ----- hru forcing ----------------------------------------------------------------------------------------------------
 
  ! compute derived forcing variables
- call derivforce(timeVec,          & ! vector of time information
-                 forcData%var,     & ! vector of model forcing data
-                 attrData%var,     & ! vector of model attributes
-                 mparData,         & ! data structure of model parameters
-                 progData,         & ! data structure of model prognostic variables
-                 diagData,         & ! data structure of model diagnostic variables
-                 fluxData,         & ! data structure of model fluxes
+ call derivforce(timeVec,            & ! vector of time information
+                 forcData%var,       & ! vector of model forcing data
+                 attrData%var,       & ! vector of model attributes
+                 mparData,           & ! data structure of model parameters
+                 progData,           & ! data structure of model prognostic variables
+                 diagData,           & ! data structure of model diagnostic variables
+                 fluxData,           & ! data structure of model fluxes
+                 tmZoneOffsetFracDay,& ! time zone offset in fraction of day
                  err,cmessage)       ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
@@ -208,7 +210,10 @@ contains
                  ! model control
                  hruId,            & ! intent(in):    hruId
                  dt_init,          & ! intent(inout): initial time step
+                 dt_init_factor,   & ! intent(in):    factor to divide dt_init by (Summa-Actors feature)
                  computeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
+                 fracJulDay,       & ! intent(in):    fraction of julian day
+                 yearLength,       & ! intent(in):    length of year
                  ! data structures (input)
                  typeData,         & ! intent(in):    local classification of soil veg etc. for each HRU
                  attrData,         & ! intent(in):    local attributes for each HRU
