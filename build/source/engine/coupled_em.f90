@@ -1253,7 +1253,7 @@ subroutine coupled_em(&
       diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:) = innerBalanceLayerNrg(:)
       diag_data%var(iLookDIAG%balanceLayerMass)%dat(:) = innerBalanceLayerMass(:)
 
-      ! compute the balance of energy and water per entire snow and soil domain, in W m-3 and kg m-2 s-1 respsectively
+      ! compute the balance of energy and water per entire snow and soil domain, in W m-3 and kg m-2 s-1 respectively
       diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1) = 0._rkind
       diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1) = 0._rkind
       diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = 0._rkind
@@ -1270,6 +1270,11 @@ subroutine coupled_em(&
             diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + innerBalanceLayerMass(iLayer)*lyr_wght
         end select
       end do
+      if(nSnow==0)then
+        diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1) = realMissing
+        diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = realMissing
+      endif
+
       if(do_outer)then
         deallocate(innerBalanceLayerNrg)
         deallocate(innerBalanceLayerMass)
@@ -1455,13 +1460,17 @@ subroutine coupled_em(&
 
       ! save balance of energy and water per single layer domain
       diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = meanBalance(1) ! W m-3
-      diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = meanBalance(2) ! W m-3
-      diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = meanBalance(3) ! kg m-2 s-1
-      diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = meanBalance(4) ! kg m-2 s-1
-      diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = meanBalance(5) ! W m-3
-      diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = meanBalance(6) ! W m-3
-      diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = meanBalance(7) ! kg m-2 s-1
+      diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = meanBalance(2) ! W m-3      will be realMissing if computeVegFlux is false
+      diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = meanBalance(3) ! kg m-2 s-1 will be realMissing if computeVegFlux is false
+      diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = meanBalance(4) ! kg m-2 s-1 will be realMissing if no aquifer
+      diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = meanBalance(5) ! W m-3      will be realMissing if no snow at end of data step
+      diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = meanBalance(6) ! W m-3       
+      diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = meanBalance(7) ! kg m-2 s-1 will be realMissing if no snow at end of data step
       diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = meanBalance(8) ! kg m-2 s-1
+      if (nSnow==0)then ! will be 0, or a balance computed on part of the data step if snow went to zero during the data step
+        diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = realMissing
+        diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = realMissing
+      endif
 
       ! -----
       ! * balance checks for the canopy...
@@ -1635,7 +1644,7 @@ subroutine coupled_em(&
       ! save the total soil enthalpy
       scalarTotalSoilEnthalpy = sum(mLayerEnthalpy(nSnow+1:nLayers) * mLayerDepth(nSnow+1:nLayers))/sum(mLayerDepth(nSnow+1:nLayers))
       ! save the total snow enthalpy
-      scalarTotalSnowEnthalpy = sum(mLayerEnthalpy(1:nSnow) * mLayerDepth(1:nSnow))/sum(mLayerDepth(1:nSnow))
+      if(nSnow>0) scalarTotalSnowEnthalpy = sum(mLayerEnthalpy(1:nSnow) * mLayerDepth(1:nSnow))/sum(mLayerDepth(1:nSnow))
 
       ! save the surface temperature (just to make things easier to visualize)
       prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
