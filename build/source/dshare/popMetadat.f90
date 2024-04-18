@@ -454,15 +454,6 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%balanceSnowMass)                 = var_info('balanceSnowMass'                , 'balance of water in the snow on data window'                      , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%balanceSoilMass)                 = var_info('balanceSoilMass'                , 'balance of water in the soil on data window'                      , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%balanceAqMass)                   = var_info('balanceAqMass'                  , 'balance of water in the aquifer on data window'                   , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! scaled balances
-  diag_meta(iLookDIAG%scaledBalanceCasNrg)             = var_info('scaledBalanceCasNrg'            , 'scaled balance of energy in the canopy air space on data window'  , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceVegNrg)             = var_info('scaledBalanceVegNrg'            , 'scaled balance of energy in the vegetation on data window'        , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceSnowNrg)            = var_info('scaledBalanceSnowNrg'           , 'scaled balance of energy in the snow on data window'              , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceSoilNrg)            = var_info('scaledBalanceSoilNrg'           , 'scaled balance of energy in the soil on data window'              , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceVegMass)            = var_info('scaledBalanceVegMass'           , 'scaled balance of water in the vegetation on data window'         , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceSnowMass)           = var_info('scaledBalanceSnowMass'          , 'scaled balance of water in the snow on data window'               , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceSoilMass)           = var_info('scaledBalanceSoilMass'          , 'scaled balance of water in the soil on data window'               , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceAqMass)             = var_info('scaledBalanceAqMass'            , 'scaled balance of water in the aquifer on data window'            , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
   ! -----------------------

@@ -66,22 +66,22 @@ contains
  USE globalData,only:elapsedRestart                          ! elapsed time to read model restart files
  ! model decisions
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
-  localColumn, & ! separate groundwater representation in each local soil column
-  singleBasin    ! single groundwater store over the entire basin
+  localColumn,     & ! separate groundwater representation in each local soil column
+  singleBasin        ! single groundwater store over the entire basin
 ! look-up values for the numerical method
 USE mDecisions_module,only:&
-  numrec      ,& ! home-grown backward Euler solution using free versions of Numerical recipes
-  kinsol      ,& ! SUNDIALS backward Euler solution using Kinsol
-  ida            ! SUNDIALS solution using IDA
+  numrec,          & ! home-grown backward Euler solution using free versions of Numerical recipes
+  kinsol,          & ! SUNDIALS backward Euler solution using Kinsol
+  ida                ! SUNDIALS solution using IDA
  ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
  USE mDecisions_module,only:&
-  closedForm,   & ! use temperature
-  enthalpyFDlu, & ! use enthalpy with lookup tables
-  enthalpyFD      ! use enthalpy with analytical solution
-  ! look-up values for the choice of full or empty aquifer at start
+   closedForm,     & ! use temperature with closed form heat capacity
+   enthalpyFormLU, & ! use enthalpy with soil temperature-enthalpy lookup tables
+   enthalpyForm      ! use enthalpy with soil temperature-enthalpy analytical solution
+! look-up values for the choice of full or empty aquifer at start
  USE mDecisions_module,only:&
-  fullStart,    & ! start with full aquifer
-  emptyStart      ! start with empty aquifer
+   fullStart,      & ! start with full aquifer
+   emptyStart        ! start with empty aquifer
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ USE mDecisions_module,only:&
  checkEnthalpy = .false.
  use_lookup    = .false.
  if(ixNrgConserv .ne. closedForm) checkEnthalpy = .true. ! check enthalpy either for mixed form energy equation or enthalpy state variable
- if(ixNrgConserv==enthalpyFDlu) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
+ if(ixNrgConserv==enthalpyFormLU) use_lookup = .true.    ! use lookup tables for soil temperature-enthalpy instead of analytical solution
  call check_icond(nGRU,                         & ! intent(in):    number of response units
                   progStruct,                   & ! intent(inout): model prognostic variables
                   diagStruct,                   & ! intent(inout): model diagnostic variables

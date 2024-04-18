@@ -44,9 +44,9 @@ USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:&
-  closedForm,&                          ! use temperature
-  enthalpyFDlu,&                        ! use enthalpy with lookup tables
-  enthalpyFD                            ! use enthalpy with analytical solution
+  closedForm,    &                      ! use temperature with closed form heat capacity
+  enthalpyFormLU,&                      ! use enthalpy with soil temperature-enthalpy lookup tables
+  enthalpyForm                          ! use enthalpy with soil temperature-enthalpy analytical solution
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
@@ -179,7 +179,7 @@ contains
  ! decide if computing soil enthalpy lookup tables and vegetation enthalpy lookup tables
  needLookup_soil = .false.
  ! if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
- if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFDlu) needLookup_soil = .true. 
+ if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFormLU) needLookup_soil = .true. 
  ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
  
  ! get the maximum number of snow layers

@@ -600,16 +600,6 @@ contains
   case('balanceSnowMass'                ); get_ixDiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow (kg m-2 s-1)
   case('balanceSoilMass'                ); get_ixDiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil (kg m-2 s-1)
   case('balanceAqMass'                  ); get_ixDiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer (kg m-2 s-1)
-  ! scaled balances
-  case('scaledBalanceCasNrg'            ); get_ixDiag = iLookDIAG%scaledBalanceCasNrg              ! scaled balance of energy in the canopy air space (s-1)
-  case('scaledBalanceVegNrg'            ); get_ixDiag = iLookDIAG%scaledBalanceVegNrg              ! scaled balance of energy in the vegetation canopy (s-1)
-  case('scaledBalanceSnowNrg'           ); get_ixDiag = iLookDIAG%scaledBalanceSnowNrg             ! scaled balance of energy in the snow (s-1)
-  case('scaledBalanceSoilNrg'           ); get_ixDiag = iLookDIAG%scaledBalanceSoilNrg             ! scaled balance of energy in the soil (s-1)
-  case('scaledBalanceVegMass'           ); get_ixDiag = iLookDIAG%scaledBalanceVegMass             ! scaled balance of water in the vegetation canopy (s-1)
-  case('scaledBalanceSnowMass'          ); get_ixDiag = iLookDIAG%scaledBalanceSnowMass            ! scaled balance of water in the snow (s-1)
-  case('scaledBalanceSoilMass'          ); get_ixDiag = iLookDIAG%scaledBalanceSoilMass            ! scaled balance of water in the soil (s-1)
-  case('scaledBalanceAqMass'            ); get_ixDiag = iLookDIAG%scaledBalanceAqMass              ! scaled balance of water in the aquifer (s-1)
-
   ! get to here if cannot find the variable
   case default
    get_ixDiag = integerMissing

@@ -481,15 +481,6 @@ MODULE var_lookup
   integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-2 s-1)
   integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-2 s-1)
   integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2 s-1)
-  ! scaled balances
-  integer(i4b)    :: scaledBalanceCasNrg             = integerMissing ! scaled balance of energy in the canopy air space (s-1)
-  integer(i4b)    :: scaledBalanceVegNrg             = integerMissing ! scaled balance of energy in the vegetation (s-1)
-  integer(i4b)    :: scaledBalanceSnowNrg            = integerMissing ! scaled balance of energy in the snow (s-1)
-  integer(i4b)    :: scaledBalanceSoilNrg            = integerMissing ! scaled balance of energy in the soil (s-1)
-  integer(i4b)    :: scaledBalanceVegMass            = integerMissing ! scaled balance of water in the vegetation (s-1)
-  integer(i4b)    :: scaledBalanceSnowMass           = integerMissing ! scaled balance of water in the snow (s-1)
-  integer(i4b)    :: scaledBalanceSoilMass           = integerMissing ! scaled balance of water in the soil (s-1)
-  integer(i4b)    :: scaledBalanceAqMass             = integerMissing ! scaled balance of water in the aquifer (s-1)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -926,8 +917,7 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101,102,103,104,105,106,107,108,109,110,&
-                                                                        111,112)
+                                                                        101,102,103,104)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

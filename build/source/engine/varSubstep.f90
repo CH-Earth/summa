@@ -67,23 +67,23 @@ USE var_lookup,only:iLookVarType
 
 ! constants
 USE multiconst,only:&
-                    Tfreeze,      & ! freezing temperature                 (K)
-                    LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    LH_vap,       & ! latent heat of vaporization          (J kg-1)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
-                    iden_water      ! intrinsic density of liquid water    (kg m-3)
+                    Tfreeze,        & ! freezing temperature                 (K)
+                    LH_fus,         & ! latent heat of fusion                (J kg-1)
+                    LH_vap,         & ! latent heat of vaporization          (J kg-1)
+                    iden_ice,       & ! intrinsic density of ice             (kg m-3)
+                    iden_water        ! intrinsic density of liquid water    (kg m-3)
 
 ! look-up values for the numerical method
-USE mDecisions_module,only:       &
-                    numrec       ,& ! home-grown backward Euler solution using free versions of Numerical recipes
-                    kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
-                    ida             ! SUNDIALS solution using IDA
+USE mDecisions_module,only:         &
+                    numrec         ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    kinsol         ,& ! SUNDIALS backward Euler solution using Kinsol
+                    ida               ! SUNDIALS solution using IDA
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
-USE mDecisions_module,only:       &
-                    closedForm,   & ! use temperature
-                    enthalpyFDlu, & ! use enthalpy with lookup tables
-                    enthalpyFD      ! use enthalpy with analytical solution
+USE mDecisions_module,only:         &
+                    closedForm,     & ! use temperature with closed form heat capacity
+                    enthalpyFormLU, & ! use enthalpy with soil temperature-enthalpy lookup tables
+                    enthalpyForm      ! use enthalpy with soil temperature-enthalpy analytical solution
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -282,7 +282,7 @@ subroutine varSubstep(&
     use_lookup       = .false.
     if((ixNrgConserv .ne. closedForm .or. computNrgBalance) .and. ixNumericalMethod .ne. ida) computeEnthTemp = .true. ! use enthTemp to conserve energy or compute energy balance
     if(ixNrgConserv .ne. closedForm .and. ixNumericalMethod==ida) enthalpyStateVec = .true. ! enthalpy as state variable
-    if(ixNrgConserv==enthalpyFDlu) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
+    if(ixNrgConserv==enthalpyFormLU) use_lookup = .true. ! use lookup tables for soil enthalpy instead of analytical solution
 
     ! initialize the length of the substep
     dtSubstep = dtInit

@@ -78,9 +78,9 @@ USE mDecisions_module,only:  &
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:  &
- closedForm,                 & ! use temperature
- enthalpyFDlu,               & ! use enthalpy with lookup tables
- enthalpyFD                    ! use enthalpy with analytical solution
+ closedForm,                 & ! use temperature with closed form heat capacity
+ enthalpyFormLU,             & ! use enthalpy with soil temperature-enthalpy lookup tables
+ enthalpyForm                  ! use enthalpy with soil temperature-enthalpy analytical solution
 
 implicit none
 ! define constants
@@ -1201,12 +1201,12 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 eqns_data%nSoil,                          & ! intent(in):    number of soil layers
                 eqns_data%nLayers,                        & ! intent(in):    total number of layers
                 eqns_data%computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                (eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel), & ! intent(in): flag to indicate if we need to compute baseflow
-                eqns_data%ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
-                eqns_data%mpar_data%var(iLookPARAM%specificStorage)%dat(1) ,                     & ! intent(in): specific storage coefficient (m-1)
-                eqns_data%mpar_data%var(iLookPARAM%theta_sat)%dat,                               & ! intent(in): soil porosity (-)
-                eqns_data%model_decisions(iLookDECISIONS%f_Richards)%iDecision,                  & ! intent(in): choice of option for Richards' equation
-                (eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm),  & ! intent(in): flag if enthalpy is state variable
+                eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel, & ! intent(in): flag to indicate if we need to compute baseflow
+                eqns_data%ixMatrix,                                                            & ! intent(in): form of the Jacobian matrix
+                eqns_data%mpar_data%var(iLookPARAM%specificStorage)%dat(1),                    & ! intent(in): specific storage coefficient (m-1)
+                eqns_data%mpar_data%var(iLookPARAM%theta_sat)%dat,                             & ! intent(in): soil porosity (-)
+                eqns_data%model_decisions(iLookDECISIONS%f_Richards)%iDecision,                & ! intent(in): choice of option for Richards' equation
+                eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm,  & ! intent(in): flag if enthalpy is state variable
                 ! input: data structures
                 eqns_data%model_decisions,                & ! intent(in):    model decisions
                 eqns_data%indx_data,                      & ! intent(in):    index data

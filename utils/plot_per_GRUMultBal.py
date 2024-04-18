@@ -43,7 +43,7 @@ viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_bals_{}.nc'
     viz_fil[i] = viz_fil[i].format(','.join(['balance','scaledBalance']))
-do_rel = True # use scaled values
+do_rel = False # use scaled values
 nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables of interest
