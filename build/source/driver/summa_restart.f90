@@ -241,7 +241,7 @@ USE mDecisions_module,only:&
    case(localColumn)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
     do iHRU=1,gru_struc(iGRU)%hruCount
-      progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start
+      if(aquiferIni==emptyStart) progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start ! leave at initialized values if fullStart
     end do
 
    ! the local column aquifer storage is not used if the groundwater is basin-average
