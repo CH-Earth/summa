@@ -27,6 +27,10 @@ USE multiconst,only: gravity, & ! acceleration of gravity       (m s-2)
                      Tfreeze, & ! temperature at freezing    (K)
                      LH_fus,  & ! latent heat of fusion      (J kg-1, or m2 s-2)
                      R_wv       ! gas constant for water vapor  (J kg-1 K-1; [J = Pa m3])
+
+! missing values                 
+USE globalData,only:realMissing    ! missing real number       
+
 USE soil_utils_module,only:matricHead
 USE soil_utils_module,only:dPsi_dTheta
 USE soil_utils_module,only:volFracLiq
@@ -53,18 +57,17 @@ contains
 subroutine liquidHeadPrime(&
                       ! input
                       matricHeadTotal                          ,& ! intent(in)    : total water matric potential (m)
-                      matricHeadTotalPrime                     ,& ! intent(in)
+                      matricHeadTotalPrime                     ,& ! intent(in)    : total water matric potential time derivative (m s-1)
                       volFracLiq                               ,& ! intent(in)    : volumetric fraction of liquid water (-)
                       volFracIce                               ,& ! intent(in)    : volumetric fraction of ice (-)
                       vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,& ! intent(in)    : soil parameters
                       dVolTot_dPsi0                            ,& ! intent(in)    : derivative in the soil water characteristic (m-1)
                       dTheta_dT                                ,& ! intent(in)    : derivative in volumetric total water w.r.t. temperature (K-1)
-                      tempPrime                                ,& ! intent(in)
-                      volFracLiqPrime                          ,& ! intent(in)
-                      volFracIcePrime                          ,& ! intent(in)
+                      volFracLiqPrime                          ,& ! intent(in)    : volumetric fraction of liquid water time derivative (-)
+                      volFracIcePrime                          ,& ! intent(in)    : volumetric fraction of ice time derivative (-)
                       ! output
                       matricHeadLiq                            ,& ! intent(out)   : liquid water matric potential (m)
-                      matricHeadLiqPrime                       ,& ! intent(out)
+                      matricHeadLiqPrime                       ,& ! intent(out)   : liquid water matric potential time derivative (m s-1)
                       dPsiLiq_dPsi0                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
                       dPsiLiq_dTemp                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. temperature (m K-1)
                       err,message)                                ! intent(out)   : error control
@@ -72,18 +75,17 @@ subroutine liquidHeadPrime(&
  implicit none
   ! input
   real(rkind),intent(in)            :: matricHeadTotal                           ! total water matric potential (m)
-  real(rkind),intent(in)            :: matricHeadTotalPrime
+  real(rkind),intent(in)            :: matricHeadTotalPrime                      ! total water matric potential time derivative (m s-1)
   real(rkind),intent(in)            :: volFracLiq                                ! volumetric fraction of liquid water (-)
   real(rkind),intent(in)            :: volFracIce                                ! volumetric fraction of ice (-)
   real(rkind),intent(in)            :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
   real(rkind),intent(in)  ,optional :: dVolTot_dPsi0                             ! derivative in the soil water characteristic (m-1)
   real(rkind),intent(in)  ,optional :: dTheta_dT                                 ! derivative in volumetric total water w.r.t. temperature (K-1)
-  real(rkind),intent(in)            :: TempPrime
-  real(rkind),intent(in)            :: volFracLiqPrime
-  real(rkind),intent(in)            :: volFracIcePrime
+  real(rkind),intent(in)            :: volFracLiqPrime                           ! volumetric fraction of liquid water time derivative ()
+  real(rkind),intent(in)            :: volFracIcePrime                           ! volumetric fraction of ice time derivative ()
   ! output
   real(rkind),intent(out)           :: matricHeadLiq                             ! liquid water matric potential (m)
-    real(rkind),intent(out)         :: matricHeadLiqPrime
+    real(rkind),intent(out)         :: matricHeadLiqPrime                        ! liquid water matric potential time derivative (m s-1)
   real(rkind),intent(out) ,optional :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
   real(rkind),intent(out) ,optional :: dPsiLiq_dTemp                             ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   ! output: error control
@@ -94,8 +96,8 @@ subroutine liquidHeadPrime(&
   real(rkind)                       :: effSat                                    ! effective saturation (-)
   real(rkind)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
   real(rkind)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
-  real(rkind)                       :: dEffSat_dFracLiq
-  real(rkind)                       :: effSatPrime
+  real(rkind)                       :: dEffSat_dFracLiq                          ! derivative in effective saturation w.r.t. liquid water fraction (-)
+  real(rkind)                       :: effSatPrime                               ! effective saturation time derivative (-)
   ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHeadPrime/'
@@ -117,13 +119,12 @@ subroutine liquidHeadPrime(&
 
     ! - matric head associated with liquid water
     matricHeadLiq = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
-    if (effSat < 1._rkind .and. effSat > 0._rkind)then
+    if (effSat < 1._rkind .and. effSat > 0._rkind .and. volFracLiqPrime.ne.realMissing .and. volFracIcePrime.ne.realMissing)then
       effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2_i4b
       matricHeadLiqPrime = -( 1._rkind/(vGn_alpha*vGn_n*vGn_m) ) * effSat**(-1._rkind-1._rkind/vGn_m) * ( effSat**(-1._rkind/vGn_m) - 1._rkind )**(-1._rkind+1._rkind/vGn_n) * effSatPrime
     else
       matricHeadLiqPrime = 0._rkind
     endif
-
 
     ! compute derivative in liquid water matric potential w.r.t. effective saturation (m)
     if(present(dPsiLiq_dPsi0).or.present(dPsiLiq_dTemp))then
@@ -171,6 +172,7 @@ subroutine liquidHeadPrime(&
     if(present(dPsiLiq_dTemp)) dPsiLiq_dPsi0 = 1._rkind  ! derivative=1 because values are identical
     if(present(dPsiLiq_dTemp)) dPsiLiq_dTemp = 0._rkind  ! derivative=0 because no impact of temperature for unfrozen conditions
   end if  ! (if ice exists)
+  if(volFracLiqPrime==realMissing .or. volFracIcePrime==realMissing) matricHeadLiqPrime = realMissing
 
 end subroutine liquidHeadPrime
 

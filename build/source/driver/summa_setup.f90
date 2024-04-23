@@ -42,11 +42,11 @@ USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 ! metadata structures
 USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 
-! look-up values for the choice of heat capacity computation
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:&
-  closedForm,&                          ! heat capacity closed form in backward Euler residual
-  enthalpyFDlu,&                        ! enthalpy with lookup tables finite difference in backward Euler residual
-  enthalpyFD                            ! enthalpy with hypergeometric function finite difference in backward Euler residual
+  closedForm,    &                      ! use temperature with closed form heat capacity
+  enthalpyFormLU,&                      ! use enthalpy with soil temperature-enthalpy lookup tables
+  enthalpyForm                          ! use enthalpy with soil temperature-enthalpy analytical solution
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
@@ -80,7 +80,7 @@ contains
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
  USE read_param_module,only:read_param                       ! module to read model parameter sets
- USE enthalpyTemp_module,only:T2H_lookup_snow                ! module to calculate a look-up table for the snow temperature-enthalpy conversion
+ USE enthalpyTemp_module,only:T2H_lookup_snWat               ! module to calculate a look-up table for the snow temperature-enthalpy conversion
  USE enthalpyTemp_module,only:T2L_lookup_soil                ! module to calculate a look-up table for the soil temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
  USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
@@ -122,7 +122,7 @@ contains
  integer(i4b)                          :: jHRU,kHRU          ! HRU indices
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
  integer(i4b)                          :: iVar               ! looping variables
- logical                               :: needLookup         ! logical to decide if computing enthalpy lookup tables
+ logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -176,9 +176,11 @@ contains
  call mDecisions(err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! decide if computing enthalpy lookup tables, if need enthalpy and not using hypergeometric function
- needLookup = .false.
- if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFDlu) needLookup = .true.
+ ! decide if computing soil enthalpy lookup tables and vegetation enthalpy lookup tables
+ needLookup_soil = .false.
+ ! if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
+ if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFormLU) needLookup_soil = .true. 
+ ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
  
  ! get the maximum number of snow layers
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
@@ -308,19 +310,20 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
+   ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
    ! NOTE2: H is the mixture enthalpy of snow liquid and ice
-   call T2H_lookup_snow(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+   call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a lookup table for the temperature-enthalpy conversion of soil
+   ! calculate a lookup table for the temperature-enthalpy conversion of soil 
    ! NOTE: L is the integral of soil Clapeyron equation liquid water matric potential from temperature
    !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
-   if(needLookup)then
+   if(needLookup_soil)then
      call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
-                     mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
-                     lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
-                     err,cmessage)                              ! intent(out):   error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+                          mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
+                          lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
+                          err,cmessage)                              ! intent(out):   error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
    endif
 
    ! overwrite the vegetation height
@@ -367,14 +370,6 @@ contains
 
 
  end subroutine summa_paramSetup
-
-
- ! =================================================================================================
- ! =================================================================================================
- ! =================================================================================================
- ! =================================================================================================
- ! =================================================================================================
- ! =================================================================================================
 
  ! **************************************************************************************************
  ! private subroutine SOIL_VEG_GEN_PARM: Read soil, vegetation and other model parameters (from NOAH)

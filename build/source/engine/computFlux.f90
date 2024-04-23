@@ -65,16 +65,7 @@ USE globalData,only:veryBig         ! a very big number
 USE globalData,only:dx              ! finite difference increment
 
 ! constants
-USE multiconst,only:&
-                    gravity,      & ! acceleration of gravity              (m s-2)
-                    Tfreeze,      & ! temperature at freezing              (K)
-                    LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    LH_vap,       & ! latent heat of vaporization          (J kg-1)
-                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
-                    Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
-                    iden_air,     & ! intrinsic density of air             (kg m-3)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
-                    iden_water      ! intrinsic density of liquid water    (kg m-3)
+USE multiconst,only:iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:       &

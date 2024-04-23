@@ -53,12 +53,9 @@ USE globalData,only:indx_meta       ! metadata for the variables in the index st
 
 ! constants
 USE multiconst,only:&
-                    gravity,      & ! acceleration of gravity              (m s-2)
                     Tfreeze,      & ! temperature at freezing              (K)
                     Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
-                    LH_fus,       & ! latent heat of fusion                (J kg-1)
                     iden_air,     & ! intrinsic density of air             (kg m-3)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! provide access to the derived types to define the data structures
@@ -105,21 +102,23 @@ contains
 ! **********************************************************************************************************
 subroutine popStateVec(&
                         ! input: data structures
-                        nState,                  & ! intent(in):    number of desired state variables
-                        prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                        diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
-                        indx_data,               & ! intent(in):    indices defining model states and layers
+                        nState,                  & ! intent(in):  number of desired state variables
+                        enthalpyStateVec,        & ! intent(in):  flag if enthalpy is state variable          
+                        prog_data,               & ! intent(in):  model prognostic variables for a local HRU
+                        diag_data,               & ! intent(in):  model diagnostic variables for a local HRU
+                        indx_data,               & ! intent(in):  indices defining model states and layers
                         ! output
-                        stateVec,                & ! intent(out):   model state vector
-                        err,message)               ! intent(out):   error control
+                        stateVec,                & ! intent(out): model state vector
+                        err,message)               ! intent(out): error control
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
   integer(i4b),intent(in)         :: nState                 ! number of desired state variables
+  logical(lgt),intent(in)         :: enthalpyStateVec       ! flag if enthalpy is state variable
   type(var_dlength),intent(in)    :: prog_data              ! prognostic variables for a local HRU
   type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
   type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
   ! output
-  real(rkind),intent(out)            :: stateVec(:)            ! model state vector (mixed units)
+  real(rkind),intent(out)         :: stateVec(:)            ! model state vector (mixed units)
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -136,11 +135,14 @@ subroutine popStateVec(&
   fixedLength: associate(&
     ! model states for the vegetation canopy
     scalarCanairTemp     => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)     ,& ! intent(in) : [dp]     temperature of the canopy air space (K)
+    scalarCanairEnthalpy => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1) ,& ! intent(in) : [dp]     enthalpy of the canopy air space (J m-3)
     scalarCanopyTemp     => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)     ,& ! intent(in) : [dp]     temperature of the vegetation canopy (K)
+    scalarCanopyEnthalpy => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1) ,& ! intent(in) : [dp]     enthalpy of the vegetation canopy (J m-3)
     scalarCanopyWat      => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)      ,& ! intent(in) : [dp]     mass of total water on the vegetation canopy (kg m-2)
     scalarCanopyLiq      => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)      ,& ! intent(in) : [dp]     mass of liquid water on the vegetation canopy (kg m-2)
     ! model state variable vectors for the snow-soil layers
     mLayerTemp           => prog_data%var(iLookPROG%mLayerTemp)%dat              ,& ! intent(in) : [dp(:)]  temperature of each snow/soil layer (K)
+    mLayerEnthalpy       => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat          ,& ! intent(in) : [dp(:)]  enthalpy of each snow+soil layer (J m-3)
     mLayerVolFracWat     => prog_data%var(iLookPROG%mLayerVolFracWat)%dat        ,& ! intent(in) : [dp(:)]  volumetric fraction of total water (-)
     mLayerVolFracLiq     => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! intent(in) : [dp(:)]  volumetric fraction of liquid water (-)
     mLayerMatricHead     => prog_data%var(iLookPROG%mLayerMatricHead)%dat        ,& ! intent(in) : [dp(:)]  matric head (m)
@@ -179,14 +181,22 @@ subroutine popStateVec(&
     ! build the state vector for the temperature of the canopy air space
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
     do concurrent (iState=1:size(ixCasNrg),ixCasNrg(iState)/=integerMissing)
-      stateVec( ixCasNrg(iState) )  = scalarCanairTemp ! transfer canopy air temperature to the state vector
+      if(enthalpyStateVec)then
+        stateVec( ixCasNrg(iState) ) = scalarCanairEnthalpy ! transfer canopy air enthalpy to the state vector
+      else
+        stateVec( ixCasNrg(iState) ) = scalarCanairTemp     ! transfer canopy air temperature to the state vector
+      endif
       stateFlag( ixCasNrg(iState) ) = .true.           ! flag to denote that the state is populated
     end do
 
     ! build the state vector for the temperature of the vegetation canopy
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
     do concurrent (iState=1:size(ixVegNrg),ixVegNrg(iState)/=integerMissing)
-      stateVec( ixVegNrg(iState) )  = scalarCanopyTemp ! transfer vegetation temperature to the state vector
+      if(enthalpyStateVec)then
+        stateVec( ixVegNrg(iState) ) = scalarCanopyEnthalpy ! transfer vegetation enthalpy to the state vector
+      else
+        stateVec( ixVegNrg(iState) )  = scalarCanopyTemp    ! transfer vegetation temperature to the state vector
+      endif
       stateFlag( ixVegNrg(iState) ) = .true.           ! flag to denote that the state is populated
     end do
 
@@ -205,7 +215,11 @@ subroutine popStateVec(&
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the snow+soil domain)
         ixStateSubset            = ixSnowSoilNrg(iLayer) ! index within the state vector
-        stateVec(ixStateSubset)  = mLayerTemp(iLayer)    ! transfer temperature from a layer to the state vector
+        if(enthalpyStateVec)then
+          stateVec(ixStateSubset) = mLayerEnthalpy(iLayer) ! transfer enthalpy from a layer to the state vector
+        else
+          stateVec(ixStateSubset) = mLayerTemp(iLayer)     ! transfer temperature from a layer to the state vector
+        endif
         stateFlag(ixStateSubset) = .true.                ! flag to denote that the state is populated
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
@@ -404,6 +418,7 @@ subroutine checkFeas(&
                       mpar_data,                                 & ! intent(in):    model parameters
                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                       indx_data,                                 & ! intent(in):    indices defining model states and layers
+                      enthalpyStateVec,                          & ! intent(in):    flag if enthalpy is state variable
                       ! output: feasibility
                       feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control
@@ -416,6 +431,7 @@ subroutine checkFeas(&
   type(var_dlength),intent(in)    :: mpar_data                 ! model parameters
   type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
   type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
+  logical(lgt),intent(in)         :: enthalpyStateVec          ! flag if enthalpy is state variable
   ! output: feasibility
   logical(lgt),intent(inout)      :: feasible                  ! flag to denote the feasibility of the solution
   ! output: error control
@@ -459,7 +475,7 @@ subroutine checkFeas(&
     feasible=.true.
     ! check that the canopy air space temperature is reasonable
     if(ixCasNrg/=integerMissing)then
-      if(stateVec(ixCasNrg) > canopyTempMax) then 
+      if(stateVec(ixCasNrg) > canopyTempMax .and. .not.enthalpyStateVec)then 
         feasible=.false.
         message=trim(message)//'canopy air space temp high'
         !write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
@@ -468,7 +484,7 @@ subroutine checkFeas(&
 
     ! check that the canopy air space temperature is reasonable
     if(ixVegNrg/=integerMissing)then
-      if(stateVec(ixVegNrg) > canopyTempMax)then
+      if(stateVec(ixVegNrg) > canopyTempMax .and. .not.enthalpyStateVec)then
         feasible=.false.
         message=trim(message)//'canopy temp high'
         !write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
@@ -486,7 +502,7 @@ subroutine checkFeas(&
 
     ! check snow temperature is below freezing
     if(count(ixSnowOnlyNrg/=integerMissing)>0)then
-      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze))then
+      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze) .and. .not.enthalpyStateVec)then
         feasible=.false.
         message=trim(message)//'snow temp high'
         !do iLayer=1,nSnow
@@ -540,12 +556,12 @@ subroutine varExtract(&
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        ! output: variables for the vegetation canopy
-                       scalarCanairTempTrial,                     & ! intent(inout):   trial value of canopy air temperature (K)
-                       scalarCanopyTempTrial,                     & ! intent(inout):   trial value of canopy temperature (K)
+                       scalarCanairNrgTrial,                      & ! intent(inout):   trial value of canopy air energy, temperature (K) or enthalpy (J m-3)
+                       scalarCanopyNrgTrial,                      & ! intent(inout):   trial value of canopy energy, temperature (K) or enthalpy (J m-3)
                        scalarCanopyWatTrial,                      & ! intent(inout):   trial value of canopy total water (kg m-2)
                        scalarCanopyLiqTrial,                      & ! intent(inout):   trial value of canopy liquid water (kg m-2)
                        ! output: variables for the snow-soil domain
-                       mLayerTempTrial,                           & ! intent(inout):   trial vector of layer temperature (K)
+                       mLayerNrgTrial,                            & ! intent(inout):   trial vector of layer energy, temperature (K) or enthalpy (J m-3)
                        mLayerVolFracWatTrial,                     & ! intent(inout):   trial vector of volumetric total water content (-)
                        mLayerVolFracLiqTrial,                     & ! intent(inout):   trial vector of volumetric liquid water content (-)
                        mLayerMatricHeadTrial,                     & ! intent(inout):   trial vector of total water matric potential (m)
@@ -563,12 +579,12 @@ subroutine varExtract(&
   type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   ! output: variables for the vegetation canopy
-  real(rkind),intent(inout)          :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
-  real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
+  real(rkind),intent(inout)          :: scalarCanairNrgTrial            ! trial value of canopy air energy, temperature (K) or enthalpy (J m-3)
+  real(rkind),intent(inout)          :: scalarCanopyNrgTrial            ! trial value of canopy energy, temperature (K) or enthalpy (J m-3)
   real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
   real(rkind),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
   ! output: variables for the snow-soil domain
-  real(rkind),intent(inout)          :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
+  real(rkind),intent(inout)          :: mLayerNrgTrial(:)               ! trial vector of layer energy, temperature (K) or enthalpy (J m-3)
   real(rkind),intent(inout)          :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
   real(rkind),intent(inout)          :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
   real(rkind),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
@@ -614,10 +630,10 @@ subroutine varExtract(&
     if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixVegHyd/=integerMissing)then
 
       ! extract temperature of the canopy air space
-      if(ixCasNrg/=integerMissing) scalarCanairTempTrial = stateVec(ixCasNrg)
+      if(ixCasNrg/=integerMissing) scalarCanairNrgTrial = stateVec(ixCasNrg)
 
       ! extract canopy temperature
-      if(ixVegNrg/=integerMissing) scalarCanopyTempTrial = stateVec(ixVegNrg)
+      if(ixVegNrg/=integerMissing) scalarCanopyNrgTrial = stateVec(ixVegNrg)
 
       ! extract intercepted water
       if(ixVegHyd/=integerMissing)then
@@ -636,7 +652,7 @@ subroutine varExtract(&
     ! overwrite with the energy values from the state vector
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        mLayerTempTrial(iLayer) = stateVec( ixSnowSoilNrg(iLayer) )
+        mLayerNrgTrial(iLayer) = stateVec( ixSnowSoilNrg(iLayer) )
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
 

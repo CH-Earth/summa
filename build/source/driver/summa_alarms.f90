@@ -41,7 +41,7 @@ USE globalData, only: ixProgress_never        ! named variable to print progress
 
 ! named variable for time structures
 USE var_lookup,only:iLookTIME                 ! named variables for time data structure
-USE var_lookup,only:iLookFreq                 ! named variables for the frequency structure
+USE var_lookup,only:iLookFREQ                 ! named variables for the frequency structure
 
 ! structure dimensions
 USE var_lookup,only:maxvarFreq                ! maximum number of output files
@@ -150,10 +150,10 @@ subroutine summa_setWriteAlarms(oldTime, newTime, endTime,     &   ! time vector
     ! define the need to finalize statistics
     ! NOTE: time vector is configured so that ih=0 at the start of the day, hence day in oldTime and timeStruct%var differ
     select case(iFreq)
-      case(iLookFreq%day     ); finalizeStats(iFreq)=(oldTime(iLookTIME%id  )/=newTime(iLookTIME%id  ))  ! daily aggregation
-      case(iLookFreq%month   ); finalizeStats(iFreq)=(oldTime(iLookTIME%im  )/=newTime(iLookTIME%im  ))  ! monthly aggregation
-      case(iLookFreq%annual  ); finalizeStats(iFreq)=(oldTime(iLookTIME%iyyy)/=newTime(iLookTIME%iyyy))  ! yearly (annual) aggregation
-      case(iLookFreq%timestep); finalizeStats(iFreq)=.true.          ! timestep-level output (no temporal aggregation)
+      case(iLookFREQ%day     ); finalizeStats(iFreq)=(oldTime(iLookTIME%id  )/=newTime(iLookTIME%id  ))  ! daily aggregation
+      case(iLookFREQ%month   ); finalizeStats(iFreq)=(oldTime(iLookTIME%im  )/=newTime(iLookTIME%im  ))  ! monthly aggregation
+      case(iLookFREQ%annual  ); finalizeStats(iFreq)=(oldTime(iLookTIME%iyyy)/=newTime(iLookTIME%iyyy))  ! yearly (annual) aggregation
+      case(iLookFREQ%timestep); finalizeStats(iFreq)=.true.          ! timestep-level output (no temporal aggregation)
       case default; err=20; message=trim(message)//'unable to identify output frequency'; return
     end select
 

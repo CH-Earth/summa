@@ -67,6 +67,12 @@ USE mDecisions_module,only:       &
   qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
   bigBucket,                      & ! a big bucket (lumped aquifer model)
   noExplicit                         ! no explicit groundwater parameterization
+
+! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
+USE mDecisions_module,only:       &
+  closedForm,                     & ! use temperature with closed form heat capacity
+  enthalpyFormLU,                 & ! use enthalpy with soil temperature-enthalpy lookup tables
+  enthalpyForm                      ! use enthalpy with soil temperature-enthalpy analytical solution
  
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:       &
@@ -109,6 +115,7 @@ subroutine summaSolve4ida(&
                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
+                      lookup_data,             & ! intent(in):    lookup data
                       type_data,               & ! intent(in):    type of vegetation and soil
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
@@ -174,6 +181,7 @@ subroutine summaSolve4ida(&
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -277,6 +285,8 @@ subroutine summaSolve4ida(&
     eqns_data%firstSubStep   = firstSubStep
     eqns_data%computeVegFlux = computeVegFlux
     eqns_data%scalarSolution = scalarSolution
+    eqns_data%deriv_data     = deriv_data
+    eqns_data%lookup_data    = lookup_data
     eqns_data%type_data      = type_data
     eqns_data%attr_data      = attr_data
     eqns_data%mpar_data      = mpar_data
@@ -286,7 +296,6 @@ subroutine summaSolve4ida(&
     eqns_data%indx_data      = indx_data
     eqns_data%diag_data      = diag_data
     eqns_data%flux_data      = flux_data
-    eqns_data%deriv_data     = deriv_data
     eqns_data%ixSaturation   = ixSaturation
     
     ! allocate space and fill
@@ -311,12 +320,9 @@ subroutine summaSolve4ida(&
     allocate( eqns_data%mLayerMatricHeadPrev(nSoil) )
     allocate( eqns_data%mLayerTempTrial(nLayers) )
     allocate( eqns_data%mLayerMatricHeadTrial(nSoil) )
-    allocate( eqns_data%mLayerMatricHeadLiqPrime(nSoil) )
-    allocate( eqns_data%mLayerVolFracWatTrial(nLayers) )
     allocate( eqns_data%mLayerTempPrime(nLayers) )       
     allocate( eqns_data%mLayerMatricHeadPrime(nSoil) )
     allocate( eqns_data%mLayerVolFracWatPrime(nLayers) ) 
-    allocate( eqns_data%mLayerVolFracIcePrime(nLayers) )
     allocate( mLayerMatricHeadPrimePrev(nSoil) )
     allocate( dCompress_dPsiPrev(nSoil) )
     allocate( eqns_data%fluxVec(nState) )
@@ -327,6 +333,8 @@ subroutine summaSolve4ida(&
     ! need the following values for the first substep
     eqns_data%scalarCanopyTempPrev    = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
     eqns_data%mLayerTempPrev(:)       = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+    eqns_data%scalarCanopyTempTrial   = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
+    eqns_data%mLayerTempTrial(:)      = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
     eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
     dCompress_dPsiPrev(:)             = 0._rkind
     resVecPrev(:)                     = 0._rkind
@@ -442,7 +450,7 @@ subroutine summaSolve4ida(&
     tret(1) = t0 ! initial time
     tretPrev = tret(1)
     nSteps = 0 ! initialize number of time steps taken in solver
-    
+
     do while(tret(1) < dt_cur)
     
       ! call this at beginning of step to reduce root bouncing (only looking in one direction)
@@ -454,7 +462,7 @@ subroutine summaSolve4ida(&
     
       eqns_data%firstFluxCall = .false. ! already called for initial
       eqns_data%firstSplitOper = .true. ! always true at start of dt_cur since no splitting
-    
+
       ! call IDASolve, advance solver just one internal step
       retvalr = FIDASolve(ida_mem, dt_cur, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
       ! early return if IDASolve failed
@@ -469,7 +477,11 @@ subroutine summaSolve4ida(&
       tooMuchMelt = .false.
       ! loop through non-missing energy state variables in the snow domain to see if need to merge
       do concurrent (i=1:nSnow,ixSnowOnlyNrg(i)/=integerMissing)
-        if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+        if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
+          if (eqns_data%mLayerTempTrial(i) > Tfreeze .or. stateVec(ixSnowOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
+        else
+          if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+        endif
       enddo
       if(tooMuchMelt)exit
     
@@ -482,14 +494,15 @@ subroutine summaSolve4ida(&
       feasible=.true.
       call checkFeas(&
                       ! input
-                      stateVec,            & ! intent(in):    model state vector (mixed units)
-                      eqns_data%mpar_data, & ! intent(in):    model parameters
-                      eqns_data%prog_data, & ! intent(in):    model prognostic variables for a local HRU
-                      eqns_data%indx_data, & ! intent(in):    indices defining model states and layers
+                      stateVec,                                             & ! intent(in):    model state vector (mixed units)
+                      eqns_data%mpar_data,                                  & ! intent(in):    model parameters
+                      eqns_data%prog_data,                                  & ! intent(in):    model prognostic variables for a local HRU
+                      eqns_data%indx_data,                                  & ! intent(in):    indices defining model states and layers
+                      model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm, & ! intent(in): flag to indicate if we are using enthalpy as state variable
                       ! output: feasibility
-                      feasible,            & ! intent(inout):   flag to denote the feasibility of the solution
+                      feasible,                                             & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control
-                      err,cmessage)           ! intent(out):   error control
+                      err,cmessage)                                           ! intent(out):   error control
     
       ! early return for non-feasible solutions, right now will just fail if goes infeasible
       if(.not.feasible)then
@@ -590,12 +603,9 @@ subroutine summaSolve4ida(&
     deallocate( eqns_data%mLayerMatricHeadPrev )
     deallocate( eqns_data%mLayerTempTrial )
     deallocate( eqns_data%mLayerMatricHeadTrial )
-    deallocate( eqns_data%mLayerVolFracWatTrial )
     deallocate( eqns_data%mLayerTempPrime )       
     deallocate( eqns_data%mLayerMatricHeadPrime )
-    deallocate( eqns_data%mLayerMatricHeadLiqPrime)
     deallocate( eqns_data%mLayerVolFracWatPrime ) 
-    deallocate( eqns_data%mLayerVolFracIcePrime )
     deallocate( mLayerMatricHeadPrimePrev )
     deallocate( dCompress_dPsiPrev )
     deallocate( eqns_data%resVec )
@@ -713,6 +723,7 @@ end subroutine setSolverParams
 ! find_rootdir: private routine to determine which direction to look for the root, by
 !  determining if the variable is greater or less than the root. Need to do this to prevent
 !  bouncing around solution
+!  Note: do not need to change if using enthalpy as state variable or not
 ! ----------------------------------------------------------------------------------------
 subroutine find_rootdir(eqns_data,rootdir)
 
@@ -744,7 +755,7 @@ subroutine find_rootdir(eqns_data,rootdir)
   nState = eqns_data%nState
   nSnow = eqns_data%nSnow
   nSoil = eqns_data%nSoil
-
+ 
   ! initialize
   ind = 0
 
@@ -823,6 +834,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   integer(i4b)               :: nState    ! number of states
   integer(i4b)               :: nSnow     ! number of snow layers
   integer(i4b)               :: nSoil     ! number of soil layers
+  logical(lgt)               :: enthalpyStateVec ! flag to indicate if we are using enthalpy as state variable
   real(rkind)                :: xPsi      ! matric head at layer (m)
   real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
 
@@ -836,6 +848,8 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   nState = eqns_data%nState
   nSnow = eqns_data%nSnow
   nSoil = eqns_data%nSoil
+  enthalpyStateVec = eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm
+
 
   ! get data array from SUNDIALS vector
   uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
@@ -846,7 +860,11 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   ! identify the critical point when vegetation begins to freeze
   if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
     ind = ind+1
-    gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)) - Tfreeze
+    if(enthalpyStateVec)then
+      gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1))
+    else
+      gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)) - Tfreeze
+    end if
   endif
 
   if(nSnow>0)then
@@ -854,7 +872,11 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
       ! identify the critical point when the snow layer begins to freeze
       if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
         ind = ind+1
-        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
+        if(enthalpyStateVec)then
+          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i))
+        else
+          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
+        end if
       endif
     end do
   endif
@@ -872,8 +894,12 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
       ! identify the critical point when the soil layer begins to freeze
       if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
         ind = ind+1
-        TcSoil = crit_soilT(xPsi)
-        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+        if(enthalpyStateVec)then
+          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i))
+        else 
+          TcSoil = crit_soilT(xPsi)
+          gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+        end if
       endif
     end do
   endif

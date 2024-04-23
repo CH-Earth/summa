@@ -29,6 +29,7 @@ type data4ida
   logical(lgt)                    :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
   logical(lgt)                    :: scalarSolution                  ! flag to denote if implementing the scalar solution
   type(model_options),allocatable :: model_decisions(:)              ! model decisions
+  type(zLookup)                   :: lookup_data                  ! lookup tables
   type(var_i)                     :: type_data                       ! type of vegetation and soil
   type(var_d)                     :: attr_data                       ! spatial attributes
   type(var_dlength)               :: mpar_data                       ! model parameters
@@ -54,19 +55,13 @@ type data4ida
   real(rkind), allocatable        :: mLayerTempPrev(:)               ! previous vector of layer temperature (K)
   real(rkind), allocatable        :: mLayerMatricHeadPrev(:)         ! previous value for total water matric potential (m)
   real(rkind)                     :: scalarCanopyTempTrial           ! trial value for temperature of the vegetation canopy (K)
-  real(rkind)                     :: scalarCanopyWatTrial            ! trial value for mass of total water on the vegetation canopy (kg m-2)
   real(rkind), allocatable        :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
   real(rkind), allocatable        :: mLayerMatricHeadTrial(:)        ! trial value for total water matric potential (m)
-  real(rkind), allocatable        :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
-  real(rkind)                     :: scalarCanairTempPrime           ! prime value for temperature of the canopy air space (K s-1)
   real(rkind)                     :: scalarCanopyTempPrime           ! prime value for temperature of the vegetation canopy (K s-1)
   real(rkind)                     :: scalarCanopyWatPrime            ! prime value for mass of total water on the vegetation canopy (kg m-2 s-1)
-  real(rkind)                     :: scalarCanopyIcePrime            ! prime value for mass of ice on the vegetation canopy (kg m-2 s-1)
   real(rkind), allocatable        :: mLayerTempPrime(:)              ! prime vector of temperature of each snow and soil layer (K s-1)
   real(rkind), allocatable        :: mLayerMatricHeadPrime(:)        ! prime vector of matric head of each snow and soil layer (m s-1)
-  real(rkind), allocatable        :: mLayerMatricHeadLiqPrime(:)     ! prime vector of liquid matric head of each snow and soil layer (m s-1)
   real(rkind), allocatable        :: mLayerVolFracWatPrime(:)        ! prime vector of volumetric total water content of each snow and soil layer (s-1)
-  real(rkind), allocatable        :: mLayerVolFracIcePrime(:)        ! prime vector of volumetric fraction of ice (s-1)
  end type data4ida
 
 

@@ -1,4 +1,3 @@
-# SUMMA can produce split-domain output files if the model is used with the -g <start> <num> command line option.
 '''Loads timeseries of simulated variables and computes a variety of statistics.'''
 
 # This script analyzes the resulting files and summarizes the timeseries of a (set of) variable(s) into a statistical value.
@@ -35,12 +34,13 @@ testing = False
 # which statistics to compute
 do_vars = False
 do_steps = False
-do_balance = True
+do_balance = False
+do_wall = True
 
 if testing:
     not_parallel = True 
     method_name ='be1en'
-    ibatch = 1
+    ibatch = 1 # Run as 1, 2, and then 3 to fully test
     nbatch = 2
     top_fold    = '/Users/amedin/Research/USask/test_py/'
 else:
@@ -64,17 +64,20 @@ src_pat = 'run1_G*_timestep.nc'
 des_fil  = method_name + '_hrly_diff_stats_{}_{}.nc'
 des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 des_fl3 = method_name + '_hrly_diff_bals_{}_{}.nc'
+des_fl4 = method_name + '_hrly_diff_wall_{}_{}.nc'
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
-balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc',
-'scaledBalanceCasNrg','scaledBalanceVegNrg','scaledBalanceSnowNrg','scaledBalanceSoilNrg','scaledBalanceVegMass','scaledBalanceSnowMass','scaledBalanceSoilMass','scaledBalanceAqMass']
+balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc']
+wallsets= ['wallClockTime']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
 viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
 viz_fl2 = viz_fl2.format(','.join(stepsets))
 viz_fl3 = method_name + '_hrly_diff_bals_{}.nc'
-viz_fl3 = viz_fl3.format(','.join(['balance','scaledBalance']))
+viz_fl3 = viz_fl3.format(','.join(['balance']))
+viz_fl4 = method_name + '_hrly_diff_wals_{}.nc'
+viz_fl4 = viz_fl4.format(','.join(['wallclock']))
 
 # Make sure we're dealing with the right kind of inputs
 src_dir = Path(src_dir)
@@ -248,6 +251,21 @@ def run_loop(file,bench,processed_files_path0):
             new = xr.merge([mean,amax])
             new.to_netcdf(des_dir / des_fl3.format(var,subset))
 
+    if do_wall:
+        for var in wallsets:
+            mean = dat[var].mean(dim='time')
+            mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
+
+            amx = np.fabs(dat[var]).fillna(-1).argmax(dim=['time']) # fill nan with neg value so will not choose
+            amax = dat[var].isel(amx).drop_vars('time')
+            amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
+
+            std = dat[var].std(dim='time')
+            std = std.expand_dims("stat").assign_coords(stat=("stat",["std"]))
+
+            new = xr.merge([mean,amax,std])
+            new.to_netcdf(des_dir / des_fl4.format(var,subset))
+
     # write the name of the processed file to the file list, acquire the lock before opening the file
     if not_parallel:
         with open(processed_files_path0, 'a') as filew:
@@ -341,6 +359,10 @@ if ibatch > nbatch:
         if do_balance: 
             merge_subsets_into_one(des_dir,des_fl3.replace('{}','*'),fnl_dir,viz_fl3)
             for file in glob.glob(str(des_dir / des_fl3.replace('{}','*'))):
+                os.remove(file)
+        if do_wall: 
+            merge_subsets_into_one(des_dir,des_fl4.replace('{}','*'),fnl_dir,viz_fl4)
+            for file in glob.glob(str(des_dir / des_fl4.replace('{}','*'))):
                 os.remove(file)
 
 else:

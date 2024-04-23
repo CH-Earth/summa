@@ -86,8 +86,8 @@ contains
  subroutine writeParm(ispatial,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
- USE var_lookup,only:iLookStat                   ! index in statistics vector
- USE var_lookup,only:iLookFreq                   ! index in vector of model output frequencies
+ USE var_lookup,only:iLookSTAT                   ! index in statistics vector
+ USE var_lookup,only:iLookFREQ                   ! index in vector of model output frequencies
  implicit none
 
  ! declare input variables
@@ -115,13 +115,13 @@ contains
   if (iSpatial/=integerMissing) then
    select type (struct)
     class is (var_i)
-     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_i8)
-     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_d)
-     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_dlength)
-     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
+     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
     class default; err=20; message=trim(message)//'unknown variable type (with HRU)'; return
    end select
    call netcdf_err(err,message); if (err/=0) return
@@ -130,9 +130,9 @@ contains
   else
    select type (struct)
     class is (var_d)
-     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
+     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
     class is (var_i8)
-     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
+     err = nf90_put_var(ncid(iLookFREQ%timestep),meta(iVar)%ncVarID(iLookFREQ%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
     class default; err=20; message=trim(message)//'unknown variable type (no HRU)'; return
    end select
   end if
@@ -151,8 +151,8 @@ contains
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
- USE var_lookup,only:iLookIndex                     ! index into index structure
- USE var_lookup,only:iLookStat                      ! index into stat structure
+ USE var_lookup,only:iLookINDEX                     ! index into index structure
+ USE var_lookup,only:iLookSTAT                      ! index into stat structure
  USE globalData,only:outFreq,ncid                   ! output file information
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
@@ -259,9 +259,9 @@ contains
      do iHRU=1,gru_struc(iGRU)%hruCount
 
       ! get the model layers
-      nSoil   = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat(1)
-      nSnow   = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSnow)%dat(1)
-      nLayers = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nLayers)%dat(1)
+      nSoil   = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
+      nSnow   = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
+      nLayers = indx%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1)
 
       ! get the length of each data vector
       select case (meta(iVar)%varType)
@@ -392,7 +392,7 @@ contains
  subroutine writeTime(finalizeStats,outputTimestep,meta,dat,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE globalData,only:ncid                           ! output file IDs
- USE var_lookup,only:iLookStat                      ! index into stat structure
+ USE var_lookup,only:iLookSTAT                      ! index into stat structure
  implicit none
 
  ! declare dummy variables
@@ -419,7 +419,7 @@ contains
   do iVar = 1,size(meta)
 
    ! check instantaneous
-   if (meta(iVar)%statIndex(iFreq)/=iLookStat%inst) cycle
+   if (meta(iVar)%statIndex(iFreq)/=iLookSTAT%inst) cycle
 
    ! get variable id in file
    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID)
@@ -605,14 +605,14 @@ contains
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
 
  ! define index variables - snow
- err = nf90_def_var(ncid,trim(indx_meta(iLookIndex%nSnow)%varName),nf90_int,(/hruDimID/),ncSnowID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSnowID,'long_name',trim(indx_meta(iLookIndex%nSnow)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSnowID,'units'    ,trim(indx_meta(iLookIndex%nSnow)%varunit));           call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/hruDimID/),ncSnowID); call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncSnowID,'long_name',trim(indx_meta(iLookINDEX%nSnow)%vardesc));           call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncSnowID,'units'    ,trim(indx_meta(iLookINDEX%nSnow)%varunit));           call netcdf_err(err,message)
 
  ! define index variables - soil
- err = nf90_def_var(ncid,trim(indx_meta(iLookIndex%nSoil)%varName),nf90_int,(/hruDimID/),ncSoilID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSoilID,'long_name',trim(indx_meta(iLookIndex%nSoil)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSoilID,'units'    ,trim(indx_meta(iLookIndex%nSoil)%varunit));           call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/hruDimID/),ncSoilID); call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncSoilID,'long_name',trim(indx_meta(iLookINDEX%nSoil)%vardesc));           call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncSoilID,'units'    ,trim(indx_meta(iLookINDEX%nSoil)%varunit));           call netcdf_err(err,message)
 
  ! end definition phase
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
@@ -673,8 +673,8 @@ contains
    end do ! iVar loop
 
    ! write index variables
-   err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSnow)%dat/),start=(/cHRU/),count=(/1/))
-   err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat/),start=(/cHRU/),count=(/1/))
+   err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat/),start=(/cHRU/),count=(/1/))
+   err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat/),start=(/cHRU/),count=(/1/))
 
   end do ! iHRU loop
   

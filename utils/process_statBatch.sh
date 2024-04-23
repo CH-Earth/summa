@@ -17,8 +17,9 @@ echo "$SLURM_ARRAY_TASK_ID"
 # sbatch --array=201-201 process_statBatch.sh
 # ----------------------------------------------------------------------------------------------
 
+module load StdEnv/2020
 module load gcc/9.3.0
-module load geo-stack
+module load geo-stack/2022c
 virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
 

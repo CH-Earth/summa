@@ -56,19 +56,7 @@ USE globalData,only:prog_meta                        ! metadata on the model pro
 USE globalData,only:deriv_meta                       ! metadata on the model derivatives
 USE globalData,only:flux2state_orig                  ! metadata on flux-to-state mapping (original state variables)
 USE globalData,only:flux2state_liq                   ! metadata on flux-to-state mapping (liquid water state variables)
-
-! constants
-USE multiconst,only:&
-                    gravity,       & ! acceleration of gravity              (m s-2)
-                    Tfreeze,       & ! temperature at freezing              (K)
-                    LH_fus,        & ! latent heat of fusion                (J kg-1)
-                    LH_vap,        & ! latent heat of vaporization          (J kg-1)
-                    LH_sub,        & ! latent heat of sublimation           (J kg-1)
-                    Cp_air,        & ! specific heat of air                 (J kg-1 K-1)
-                    iden_air,      & ! intrinsic density of air             (kg m-3)
-                    iden_ice,      & ! intrinsic density of ice             (kg m-3)
-                    iden_water       ! intrinsic density of liquid water    (kg m-3)
-
+  
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookATTR        ! named variables for structure elements
 USE var_lookup,only:iLookTYPE        ! named variables for structure elements
@@ -1099,11 +1087,11 @@ subroutine opSplittin(&
 
      ! make sure firstFluxCall fluxes are included in the mask
      if (firstFluxCall .and. addFirstFlux) then 
-      if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarSoilResistance) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarStomResistSunlit) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarStomResistShaded) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarPhotosynthesisSunlit) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
      fluxMask%var(iVar)%dat = desiredFlux
@@ -1120,11 +1108,11 @@ subroutine opSplittin(&
 
      ! make sure firstFluxCall fluxes are included in the mask
      if (firstFluxCall .and. addFirstFlux) then 
-      if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
-      if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarSoilResistance) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarStomResistSunlit) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarStomResistShaded) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarPhotosynthesisSunlit) desiredFlux = .true.
+      if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
      if (nDomains==1) then ! no domain splitting

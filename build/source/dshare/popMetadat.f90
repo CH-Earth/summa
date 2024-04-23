@@ -454,15 +454,6 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%balanceSnowMass)                 = var_info('balanceSnowMass'                , 'balance of water in the snow on data window'                      , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%balanceSoilMass)                 = var_info('balanceSoilMass'                , 'balance of water in the soil on data window'                      , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%balanceAqMass)                   = var_info('balanceAqMass'                  , 'balance of water in the aquifer on data window'                   , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! scaled balances
-  diag_meta(iLookDIAG%scaledBalanceCasNrg)             = var_info('scaledBalanceCasNrg'            , 'scaled balance of energy in the canopy air space on data window'  , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceVegNrg)             = var_info('scaledBalanceVegNrg'            , 'scaled balance of energy in the vegetation on data window'        , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceSnowNrg)            = var_info('scaledBalanceSnowNrg'           , 'scaled balance of energy in the snow on data window'              , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceSoilNrg)            = var_info('scaledBalanceSoilNrg'           , 'scaled balance of energy in the soil on data window'              , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceVegMass)            = var_info('scaledBalanceVegMass'           , 'scaled balance of water in the vegetation on data window'         , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceSnowMass)           = var_info('scaledBalanceSnowMass'          , 'scaled balance of water in the snow on data window'               , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceSoilMass)           = var_info('scaledBalanceSoilMass'          , 'scaled balance of water in the soil on data window'               , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scaledBalanceAqMass)             = var_info('scaledBalanceAqMass'            , 'scaled balance of water in the aquifer on data window'            , 's-1'             , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
   ! -----------------------
@@ -657,10 +648,19 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerd2Theta_dTk2)            = var_info('mLayerd2Theta_dTk2'           , 'second derivative of volumetric liquid water content w.r.t. temperature','K-2'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! derivatives in time
-  deriv_meta(iLookDERIV%mLayerdTemp_dt)                = var_info('mLayerdTemp_dt'               , 'timestep change in layer temperature'                                 , 'K'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%scalarCanopydTemp_dt)          = var_info('scalarCanopydTemp_dt'         , 'timestep change in canopy temperature'                                , 'K'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%mLayerdWat_dt)                 = var_info('mLayerdWat_dt'                , 'timestep change in layer volumetric fraction of total water'          , '-'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%scalarCanopydWat_dt)           = var_info('scalarCanopydWat_dt'          , 'timestep change in canopy water content'                              , 'kg m-2'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%mLayerdTemp_dt)                = var_info('mLayerdTemp_dt'               , 'timestep change in layer temperature'                                 , 'K s-1'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%scalarCanopydTemp_dt)          = var_info('scalarCanopydTemp_dt'         , 'timestep change in canopy temperature'                                , 'K s-1'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%mLayerdWat_dt)                 = var_info('mLayerdWat_dt'                , 'timestep change in layer volumetric fraction of total water'          , 's-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%scalarCanopydWat_dt)           = var_info('scalarCanopydWat_dt'          , 'timestep change in canopy water content'                              , 'kg m-2 s-1'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! derivatives of temperature if enthalpy is the state variable
+  deriv_meta(iLookDERIV%dCanairTemp_dEnthalpy)         = var_info('dCanairTemp_dEnthalpy'        , 'derivative of canopy air temperature w.r.t. enthalpy'                 , 'K J-1 m3'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dCanopyTemp_dEnthalpy)         = var_info('dCanopyTemp_dEnthalpy'        , 'derivative of canopy temperature w.r.t. enthalpy'                     , 'K J-1 m3'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dTemp_dEnthalpy)               = var_info('dTemp_dEnthalpy'              , 'derivative of temperature w.r.t. enthalpy'                            , 'K J-1 m3'       , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dCanopyTemp_dCanWat)           = var_info('dCanopyTemp_dCanWat'          , 'derivative of canopy temperature w.r.t. volumetric water content'     , 'K'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dTemp_dTheta)                  = var_info('dTemp_dTheta'                 , 'derivative of temperature w.r.t. volumetric water content'            , 'K'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dTemp_dPsi0)                   = var_info('dTemp_dPsi0'                  , 'derivative of temperature w.r.t. total water matric potential'        , 'K m-1'          , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+
+
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------
@@ -936,10 +936,10 @@ subroutine read_output_file(err,message)
         ! * identify index in  vector
         select case(freqName)
           ! define cases where temporal aggregation is numeric
-          case('1');    iFreq = iLookFreq%timestep  ! assume timestep-level output
-          case('24');   iFreq = iLookFreq%day       ! assume daily output
+          case('1');    iFreq = iLookFREQ%timestep  ! assume timestep-level output
+          case('24');   iFreq = iLookFREQ%day       ! assume daily output
           ! define cases where temporal aggregation is defined using a text string
-          case default; iFreq = get_ixfreq(freqName)
+          case default; iFreq = get_ixFreq(freqName)
         end select
 
         ! * check that we could find the index
