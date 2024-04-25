@@ -132,10 +132,10 @@ contains
     ! (compute the exposed LAI and SAI and whether veg is buried by snow)
     call vegPhenlgy(&
                     ! model control
+                    model_decisions,                & ! intent(in):    model decisions
                     fracJulDay,                     & ! intent(in):    fractional julian days since the start of year
                     yearLength,                     & ! intent(in):    number of days in the current year
                     ! input/output: data structures
-                    model_decisions,                & ! intent(in):    model decisions
                     typeStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    type of vegetation and soil
                     attrStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    spatial attributes
                     mparStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model parameters
