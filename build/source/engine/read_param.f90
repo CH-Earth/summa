@@ -357,6 +357,10 @@ contains
 
  end do ! (looping through the parameters in the NetCDF file)
 
+  ! close the netcdf file
+  call nc_file_close(ncid, err, cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
  end subroutine read_param
 
 end module read_param_module
