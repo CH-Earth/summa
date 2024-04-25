@@ -25,7 +25,7 @@ do_rel = True # plot relative to the benchmark simulation
 
 testing = False
 if testing: 
-    stat = 'mean'
+    stat = 'amax'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en'] #cm','be1en','be1lu'] #maybe make this an argument
 else:
@@ -102,16 +102,16 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t,leg_w):
         # Get the statistics, remove 9999 (should be nan, but just in case)
         s0 = np.fabs(summa[m][comp].sel(stat=stat)).where(lambda x: x != 9999)
         s = np.fabs(summa1[m][var].sel(stat=stat1)).where(lambda x: x != 9999)
-        if do_rel and var != 'wallClockTime': s = s/s_rel
 
+        if do_rel and var != 'wallClockTime': s = s/s_rel
+    
         if var == 'scalarTotalET' and not do_rel:
             if stat1 =='rmse' or stat1 =='rmnz' : s = s*31557600 # make annual total
             if stat1 =='maxe': s = s*3600 # make hourly max
         if var == 'averageRoutedRunoff'and not do_rel:
             if stat1 =='rmse' or stat1 =='rmnz' : s = s*31557600*1000 # make annual total
             if stat1 =='maxe': s = s*3600*1000 # make hourly max      
-        if stat1 == 'maxe': s.loc[dict(stat1='maxe')] = np.fabs(s.loc[dict(stat1='maxe')]) # make absolute value norm
-
+        if stat1 == 'maxe': s = np.fabs(s) # make absolute value norm
 
         axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
 
