@@ -110,7 +110,7 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t,leg_w):
         if var == 'averageRoutedRunoff'and not do_rel:
             if stat1 =='rmse' or stat1 =='rmnz' : s = s*31557600*1000 # make annual total
             if stat1 =='maxe': s = s*3600*1000 # make hourly max      
-        if stat1 == 'maxe': s.loc[dict(stat='maxe')] = np.fabs(s.loc[dict(stat='maxe')]) # make absolute value norm
+        if stat1 == 'maxe': s.loc[dict(stat1='maxe')] = np.fabs(s.loc[dict(stat1='maxe')]) # make absolute value norm
 
 
         axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
