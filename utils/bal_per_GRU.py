@@ -21,6 +21,7 @@ import copy
 import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
+do_rel = True # plot relative to the benchmark simulation
 
 testing = False
 if testing: 
@@ -63,8 +64,10 @@ leg_word2 = ['Total water on the vegetation canopy','Snow water equivalent','Tot
 #fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 #fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
 fig_fil = 'BalanceNrg_scat_{}_compressed.png'
+if do_rel: fig_fil = 'BalanceNrg_scat__{}_rel_compressed.png'
 fig_fil = fig_fil.format(stat)
 fig_fil2 ='BalanceMass_scat_{}_compressed.png'
+if do_rel: fig_fil2 = 'BalanceMass_scat__{}_rel_compressed.png'
 fig_fil2 =fig_fil2.format(stat)
 
 summa = {}
@@ -82,20 +85,33 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t,leg_w):
     if stat == 'mean': 
         word = ' mean'
         stat1 = 'rmnz'
-        word1 = ' relative RMSE'
+        statr = 'mnnz_ben'
+        word1 = ' RMSE'
     if stat == 'amax':
         word = ' max'
         stat1 = 'maxe'
+        statr = 'amax_ben'
         word1 = ' max abs error'
     if comp == 'numberFluxCalc':
         stat1 = stat
         word1 = word
 
     # Data
+    if do_rel: s_rel = summa1[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         # Get the statistics, remove 9999 (should be nan, but just in case)
         s0 = np.fabs(summa[m][comp].sel(stat=stat)).where(lambda x: x != 9999)
         s = np.fabs(summa1[m][var].sel(stat=stat1)).where(lambda x: x != 9999)
+        if do_rel and var != 'wallClockTime': s = s/s_rel
+
+        if var == 'scalarTotalET' and not do_rel:
+            if stat1 =='rmse' or stat1 =='rmnz' : s = s*31557600 # make annual total
+            if stat1 =='maxe': s = s*3600 # make hourly max
+        if var == 'averageRoutedRunoff'and not do_rel:
+            if stat1 =='rmse' or stat1 =='rmnz' : s = s*31557600*1000 # make annual total
+            if stat1 =='maxe': s = s*3600*1000 # make hourly max      
+        if stat1 == 'maxe': s.loc[dict(stat='maxe')] = np.fabs(s.loc[dict(stat='maxe')]) # make absolute value norm
+
 
         axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
 
@@ -113,6 +129,7 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t,leg_w):
     #axs[r,c].set_xscale('log')
     if comp != 'numberFluxCalc': axs[r,c].set_yscale('log')
     axs[r,c].set_xlabel(stat_word  + word1 + ' [{}]'.format(leg_t))
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' relative' + word1)
     axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_t0))
 
 if 'compressed' in fig_fil:
