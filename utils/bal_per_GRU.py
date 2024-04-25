@@ -32,7 +32,7 @@ else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
-    method_name=['be1','be1en','be1lu'] #maybe make this an argument
+    method_name=['be1','be1en']#,'be1lu'] #maybe make this an argument
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -57,7 +57,7 @@ leg_titl02 =['$kg~m^{-2}~s^{-1}$'] * 4
 
 leg_titl = ['mm~y^{-1}$','$kg~m^{-2}$','$kg~m^{-2}$','$kg~m^{-2}$','$s$']
 leg_word = ['Total evapotranspiration', 'Total water on the vegetation canopy','Snow water equivalent','Total soil water content','Wall clock time']
-leg_titl2 =['$kg~m^{-2}$','$kg~m^{-2}$','$kg~m^{-2}$','mm~y^{-1}$']
+leg_titl2 =['$kg~m^{-2}$','$kg~m^{-2}$','$kg~m^{-2}$','$mm~y^{-1}$']
 leg_word2 = ['Total water on the vegetation canopy','Snow water equivalent','Total soil water content','Average routed runoff']
 
 
