@@ -32,8 +32,8 @@ import pandas as pd
 
 # plot all runs, pick statistic
 stat = sys.argv[1]
-method_name=['be1','be1en','be1lu'] #maybe make this an argument
-plt_name=['(a) SUMMA-BE1','(b) SUMMA-BE1 with enthalpy','(c) SUMMA-BE1 with enthalpy lookup'] #maybe make this an argument
+method_name=['be1','be1en']#,'be1lu'] #maybe make this an argument
+plt_name=['(a) SUMMA-BE1 Energy Temperature Form','(b) SUMMA-BE1 Energy Mixed Form']#,'(c) SUMMA-BE1 with enthalpy lookup'] #maybe make this an argument
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -42,7 +42,7 @@ viz_dir = Path('/home/avanb/scratch/statistics')
 viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_bals_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(['balance','scaledBalance']))
+    viz_fil[i] = viz_fil[i].format(','.join(['balance']))
 do_rel = False # use scaled values
 nbatch_hrus = 518 # number of HRUs per batch
 

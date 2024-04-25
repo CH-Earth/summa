@@ -79,32 +79,40 @@ for i, m in enumerate(method_name):
 def run_loop(i,var,comp,leg_t,leg_t0,plt_t,leg_w):
     r = i//2
     c = i-r*2
+    if stat == 'mean': 
+        word = ' mean'
+        stat1 = 'rmnz'
+        word1 = ' relative RMSE'
+    if stat == 'amax':
+        word = ' max'
+        stat1 = 'maxe'
+        word1 = ' max abs error'
+    if comp == 'numberFluxCalc':
+        stat1 = stat
+        word1 = word
 
     # Data
     for m in method_name:
         # Get the statistics, remove 9999 (should be nan, but just in case)
         s0 = np.fabs(summa[m][comp].sel(stat=stat)).where(lambda x: x != 9999)
-        s = np.fabs(summa1[m][var].sel(stat=stat)).where(lambda x: x != 9999)
+        s = np.fabs(summa1[m][var].sel(stat=stat1)).where(lambda x: x != 9999)
 
         axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
 
     if comp == 'numberFluxCalc':
         stat0_word = 'Number flux calculations'
     else:
-        stat0_word = 'Balance absolute value'
+        stat0_word = 'Balance abs value'
 
     stat_word = leg_w
- 
-    if stat == 'mean': word = ' mean'
-    if stat == 'amax': word = ' max'
  
     lgnd = axs[r,c].legend()
     for j, m in enumerate(method_name):
        lgnd.legendHandles[j]._sizes = [80]
-    axs[r,c].set_title(plt_t)
-    axs[r,c].set_xscale('log')
-    axs[r,c].set_yscale('log')
-    axs[r,c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_t))
+    #axs[r,c].set_title(plt_t)
+    #axs[r,c].set_xscale('log')
+    if comp != 'numberFluxCalc': axs[r,c].set_yscale('log')
+    axs[r,c].set_xlabel(stat_word  + word1 + ' [{}]'.format(leg_t))
     axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_t0))
 
 if 'compressed' in fig_fil:
