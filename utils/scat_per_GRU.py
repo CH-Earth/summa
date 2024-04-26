@@ -22,7 +22,7 @@ import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 nbatch_hrus = 518 # number of HRUs per batch
-do_rel = True # plot relative to the benchmark simulation
+do_rel = False # plot relative to the benchmark simulation
 
 # which statistics to plot
 do_vars = True
@@ -33,6 +33,7 @@ if testing:
     stat = 'rmnz'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en']
+    plt_name=['BE1 mixed']
 else:
     import sys
     # The first input argument specifies the run where the files are

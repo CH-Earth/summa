@@ -95,16 +95,24 @@ for var in plot_vars:
     # Mask the HRU variable from the netCDF file
     mask = attr['hruId'].isin(hru_big)
 
+    # Filtered HRU IDs
+    filtered_hru_ids = attr['hruId'][mask]
+
+    # Determine the indices that would sort filtered_hru_ids to match the order of hru_big
+    h_ind = [filtered_hru_ids.values.tolist().index(hru_id) for hru_id in hru_big if hru_id in filtered_hru_ids.values]
+    h = attr['hruId'][mask].values[h_ind]
+
     # Get the vegTypeIndex, lat, lon variables from the netCDF file
-    vegType_big = attr['vegTypeIndex'][mask]
-    lat_big = attr['latitude'][mask]
-    lon_big = attr['longitude'][mask]
+    vegType_big = attr['vegTypeIndex'][mask].values[h_ind]
+    lat_big = attr['latitude'][mask].values[h_ind]
+    lon_big = attr['longitude'][mask].values[h_ind]
 
     # Print the attributes of the largest nBig values
+    print(" hryhhh : [", " ".join([f"{val:8d}"  for val in  h]), "]", sep="")
     print("HRU vals: [", " ".join([f"{val:8d}"  for val in hru_big]), "]", sep="")
-    print("vegType : [", " ".join([f"{val:8d}"  for val in vegType_big.values]), "]", sep="")
-    print("latitude: [", " ".join([f"{val:8.2f}"  for val in lat_big.values]), "]", sep="")
-    print("longitud: [", " ".join([f"{val:8.2f}"  for val in lon_big.values]), "]", sep="")
+    print("vegType : [", " ".join([f"{val:8d}"  for val in vegType_big]), "]", sep="")
+    print("latitude: [", " ".join([f"{val:8.2f}"  for val in lat_big]), "]", sep="")
+    print("longitud: [", " ".join([f"{val:8.2f}"  for val in lon_big]), "]", sep="")
 
     # Print the values of the largest nBig values, bench will be the mean, mnnz, or amax and err will be the rmse, rmnz, or maxe
     if do_rel: 
