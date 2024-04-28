@@ -56,6 +56,7 @@ contains
  USE globalData,only:model_decisions                            ! model decision structure
  USE globalData,only:startPhysics,endPhysics                    ! date/time for the start and end of the initialization
  USE globalData,only:elapsedPhysics                             ! elapsed time for the initialization
+ USE globalData,only:fracJulDay,yearLength
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -129,6 +130,8 @@ contains
     call vegPhenlgy(&
                     ! input/output: data structures
                     model_decisions,                & ! intent(in):    model decisions
+                    fracJulDay,                     & ! intent(in):    fraction of julian day
+                    yearLength,                     & ! intent(in):    length of the year
                     typeStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    type of vegetation and soil
                     attrStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    spatial attributes
                     mparStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model parameters

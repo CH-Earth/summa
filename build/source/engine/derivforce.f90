@@ -33,7 +33,6 @@ USE multiconst,only:minprhour                               ! number of minutes 
 ! global time information
 USE globalData,only:refJulday                               ! reference time (fractional julian days)
 USE globalData,only:data_step                               ! length of the data step (s)
-USE globalData,only:tmZoneOffsetFracDay                     ! time zone offset in fractional days
 
 ! model decisions
 USE globalData,only:model_decisions                         ! model decision structure
@@ -63,7 +62,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(time_data,forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,err,message)
+ subroutine derivforce(time_data,forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,tmZoneOffsetFracDay,err,message)
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle
  USE conv_funcs_module,only:vapPress                         ! compute vapor pressure of air (Pa)
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP ! conversion functions
@@ -81,6 +80,7 @@ contains
  ! output variables
  type(var_dlength),intent(inout) :: diag_data                ! data structure of model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                ! data structure of model fluxes for a local HRU
+ real(rkind),intent(inout)       :: tmZoneOffsetFracDay      ! time zone offset in 
  integer(i4b),intent(out)        :: err                      ! error code
  character(*),intent(out)        :: message                  ! error message
  ! local time
