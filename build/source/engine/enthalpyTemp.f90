@@ -908,8 +908,10 @@ subroutine enthalpy2T_veg(&
  
   ! ***** get temperature if unfrozen vegetation
   T            = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
-  dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
-  dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
+  if(computJac)then  
+    dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
+    dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
+  endif
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tfreeze )then
@@ -937,8 +939,8 @@ subroutine enthalpy2T_veg(&
       dH_dT       = denthVeg_dT + denthLiq_dT + denthIce_dT + LH_fus * dfLiq_dT * scalarCanopyWat / canopyDepth
 
       ! w.r.t. layer water content
-      denthLiq_dWat  = Cp_water * diffT / canopyDepth
-      denthIce_dWat  = 0._rkind
+      denthLiq_dWat = Cp_water * diffT / canopyDepth
+      denthIce_dWat = 0._rkind
       denthVeg_dWat = 0._rkind
       dH_dWat       = denthVeg_dWat + denthLiq_dWat + denthIce_dWat - LH_fus * (1._rkind - fLiq) / canopyDepth
 
@@ -1037,6 +1039,10 @@ subroutine enthalpy2T_snow(&
 
   ! compute Jacobian terms
   if(computJac)then
+    ! NOTE: dintegral_dT = fLiq
+    diffT    = T - Tfreeze
+    integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+    fLiq     = fracLiquid(T, snowfrz_scale)
  
     ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
     dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
@@ -1171,10 +1177,12 @@ subroutine enthalpy2T_soil(&
   ! ***** get temperature if unfrozen soil
   T            = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
                                    + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
-  dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
-                             + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
-  dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
+  if(computJac)then  
+    dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
+                               + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
+    dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
                                      + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
+  endif
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tcrit )then
