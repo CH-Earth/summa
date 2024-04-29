@@ -1174,7 +1174,7 @@ subroutine enthalpy2T_soil(&
   dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
                              + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
   dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
-                                     + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
+                                     + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tcrit )then
