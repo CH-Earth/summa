@@ -80,7 +80,7 @@ else()
 
         # CMakeLists in ${summa-actors GIT directory}/build/summa/build/cmake
         set(PARENT_DIR ${F_MASTER}../../) # directory of summa actors source code
-        set(EXEC_DIR ${PARENT_DIR}/bin)
+        set(EXEC_DIR ${PARENT_DIR}/Summa-Actors/bin)
 
     else()
         project(summa DESCRIPTION "Summa-Sundials-BE")
@@ -107,7 +107,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     add_compile_definitions(DEBUG)
     set(FLAGS_NOAH -g -O0 -fbacktrace -fbounds-check -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
     set(FLAGS_ALL  -g -O0 -fbacktrace -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
-    set(FLAGS_CXX  -g -O0 -fbacktrace -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+    set(FLAGS_CXX  -g -O0 -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
     message("\nSetting Release Options")
     set(FLAGS_NOAH -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
@@ -243,6 +243,7 @@ set(NOAHMP_DIR ${F_MASTER}/build/source/noah-mp)
 
 # Define Actors specific directories
 set(ACTORS_DIR ${PARENT_DIR}/build/source)
+set(SYS_INIT_DIR    ${ACTORS_DIR}/system_initialization)
 set(FILE_ACCESS_DIR ${ACTORS_DIR}/file_access_actor)
 set(JOB_ACTOR_DIR   ${ACTORS_DIR}/job_actor)
 set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
@@ -323,7 +324,7 @@ set(PRELIM
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
     ${ENGINE_DIR}/conv_funcs.f90
-    ${SUB_ENGINE_DIR}/ffile_info.f90
+    ${ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
     ${ENGINE_DIR}/read_attrb.f90
     ${ENGINE_DIR}/paramCheck.f90
@@ -390,17 +391,17 @@ set(SOLVER_SUNDIALS
 
 # Driver support modules
 set(DRIVER
+    ${DRIVER_DIR}/summa_type.f90
+    ${DRIVER_DIR}/summa_setup.f90
+    ${DRIVER_DIR}/summa_restart.f90
     ${DRIVER_DIR}/summa_alarms.f90
     ${DRIVER_DIR}/summa_globalData.f90)
 set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_util.f90
-    ${DRIVER_DIR}/summa_type.f90
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
     ${DRIVER_DIR}/summa_forcing.f90
     ${DRIVER_DIR}/summa_modelRun.f90
-    ${DRIVER_DIR}/summa_restart.f90
-    ${DRIVER_DIR}/summa_setup.f90
     ${DRIVER_DIR}/summa_writeOutput.f90)
 set(DRIVER_NEXGEN
     ${DRIVER_DIR}/summa_bmi.f90)
@@ -409,11 +410,16 @@ set(DRIVER_NEXGEN
 set(INTERFACE
     ${ACTORS_DIR}/global/cppwrap_auxiliary.f90
     ${ACTORS_DIR}/global/cppwrap_datatypes.f90
-    ${ACTORS_DIR}/global/cppwrap_metadata.f90)
+    ${ACTORS_DIR}/global/cppwrap_metadata.f90
+    ${ACTORS_DIR}/global/c_interface_module.f90
+    ${ACTORS_DIR}/global/gru_struc.f90)
+set(SYS_INIT_INTERFACE
+    ${SYS_INIT_DIR}/batch_distributer_actor.f90)
 set(FILE_ACCESS_INTERFACE
-    ${FILE_ACCESS_DIR}/cppwrap_fileAccess.f90
+    ${FILE_ACCESS_DIR}/summa_init_struc.f90
+    ${FILE_ACCESS_DIR}/forcing_file_info.f90
+    ${FILE_ACCESS_DIR}/file_access_actor.f90
     ${FILE_ACCESS_DIR}/output_structure.f90
-    ${FILE_ACCESS_DIR}/read_force.f90
     ${FILE_ACCESS_DIR}/fileAccess_writeOutput.f90)
 set(JOB_INTERFACE
     ${JOB_ACTOR_DIR}/job_actor.f90)
@@ -427,25 +433,32 @@ set(HRU_INTERFACE
 set(ACTORS_GLOBAL
     ${ACTORS_DIR}/global/auxiliary.cpp
     ${ACTORS_DIR}/global/global.cpp
+    ${ACTORS_DIR}/global/fileManager.cpp
+    ${ACTORS_DIR}/global/gru_struc.cpp
     ${ACTORS_DIR}/global/message_atoms.cpp
     ${ACTORS_DIR}/global/settings_functions.cpp
     ${ACTORS_DIR}/global/timing_info.cpp)
-set(SUMMA_ACTOR
-    ${ACTORS_DIR}/summa_actor/batch.cpp
-    ${ACTORS_DIR}/summa_actor/batch_container.cpp
-    ${ACTORS_DIR}/summa_actor/client.cpp
-    ${ACTORS_DIR}/summa_actor/client_container.cpp
-    ${ACTORS_DIR}/summa_actor/summa_actor.cpp
-    ${ACTORS_DIR}/summa_actor/summa_backup_server.cpp
-    ${ACTORS_DIR}/summa_actor/summa_client.cpp
-    ${ACTORS_DIR}/summa_actor/summa_server.cpp)
+set(SYS_INIT
+    ${SYS_INIT_DIR}/batch.cpp
+    ${SYS_INIT_DIR}/batch_container.cpp
+    ${SYS_INIT_DIR}/client.cpp
+    ${SYS_INIT_DIR}/client_container.cpp
+    ${SYS_INIT_DIR}/summa_global_data.cpp
+    ${SYS_INIT_DIR}/summa_actor.cpp
+    ${SYS_INIT_DIR}/summa_backup_server.cpp
+    ${SYS_INIT_DIR}/summa_client.cpp
+    ${SYS_INIT_DIR}/summa_server.cpp)
 set(FILE_ACCESS_ACTOR
+    ${FILE_ACCESS_DIR}/summa_init_struc.cpp
     ${ACTORS_DIR}/file_access_actor/file_access_actor.cpp
     ${ACTORS_DIR}/file_access_actor/forcing_file_info.cpp
     ${ACTORS_DIR}/file_access_actor/output_container.cpp)
 set(JOB_ACTOR
     ${ACTORS_DIR}/job_actor/GRU.cpp
     ${ACTORS_DIR}/job_actor/job_actor.cpp
+    ${ACTORS_DIR}/job_actor/async_mode.cpp
+    ${ACTORS_DIR}/job_actor/data_assimilation_mode.cpp
+    ${ACTORS_DIR}/job_actor/job_utils.cpp
     ${ACTORS_DIR}/job_actor/distributed_job_actor.cpp
     ${ACTORS_DIR}/job_actor/node_actor.cpp)
 set(HRU_ACTOR
@@ -478,6 +491,7 @@ set(SUMMA_ALL
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(SUMMA_ALL ${SUMMA_ALL}
+                  ${SYS_INIT_INTERFACE}
                   ${FILE_ACCESS_INTERFACE}
                   ${JOB_INTERFACE}
                   ${HRU_INTERFACE})
@@ -575,7 +589,7 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
         ${FILE_ACCESS_ACTOR}
         ${JOB_ACTOR}
         ${HRU_ACTOR}
-        ${SUMMA_ACTOR}
+        ${SYS_INIT}
         ${SUMMA_CLIENT}
         ${SUMMA_SERVER})
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)

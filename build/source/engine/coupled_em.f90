@@ -491,10 +491,10 @@ subroutine coupled_em(&
     ! compute the exposed LAI and SAI and whether veg is buried by snow
     call vegPhenlgy(&
                     ! model control
+                    model_decisions,             & ! intent(in):    model decisions
+                    ! input/output: data structures
                     fracJulDay,                  & ! intent(in):    fractional julian days since the start of year
                     yearLength,                  & ! intent(in):    number of days in the current year
-                    ! input/output: data structures
-                    model_decisions,             & ! intent(in):    model decisions
                     type_data,                   & ! intent(in):    type of vegetation and soil
                     attr_data,                   & ! intent(in):    spatial attributes
                     mpar_data,                   & ! intent(in):    model parameters
