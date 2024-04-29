@@ -197,7 +197,7 @@ subroutine varSubstep(&
   real(rkind)                        :: balance(in_varSubstep % nSubset)       ! substep balance per second
   real(rkind)                        :: sumBalance(in_varSubstep % nSubset)    ! sum of substeps balance
   logical(lgt),parameter             :: computMassBalance = .true.             ! flag to compute the mass balance, will affect step length, default true
-  logical(lgt),parameter             :: computNrgBalance = .true.              ! flag to compute the energy balance, will not effect solution but will not compute nrg balance if false (saves expense)
+  logical(lgt),parameter             :: computNrgBalance = .true.              ! flag to compute the energy balance, will not effect solution but will not compute energy balance if false (saves expense)
   logical(lgt)                       :: computeEnthTemp                        ! flag to compute enthalpy regardless of the model decision
   logical(lgt)                       :: enthalpyStateVec                       ! flag if enthalpy is a state variable (ida)
   logical(lgt)                       :: use_lookup                             ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution

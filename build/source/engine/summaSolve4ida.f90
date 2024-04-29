@@ -526,6 +526,7 @@ subroutine summaSolve4ida(&
       if(computNrgBalance)then    
     
         ! compute energy balance mean, resVec is the instantaneous residual vector from the solver
+        ! note, if needCm and/or updateCp are false in eval8summaWithPrime, then the energy balance is not accurate
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
         if(nSnowSoilNrg>0)then
