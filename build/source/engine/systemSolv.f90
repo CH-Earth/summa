@@ -311,6 +311,8 @@ contains
   ! initialize the flags
   tooMuchMelt        = .false.   ! too much melt
   reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
+  ! initialize balances
+  balance(:) = realMissing
 
   associate(&
    ixSpatialGroundwater => model_decisions(iLookDECISIONS%spatial_gw)%iDecision,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)

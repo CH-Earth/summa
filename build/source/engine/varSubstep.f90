@@ -452,7 +452,7 @@ subroutine varSubstep(&
       call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                    & ! input: states
                       doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthTemp,enthalpyStateVec,use_lookup,& ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
-                      fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! output: balances, flags, and error control
+                      fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                                        ! input-output: balances, flags, and error control
       if(err/=0)then
         message=trim(message)//trim(cmessage)
         if(err>0) return
