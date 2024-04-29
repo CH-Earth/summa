@@ -940,7 +940,7 @@ subroutine enthalpy2T_veg(&
       denthLiq_dWat  = Cp_water * diffT / canopyDepth
       denthIce_dWat  = 0._rkind
       denthVeg_dWat = 0._rkind
-      dH_dWat       = dH_dT * dT_dWat + denthVeg_dWat + denthLiq_dWat + denthIce_dWat - LH_fus * (1._rkind - fLiq) / canopyDepth
+      dH_dWat       = denthVeg_dWat + denthLiq_dWat + denthIce_dWat - LH_fus * (1._rkind - fLiq) / canopyDepth
 
       dT_dEnthalpy = 1._rkind / dH_dT
       dT_dWat      = dH_dWat / dH_dT
@@ -1049,7 +1049,7 @@ subroutine enthalpy2T_snow(&
     denthLiq_dWat = iden_water * Cp_water * integral
     denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
     denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
-    dH_dWat       = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
+    dH_dWat       = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
 
     dT_dEnthalpy = 1._rkind / dH_dT
     dT_dWat      = dH_dWat / dH_dT
@@ -1169,9 +1169,12 @@ subroutine enthalpy2T_soil(&
   dvolFracWat_dPsi0 = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
 
   ! ***** get temperature if unfrozen soil
-  T            = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
-  dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
-  dT_dWat = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
+  T            = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
+                                   + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
+  dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
+                             + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
+  dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
+                                     + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tcrit )then
@@ -1261,7 +1264,10 @@ subroutine enthalpy2T_soil(&
       denthIce_dWat  = iden_ice * Cp_ice * ( dvolFracWat_dPsi0 * diffT - (dintegral_unf_dWat - dintegral_frz_low_dWat) )
       denthSoil_dWat = 0._rkind
       denthAir_dWat  = -iden_air * Cp_air * dvolFracWat_dPsi0 * diffT      
-      dH_dWat        = dH_dT * dT_dWat + denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * dvolFracWat_dPsi0  
+      dH_dWat        = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * dvolFracWat_dPsi0  
+
+      dT_dEnthalpy = 1._rkind / dH_dT
+      dT_dWat      = dH_dWat / dH_dT
     endif
   end if ! (if ice exists)
 
