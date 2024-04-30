@@ -489,7 +489,11 @@ contains
   associate(&
    nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! intent(in):    [i4b]   number of snow layers
    nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! intent(in):    [i4b]   number of soil layers
+   scalarCanopyEnthalpy => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1),& ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-2)
    scalarCanopyTemp => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),& ! intent(inout): [dp]    temperature of the vegetation canopy (K)
+   scalarCanopyWat  => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1) ,& ! intent(inout): [dp]    total water content of the vegetation canopy (kg m-2)
+   scalarCanopyLiq  => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,& ! intent(inout): [dp]    total liquid water content of the vegetation canopy (kg m-2)
+   scalarCanopyIce  => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) ,& ! intent(inout): [dp]    total ice content of the vegetation canopy (kg m-2)
    mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat         ,& ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
    mLayerMatricHead => prog_data%var(iLookPROG%mLayerMatricHead)%dat    & ! intent(out):   [dp(:)] matric head (m) 
    &)
@@ -527,7 +531,11 @@ contains
                     flux_init,               & ! intent(inout): model fluxes for a local HRU
                     deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                     ! output: new values of variables needed in data window outside of internal IDA  for rootfinding and to start enthalpy calculations
+                    scalarCanopyEnthalpy,    & ! intent(inout): value for enthalpy of the vegetation canopy (J m-2)
                     scalarCanopyTemp,        & ! intent(inout): value for temperature of the vegetation canopy (K)
+                    scalarCanopyWat,         & ! intent(inout): value for total water content of the vegetation canopy (kg m-2)
+                    scalarCanopyLiq,         & ! intent(inout): value for total liquid water content of the vegetation canopy (kg m-2)
+                    scalarCanopyIce,         & ! intent(inout): value for total ice content of the vegetation canopy (kg m-2)
                     mLayerTemp,              & ! intent(inout): vector of layer temperature (K)
                     mLayerMatricHead,        & ! intent(out):   value for total water matric potential (m)
                     ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
