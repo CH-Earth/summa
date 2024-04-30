@@ -57,8 +57,6 @@ type data4ida
   real(rkind)                     :: scalarCanopyEnthalpyTrial       ! trial value for enthalpy of the vegetation canopy (J m-2)
   real(rkind)                     :: scalarCanopyTempTrial           ! trial value for temperature of the vegetation canopy (K)
   real(rkind)                     :: scalarCanopyWatTrial            ! trial value for mass of total water on the vegetation canopy (kg m-2)
-  real(rkind)                     :: scalarCanopyLiqTrial            ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
-  real(rkind)                     :: scalarCanopyIceTrial            ! trial value for mass of ice on the vegetation canopy (kg m-2)
   real(rkind), allocatable        :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
   real(rkind), allocatable        :: mLayerMatricHeadTrial(:)        ! trial value for total water matric potential (m)
   real(rkind)                     :: scalarCanopyTempPrime           ! prime value for temperature of the vegetation canopy (K s-1)
