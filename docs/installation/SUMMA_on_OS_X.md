@@ -8,6 +8,7 @@ This document is mainly for people who want to use SUMMA in their modeling proje
 * [Git Workflow for SUMMA](../development/SUMMA_git_workflow.md)
 * [SUMMA Coding Conventions](../development/SUMMA_coding_conventions.md)
 
+## Using MacPorts
 
 In the following I will assume that you don't have a Fortran compiler or NetCDF installed. If you do, just scroll down.
 
@@ -60,6 +61,43 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
     * `sudo port install nco`    : to manipulate NetCDF files, see the [NCO homepage](http://nco.sourceforge.net)
     * `sudo port install cdo`    : to manipulate NetCDF files, see the [CDO homepage](https://code.mpimet.mpg.de/projects/cdo/)
 
- 1. Now obtain the SUMMA source code from the [SUMMA source code repository](https://github.com/NCAR/summa). You may just want to download the latest tagged release. Unless you are planning to contribute to the source code, there is no need to clone or fork the repository.
+## Using Homebrew
 
- 1. Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. If you are using MacPorts, the `FC_ENV` can be set to `gfortran-6-macports`.
+1. Install [Homebrew](https://brew.sh/) by opening the terminal and running the following command:
+       
+       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+1. Install NetCDF library and the Fortran version of the NetCDF library
+
+       brew install netcdf netcdf-fortran
+2. Install gcc and gfortran
+
+       brew install gcc
+4. Install other NetCD utilities
+
+       brew install nco cdo ncview
+5. Install LAPACK
+       
+       brew install lapack
+
+# Download and compile the source code
+
+* Now obtain the SUMMA source code from the [SUMMA source code repository](https://github.com/NCAR/summa). You may just want to download the latest tagged release. Unless you are planning to contribute to the source code, there is no need to clone or fork the repository.
+
+* Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. 
+
+* If you are using MacPorts, the `FC_ENV` can be set to `gfortran-6-macports`.
+
+* If you are using Homebrew, then use the following entries in Part 0 of Makefile:
+
+Note: change `x.x.x` with the exact version number in both the `INCLUDE` and `LIBRARIES` variables. 
+This can be done by using `ls /opt/homebrew/Cellar/netcdf-fortran/` and then using `tab` button to find the current version installed on your machine. 
+Do the same for `lapack`. Currently, the most up-to-date `netcdf-fortran` version is `4.6.1` and lapack is `3.12.0`.
+
+------------------------------
+
+```
+FC = gfortran
+FC_EXE = gfortran
+INCLUDES = -I/opt/homebrew/Cellar/netcdf-fortran/x.x.x/include -I/opt/homebrew/Cellar/lapack/x.x.x/include
+LIBRARIES = -L/opt/homebrew/Cellar/netcdf-fortran/x.x.x/lib -lnetcdff -L/opt/homebrew/Cellar/lapack/x.x.x/lib -lblas -llapack
+```

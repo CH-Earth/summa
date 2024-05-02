@@ -74,6 +74,21 @@ Once you have all the above, you can compile SUMMA using the following steps:
 
     If you are using the `bash` shell, then you would set these environment variables with `export FC=gfortran` for example. You may need to modify the `Makefile` if you are using a different Fortran compiler or your setup is different. If someone wants to contribute an actual `configure` script that would be great.
 
+    * If you are compiling SUMMA using packages installed through Homebrew, then use the following entries in Part 0 of Makefile:
+        ```
+        FC = gfortran
+        FC_EXE = gfortran
+        INCLUDES = -I/opt/homebrew/Cellar/netcdf-fortran/x.x.x/include -I/opt/homebrew/Cellar/lapack/x.x.x/include
+        LIBRARIES = -L/opt/homebrew/Cellar/netcdf-fortran/x.x.x/lib -lnetcdff -L/opt/homebrew/Cellar/lapack/x.x.x/lib -lblas -llapack
+        ```
+    > Note: change `x.x.x` with the exact version number in both the `INCLUDE` and `LIBRARIES` variables. 
+    This can be done by using `ls /opt/homebrew/Cellar/netcdf-fortran/` and then using `tab` button to find the current version installed on your machine. 
+    Do the same for `lapack`. Currently, the most up-to-date `netcdf-fortran` version is `4.6.1` and lapack is `3.12.0`.
+
+------------------------------
+
+
+
  1. Check that all variables in the Makefile are set correctly by typing `make check`. Inspect the variables and make sure that they make sense. If not, modify the Makefile further.
 
  1. Type `make` (if you are in the `build` directory). If all goes well, this will build SUMMA and move the executable `summa.exe` to the `bin` directory. You may get some warnings (depending on your compiler settings), but you should not get any errors;
