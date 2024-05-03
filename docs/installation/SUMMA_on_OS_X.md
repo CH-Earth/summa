@@ -62,7 +62,7 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
     * `sudo port install cdo`    : to manipulate NetCDF files, see the [CDO homepage](https://code.mpimet.mpg.de/projects/cdo/)
 
 ## Using Homebrew
-
+Note: This was tested on an Apple machine with silicon M3 Pro chip that is running MacOS Sonoma (14.4.1) with homebrew (4.2.20). 
 1. Install [Homebrew](https://brew.sh/) by opening the terminal and running the following command:
        
        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"

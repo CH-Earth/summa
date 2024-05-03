@@ -74,7 +74,8 @@ Once you have all the above, you can compile SUMMA using the following steps:
 
     If you are using the `bash` shell, then you would set these environment variables with `export FC=gfortran` for example. You may need to modify the `Makefile` if you are using a different Fortran compiler or your setup is different. If someone wants to contribute an actual `configure` script that would be great.
 
-    * If you are compiling SUMMA using packages installed through Homebrew, then use the following entries in Part 0 of Makefile:
+    * If you are compiling SUMMA using packages installed through `Homebrew` with `gfortran`, then use the following entries in Part 0 of Makefile:
+    Date updated: May-2024
         ```
         FC = gfortran
         FC_EXE = gfortran
@@ -85,6 +86,17 @@ Once you have all the above, you can compile SUMMA using the following steps:
     This can be done by using `ls /opt/homebrew/Cellar/netcdf-fortran/` and then using `tab` button to find the current version installed on your machine. 
     Do the same for `lapack`. Currently, the most up-to-date `netcdf-fortran` version is `4.6.1` and lapack is `3.12.0`.
 
+    * If you are compiling SUMMA on the [Graham cluster](https://docs.alliancecan.ca/wiki/Graham/en) of the [Digital Research Alliance of Canada](https://alliancecan.ca/en) using `ifort` then use the following entries in Part 0 of Makefile:
+    Date updated:July-2020
+        ```
+        FC = ifort
+        FC_EXE = /cvmfs/restricted.computecanada.ca/easybuild/software/2017/Core/ifort/2019.3.199/compilers_and_libraries_2019.3.199/linux/bin/intel64/ifort
+        INCLUDES = -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx/Compiler/intel2016.4/netcdf-fortran/4.4.4/include
+        LIBRARIES = -L/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx/Compiler/intel2016.4/netcdf-fortran/4.4.4/lib -lnetcdff -mkl
+        ```
+    > Note: Before compiling, load the most recent intel module. Check the available versions with: 
+`module spider intel`. Then load the latest version: `module load intel/2019.3`. 
+Lapack and blas libraries are loaded with library argument `-mkl`. 
 ------------------------------
 
 
