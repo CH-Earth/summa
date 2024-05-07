@@ -34,8 +34,8 @@ import pandas as pd
 stat = sys.argv[1]
 #method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
 #plt_name=['(a) SUMMA-BE1','(b) SUMMA-BE16','(c) SUMMA-BE32','(d) SUMMA-SUNDIALS'] #maybe make this an argument
-method_name=['be1','be1en','sundials_1en6','diff']#,'be1lu'] #maybe make this an argument
-plt_name=['(a) SUMMA-BE1 Energy Temperature Form','(b) SUMMA-BE1 Energy Mixed Form','(c) SUMMA-SUNDIALS','(d) SUMMA-BE1 Mixed Form - Temperature Form']#, #maybe make this an argument
+method_name=['be1','be1cm','be1en','sundials_1en6cm']#,'diff']#,'be1lu'] #maybe make this an argument
+plt_name=['(a) SUMMA-BE1 Common Form of Heat Eq.','(b) SUMMA-BE1 Temperature Form of Heat Eq.','(c) SUMMA-BE1 Mixed Form of Heat Eq.','(d) SUMMA-SUNDIALS Temperature Form of Heat Eq.'] #,'(d) SUMMA-BE1 Mixed Form - Temperature Form']#, #maybe make this an argumentt
 from_meth = 'be1en' # index of the first simulation in the difference simulation, only used if a method_name is 'diff'
 sub_meth = 'be1' # index of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 

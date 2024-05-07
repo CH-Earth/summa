@@ -42,8 +42,8 @@ else:
     #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
     #method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
     #plt_name=['BE1','BE16','BE32','IDAe-6'] #maybe make this an argument
-    method_name=['be1','be1en']
-    plt_name=['BE1 temp','BE1 mixed']
+    method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
+    plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
 
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 

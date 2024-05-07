@@ -32,8 +32,8 @@ import pandas as pd
 
 # plot all runs, pick statistic
 stat = sys.argv[1]
-method_name=['be1','be1en']#,'be1lu'] #maybe make this an argument
-plt_name=['(a) SUMMA-BE1 Energy Temperature Form','(b) SUMMA-BE1 Energy Mixed Form']#,'(c) SUMMA-BE1 with enthalpy lookup'] #maybe make this an argument
+method_name=['be1','be1cm','be1en','sundials_1en6cm']  #maybe make this an argument
+plt_name=['(a) SUMMA-BE1 Common Form of Heat Eq.','(b) SUMMA-BE1 Temperature Form of Heat Eq.','(c) SUMMA-BE1 Mixed Form of Heat Eq.','(d) SUMMA-SUNDIALS Temperature Form of Heat Eq.']
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
