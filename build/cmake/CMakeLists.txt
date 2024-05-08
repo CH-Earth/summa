@@ -204,6 +204,7 @@ else()
                        ${PARENT_DIR}/build/includes/summa_actor
                        ${PARENT_DIR}/build/includes/job_actor
                        ${PARENT_DIR}/build/includes/file_access_actor
+                       ${PARENT_DIR}/build/includes/gru_actor
                        ${PARENT_DIR}/build/includes/hru_actor)
         set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io -lnetcdf)
     endif()
@@ -246,6 +247,7 @@ set(ACTORS_DIR ${PARENT_DIR}/build/source)
 set(SYS_INIT_DIR    ${ACTORS_DIR}/system_initialization)
 set(FILE_ACCESS_DIR ${ACTORS_DIR}/file_access_actor)
 set(JOB_ACTOR_DIR   ${ACTORS_DIR}/job_actor)
+set(GRU_ACTOR_DIR   ${ACTORS_DIR}/gru_actor)
 set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
@@ -422,18 +424,19 @@ set(FILE_ACCESS_INTERFACE
     ${FILE_ACCESS_DIR}/fileAccess_writeOutput.f90)
 set(JOB_INTERFACE
     ${JOB_ACTOR_DIR}/gru_struc.f90)
+set(GRU_INTERFACE
+    ${GRU_ACTOR_DIR}/gru_interface.f90)
 set(HRU_INTERFACE
     ${HRU_ACTOR_DIR}/hru_init.f90
     ${HRU_ACTOR_DIR}/hru_read.f90
     ${HRU_ACTOR_DIR}/hru_modelRun.f90
-    ${HRU_ACTOR_DIR}/hru_writeOutput.f90)
+    ${HRU_ACTOR_DIR}/hru_writeOutput.f90
+    ${HRU_ACTOR_DIR}/hru_interface.f90)
 
 # Actors actual actor modules
 set(ACTORS_GLOBAL
     ${ACTORS_DIR}/global/auxiliary.cpp
-    ${ACTORS_DIR}/global/global.cpp
     ${ACTORS_DIR}/global/fileManager.cpp
-    ${ACTORS_DIR}/global/message_atoms.cpp
     ${ACTORS_DIR}/global/settings_functions.cpp
     ${ACTORS_DIR}/global/timing_info.cpp)
 set(SYS_INIT
@@ -460,6 +463,8 @@ set(JOB_ACTOR
     ${JOB_ACTOR_DIR}/job_utils.cpp
     ${JOB_ACTOR_DIR}/distributed_job_actor.cpp
     ${JOB_ACTOR_DIR}/node_actor.cpp)
+set(GRU_ACTOR
+    ${GRU_ACTOR_DIR}/gru_actor.cpp)
 set(HRU_ACTOR
     ${HRU_ACTOR_DIR}/hru_utils.cpp
     ${HRU_ACTOR_DIR}/hru_actor.cpp
@@ -494,6 +499,7 @@ if(CMAKE_BUILD_TYPE MATCHES Actors)
                   ${SYS_INIT_INTERFACE}
                   ${FILE_ACCESS_INTERFACE}
                   ${JOB_INTERFACE}
+                  ${GRU_INTERFACE}
                   ${HRU_INTERFACE})
 else()
     set(SUMMA_ALL ${SUMMA_ALL}
@@ -588,6 +594,7 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
         ${ACTORS_GLOBAL}
         ${FILE_ACCESS_ACTOR}
         ${JOB_ACTOR}
+        ${GRU_ACTOR}
         ${HRU_ACTOR}
         ${SYS_INIT}
         ${SUMMA_CLIENT}
