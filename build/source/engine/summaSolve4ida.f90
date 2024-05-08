@@ -338,6 +338,7 @@ subroutine summaSolve4ida(&
     eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
     dCompress_dPsiPrev(:)             = 0._rkind
     resVecPrev(:)                     = 0._rkind
+    balance(:)                        = 0._rkind
     
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
@@ -526,6 +527,7 @@ subroutine summaSolve4ida(&
       if(computNrgBalance)then    
     
         ! compute energy balance mean, resVec is the instantaneous residual vector from the solver
+        ! note, if needCm and/or updateCp are false in eval8summaWithPrime, then the energy balance is not accurate
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
         if(nSnowSoilNrg>0)then

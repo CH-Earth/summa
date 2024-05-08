@@ -32,20 +32,21 @@ import pandas as pd
 
 # plot all runs, pick statistic
 stat = sys.argv[1]
-method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
-plt_name=['(a) SUMMA-BE1','(b) SUMMA-BE16','(c) SUMMA-BE32','(d) SUMMA-SUNDIALS'] #maybe make this an argument
+#method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
+#plt_name=['(a) SUMMA-BE1','(b) SUMMA-BE16','(c) SUMMA-BE32','(d) SUMMA-SUNDIALS'] #maybe make this an argument
+method_name=['be1','be1cm','be1en','sundials_1en6cm']#,'diff']#,'be1lu'] #maybe make this an argument
+plt_name=['(a) SUMMA-BE1 Common Form of Heat Eq.','(b) SUMMA-BE1 Temperature Form of Heat Eq.','(c) SUMMA-BE1 Mixed Form of Heat Eq.','(d) SUMMA-SUNDIALS Temperature Form of Heat Eq.'] #,'(d) SUMMA-BE1 Mixed Form - Temperature Form']#, #maybe make this an argumentt
+from_meth = 'be1en' # index of the first simulation in the difference simulation, only used if a method_name is 'diff'
+sub_meth = 'be1' # index of the simulation to subtract in the difference simulation, only used if a method_name is 'diff'
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 viz_dir = Path('/home/avanb/scratch/statistics')
 viz_fil = method_name.copy()
-eff_fil = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
     viz_fil[i] = viz_fil[i].format(','.join(settings))
-    eff_fil[i] = 'eff_' + m + '.txt'
 nbatch_hrus = 518 # number of HRUs per batch
-use_eff = False # use efficiency in wall clock time
 do_rel = True # plot relative to the benchmark simulation
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
@@ -176,18 +177,9 @@ if plot_lakes:
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
 summa = {}
-eff = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
-    summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
-    if use_eff:
-        # Read the data from the eff.txt file into a DataFrame
-        eff[m] = pd.read_csv(viz_dir/eff_fil[i], sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
-        # Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
-        eff[m]['CPU Efficiency'] = eff[m]['CPU Efficiency'].str.split(':').str[1].astype(float)
-        eff[m]['Array ID'] = eff[m]['Array ID'].str.split(':').str[1].astype(int)   
-        eff[m]['Job Wall-clock time'] = eff[m]['Job Wall-clock time'].str.split(':').str[1].astype(float)
-        eff[m]['Node Number'] = eff[m]['Node Number'].str.split(':').str[1].astype(int)
+    if m!='diff': summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
@@ -203,31 +195,13 @@ for plot_var in plot_vars:
         if plot_var == 'wallClockTime': stat0 = 'amax'
         statr = 'amax_ben'
 
-    if do_rel: s_rel = summa[method_name[0]][plot_var].sel(stat=statr)
+    if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
     for m in method_name:
-        s = summa[m][plot_var].sel(stat=stat0)
+        if m=='diff': 
+            s = np.fabs(summa[from_meth][plot_var].sel(stat=stat0)) - np.fabs(summa[sub_meth][plot_var].sel(stat=stat0))
+        else:
+            s = np.fabs(summa[m][plot_var].sel(stat=stat0))
         if do_rel and plot_var != 'wallClockTime': s = s/s_rel
-
-        if plot_var == 'wallClockTime' and use_eff:
-            batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
-            #basin_num = np.arange(len(s.indexes['hru'])) % nbatch_hrus #not currently using
-            # Create a dictionary to store the values for each batch
-            efficiency = {}
-            # Iterate over the rows in the data DataFrame
-            for index, row in eff.iterrows():
-                # Extract the values from the row
-                batch0 = int(row['Array ID'])
-                eff0 = row['CPU Efficiency']
-                # Store the value for the current batch in the dictionary
-                efficiency[batch0] = eff0
-            # Select the values for the current batch using boolean indexing
-            eff_batch = np.array([efficiency[b] for b in batch])
-            #node_batch = np.array([node[b] for b in batch]) #not currently using
-            # Multiply the s values by efficiency
-            s = s*eff_batch
-
-        # Make absolute value norm, not all positive
-        s = np.fabs(s) 
 
         # Replace inf values with NaN in the s DataArray
         s = s.where(~np.isinf(s), np.nan)
@@ -270,7 +244,7 @@ def run_loop(j,var,the_max):
     if stat =='mean' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 700, the_max
     if stat =='amax' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 1000, the_max
     if (stat == 'mean' or stat == 'mnnz' or stat == 'amax') and var!='wallClockTime' and do_rel: vmin,vmax = 0.9, the_max
- 
+
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
     if stat =='kgem' and var!='wallClockTime':
         my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
@@ -278,6 +252,11 @@ def run_loop(j,var,the_max):
         vmin,vmax = the_max, 1.0
         norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=1.5)
 
+    my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+    my_cmap2.set_bad(color='white') #nan color white
+    vmin,vmax = -the_max/10, the_max/4
+    norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    
     if stat0 == 'rmse': stat_word = 'RMSE'
     if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
     if stat0 == 'maxe': stat_word = 'max abs error'
@@ -289,7 +268,7 @@ def run_loop(j,var,the_max):
     if statr == 'mean_ben': statr_word = 'mean'
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
-
+    
     # colorbar axes
     f_x_mat = [0.46,0.96,0.46,0.96]
     f_y_mat = [0.55,0.55,0.07,0.07]
@@ -299,7 +278,12 @@ def run_loop(j,var,the_max):
         c = i-r*2
 
         # Plot the data with the full extent of the bas_albers shape
-        bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+        if m=='diff':
+            bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
+            stat_word0 = stat_word+' difference'
+        else:
+            bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+            stat_word0 = stat_word
 
         axs[r,c].set_title(plt_name[i])
         axs[r,c].axis('off')
@@ -308,15 +292,15 @@ def run_loop(j,var,the_max):
 
         # Custom colorbar
         cax = fig.add_axes([f_x,f_y,0.02,0.375])
-        sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
+        if m=='diff':
+            sm = matplotlib.cm.ScalarMappable(cmap=my_cmap2, norm=norm2)
+        else:
+            sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
         sm._A = []
-        cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-        if stat == 'rmse' or stat == 'rmnz' or stat == 'mean' or stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]), labelpad=40, rotation=270)
-        if stat == 'kgem': cbr.ax.set_ylabel(stat_word, labelpad=40, rotation=270)
-        #if do_rel and var!='wallClockTime': cbr.ax.set_ylabel(stat_word + ' rel to bench ' + statr_word, labelpad=40, rotation=270)
-        if do_rel and var!='wallClockTime': cbr.ax.set_ylabel('relative '+ stat_word, labelpad=40, rotation=270)
-
-        #cbr.ax.yaxis.set_offset_position('right')
+        cbr = fig.colorbar(sm, cax=cax) 
+        if stat == 'rmse' or stat == 'rmnz' or stat == 'mean' or stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel(stat_word0 + ' [{}]'.format(leg_titl[j]), labelpad=40, rotation=270)
+        if stat == 'kgem': cbr.ax.set_ylabel(stat_word0, labelpad=40, rotation=270)
+        if do_rel and var!='wallClockTime': cbr.ax.set_ylabel('relative '+ stat_word0, labelpad=40, rotation=270)
 
         # lakes
         if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)

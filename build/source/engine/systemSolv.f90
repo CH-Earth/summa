@@ -311,6 +311,8 @@ contains
   ! initialize the flags
   tooMuchMelt        = .false.   ! too much melt
   reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
+  ! initialize balances
+  balance(:) = realMissing
 
   associate(&
    ixSpatialGroundwater => model_decisions(iLookDECISIONS%spatial_gw)%iDecision,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
@@ -485,11 +487,13 @@ contains
   ! Note: Need this extra subroutine to handle the case of enthalpy as a state variable, currently only implemented in the prime version
   !       If we implement it in the regular version, we can remove this subroutine
   associate(&
-   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! intent(in):    [i4b]   number of snow layers
-   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! intent(in):    [i4b]   number of soil layers
-   scalarCanopyTemp => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),& ! intent(inout): [dp]    temperature of the vegetation canopy (K)
-   mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat         ,& ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
-   mLayerMatricHead => prog_data%var(iLookPROG%mLayerMatricHead)%dat    & ! intent(out):   [dp(:)] matric head (m) 
+   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)                  , & ! intent(in):    [i4b]   number of snow layers
+   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)                  , & ! intent(in):    [i4b]   number of soil layers
+   scalarCanopyEnthalpy => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1), & ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-2)
+   scalarCanopyTemp => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)        , & ! intent(inout): [dp]    temperature of the vegetation canopy (K)
+   scalarCanopyWat  => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)         , & ! intent(inout): [dp]    total water content of the vegetation canopy (kg m-2)
+   mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat                 , & ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
+   mLayerMatricHead => prog_data%var(iLookPROG%mLayerMatricHead)%dat             & ! intent(out):   [dp(:)] matric head (m) 
    &)
    stateVecPrime(:) = 0._rkind ! prime initial values are 0
    firstSplitOper0 = firstSplitOper ! set the flag for the first split operation, do not want to reset it here
@@ -524,11 +528,14 @@ contains
                     diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                     flux_init,               & ! intent(inout): model fluxes for a local HRU
                     deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                    ! output: new values of variables needed in data window outside of internal IDA  for rootfinding and to start enthalpy calculations
-                    scalarCanopyTemp,        & ! intent(inout): value for temperature of the vegetation canopy (K)
+                    ! input-output: values needed in case canopy gets buried
+                    scalarCanopyEnthalpy,    & ! intent(inout): value for enthalpy of the vegetation canopy (J m-3)
+                    scalarCanopyTemp,        & ! intent(inout): value for temperature of the vegetation canopy (K), also used to start enthalpy calculations
+                    scalarCanopyWat,         & ! intent(inout): value for total water content of the vegetation canopy (kg m-2)
+                    ! output: new values of variables needed in data window outside of internal IDA for rootfinding and to start enthalpy calculations
                     mLayerTemp,              & ! intent(inout): vector of layer temperature (K)
                     mLayerMatricHead,        & ! intent(out):   value for total water matric potential (m)
-                    ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
+                  ! output: new prime values of variables needed in data window outside of internal IDA for Jacobian
                     scalarCanopyTempPrime,   & ! intent(out):   prime value for temperature of the vegetation canopy (K s-1)
                     scalarCanopyWatPrime,    & ! intent(out):   prime value for total water content of the vegetation canopy (kg m-2 s-1)
                     mLayerTempPrime,         & ! intent(out):   prime vector of temperature of each snow and soil layer (K s-1)
