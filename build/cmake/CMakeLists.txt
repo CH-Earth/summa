@@ -204,6 +204,7 @@ else()
                        ${PARENT_DIR}/build/includes/summa_actor
                        ${PARENT_DIR}/build/includes/job_actor
                        ${PARENT_DIR}/build/includes/file_access_actor
+                       ${PARENT_DIR}/build/includes/gru_actor
                        ${PARENT_DIR}/build/includes/hru_actor)
         set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io -lnetcdf)
     endif()
@@ -246,6 +247,7 @@ set(ACTORS_DIR ${PARENT_DIR}/build/source)
 set(SYS_INIT_DIR    ${ACTORS_DIR}/system_initialization)
 set(FILE_ACCESS_DIR ${ACTORS_DIR}/file_access_actor)
 set(JOB_ACTOR_DIR   ${ACTORS_DIR}/job_actor)
+set(GRU_ACTOR_DIR   ${ACTORS_DIR}/gru_actor)
 set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
@@ -411,8 +413,7 @@ set(INTERFACE
     ${ACTORS_DIR}/global/cppwrap_auxiliary.f90
     ${ACTORS_DIR}/global/cppwrap_datatypes.f90
     ${ACTORS_DIR}/global/cppwrap_metadata.f90
-    ${ACTORS_DIR}/global/c_interface_module.f90
-    ${ACTORS_DIR}/global/gru_struc.f90)
+    ${ACTORS_DIR}/global/c_interface_module.f90)
 set(SYS_INIT_INTERFACE
     ${SYS_INIT_DIR}/batch_distributer_actor.f90)
 set(FILE_ACCESS_INTERFACE
@@ -422,20 +423,20 @@ set(FILE_ACCESS_INTERFACE
     ${FILE_ACCESS_DIR}/output_structure.f90
     ${FILE_ACCESS_DIR}/fileAccess_writeOutput.f90)
 set(JOB_INTERFACE
-    ${JOB_ACTOR_DIR}/job_actor.f90)
+    ${JOB_ACTOR_DIR}/gru_struc.f90)
+set(GRU_INTERFACE
+    ${GRU_ACTOR_DIR}/gru_interface.f90)
 set(HRU_INTERFACE
     ${HRU_ACTOR_DIR}/hru_init.f90
     ${HRU_ACTOR_DIR}/hru_read.f90
     ${HRU_ACTOR_DIR}/hru_modelRun.f90
-    ${HRU_ACTOR_DIR}/hru_writeOutput.f90)
+    ${HRU_ACTOR_DIR}/hru_writeOutput.f90
+    ${HRU_ACTOR_DIR}/hru_interface.f90)
 
 # Actors actual actor modules
 set(ACTORS_GLOBAL
     ${ACTORS_DIR}/global/auxiliary.cpp
-    ${ACTORS_DIR}/global/global.cpp
     ${ACTORS_DIR}/global/fileManager.cpp
-    ${ACTORS_DIR}/global/gru_struc.cpp
-    ${ACTORS_DIR}/global/message_atoms.cpp
     ${ACTORS_DIR}/global/settings_functions.cpp
     ${ACTORS_DIR}/global/timing_info.cpp)
 set(SYS_INIT
@@ -450,20 +451,24 @@ set(SYS_INIT
     ${SYS_INIT_DIR}/summa_server.cpp)
 set(FILE_ACCESS_ACTOR
     ${FILE_ACCESS_DIR}/summa_init_struc.cpp
-    ${ACTORS_DIR}/file_access_actor/file_access_actor.cpp
-    ${ACTORS_DIR}/file_access_actor/forcing_file_info.cpp
-    ${ACTORS_DIR}/file_access_actor/output_container.cpp)
+    ${FILE_ACCESS_DIR}/file_access_actor.cpp
+    ${FILE_ACCESS_DIR}/forcing_file_info.cpp
+    ${FILE_ACCESS_DIR}/output_container.cpp)
 set(JOB_ACTOR
-    ${ACTORS_DIR}/job_actor/GRU.cpp
-    ${ACTORS_DIR}/job_actor/job_actor.cpp
-    ${ACTORS_DIR}/job_actor/async_mode.cpp
-    ${ACTORS_DIR}/job_actor/data_assimilation_mode.cpp
-    ${ACTORS_DIR}/job_actor/job_utils.cpp
-    ${ACTORS_DIR}/job_actor/distributed_job_actor.cpp
-    ${ACTORS_DIR}/job_actor/node_actor.cpp)
+    ${JOB_ACTOR_DIR}/GRU.cpp
+    ${JOB_ACTOR_DIR}/gru_struc.cpp
+    ${JOB_ACTOR_DIR}/job_actor.cpp
+    ${JOB_ACTOR_DIR}/async_mode.cpp
+    ${JOB_ACTOR_DIR}/data_assimilation_mode.cpp
+    ${JOB_ACTOR_DIR}/job_utils.cpp
+    ${JOB_ACTOR_DIR}/distributed_job_actor.cpp
+    ${JOB_ACTOR_DIR}/node_actor.cpp)
+set(GRU_ACTOR
+    ${GRU_ACTOR_DIR}/gru_actor.cpp)
 set(HRU_ACTOR
-    ${ACTORS_DIR}/hru_actor/hru_actor.cpp
-    ${ACTORS_DIR}/hru_actor/hru_batch_actor.cpp)
+    ${HRU_ACTOR_DIR}/hru_utils.cpp
+    ${HRU_ACTOR_DIR}/hru_actor.cpp
+    ${HRU_ACTOR_DIR}/hru_batch_actor.cpp)
 
 
 #=========================================================================================
@@ -494,6 +499,7 @@ if(CMAKE_BUILD_TYPE MATCHES Actors)
                   ${SYS_INIT_INTERFACE}
                   ${FILE_ACCESS_INTERFACE}
                   ${JOB_INTERFACE}
+                  ${GRU_INTERFACE}
                   ${HRU_INTERFACE})
 else()
     set(SUMMA_ALL ${SUMMA_ALL}
@@ -588,6 +594,7 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
         ${ACTORS_GLOBAL}
         ${FILE_ACCESS_ACTOR}
         ${JOB_ACTOR}
+        ${GRU_ACTOR}
         ${HRU_ACTOR}
         ${SYS_INIT}
         ${SUMMA_CLIENT}
