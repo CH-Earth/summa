@@ -5,7 +5,7 @@ repo_url: https://www.github.com/NCAR/summa
 site_url: https://summa.readthedocs.org
 docs_dir: docs
 theme: readthedocs
-pages:
+nav:
 - Home:
   - SUMMA Overview: 'index.md'
   - SUMMA Documentation: 'SUMMA_documentation.md'
