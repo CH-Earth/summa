@@ -119,12 +119,7 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES Sundials)
     set(DIR_SUNDIALS "")
     foreach(dir IN ITEMS
-        "${F_MASTER}../sundials/instdir"
-        "${PARENT_DIR}../sundials/instdir"
-        "${F_MASTER}../../SummaSundials/sundials/instdir"
-        "${PARENT_DIR}../../SummaSundials/sundials/instdir"
-        $ENV{SUNDIALS_PATH}
-        "../../../../SummaSundials/sundials/instdir") #look in same head directory as summa or up to another installation
+        $ENV{SUNDIALS_PATH}) #look in same head directory as summa or up to another installation
         if(EXISTS ${dir})
             set(DIR_SUNDIALS ${dir})
             message("\nFound Sundials directory at ${DIR_SUNDIALS}")
