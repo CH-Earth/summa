@@ -153,7 +153,12 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
 
     if(CMAKE_BUILD_TYPE MATCHES Actors)
         find_package(CAF REQUIRED)
-        set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
+        set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global 
+                                       ${PARENT_DIR}/build/includes/summa_actor 
+                                       ${PARENT_DIR}/build/includes/job_actor 
+                                       ${PARENT_DIR}/build/includes/gru_actor
+                                       ${PARENT_DIR}/build/includes/file_access_actor
+                                       ${PARENT_DIR}/build/includes/hru_actor)
         set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io -lnetcdf)
     endif()
 
