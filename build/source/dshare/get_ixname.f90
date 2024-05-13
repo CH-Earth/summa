@@ -861,6 +861,12 @@ contains
   ! sub-grid routing
   case('routingGammaShape'        ); get_ixbpar = iLookBPAR%routingGammaShape         ! shape parameter in Gamma distribution used for sub-grid routing (-)
   case('routingGammaScale'        ); get_ixbpar = iLookBPAR%routingGammaScale         ! scale parameter in Gamma distribution used for sub-grid routing (s)
+  ! parameters for HDS pothole storage
+  case('depressionDepth'        ); get_ixbpar = iLookBPAR%depressionDepth             ! average depth of depressional storage (depressionVol/depressionArea) (m)
+  case('depressionAreaFrac'     ); get_ixbpar = iLookBPAR%depressionAreaFrac          ! fractional depressional area (depressionArea/basinArea) (-)
+  case('depressionCatchAreaFrac'); get_ixbpar = iLookBPAR%depressionCatchAreaFrac     ! fractional area (of the landArea= basinArea - depressionArea) that drains to the depressions (-)
+  case('depression_p'           ); get_ixbpar = iLookBPAR%depression_p                ! shape of the slope profile (-)
+  case('depression_b'           ); get_ixbpar = iLookBPAR%depression_b                ! shape of contributing fraction curve (-)
   ! get to here if cannot find the variable
   case default
    get_ixbpar = integerMissing

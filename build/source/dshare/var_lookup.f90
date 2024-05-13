@@ -690,6 +690,12 @@ MODULE var_lookup
   ! within-grid routing
   integer(i4b)    :: routingGammaShape          = integerMissing ! shape parameter in Gamma distribution used for sub-grid routing (-)
   integer(i4b)    :: routingGammaScale          = integerMissing ! scale parameter in Gamma distribution used for sub-grid routing (s)
+  ! define paramters for HDS pothole storage
+  integer(i4b)    :: depressionDepth            = integerMissing ! average depth of depressional storage (depressionVol/depressionArea) (m)
+  integer(i4b)    :: depressionAreaFrac         = integerMissing ! fractional depressional area (depressionArea/basinArea) (-)
+  integer(i4b)    :: depressionCatchAreaFrac    = integerMissing ! fractional area (of the landArea = basinArea - depressionArea) that drains to the depressions (-)
+  integer(i4b)    :: depression_p               = integerMissing ! shape of the slope profile (-)
+  integer(i4b)    :: depression_b               = integerMissing ! shape of contributing fraction curve (-)
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
@@ -845,8 +851,8 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60)
 
- ! named variables: basin-average parameters
- type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
+ ! named variables: basin-average parameters (including HDS parameters)
+ type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5, 6, 7, 8, 9, 10)
 
  ! named variables: basin-average variables (including HDS variables)
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

@@ -293,6 +293,15 @@ contains
  bpar_meta(iLookBPAR%basin__aquiferBaseflowExp)       = var_info('basin__aquiferBaseflowExp', 'baseflow exponent for the big bucket'                           , '-'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bpar_meta(iLookBPAR%routingGammaShape)               = var_info('routingGammaShape'        , 'shape parameter in Gamma distribution used for sub-grid routing', '-'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bpar_meta(iLookBPAR%routingGammaScale)               = var_info('routingGammaScale'        , 'scale parameter in Gamma distribution used for sub-grid routing', 's'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ 
+ ! -----
+ ! * HDS pothole storage parameters...
+ ! -----------------------------------
+ bpar_meta(iLookBPAR%depressionDepth)                 = var_info('depressionDepth'          , 'average depth of depressional storage (depressionVol/depressionArea)'                       , 'm'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bpar_meta(iLookBPAR%depressionAreaFrac)              = var_info('depressionAreaFrac'       , 'fractional depressional area (depressionArea/basinArea)'                                    , '-'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bpar_meta(iLookBPAR%depressionCatchAreaFrac)         = var_info('depressionCatchAreaFrac'  , 'fractional area of the landArea (basinArea - depressionArea) that drains to the depressions', '-'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bpar_meta(iLookBPAR%depression_p)                    = var_info('depression_p'             , 'shape of the slope profile'                                                                 , '-'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bpar_meta(iLookBPAR%depression_b)                    = var_info('depression_b'             , 'shape of contributing fraction curve'                                                       , '-'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * local model prognostic (state) variables...
