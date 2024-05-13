@@ -104,7 +104,7 @@ contains
 
  ! model control
  type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
- real(rkind)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
+ real(rkind)            , intent(inout) :: dt_init(:)        ! used to initialize the length of the sub-step for each HRU
  integer(i4b)        , intent(inout) :: ixComputeVegFlux(:)  ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  ! data structures (input)
  integer(i4b)        , intent(in)    :: timeVec(:)           ! integer vector      -- model time data
@@ -132,7 +132,7 @@ contains
  integer(i4b)                            :: nSnow                  ! number of snow layers
  integer(i4b)                            :: nSoil                  ! number of soil layers
  integer(i4b)                            :: nLayers                ! total number of layers
- real(rkind)                                :: fracHRU                ! fractional area of a given HRU (-)
+ real(rkind)                             :: fracHRU                ! fractional area of a given HRU (-)
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 
  ! initialize error control
@@ -277,6 +277,24 @@ contains
   bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
  endif
 
+ ! ***********************************************************************************************************************
+ ! ********** PRAIRIE POTHOLE IMPLEMENTATION (HDS)************************************************************************
+ ! ***********************************************************************************************************************
+! variables: vMin, pondVol, pondArea, pondOutflow
+! parameters: the reamining 
+!  call runDepression(pondVol(n),                                             &    ! input/output:  state variable = pond volume [m3]
+!                     runoff_depth, precip, pot_evap,                         &    ! input:         forcing data = runoff, precipitation, ET [mm/day]
+!                     depressionArea(n), depressionVol(n), upslopeArea_small, &    ! input:         spatial attributes = depression area [m2], depression volume [m3], upstream area [m2]
+!                     p(n), tau,                                              &    ! input:         model parameters = p [-] shape of the slope profile; tau [day-1] time constant linear reservoir
+!                     b(n), vMin(n),                                          &    ! input:         model parameters = b [-] shape of contributing fraction curve; vmin [m3] minimum volume
+!                     dt,                                                     &    ! input:         model time step [days]
+!                     Q_det_adj, Q_dix_adj,                                   &    ! output:        adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol)
+!                     vol_frac_small, conAreaFrac(n),                             &    ! output:        fractional volume [-], fractional contributing area [-]
+!                     pondArea(n), smallpond_outflow)                              ! output:        pond area at the end of the time step [m2], pond outflow [m3]    
+
+
+                                                
+                                                
  call qOverland(&
                 ! input
                 model_decisions(iLookDECISIONS%subRouting)%iDecision,          &  ! intent(in): index for routing method

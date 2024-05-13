@@ -712,6 +712,13 @@ MODULE var_lookup
   integer(i4b)    :: routingFractionFuture      = integerMissing ! fraction of runoff in future time steps (-)
   integer(i4b)    :: averageInstantRunoff       = integerMissing ! instantaneous runoff (m s-1)
   integer(i4b)    :: averageRoutedRunoff        = integerMissing ! routed runoff (m s-1)
+  ! define variables for pothole storage (HDS)
+  integer(i4b)    :: vMin                       = integerMissing ! volume of water in the meta depression at the start of a fill period (m3)
+  integer(i4b)    :: conAreaFrac                = integerMissing ! fractional contributing area (-)
+  integer(i4b)    :: pondVolFrac                = integerMissing ! fractional pond volume at the end of time step (-)
+  integer(i4b)    :: pondVol                    = integerMissing ! pond volume at the end of time step (m3)
+  integer(i4b)    :: pondArea                   = integerMissing ! pond area at the end of the time step (m2)
+  integer(i4b)    :: pondOutflow                = integerMissing ! pond outflow (m3)
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
@@ -841,9 +848,9 @@ MODULE var_lookup
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
 
- ! named variables: basin-average variables
+ ! named variables: basin-average variables (including HDS variables)
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13)
+                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19)
 
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

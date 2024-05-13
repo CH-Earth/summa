@@ -540,7 +540,7 @@ contains
 
  ! size of prognostic variable vector
  nProgVars = size(prog_meta)
- allocate(ncVarID(nProgVars+1))     ! include 1 additional basin variable in ID array (possibly more later)
+ allocate(ncVarID(nProgVars+5))     ! include 5 additional basin variable in ID array (routing + HDS variables)
 
  ! maximum number of soil layers
  maxSoil = gru_struc(1)%hruInfo(1)%nSoil
@@ -603,6 +603,23 @@ contains
  err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName), nf90_double, (/gruDimID, tdhDimID /), ncVarID(nProgVars+1))
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'long_name',trim(bvar_meta(iLookBVAR%routingRunoffFuture)%vardesc));   call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
+
+ ! define selected basin variables (pothole storage - HDS) -> vMin
+ err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%vMin)%varName), nf90_double, (/gruDimID/), ncVarID(nProgVars+2))
+ err = nf90_put_att(ncid,ncVarID(nProgVars+2),'long_name',trim(bvar_meta(iLookBVAR%vMin)%vardesc));   call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncVarID(nProgVars+2),'units'    ,trim(bvar_meta(iLookBVAR%vMin)%varunit));   call netcdf_err(err,message)
+ ! define selected basin variables (pothole storage - HDS) -> conAreaFrac
+ err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%conAreaFrac)%varName), nf90_double, (/gruDimID/), ncVarID(nProgVars+3))
+ err = nf90_put_att(ncid,ncVarID(nProgVars+3),'long_name',trim(bvar_meta(iLookBVAR%conAreaFrac)%vardesc));   call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncVarID(nProgVars+3),'units'    ,trim(bvar_meta(iLookBVAR%conAreaFrac)%varunit));   call netcdf_err(err,message)
+ ! define selected basin variables (pothole storage - HDS) -> pondVol
+ err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%pondVolFrac)%varName), nf90_double, (/gruDimID/), ncVarID(nProgVars+4))
+ err = nf90_put_att(ncid,ncVarID(nProgVars+4),'long_name',trim(bvar_meta(iLookBVAR%pondVolFrac)%vardesc));   call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncVarID(nProgVars+4),'units'    ,trim(bvar_meta(iLookBVAR%pondVolFrac)%varunit));   call netcdf_err(err,message)
+ ! define selected basin variables (pothole storage - HDS) -> pondArea
+ err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%pondArea)%varName), nf90_double, (/gruDimID/), ncVarID(nProgVars+5))
+ err = nf90_put_att(ncid,ncVarID(nProgVars+5),'long_name',trim(bvar_meta(iLookBVAR%pondArea)%vardesc));   call netcdf_err(err,message)
+ err = nf90_put_att(ncid,ncVarID(nProgVars+5),'units'    ,trim(bvar_meta(iLookBVAR%pondArea)%varunit));   call netcdf_err(err,message)
 
  ! define index variables - snow
  err = nf90_def_var(ncid,trim(indx_meta(iLookIndex%nSnow)%varName),nf90_int,(/hruDimID/),ncSnowID); call netcdf_err(err,message)
@@ -681,6 +698,12 @@ contains
   ! write selected basin variables
   err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/),  start=(/iGRU/),count=(/1,nTimeDelay/))
   
+  ! write pothole storage variables -> HDS
+  err=nf90_put_var(ncid,ncVarID(nProgVars+2),(/bvar_data%gru(iGRU)%var(iLookBVAR%vMin)%dat/),  start=(/iGRU/),count=(/1/))
+  err=nf90_put_var(ncid,ncVarID(nProgVars+3),(/bvar_data%gru(iGRU)%var(iLookBVAR%conAreaFrac)%dat/),  start=(/iGRU/),count=(/1/))
+  err=nf90_put_var(ncid,ncVarID(nProgVars+4),(/bvar_data%gru(iGRU)%var(iLookBVAR%pondVol)%dat/),  start=(/iGRU/),count=(/1/))
+  err=nf90_put_var(ncid,ncVarID(nProgVars+5),(/bvar_data%gru(iGRU)%var(iLookBVAR%pondArea)%dat/),  start=(/iGRU/),count=(/1/))
+
  end do  ! iGRU loop
 
  ! close file

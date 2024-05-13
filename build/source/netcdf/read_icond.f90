@@ -190,7 +190,7 @@ contains
  integer(i4b)                           :: fileHRU      ! number of HRUs in file
  integer(i4b)                           :: fileGRU      ! number of GRUs in file
  integer(i4b)                           :: iVar, i      ! loop indices
- integer(i4b),dimension(1)              :: ndx          ! intermediate array of loop indices
+ integer(i4b),dimension(5)              :: ndx          ! intermediate array of loop indices
  integer(i4b)                           :: iGRU         ! loop index
  integer(i4b)                           :: iHRU         ! loop index
  integer(i4b)                           :: dimID        ! varible dimension ids
@@ -418,7 +418,7 @@ contains
    endif
 
    ! loop through specific basin variables (currently 1 but loop provided to enable inclusion of others)
-   ndx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices
+   ndx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%vMin,  iLookBVAR%conAreaFrac, iLookBVAR%pondVolFrac, iLookBVAR%pondArea/)   ! array of desired variable indices
    do i = 1,size(ndx)
     iVar = ndx(i)
 

@@ -895,6 +895,13 @@ contains
   case('routingFractionFuture'         ); get_ixbvar = iLookBVAR%routingFractionFuture           ! fraction of runoff in future time steps (-)
   case('averageInstantRunoff'          ); get_ixbvar = iLookBVAR%averageInstantRunoff            ! instantaneous runoff (m s-1)
   case('averageRoutedRunoff'           ); get_ixbvar = iLookBVAR%averageRoutedRunoff             ! routed runoff (m s-1)
+  ! variables for pothole storage (HDS)
+  case('vMin'                          ); get_ixbvar = iLookBVAR%vMin                            ! volume of water in the meta depression at the start of a fill period (m3)
+  case('conAreaFrac'                   ); get_ixbvar = iLookBVAR%conAreaFrac                     ! fractional contributing area (-)
+  case('pondVolFrac'                   ); get_ixbvar = iLookBVAR%pondVolFrac                     ! fractional pond volume = pondVol/depressionVol (-)
+  case('pondVol'                       ); get_ixbvar = iLookBVAR%pondVol                         ! pond volume at the end of time step (m3)
+  case('pondArea'                      ); get_ixbvar = iLookBVAR%pondArea                        ! pond area at the end of the time step (m2)
+  case('pondOutflow'                   ); get_ixbvar = iLookBVAR%pondOutflow                     ! pond outflow (m3)
   ! get to here if cannot find the variable
   case default
    get_ixbvar = integerMissing
