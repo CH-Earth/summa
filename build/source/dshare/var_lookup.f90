@@ -481,6 +481,17 @@ MODULE var_lookup
   integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-2 s-1)
   integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-2 s-1)
   integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2 s-1)
+  ! sundials integrator stats
+  integer(i4b)    :: numSteps                        = integerMissing ! 
+  integer(i4b)    :: numResEvals                     = integerMissing ! 
+  integer(i4b)    :: numLinSolvSetups                = integerMissing ! 
+  integer(i4b)    :: numErrTestFails                 = integerMissing ! 
+  integer(i4b)    :: kLast                           = integerMissing ! 
+  integer(i4b)    :: kCur                            = integerMissing ! 
+  integer(i4b)    :: hInitUsed                       = integerMissing ! 
+  integer(i4b)    :: hLast                           = integerMissing ! 
+  integer(i4b)    :: hCur                            = integerMissing ! 
+  integer(i4b)    :: tCur                            = integerMissing ! 
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -917,7 +928,8 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101,102,103,104)
+                                                                        101,102,103,104,105,106,107,108,109,110,&
+                                                                        111,112,113,114)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

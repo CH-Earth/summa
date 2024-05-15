@@ -454,6 +454,18 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%balanceSnowMass)                 = var_info('balanceSnowMass'                , 'balance of water in the snow on data window'                      , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%balanceSoilMass)                 = var_info('balanceSoilMass'                , 'balance of water in the soil on data window'                      , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%balanceAqMass)                   = var_info('balanceAqMass'                  , 'balance of water in the aquifer on data window'                   , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! sundials integrator stats
+  diag_meta(iLookDIAG%numSteps)                        = var_info('numSteps'                       , 'number of steps taken by the integrator'                          , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%numResEvals)                     = var_info('numResEvals'                    , 'number of residual evaluations'                                   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%numLinSolvSetups)                = var_info('numLinSolvSetups'               , 'number of linear solver setups'                                   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%numErrTestFails)                 = var_info('numErrTestFails'                , 'number of error test failures'                                    , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%kLast)                           = var_info('kLast'                          , 'method order used on the last internal step'                      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%kCur)                            = var_info('kCur'                           , 'method order to be used on the next internal step'                , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%hInitUsed)                       = var_info('hInitUsed'                      , 'step size used on the first internal step'                        , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%hLast)                           = var_info('hLast'                          , 'step size used on the last internal step'                         , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%hCur)                            = var_info('hCur'                           , 'step size to be used on the next internal step'                   , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%tCur)                            = var_info('tCur'                           , 'current time reached by the integrator'                           , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  
   ! -----
   ! * local model fluxes...
   ! -----------------------

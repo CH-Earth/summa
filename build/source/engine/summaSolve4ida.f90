@@ -239,6 +239,16 @@ subroutine summaSolve4ida(&
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)           ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: resVecPrev(:)                          ! previous value for residuals
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
+  integer(c_long)                   :: nStepsSun(1)
+  integer(c_long)                   :: nREvals(1)
+  integer(c_long)                   :: nLinSetups(1)
+  integer(c_long)                   :: netFails(1)
+  integer(c_int)                    :: qLast(1)
+  integer(c_int)                    :: qCur(1)
+  real(c_double)                    :: hInitUsed(1)
+  real(c_double)                    :: hLast(1)
+  real(c_double)                    :: hCur(1)
+  real(c_double)                    :: tCur(1)
   ! flags
   logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn IDA warnings off, default true
@@ -614,7 +624,26 @@ subroutine summaSolve4ida(&
     deallocate( eqns_data%resSink )
     deallocate( rootsfound )
     deallocate( rootdir )
+
+    ! Get Stats from IDA
+    retval = FIDAGetIntegratorStats(ida_mem, nStepsSun, nREvals, nLinSetups, &
+                                    netFails, qLast, qCur, hInitUsed, hLast, &
+                                    hCur, tCur)
     
+    diag_data%var(iLookDIAG%numSteps)%dat(1) = nStepsSun(1)
+    diag_data%var(iLookDIAG%numResEvals)%dat(1) = nREvals(1)
+    diag_data%var(iLookDIAG%numLinSolvSetups)%dat(1) = nLinSetups(1)
+    diag_data%var(iLookDIAG%numErrTestFails)%dat(1) = netFails(1)
+    diag_data%var(iLookDIAG%kLast)%dat(1) = qLast(1)
+    diag_data%var(iLookDIAG%kCur)%dat(1) = qCur(1)
+    diag_data%var(iLookDIAG%hInitUsed)%dat(1) = hInitUsed(1)
+    diag_data%var(iLookDIAG%hLast)%dat(1) = hLast(1)
+    diag_data%var(iLookDIAG%hCur)%dat(1) = hCur(1)
+    diag_data%var(iLookDIAG%tCur)%dat(1) = tCur(1)
+
+
+
+
     call FIDAFree(ida_mem)
     retval = FSUNLinSolFree(sunlinsol_LS)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif

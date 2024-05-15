@@ -600,6 +600,17 @@ contains
   case('balanceSnowMass'                ); get_ixDiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow (kg m-2 s-1)
   case('balanceSoilMass'                ); get_ixDiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil (kg m-2 s-1)
   case('balanceAqMass'                  ); get_ixDiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer (kg m-2 s-1)
+  ! sundials integrator stats
+  case('numSteps'                       ); get_ixDiag = iLookDIAG%numSteps
+  case('numResEvals'                    ); get_ixDiag = iLookDIAG%numResEvals
+  case('numLinSolvSetups'               ); get_ixDiag = iLookDIAG%numLinSolvSetups
+  case('numErrTestFails'                ); get_ixDiag = iLookDIAG%numErrTestFails
+  case('kLast'                          ); get_ixDiag = iLookDIAG%kLast
+  case('kCur'                           ); get_ixDiag = iLookDIAG%kCur
+  case('hInitUsed'                      ); get_ixDiag = iLookDIAG%hInitUsed
+  case('hLast'                          ); get_ixDiag = iLookDIAG%hLast
+  case('hCur'                           ); get_ixDiag = iLookDIAG%hCur
+  case('tCur'                           ); get_ixDiag = iLookDIAG%tCur
   ! get to here if cannot find the variable
   case default
    get_ixDiag = integerMissing
