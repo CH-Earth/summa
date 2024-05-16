@@ -43,7 +43,7 @@ contains
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
  USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
  USE globalData,only:forc_meta               ! forcing metadata
- USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
+ USE get_ixname_module,only:get_ixTime,get_ixForce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line       ! split a line into words
  USE globalData,only:gru_struc               ! gru-hru mapping structure
@@ -185,7 +185,7 @@ contains
     case('time','pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
 
      ! get variable index
-     ivar = get_ixforce(trim(varname))
+     ivar = get_ixForce(trim(varname))
      if(ivar < 0)then;                               err=40; message=trim(message)//"variableNotFound[var="//trim(varname)//"]"; return; end if
      if(ivar>size(forcFileInfo(iFile)%data_id))then; err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return; end if
 

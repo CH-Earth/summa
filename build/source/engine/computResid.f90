@@ -76,36 +76,41 @@ contains
 ! **********************************************************************************************************
 subroutine computResid(&
                       ! input: model control
-                      dt,                        & ! intent(in):    length of the time step (seconds)
-                      nSnow,                     & ! intent(in):    number of snow layers
-                      nSoil,                     & ! intent(in):    number of soil layers
-                      nLayers,                   & ! intent(in):    total number of layers
+                      dt,                        & ! intent(in):  length of the time step (seconds)
+                      nSnow,                     & ! intent(in):  number of snow layers
+                      nSoil,                     & ! intent(in):  number of soil layers
+                      nLayers,                   & ! intent(in):  total number of layers
+                      mixdformNrg,               & ! intent(in):  flag to use enthalpy formulation
                       ! input: flux vectors
-                      sMul,                      & ! intent(in):    state vector multiplier (used in the residual calculations)
-                      fVec,                      & ! intent(in):    flux vector
+                      sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
+                      fVec,                      & ! intent(in):  flux vector
                       ! input: state variables (already disaggregated into scalars and vectors)
-                      scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
-                      scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
-                      scalarCanopyWatTrial,      & ! intent(in):    trial value for the water on the vegetation canopy (kg m-2)
-                      mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
-                      scalarAquiferStorageTrial, & ! intent(in):    trial value of storage of water in the aquifer (m)
+                      scalarCanairTempTrial,     & ! intent(in):  trial value for the temperature of the canopy air space (K)
+                      scalarCanopyTempTrial,     & ! intent(in):  trial value for the temperature of the vegetation canopy (K)
+                      scalarCanopyWatTrial,      & ! intent(in):  trial value for the water on the vegetation canopy (kg m-2)
+                      mLayerTempTrial,           & ! intent(in):  trial value for the temperature of each snow and soil layer (K)
+                      scalarAquiferStorageTrial, & ! intent(in):  trial value of storage of water in the aquifer (m)
                       ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                      scalarCanopyIceTrial,      & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
-                      scalarCanopyLiqTrial,      & ! intent(in):    trial value for the liq on the vegetation canopy (kg m-2)
-                      mLayerVolFracIceTrial,     & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
-                      mLayerVolFracWatTrial,     & ! intent(in):    trial value for the volumetric water in each snow and soil layer (-)
-                      mLayerVolFracLiqTrial,     & ! intent(in):    trial value for the volumetric liq in each snow and soil layer (-)
-                      scalarCanopyCmTrial,       & ! intent(in):    Cm of vegetation canopy (J kg K-1)
-                      mLayerCmTrial,             & ! intent(in):    Cm of each snow and soil layer (J kg K-1)
+                      scalarCanopyIceTrial,      & ! intent(in):  trial value for the ice on the vegetation canopy (kg m-2)
+                      scalarCanopyLiqTrial,      & ! intent(in):  trial value for the liq on the vegetation canopy (kg m-2)
+                      mLayerVolFracIceTrial,     & ! intent(in):  trial value for the volumetric ice in each snow and soil layer (-)
+                      mLayerVolFracWatTrial,     & ! intent(in):  trial value for the volumetric water in each snow and soil layer (-)
+                      mLayerVolFracLiqTrial,     & ! intent(in):  trial value for the volumetric liq in each snow and soil layer (-)
+                      ! input: enthalpy terms
+                      scalarCanopyCmTrial,       & ! intent(in):  Cm of vegetation canopy (J kg K-1)
+                      mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (J kg K-1)
+                      scalarCanairEnthalpyTrial, & ! intent(in):  trial value for  enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthTempTrial, & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthTempTrial,       & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
                       ! input: data structures
-                      prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
-                      diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                      flux_data,                 & ! intent(in):    model fluxes for a local HRU
-                      indx_data,                 & ! intent(in):    index data
+                      prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
+                      diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
+                      flux_data,                 & ! intent(in):  model fluxes for a local HRU
+                      indx_data,                 & ! intent(in):  index data
                       ! output
-                      rAdd,                      & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                      rVec,                      & ! intent(out):   residual vector
-                      err,message)                 ! intent(out):   error control
+                      rAdd,                      & ! intent(out): additional (sink) terms on the RHS of the state equation
+                      rVec,                      & ! intent(out): residual vector
+                      err,message)                 ! intent(out): error control
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
@@ -113,6 +118,7 @@ subroutine computResid(&
   integer(i4b),intent(in)            :: nSnow                     ! number of snow layers
   integer(i4b),intent(in)            :: nSoil                     ! number of soil layers
   integer(i4b),intent(in)            :: nLayers                   ! total number of layers in the snow+soil domain
+  logical(lgt),intent(in)            :: mixdformNrg               ! flag to use enthalpy formulation
   ! input: flux vectors
   real(qp),intent(in)                :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
   real(rkind),intent(in)             :: fVec(:)                   ! flux vector
@@ -128,8 +134,12 @@ subroutine computResid(&
   real(rkind),intent(in)             :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
   real(rkind),intent(in)             :: mLayerVolFracWatTrial(:)  ! trial value for the volumetric water in each snow and soil layer (-)
   real(rkind),intent(in)             :: mLayerVolFracLiqTrial(:)  ! trial value for the volumetric water in each snow and soil layer (-)
+  ! input: enthalpy terms
   real(qp),intent(in)                :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
   real(qp),intent(in)                :: mLayerCmTrial(:)          ! Cm of each snow and soil layer (-)
+  real(rkind),intent(in)             :: scalarCanairEnthalpyTrial ! trial value for enthalpy of the canopy air space (J m-3)
+  real(rkind),intent(in)             :: scalarCanopyEnthTempTrial ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),intent(in)             :: mLayerEnthTempTrial(:)    ! trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
   ! input: data structures
   type(var_dlength),intent(in)       :: prog_data                 ! prognostic variables for a local HRU
   type(var_dlength),intent(in)       :: diag_data                 ! diagnostic variables for a local HRU
@@ -164,10 +174,14 @@ subroutine computResid(&
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of ice (-)
     mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of liquid water (-)
     mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of total water (-)
+    ! enthalpy terms
+    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,& ! intent(in): [dp]     enthalpy of the canopy air space (J m-3)
+    scalarCanopyEnthTemp    => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)   ,& ! intent(in): [dp]     temperature component of enthalpy of the vegetation canopy (J m-3)
+    mLayerEnthTemp          => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat            ,& ! intent(in): [dp(:)]  temperature component of enthalpy of the snow+soil layers (J m-3)
     ! model state variables (aquifer)
     scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in): [dp]     storage of water in the aquifer (m)
     ! canopy and layer depth
-    canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp]      canopy depth (m)
+    canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in): [dp]     canopy depth (m)
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
     ! model fluxes (sink terms in the soil domain)
     mLayerTranspire         => flux_data%var(iLookFLUX%mLayerTranspire)%dat           ,& ! intent(in): [dp]     transpiration loss from each soil layer (m s-1)
@@ -233,9 +247,14 @@ subroutine computResid(&
     ! compute the residual vector for the vegetation canopy
     ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
     ! --> energy balance
-    if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*( scalarCanairTempTrial - scalarCanairTemp ) - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
-    if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*( scalarCanopyTempTrial - scalarCanopyTemp ) + scalarCanopyCmTrial*( scalarCanopyWatTrial - scalarCanopyWat )/canopyDepth &
-                                              - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
+    if(mixdformNrg)then
+      if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = ( scalarCanairEnthalpyTrial - scalarCanairEnthalpy ) - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = ( scalarCanopyEnthTempTrial - scalarCanopyEnthTemp ) - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
+    else
+      if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*( scalarCanairTempTrial - scalarCanairTemp ) - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*( scalarCanopyTempTrial - scalarCanopyTemp ) + scalarCanopyCmTrial*( scalarCanopyWatTrial - scalarCanopyWat )/canopyDepth &
+                                                   - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
+    endif
     ! --> mass balance
     if(ixVegHyd/=integerMissing)then
       scalarCanopyHydTrial = merge(scalarCanopyWatTrial, scalarCanopyLiqTrial, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
@@ -246,8 +265,12 @@ subroutine computResid(&
     ! compute the residual vector for the snow and soil sub-domains for energy
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) )*( mLayerTempTrial(iLayer) - mLayerTemp(iLayer) ) + mLayerCmTrial(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer) ) &
-                                    - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
+        if(mixdformNrg)then
+          rVec( ixSnowSoilNrg(iLayer) ) = ( mLayerEnthTempTrial(iLayer) - mLayerEnthTemp(iLayer) ) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
+        else
+          rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) )*( mLayerTempTrial(iLayer) - mLayerTemp(iLayer) ) + mLayerCmTrial(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer) ) &
+                                         - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
+        endif
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
 
@@ -265,6 +288,7 @@ subroutine computResid(&
 
     ! compute the residual vector for the aquifer
     if(ixAqWat/=integerMissing) rVec(ixAqWat) = sMul(ixAqWat)*( scalarAquiferStorageTrial - scalarAquiferStorage ) - ( fVec(ixAqWat)*dt + rAdd(ixAqWat) )
+
     if(globalPrintFlag)then
       write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
       write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))

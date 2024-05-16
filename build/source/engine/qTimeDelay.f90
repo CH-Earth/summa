@@ -49,19 +49,19 @@ contains
                       err,message)              ! error control
  implicit none
  ! input
- integer(i4b),intent(in)    :: ixRouting              ! index for routing method
- real(rkind),intent(in)        :: averageTotalRunoff     ! total runoff to the channel from all active components (m s-1)
- real(rkind),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
- real(rkind),intent(inout)     :: qFuture(:)             ! runoff in future time steps (m s-1)
+ integer(i4b),intent(in)    :: ixRouting                 ! index for routing method
+ real(rkind),intent(in)     :: averageTotalRunoff        ! total runoff to the channel from all active components (m s-1)
+ real(rkind),intent(in)     :: fracFuture(:)             ! fraction of runoff in future time steps (m s-1)
+ real(rkind),intent(inout)  :: qFuture(:)                ! runoff in future time steps (m s-1)
  ! output
- real(rkind),intent(out)       :: averageInstantRunoff   ! instantaneous runoff (m s-1)
- real(rkind),intent(out)       :: averageRoutedRunoff    ! routed runoff (m s-1)
- integer(i4b),intent(out)   :: err                    ! error code
- character(*),intent(out)   :: message                ! error message
+ real(rkind),intent(out)    :: averageInstantRunoff      ! instantaneous runoff (m s-1)
+ real(rkind),intent(out)    :: averageRoutedRunoff       ! routed runoff (m s-1)
+ integer(i4b),intent(out)   :: err                       ! error code
+ character(*),intent(out)   :: message                   ! error message
  ! internal
- real(rkind),parameter            :: valueMissing=-9999._rkind     ! missing value
- integer(i4b)               :: nTDH                   ! number of points in the time-delay histogram
- integer(i4b)               :: iFuture                ! index in time delay histogram
+ real(rkind),parameter      :: valueMissing=-9999._rkind ! missing value
+ integer(i4b)               :: nTDH                      ! number of points in the time-delay histogram
+ integer(i4b)               :: iFuture                   ! index in time delay histogram
  ! initialize error control
  err=0; message='qOverland/'
 

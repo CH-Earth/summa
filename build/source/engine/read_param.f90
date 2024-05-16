@@ -52,7 +52,7 @@ contains
  ! used to read model initial conditions
  USE summaFileManager,only:SETTINGS_PATH             ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
- USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
+ USE get_ixname_module,only:get_ixParam,get_ixBpar   ! access function to find index of elements in structure
  USE globalData,only:index_map,gru_struc             ! mapping from global HRUs to the elements in the data structures
  USE var_lookup,only:iLookPARAM,iLookTYPE,iLookID    ! named variables to index elements of the data vectors
  implicit none
@@ -231,7 +231,7 @@ contains
   call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
 
   ! get the local parameters
-  ixParam = get_ixparam( trim(parName) )
+  ixParam = get_ixParam( trim(parName) )
   if(ixParam/=integerMissing)then
 
    ! **********************************************************************************************
@@ -317,7 +317,7 @@ contains
   else
 
    ! get the parameter index
-   ixParam = get_ixbpar( trim(parName) )
+   ixParam = get_ixBpar( trim(parName) )
 
    ! allow extra variables in the file that are not used
    if(ixParam==integerMissing) cycle

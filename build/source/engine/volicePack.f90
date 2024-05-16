@@ -39,11 +39,6 @@ USE var_lookup,only:iLookINDEX          ! named variables for structure elements
 
 ! physical constants
 USE multiconst,only:&
-                    Tfreeze,  & ! freezing point              (K)
-                    LH_fus,   & ! latent heat of fusion       (J kg-1)
-                    LH_vap,   & ! latent heat of vaporization (J kg-1)
-                    LH_sub,   & ! latent heat of sublimation  (J kg-1)
-                    iden_air, & ! intrinsic density of air    (kg m-3)
                     iden_ice, & ! intrinsic density of ice    (kg m-3)
                     iden_water  ! intrinsic density of water  (kg m-3)
 

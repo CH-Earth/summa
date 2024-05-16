@@ -45,22 +45,19 @@ USE var_lookup,only:iLookBVAR           ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS      ! named variables for elements of the decision structure
 
 ! constants
-USE multiconst,only:gravity             ! acceleration of gravity              (m s-2)
-USE multiconst,only:vkc                 ! von Karman's constant                (-)
-USE multiconst,only:w_ratio             ! molecular ratio water to dry air     (-)
-USE multiconst,only:R_wv                ! gas constant for water vapor         (Pa K-1 m3 kg-1; J kg-1 K-1)
-USE multiconst,only:Cp_air              ! specific heat of air                 (J kg-1 K-1)
-USE multiconst,only:Cp_ice              ! specific heat of ice                 (J kg-1 K-1)
-USE multiconst,only:Cp_soil             ! specific heat of soil                (J kg-1 K-1)
-USE multiconst,only:Cp_water            ! specific heat of liquid water        (J kg-1 K-1)
-USE multiconst,only:Tfreeze             ! temperature at freezing              (K)
-USE multiconst,only:LH_fus              ! latent heat of fusion                (J kg-1)
-USE multiconst,only:LH_vap              ! latent heat of vaporization          (J kg-1)
-USE multiconst,only:LH_sub              ! latent heat of sublimation           (J kg-1)
-USE multiconst,only:sb                  ! Stefan Boltzman constant             (W m-2 K-4)
-USE multiconst,only:iden_air            ! intrinsic density of air             (kg m-3)
-USE multiconst,only:iden_ice            ! intrinsic density of ice             (kg m-3)
-USE multiconst,only:iden_water          ! intrinsic density of liquid water    (kg m-3)
+USE multiconst,only:&
+                    gravity,   & ! acceleration of gravity          (m s-2)
+                    vkc,       & ! von Karman's constant            (-)
+                    w_ratio,   & ! molecular ratio water to dry air (-)
+                    R_wv,      & ! gas constant for water vapor     (Pa K-1 m3 kg-1; J kg-1 K-1)
+                    Cp_air,    & ! specific heat of air             (J kg-1 K-1)
+                    Cp_ice,    & ! specific heat of ice             (J kg-1 K-1)
+                    Cp_water,  & ! specific heat of liquid water    (J kg-1 K-1)
+                    Tfreeze,   & ! temperature at freezing          (K)
+                    LH_vap,    & ! latent heat of vaporization      (J kg-1)
+                    LH_sub,    & ! latent heat of sublimation       (J kg-1)
+                    sb,        & ! Stefan Boltzman constant         (W m-2 K-4)
+                    iden_air    ! intrinsic density of air          (kg m-3)
 
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:  &
@@ -2111,7 +2108,7 @@ subroutine turbFluxes(&
   err=0; message='turbFluxes/'
 
   ! compute constants
-  volHeatCapacityAir = iden_air*cp_air           ! volumetric heat capacity of air (J m-3)
+  volHeatCapacityAir = iden_air*Cp_air           ! volumetric heat capacity of air (J m-3)
   latentHeatConstant = iden_air*w_ratio/airpres  ! latent heat constant for (kg m-3 Pa-1)
 
   ! *****

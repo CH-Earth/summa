@@ -291,13 +291,13 @@ contains
  ! ***********************************************************************************************************
  subroutine layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,iSnow,err,message)
  ! provide access to variables in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX           ! named variables for structure elements
- USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
- USE data_types,only:var_ilength,var_dlength                   ! data vectors with variable length dimension
- USE data_types,only:var_d                                     ! data structures with fixed dimension
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX              ! named variables for structure elements
+ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta      ! metadata
+ USE data_types,only:var_ilength,var_dlength                      ! data vectors with variable length dimension
+ USE data_types,only:var_d                                        ! data structures with fixed dimension
  ! provide access to external modules
- USE snow_utils_module,only:fracliquid                         ! compute fraction of liquid water
- USE convE2Temp_module,only:E2T_nosoil,temp2ethpy              ! convert temperature to enthalpy
+ USE snow_utils_module,only:fracliquid                            ! compute fraction of liquid water
+ USE enthalpyTemp_module,only:enthalpy2T_snwWat,T2enthalpy_snwWat ! convert temperature to liq+ice enthalpy for a snow layer
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures
@@ -314,18 +314,18 @@ contains
  ! ------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=256)              :: cmessage                 ! error message for downwind routine
- real(rkind)                        :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
- real(rkind)                        :: massLiq(2)               ! mass of liquid water in the two layers identified for combination (kg m-2)
- real(rkind)                        :: bulkDenWat(2)            ! bulk density if total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
- real(rkind)                        :: cBulkDenWat              ! combined bulk density of total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
- real(rkind)                        :: cTemp                    ! combined layer temperature
- real(rkind)                        :: cDepth                   ! combined layer depth
- real(rkind)                        :: cVolFracIce              ! combined layer volumetric fraction of ice
- real(rkind)                        :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
- real(rkind)                        :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
- real(rkind)                        :: cEnthalpy                ! combined layer enthalpy (J m-3)
- real(rkind)                        :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
- real(rkind),parameter              :: eTol=1.e-1_rkind            ! tolerance for the enthalpy-->temperature conversion (J m-3)
+ real(rkind)                     :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
+ real(rkind)                     :: massLiq(2)               ! mass of liquid water in the two layers identified for combination (kg m-2)
+ real(rkind)                     :: bulkDenWat(2)            ! bulk density if total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
+ real(rkind)                     :: cBulkDenWat              ! combined bulk density of total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
+ real(rkind)                     :: cTemp                    ! combined layer temperature
+ real(rkind)                     :: cDepth                   ! combined layer depth
+ real(rkind)                     :: cVolFracIce              ! combined layer volumetric fraction of ice
+ real(rkind)                     :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
+ real(rkind)                     :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
+ real(rkind)                     :: cEnthalpy                ! combined layer enthalpy (J m-3)
+ real(rkind)                     :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
+ real(rkind),parameter           :: eTol=1.e-1_rkind         ! tolerance for the enthalpy-->temperature conversion (J m-3)
  integer(i4b)                    :: nSnow                    ! number of snow layers
  integer(i4b)                    :: nSoil                    ! number of soil layers
  integer(i4b)                    :: nLayers                  ! total number of layers
@@ -361,19 +361,19 @@ contains
  cBulkDenWat     = (mLayerDepth(isnow)*bulkDenWat(1) + mLayerDepth(isnow+1)*bulkDenWat(2))/cDepth
 
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy  = temp2ethpy(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
- l2Enthalpy  = temp2ethpy(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
+ l1Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
+ l2Enthalpy = T2enthalpy_snwWat(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
 
  ! compute combined enthalpy (J m-3)
- cEnthalpy   = (mLayerDepth(isnow)*l1Enthalpy + mLayerDepth(isnow+1)*l2Enthalpy)/cDepth
+ cEnthalpy = (mLayerDepth(isnow)*l1Enthalpy + mLayerDepth(isnow+1)*l2Enthalpy)/cDepth
 
  ! convert enthalpy (J m-3) to temperature (K)
- call E2T_nosoil(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
+ call enthalpy2T_snwWat(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
 
  ! test enthalpy conversion
- if(abs(temp2ethpy(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
-  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, temp2ethpy(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
+ if(abs(T2enthalpy_snwWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
+  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, T2enthalpy_snwWat(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
   message=trim(message)//'problem with enthalpy-->temperature conversion'
   err=20; return
  end if

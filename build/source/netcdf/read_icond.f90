@@ -40,7 +40,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
- USE var_lookup,only:iLookIndex                        ! variable lookup structure
+ USE var_lookup,only:iLookINDEX                        ! variable lookup structure
  USE globalData,only:gru_struc                         ! gru-hru mapping structures
  USE globalData,only:startGRU                          ! index of first gru for parallel runs
  USE netcdf_util_module,only:nc_file_close             ! close netcdf file
@@ -90,8 +90,8 @@ contains
  soilData = 0
 
  ! get netcdf ids for the variables holding number of snow and soil layers in each hru
- err = nf90_inq_varid(ncid,trim(indx_meta(iLookIndex%nSnow)%varName),snowid); call netcdf_err(err,message)
- err = nf90_inq_varid(ncid,trim(indx_meta(iLookIndex%nSoil)%varName),soilid); call netcdf_err(err,message)
+ err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),snowid); call netcdf_err(err,message)
+ err = nf90_inq_varid(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),soilid); call netcdf_err(err,message)
 
  ! get nSnow and nSoil data (reads entire state file)
  err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message)

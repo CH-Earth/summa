@@ -39,13 +39,11 @@ contains
  ! public subroutine snwDensify: compute change in snow density over the time step
  ! ************************************************************************************************
  subroutine snwDensify(&
-
                        ! intent(in): variables
                        dt,                             & ! intent(in): time step (s)
                        nSnow,                          & ! intent(in): number of snow layers
                        mLayerTemp,                     & ! intent(in): temperature of each layer (K)
                        mLayerMeltFreeze,               & ! intent(in): volumnetric melt in each layer (kg m-3)
-
                        ! intent(in): parameters
                        densScalGrowth,                 & ! intent(in): density scaling factor for grain growth (kg-1 m3)
                        tempScalGrowth,                 & ! intent(in): temperature scaling factor for grain growth (K-1)
@@ -53,55 +51,53 @@ contains
                        densScalOvrbdn,                 & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
                        tempScalOvrbdn,                 & ! intent(in): temperature scaling factor for overburden pressure (K-1)
                        baseViscosity,                  & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
-
                        ! intent(inout): state variables
                        mLayerDepth,                    & ! intent(inout): depth of each layer (m)
                        mLayerVolFracLiqNew,            & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
                        mLayerVolFracIceNew,            & ! intent(inout):  volumetric fraction of ice after itertations (-)
-
                        ! output: error control
                        err,message)                      ! intent(out): error control
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! compute change in snow density over the time step
  implicit none
  ! intent(in): variables
- real(rkind),intent(in)                 :: dt                       ! time step (seconds)
+ real(rkind),intent(in)              :: dt                       ! time step (seconds)
  integer(i4b),intent(in)             :: nSnow                    ! number of snow layers
- real(rkind),intent(in)                 :: mLayerTemp(:)            ! temperature of each snow layer after iterations (K)
- real(rkind),intent(in)                 :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
+ real(rkind),intent(in)              :: mLayerTemp(:)            ! temperature of each snow layer after iterations (K)
+ real(rkind),intent(in)              :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
  ! intent(in): parameters
- real(rkind),intent(in)                 :: densScalGrowth           ! density scaling factor for grain growth (kg-1 m3)
- real(rkind),intent(in)                 :: tempScalGrowth           ! temperature scaling factor for grain growth (K-1)
- real(rkind),intent(in)                 :: grainGrowthRate          ! rate of grain growth (s-1)
- real(rkind),intent(in)                 :: densScalOvrbdn           ! density scaling factor for overburden pressure (kg-1 m3)
- real(rkind),intent(in)                 :: tempScalOvrbdn           ! temperature scaling factor for overburden pressure (K-1)
- real(rkind),intent(in)                 :: baseViscosity            ! viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+ real(rkind),intent(in)              :: densScalGrowth           ! density scaling factor for grain growth (kg-1 m3)
+ real(rkind),intent(in)              :: tempScalGrowth           ! temperature scaling factor for grain growth (K-1)
+ real(rkind),intent(in)              :: grainGrowthRate          ! rate of grain growth (s-1)
+ real(rkind),intent(in)              :: densScalOvrbdn           ! density scaling factor for overburden pressure (kg-1 m3)
+ real(rkind),intent(in)              :: tempScalOvrbdn           ! temperature scaling factor for overburden pressure (K-1)
+ real(rkind),intent(in)              :: baseViscosity            ! viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
  ! intent(inout): state variables
- real(rkind),intent(inout)              :: mLayerDepth(:)           ! depth of each layer (m)
- real(rkind),intent(inout)              :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each snow layer after iterations (-)
- real(rkind),intent(inout)              :: mLayerVolFracIceNew(:)   ! volumetric fraction of ice in each snow layer after iterations (-)
+ real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each layer (m)
+ real(rkind),intent(inout)           :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each snow layer after iterations (-)
+ real(rkind),intent(inout)           :: mLayerVolFracIceNew(:)   ! volumetric fraction of ice in each snow layer after iterations (-)
  ! intent(out): error control
  integer(i4b),intent(out)            :: err                      ! error code
  character(*),intent(out)            :: message                  ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! define local variables
- integer(i4b)                        :: iSnow                    ! index of snow layers
- real(rkind)                            :: chi1,chi2,chi3,chi4,chi5 ! multipliers in the densification algorithm (-)
- real(rkind)                            :: halfWeight               ! half of the weight of the current snow layer (kg m-2)
- real(rkind)                            :: weightSnow               ! total weight of snow above the current snow layer (kg m-2)
- real(rkind)                            :: CR_grainGrowth           ! compaction rate for grain growth (s-1)
- real(rkind)                            :: CR_ovrvdnPress           ! compaction rate associated with over-burden pressure (s-1)
- real(rkind)                            :: CR_metamorph             ! compaction rate for metamorphism (s-1)
- real(rkind)                            :: massIceOld               ! mass of ice in the snow layer (kg m-2)
- real(rkind)                            :: massLiqOld               ! mass of liquid water in the snow layer (kg m-2)
- real(rkind)                            :: scalarDepthNew           ! updated layer depth (m)
- real(rkind)                            :: scalarDepthMin           ! minimum layer depth (m)
- real(rkind)                            :: volFracIceLoss           ! volumetric fraction of ice lost due to melt and sublimation (-)
- real(rkind), dimension(nSnow)          :: mLayerVolFracAirNew      ! volumetric fraction of air in each layer after compaction (-)
- real(rkind),parameter                  :: snwden_min=100._rkind       ! minimum snow density for reducing metamorphism rate (kg m-3)
- real(rkind),parameter                  :: snwDensityMax=550._rkind    ! maximum snow density for collapse under melt (kg m-3)
- real(rkind),parameter                  :: wetSnowThresh=0.01_rkind    ! threshold to discriminate between "wet" and "dry" snow
- real(rkind),parameter                  :: minLayerDensity=40._rkind   ! minimum snow density allowed for any layer (kg m-3)
+ integer(i4b)                        :: iSnow                       ! index of snow layers
+ real(rkind)                         :: chi1,chi2,chi3,chi4,chi5    ! multipliers in the densification algorithm (-)
+ real(rkind)                         :: halfWeight                  ! half of the weight of the current snow layer (kg m-2)
+ real(rkind)                         :: weightSnow                  ! total weight of snow above the current snow layer (kg m-2)
+ real(rkind)                         :: CR_grainGrowth              ! compaction rate for grain growth (s-1)
+ real(rkind)                         :: CR_ovrvdnPress              ! compaction rate associated with over-burden pressure (s-1)
+ real(rkind)                         :: CR_metamorph                ! compaction rate for metamorphism (s-1)
+ real(rkind)                         :: massIceOld                  ! mass of ice in the snow layer (kg m-2)
+ real(rkind)                         :: massLiqOld                  ! mass of liquid water in the snow layer (kg m-2)
+ real(rkind)                         :: scalarDepthNew              ! updated layer depth (m)
+ real(rkind)                         :: scalarDepthMin              ! minimum layer depth (m)
+ real(rkind)                         :: volFracIceLoss              ! volumetric fraction of ice lost due to melt and sublimation (-)
+ real(rkind), dimension(nSnow)       :: mLayerVolFracAirNew         ! volumetric fraction of air in each layer after compaction (-)
+ real(rkind),parameter               :: snwden_min=100._rkind       ! minimum snow density for reducing metamorphism rate (kg m-3)
+ real(rkind),parameter               :: snwDensityMax=550._rkind    ! maximum snow density for collapse under melt (kg m-3)
+ real(rkind),parameter               :: wetSnowThresh=0.01_rkind    ! threshold to discriminate between "wet" and "dry" snow
+ real(rkind),parameter               :: minLayerDensity=40._rkind   ! minimum snow density allowed for any layer (kg m-3)
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="snwDensify/"

@@ -74,7 +74,9 @@ MODULE var_lookup
   integer(i4b)    :: spatial_gw = integerMissing     ! choice of method for spatial representation of groundwater
   integer(i4b)    :: subRouting = integerMissing     ! choice of method for sub-grid routing
   integer(i4b)    :: snowDenNew = integerMissing     ! choice of method for new snow density
-  integer(i4b)    :: howHeatCap = integerMissing     ! how to compute heat capacity in energy equation
+  integer(i4b)    :: nrgConserv = integerMissing     ! choice of variable in either energy backward Euler residual or IDA state variable
+  integer(i4b)    :: aquiferIni = integerMissing     ! choice of full or empty aquifer at start
+
  endtype iLook_decision
 
  ! ***********************************************************************************************************
@@ -285,7 +287,7 @@ MODULE var_lookup
   integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step
   integer(i4b)    :: be_steps              = integerMissing    ! minimum number of substeps to take in a maxstep numrec
   integer(i4b)    :: wimplicit             = integerMissing    ! weight assigned to the start-of-step fluxes
-  integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iteration
+  integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iterations numrec and kinsol
   integer(i4b)    :: relConvTol_liquid     = integerMissing    ! relative convergence tolerance for vol frac liq water (-)
   integer(i4b)    :: absConvTol_liquid     = integerMissing    ! absolute convergence tolerance for vol frac liq water (-)
   integer(i4b)    :: relConvTol_matric     = integerMissing    ! relative convergence tolerance for matric head (-)
@@ -389,8 +391,12 @@ MODULE var_lookup
   integer(i4b)    :: iLayerThermalC                  = integerMissing ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
   integer(i4b)    :: scalarCanairEnthalpy            = integerMissing ! enthalpy of the canopy air space (J m-3)
+  integer(i4b)    :: scalarCanopyEnthTemp            = integerMissing ! temperature component of enthalpy of the vegetation canopy (J m-3)
   integer(i4b)    :: scalarCanopyEnthalpy            = integerMissing ! enthalpy of the vegetation canopy (J m-3)
+  integer(i4b)    :: mLayerEnthTemp                  = integerMissing ! temperature component of enthalpy of the snow+soil layers (J m-3)
   integer(i4b)    :: mLayerEnthalpy                  = integerMissing ! enthalpy of the snow+soil layers (J m-3)
+  integer(i4b)    :: scalarTotalSoilEnthalpy         = integerMissing ! total enthalpy of the soil column (J m-3)
+  integer(i4b)    :: scalarTotalSnowEnthalpy         = integerMissing ! total enthalpy of the snow column (J m-3)
   ! forcing
   integer(i4b)    :: scalarVPair                     = integerMissing ! vapor pressure of the air above the vegetation canopy (Pa)
   integer(i4b)    :: scalarVP_CanopyAir              = integerMissing ! vapor pressure of the canopy air space (Pa)
@@ -453,8 +459,6 @@ MODULE var_lookup
   integer(i4b)    :: scalarSoilCompress              = integerMissing ! change in total soil storage due to compression of the soil matrix (kg m-2 s-1)
   integer(i4b)    :: mLayerMatricHeadLiq             = integerMissing ! matric potential of liquid water (m)
   ! mass balance check
-  integer(i4b)    :: scalarSoilWatBalError           = integerMissing ! error in the total soil water balance (kg m-2)
-  integer(i4b)    :: scalarAquiferBalError           = integerMissing ! error in the aquifer water balance (kg m-2)
   integer(i4b)    :: scalarTotalSoilLiq              = integerMissing ! total mass of liquid water in the soil (kg m-2)
   integer(i4b)    :: scalarTotalSoilIce              = integerMissing ! total mass of ice in the soil (kg m-2)
   integer(i4b)    :: scalarTotalSoilWat              = integerMissing ! total mass of water in the soil (kg m-2)
@@ -466,6 +470,17 @@ MODULE var_lookup
   integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
   integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time (s)
   integer(i4b)    :: meanStepSize                    = integerMissing ! mean time step size over data window (s)
+  ! balances
+  integer(i4b)    :: balanceCasNrg                   = integerMissing ! balance of energy in the canopy air space (W m-3)
+  integer(i4b)    :: balanceVegNrg                   = integerMissing ! balance of energy in the vegetation (W m-3)
+  integer(i4b)    :: balanceLayerNrg                 = integerMissing ! balance of energy in each snow+soil layer (W m-3)
+  integer(i4b)    :: balanceSnowNrg                  = integerMissing ! balance of energy in the snow (W m-3)
+  integer(i4b)    :: balanceSoilNrg                  = integerMissing ! balance of energy in the soil (W m-3)
+  integer(i4b)    :: balanceVegMass                  = integerMissing ! balance of water in the vegetation (kg m-2 s-1)
+  integer(i4b)    :: balanceLayerMass                = integerMissing ! balance of water in each snow+soil layer (kg m-2 s-1)
+  integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-2 s-1)
+  integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-2 s-1)
+  integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2 s-1)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -636,7 +651,7 @@ MODULE var_lookup
   integer(i4b)    :: iLayerLiqFluxSnowDeriv          = integerMissing ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   integer(i4b)    :: dVolTot_dPsi0                   = integerMissing ! derivative in total water content w.r.t. total water matric potential (m-1)
-  integer(i4b)    :: d2VolTot_d2Psi0                 = integerMissing ! second derivative in total water content w.r.t. total water matric potential
+  integer(i4b)    :: d2VolTot_dPsi02                 = integerMissing ! second derivative in total water content w.r.t. total water matric potential
   integer(i4b)    :: dq_dHydStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dHydStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   integer(i4b)    :: dq_dHydStateLayerSurfVec        = integerMissing ! change in the flux in soil surface interface w.r.t. state variables in layer above and below
@@ -670,6 +685,13 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopydTemp_dt            = integerMissing ! timestep change in canopy temperature
   integer(i4b)    :: mLayerdWat_dt                   = integerMissing ! timestep change in layer volumetric fraction of total water
   integer(i4b)    :: scalarCanopydWat_dt             = integerMissing ! timestep change in canopy water content
+  ! derivatives of temperature if enthalpy is the state variable
+  integer(i4b)    :: dCanairTemp_dEnthalpy           = integerMissing ! derivative of canopy air temperature w.r.t. enthalpy
+  integer(i4b)    :: dCanopyTemp_dEnthalpy           = integerMissing ! derivative of canopy temperature w.r.t. enthalpy 
+  integer(i4b)    :: dTemp_dEnthalpy                 = integerMissing ! derivative of temperature w.r.t. enthalpy      
+  integer(i4b)    :: dCanopyTemp_dCanWat             = integerMissing ! derivative of canopy temperature w.r.t. volumetric water content  
+  integer(i4b)    :: dTemp_dTheta                    = integerMissing ! derivative of temperature w.r.t. volumetric water content         
+  integer(i4b)    :: dTemp_dPsi0                     = integerMissing ! derivative of temperature w.r.t. total water matric potential         
 
  endtype iLook_deriv
 
@@ -838,7 +860,7 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type, public :: iLook_vLookup
   integer(i4b)    :: temperature = integerMissing ! temperature (K)
-  integer(i4b)    :: enthalpy    = integerMissing ! enthalpy (J m-3)
+  integer(i4b)    :: psiLiq_int  = integerMissing ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
   integer(i4b)    :: deriv2      = integerMissing ! second derivatives of the interpolating function
  endtype iLook_vLookup
 
@@ -850,7 +872,7 @@ MODULE var_lookup
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
  ! named variables: model forcing data
@@ -894,7 +916,8 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92)
+                                                                         91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
+                                                                        101,102,103,104)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -913,7 +936,8 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71, 72, 73, 74, 75)
+                                                                         71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
+                                                                         81)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -930,9 +954,9 @@ MODULE var_lookup
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12)
  ! number of possible output statistics
- type(iLook_stat),    public,parameter :: iLookStat     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
+ type(iLook_stat),    public,parameter :: iLookSTAT     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
  ! number of possible output frequencies
- type(iLook_freq),    public,parameter :: iLookFreq     =ilook_freq    (  1,  2,  3,  4)
+ type(iLook_freq),    public,parameter :: iLookFREQ     =ilook_freq    (  1,  2,  3,  4)
  ! named variables in the lookup table structure
  type(iLook_vLookup), public,parameter :: iLookLOOKUP   =ilook_vLookup (  1,  2,  3)
  ! define maximum number of variables of each type
@@ -951,8 +975,8 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarBpar      = storage_size(iLookBPAR)/iLength
  integer(i4b),parameter,public :: maxvarBvar      = storage_size(iLookBVAR)/iLength
  integer(i4b),parameter,public :: maxvarVarType   = storage_size(iLookVarType)/iLength
- integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookStat)/iLength
- integer(i4b),parameter,public :: maxvarFreq      = storage_size(iLookFreq)/iLength
+ integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookSTAT)/iLength
+ integer(i4b),parameter,public :: maxvarFreq      = storage_size(iLookFREQ)/iLength
  integer(i4b),parameter,public :: maxvarLookup    = storage_size(iLookLOOKUP)/iLength
 
  ! ***********************************************************************************************************

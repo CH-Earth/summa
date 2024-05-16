@@ -66,10 +66,10 @@ contains
  ! ************************************************************************************************
  subroutine vegPhenlgy(&
                        ! model control
+                       model_decisions,             & ! intent(in):    model decisions
                        fracJulDay,                  & ! intent(in):    fractional julian days since the start of year
                        yearLength,                  & ! intent(in):    number of days in the current year
                        ! input/output: data structures
-                       model_decisions,             & ! intent(in):    model decisions
                        type_data,                   & ! intent(in):    type of vegetation and soil
                        attr_data,                   & ! intent(in):    spatial attributes
                        mpar_data,                   & ! intent(in):    model parameters
@@ -88,6 +88,8 @@ contains
  ! -------------------------------------------------------------------------------------------------
  ! input/output
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
+ real(rkind),intent(in)          :: fracJulDay          ! fractional julian days since the start of year
+ integer(i4b),intent(in)         :: yearLength          ! number of days in the current year
  type(var_i),intent(in)          :: type_data           ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data           ! spatial attributes
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
@@ -97,8 +99,6 @@ contains
  logical(lgt),intent(out)        :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(rkind),intent(out)         :: canopyDepth         ! canopy depth (m)
  real(rkind),intent(out)         :: exposedVAI          ! exposed vegetation area index (LAI + SAI)
- real(rkind),intent(in)          :: fracJulDay          ! fractional julian days since the start of year
- integer(i4b),intent(in)         :: yearLength          ! number of days in the current year
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! -------------------------------------------------------------------------------------------------

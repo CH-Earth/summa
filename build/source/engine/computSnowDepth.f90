@@ -5,9 +5,6 @@ USE nrtype
 
 ! physical constants
 USE multiconst,only:&
-                    Tfreeze,      & ! temperature at freezing              (K)
-                    LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 

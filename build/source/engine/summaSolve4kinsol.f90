@@ -101,7 +101,7 @@ subroutine summaSolve4kinsol(&
                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                       ! input: state vectors
                       stateVecInit,            & ! intent(in):    initial state vector
-                      sMul,                    & ! intent(inout): state vector multiplier (USEd in the residual calculations)
+                      sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
@@ -113,30 +113,30 @@ subroutine summaSolve4kinsol(&
                       bvar_data,               & ! intent(in):    average model variables for the entire basin
                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                       ! input-output: data structures
-                      indx_data,               & ! intent(inout): index data                      diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                      indx_data,               & ! intent(inout): index data
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ! output
                       ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       kinsolSucceeds,          & ! intent(out):   flag to indicate if KINSOL successfully solved the problem in current data step
-                      stateVec,                & ! intent(out):   model state vector
+                      stateVec,                & ! intent(inout): model state vector
+                      fluxVec,                 & ! intent(out):   model flux vector
+                      resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                      resVec,                  & ! intent(out):   residual vector
                       err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
 
   USE fkinsol_mod                                 ! Fortran interface to KINSOL
-  USE fsundials_context_mod                       ! Fortran interface to SUNContext
+  USE fsundials_core_mod                          ! Fortran interface to SUNContext
   USE fnvector_serial_mod                         ! Fortran interface to serial N_Vector
-  USE fsundials_nvector_mod                       ! Fortran interface to generic N_Vector
   USE fsunmatrix_dense_mod                        ! Fortran interface to dense SUNMatrix
   USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
-  USE fsundials_matrix_mod                        ! Fortran interface to generic SUNMatrix
   USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
   USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
-  USE fsundials_linearsolver_mod                  ! Fortran interface to generic SUNLinearSolver
   USE allocspace_module,only:allocLocal           ! allocate local data structures
-  USE getVectorz_module, only:checkFeas           ! check feasibility of state vector
+  USE getVectorz_module,only:checkFeas            ! check feasibility of state vector
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
   USE eval8summa_module,only:eval8summa           ! residual of DAE
   USE computJacob_module,only:computJacob4kinsol  ! system Jacobian
@@ -182,6 +182,9 @@ subroutine summaSolve4kinsol(&
   ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
+  real(rkind),intent(out)         :: fluxVec(:)             ! model flux vector (f)
+  real(rkind),intent(out)         :: resSink(:)             ! sink terms on the RHS of the flux equation
+  real(qp),intent(out)            :: resVec(:)              ! residual vector
   logical(lgt),intent(out)        :: kinsolSucceeds         ! flag to indicate if KINSOL is successful
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
@@ -202,7 +205,6 @@ subroutine summaSolve4kinsol(&
   logical(lgt)                      :: feasible             ! feasibility flag
   integer(c_long)                   :: mu, lu               ! in banded matrix mode in SUNDIALS type
   integer(c_long)                   :: nState               ! total number of state variables in SUNDIALS type
-  real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   character(LEN=256)                :: cmessage             ! error message of downwind routine
   logical(lgt)                      :: use_fdJac            ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
@@ -246,7 +248,6 @@ subroutine summaSolve4kinsol(&
   eqns_data%indx_data               = indx_data
   eqns_data%diag_data               = diag_data
   eqns_data%flux_data               = flux_data
-  eqns_data%deriv_data              = deriv_data
   eqns_data%ixSaturation            = ixSaturation
   eqns_data%firstStateIteration     = .true.
 
@@ -265,38 +266,39 @@ subroutine summaSolve4kinsol(&
     allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)
   end if
   allocate( eqns_data%fluxVec(nState) )
+  allocate( eqns_data%resVec(nState) )
   allocate( eqns_data%resSink(nState) )
   
-  retval = FSUNContext_Create(c_null_ptr, sunctx)
+  retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
-  if (.not. associated(sunvec_y)) then; err=20; message='summaSolve4kinsol: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
 
   ! create the scaling vectors
   sunvec_fscale => FN_VMake_Serial(nState, fscale, sunctx)
-  if (.not. associated(sunvec_fscale)) then; err=20; message='summaSolve4kinsol: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_fscale)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
   sunvec_xscale => FN_VMake_Serial(nState, xscale, sunctx)
-  if (.not. associated(sunvec_xscale)) then; err=20; message='summaSolve4kinsol: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_xscale)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
 
   ! initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y)
 
   ! create memory
   kinsol_mem = FKINCreate(sunctx)
-  if (.not. c_associated(kinsol_mem)) then; err=20; message='summaSolve4kinsol: kinsol_mem = NULL'; return; endif
+  if (.not. c_associated(kinsol_mem)) then; err=20; message=trim(message)//'kinsol_mem = NULL'; return; endif
 
   ! Attach user data to memory
   retval = FKINSetUserData(kinsol_mem, c_loc(eqns_data))
-  if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in FKINSetUserData'; return; endif
+  if (retval /= 0) then; err=20; message=trim(message)//'error in FKINSetUserData'; return; endif
 
   ! Set solver parameters before calling FKINInit
    call setSolverParams(nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), kinsol_mem, retval)
-   if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in setSolverParams'; return; endif
+   if (retval /= 0) then; err=20; message=trim(message)//'error in setSolverParams'; return; endif
 
   ! Set the function Kinsol will use to advance the state
   retval = FKINInit(kinsol_mem, c_funloc(eval8summa4kinsol), sunvec_y)
-  if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in FKINInit'; return; endif
+  if (retval /= 0) then; err=20; message=trim(message)//'error in FKINInit'; return; endif
 
   ! define the form of the matrix
   select case(ixMatrix)
@@ -304,39 +306,40 @@ subroutine summaSolve4kinsol(&
       mu = ku; lu = kl;
       ! Create banded SUNMatrix for use in linear solves
       sunmat_A => FSUNBandMatrix(nState, mu, lu, sunctx)
-      if (.not. associated(sunmat_A)) then; err=20; message='summaSolve4kinsol: sunmat = NULL'; return; endif
+      if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
 
       ! Create banded SUNLinearSolver object
       sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A, sunctx)
-      if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolve4kinsol: sunlinsol = NULL'; return; endif
+      if (.not. associated(sunlinsol_LS)) then; err=20; message=trim(message)//'sunlinsol = NULL'; return; endif
 
     case(ixFullMatrix)
       ! Create dense SUNMatrix for use in linear solves
       sunmat_A => FSUNDenseMatrix(nState, nState, sunctx)
-      if (.not. associated(sunmat_A)) then; err=20; message='summaSolve4kinsol: sunmat = NULL'; return; endif
+      if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
 
       ! Create dense SUNLinearSolver object
       sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
-      if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolve4kinsol: sunlinsol = NULL'; return; endif
+      if (.not. associated(sunlinsol_LS)) then; err=20; message=trim(message)//'sunlinsol = NULL'; return; endif
 
       ! check
-    case default;  err=20; message='summaSolve4kinsol: error in type of matrix'; return
+    case default;  err=20; message=trim(message)//'error in type of matrix'; return
 
   end select  ! form of matrix
 
   ! Attach the matrix and linear solver
   retval = FKINSetLinearSolver(kinsol_mem, sunlinsol_LS, sunmat_A);
-  if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in FKINSetLinearSolver'; return; endif
+  if (retval /= 0) then; err=20; message=trim(message)//'error in FKINSetLinearSolver'; return; endif
 
   ! Set the user-supplied Jacobian routine
   if(.not.use_fdJac)then
     retval = FKINSetJacFn(kinsol_mem, c_funloc(computJacob4kinsol))
-  if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in FKINSetJacFn'; return; endif
+  if (retval /= 0) then; err=20; message=trim(message)//'error in FKINSetJacFn'; return; endif
   endif    
 
   ! Disable error messages and warnings
   if(offErrWarnMessage) then
-    retval = FKINSetErrFile(kinsol_mem, c_null_ptr)
+    retval = FSUNLogger_SetErrorFilename(kinsol_mem, c_null_char)
+    retval = FSUNLogger_SetWarningFilename(kinsol_mem, c_null_char)
   endif
 
   !****************************** Main Solver **********************************************
@@ -359,6 +362,7 @@ subroutine summaSolve4kinsol(&
                     eqns_data%mpar_data,                       & ! intent(in):    model parameters
                     eqns_data%prog_data,                       & ! intent(in):    model prognostic variables for a local HRU
                     eqns_data%indx_data,                       & ! intent(in):    indices defining model states and layers
+                    .false.,                                   & ! intent(in):    currently never using enthalpy as state vector in BE
                     ! output: feasibility
                     feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control
@@ -375,6 +379,9 @@ subroutine summaSolve4kinsol(&
     ! copy to output data
     diag_data     = eqns_data%diag_data
     flux_data     = eqns_data%flux_data
+    fluxVec       = eqns_data%fluxVec
+    resVec        = eqns_data%resVec
+    resSink       = eqns_data%resSink 
     deriv_data    = eqns_data%deriv_data
     ixSaturation  = eqns_data%ixSaturation
     indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of flux calculations changes in indx_data
@@ -393,17 +400,18 @@ subroutine summaSolve4kinsol(&
   deallocate( eqns_data%stateVecPrev )
   deallocate( eqns_data%dBaseflow_dMatric )
   deallocate( eqns_data%fluxVec )
+  deallocate( eqns_data%resVec )
   deallocate( eqns_data%resSink )
 
   call FKINFree(kinsol_mem)
   retval = FSUNLinSolFree(sunlinsol_LS)
-  if(retval /= 0)then; err=20; message='summaSolve4kinsol: unable to free the linear solver'; return; endif
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
   call FN_VDestroy(sunvec_xscale)
   call FN_VDestroy(sunvec_fscale)
   retval = FSUNContext_Free(sunctx)
-  if(retval /= 0)then; err=20; message='summaSolve4kinsol: unable to free the SUNDIALS context'; return; endif
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
 
 end subroutine summaSolve4kinsol
 
@@ -414,7 +422,7 @@ subroutine setInitialCondition(neq, y, sunvec_u)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
-  USE fsundials_nvector_mod
+  USE fsundials_core_mod
   USE fnvector_serial_mod
 
   !======= Declarations =========

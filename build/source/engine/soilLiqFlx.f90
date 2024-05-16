@@ -35,15 +35,7 @@ USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:realMissing            ! missing real number
 
 ! physical constants
-USE multiconst,only:&
-                    LH_fus,  &             ! latent heat of fusion         (J kg-1)
-                    LH_vap,  &             ! latent heat of vaporization   (J kg-1)
-                    LH_sub,  &             ! latent heat of sublimation    (J kg-1)
-                    gravity, &             ! gravitational acceleteration  (m s-2)
-                    Tfreeze, &             ! freezing point of pure water  (K)
-                    iden_air,&             ! intrinsic density of air      (kg m-3)
-                    iden_ice,&             ! intrinsic density of ice      (kg m-3)
-                    iden_water             ! intrinsic density of water    (kg m-3)
+USE multiconst,only:iden_water             ! intrinsic density of water    (kg m-3)
 
 ! named variables
 USE var_lookup,only:iLookPROG              ! named variables for structure elements

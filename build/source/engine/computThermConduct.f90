@@ -67,7 +67,8 @@ real(rkind),parameter     :: dx=1.e-6_rkind          ! finite difference increme
 contains
 
 ! **********************************************************************************************************
-! public subroutine computThermConduct: recompute diagnostic energy variables (thermal conductivity and heat capacity)
+! public subroutine computThermConduct: recompute diagnostic energy variables (thermal conductivity)
+!   NOTE: does every layer regardless if layer or layer+1 is in state subset, could fix for speedup
 ! **********************************************************************************************************
 subroutine computThermConduct(&
                     ! input: control variables

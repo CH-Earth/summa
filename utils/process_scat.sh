@@ -9,15 +9,11 @@
 #SBATCH --account=rpp-kshook
 #SBATCH --output=/home/avanb/TestScripts/output/slurm-%A_%a.out
 
+module load StdEnv/2020
 module load gcc/9.3.0
-module load geo-stack
+module load geo-stack/2022c
 virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
-pip install --no-index --upgrade pip
-pip install --no-index h5netcdf
-pip install --no-index h5py
-pip install --no-index xarray
-pip install --no-index netCDF4
 
 python scat_per_GRU.py rmse
 python scat_per_GRU.py maxe

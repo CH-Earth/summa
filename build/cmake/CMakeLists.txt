@@ -80,7 +80,7 @@ else()
 
         # CMakeLists in ${summa-actors GIT directory}/build/summa/build/cmake
         set(PARENT_DIR ${F_MASTER}../../) # directory of summa actors source code
-        set(EXEC_DIR ${PARENT_DIR}/bin)
+        set(EXEC_DIR ${PARENT_DIR}/Summa-Actors/bin)
 
     else()
         project(summa DESCRIPTION "Summa-Sundials-BE")
@@ -107,7 +107,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     add_compile_definitions(DEBUG)
     set(FLAGS_NOAH -g -O0 -fbacktrace -fbounds-check -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
     set(FLAGS_ALL  -g -O0 -fbacktrace -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
-    set(FLAGS_CXX  -g -O0 -fbacktrace -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+    set(FLAGS_CXX  -g -O0 -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
     message("\nSetting Release Options")
     set(FLAGS_NOAH -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
@@ -159,18 +159,11 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
     if(CMAKE_BUILD_TYPE MATCHES Actors)
         find_package(CAF REQUIRED)
         set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
-        set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io)
+        set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io -lnetcdf)
     endif()
 
 else()
     message("\nBuilding for personal computer")
-
-    #set(SDKROOT "$(xcrun --show-sdk-path)") # appears to be unused and specifically for MacOS so commented out
-
-    ## Original Block -- possibly for MacOS -- attempted to generalize things for additional platforms in the next block
-    #link_directories(/opt/local/lib)
-    #set(INCLUDES /opt/local/include /opt/local/lib)
-    #set(LIBRARIES SUMMA_NOAHMP -llapack -lgfortran -lnetcdff -lnetcdf)
 
     # Set Links and Libraries using Environment Variables
     set(LINK_DIRS $ENV{LINK_DIRS})         # set link directories from environment variable
@@ -206,13 +199,14 @@ else()
             message(FATAL_ERROR "Did not find Actors directory, edit CMakeLists.txt to add path")
         endif()
         link_directories(${DIR_ACTORS}/lib)
-        set(INC_ACTORS ${DIR_ACTORS}/include 
-                       ${PARENT_DIR}/build/includes/global 
-                       ${PARENT_DIR}/build/includes/summa_actor  
-                       ${PARENT_DIR}/build/includes/job_actor 
+        set(INC_ACTORS ${DIR_ACTORS}/include
+                       ${PARENT_DIR}/build/includes/global
+                       ${PARENT_DIR}/build/includes/summa_actor
+                       ${PARENT_DIR}/build/includes/job_actor
                        ${PARENT_DIR}/build/includes/file_access_actor
+                       ${PARENT_DIR}/build/includes/gru_actor
                        ${PARENT_DIR}/build/includes/hru_actor)
-        set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io)
+        set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io -lnetcdf)
     endif()
 
 endif()
@@ -220,7 +214,12 @@ endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Sundials)
     message("\nUsing SUNDIALS libraries for IDA and Kinsol, should have been installed previously")
-    set(LIB_SUNDIALS -lsundials_fida_mod -lsundials_fnvecmanyvector_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod -lsundials_fkinsol_mod -lsundials_fsunnonlinsolnewton_mod)
+    set(LIB_SUNDIALS -lsundials_fcore_mod
+                     -lsundials_fnvecserial_mod
+                     -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod
+                     -lsundials_fsunlinsolband_mod -lsundials_fsunmatrixband_mod
+                     -lsundials_fsunnonlinsolnewton_mod
+                     -lsundials_fida_mod -lsundials_fkinsol_mod)
 elseif(CMAKE_BUILD_TYPE MATCHES BE)
     message("\nUsing Backward Euler based off free versions of Numerical Recipes only")
 else()
@@ -244,9 +243,11 @@ set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
 set(NOAHMP_DIR ${F_MASTER}/build/source/noah-mp)
 
 # Define Actors specific directories
-set(ACTORS_DIR ${PARENT_DIR}/build/source/actors)
+set(ACTORS_DIR ${PARENT_DIR}/build/source)
+set(SYS_INIT_DIR    ${ACTORS_DIR}/system_initialization)
 set(FILE_ACCESS_DIR ${ACTORS_DIR}/file_access_actor)
 set(JOB_ACTOR_DIR   ${ACTORS_DIR}/job_actor)
+set(GRU_ACTOR_DIR   ${ACTORS_DIR}/gru_actor)
 set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
@@ -275,7 +276,8 @@ set(NRUTIL
 # Free versions of numerical recipes procedures for SUMMA modules
 set(NRPROC
     ${ENGINE_DIR}/expIntegral.f90
-    ${ENGINE_DIR}/spline_int.f90)
+    ${ENGINE_DIR}/spline_int.f90
+    ${ENGINE_DIR}/hyp_2F1.f90)
 
 # Hook-up modules
 set(HOOKUP
@@ -324,8 +326,7 @@ set(PRELIM
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
     ${ENGINE_DIR}/conv_funcs.f90
-    ${ENGINE_DIR}/convE2Temp.f90
-    ${SUB_ENGINE_DIR}/ffile_info.f90
+    ${ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
     ${ENGINE_DIR}/read_attrb.f90
     ${ENGINE_DIR}/paramCheck.f90
@@ -337,6 +338,7 @@ set(PRELIM
 set(MODRUN
     ${ENGINE_DIR}/canopySnow.f90
     ${ENGINE_DIR}/derivforce.f90
+    ${ENGINE_DIR}/enthalpyTemp.f90
     ${ENGINE_DIR}/getVectorz.f90
     ${ENGINE_DIR}/indexState.f90
     ${ENGINE_DIR}/layerMerge.f90
@@ -344,7 +346,6 @@ set(MODRUN
     ${ENGINE_DIR}/qTimeDelay.f90
     ${ENGINE_DIR}/snowAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
-    ${ENGINE_DIR}/t2enthalpy.f90
     ${ENGINE_DIR}/tempAdjust.f90
     ${ENGINE_DIR}/updateVars.f90
     ${ENGINE_DIR}/var_derive.f90
@@ -358,7 +359,6 @@ set(MODRUN_SUNDIALS
 # Solver main modules
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
-    ${ENGINE_DIR}/computEnthalpy.f90
     ${ENGINE_DIR}/computFlux.f90
     ${ENGINE_DIR}/computHeatCap.f90
     ${ENGINE_DIR}/computJacob.f90
@@ -393,17 +393,17 @@ set(SOLVER_SUNDIALS
 
 # Driver support modules
 set(DRIVER
+    ${DRIVER_DIR}/summa_type.f90
+    ${DRIVER_DIR}/summa_setup.f90
+    ${DRIVER_DIR}/summa_restart.f90
     ${DRIVER_DIR}/summa_alarms.f90
     ${DRIVER_DIR}/summa_globalData.f90)
-    set(DRIVER_NOT_ACTORS
+set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_util.f90
-    ${DRIVER_DIR}/summa_type.f90
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
     ${DRIVER_DIR}/summa_forcing.f90
     ${DRIVER_DIR}/summa_modelRun.f90
-    ${DRIVER_DIR}/summa_restart.f90
-    ${DRIVER_DIR}/summa_setup.f90
     ${DRIVER_DIR}/summa_writeOutput.f90)
 set(DRIVER_NEXGEN
     ${DRIVER_DIR}/summa_bmi.f90)
@@ -412,45 +412,63 @@ set(DRIVER_NEXGEN
 set(INTERFACE
     ${ACTORS_DIR}/global/cppwrap_auxiliary.f90
     ${ACTORS_DIR}/global/cppwrap_datatypes.f90
-    ${ACTORS_DIR}/global/cppwrap_metadata.f90)
+    ${ACTORS_DIR}/global/cppwrap_metadata.f90
+    ${ACTORS_DIR}/global/c_interface_module.f90)
+set(SYS_INIT_INTERFACE
+    ${SYS_INIT_DIR}/batch_distributer_actor.f90)
 set(FILE_ACCESS_INTERFACE
-    ${FILE_ACCESS_DIR}/cppwrap_fileAccess.f90
+    ${FILE_ACCESS_DIR}/summa_init_struc.f90
+    ${FILE_ACCESS_DIR}/forcing_file_info.f90
+    ${FILE_ACCESS_DIR}/file_access_actor.f90
     ${FILE_ACCESS_DIR}/output_structure.f90
-    ${FILE_ACCESS_DIR}/read_force.f90
     ${FILE_ACCESS_DIR}/fileAccess_writeOutput.f90)
 set(JOB_INTERFACE
-    ${JOB_ACTOR_DIR}/job_actor.f90)
+    ${JOB_ACTOR_DIR}/gru_struc.f90)
+set(GRU_INTERFACE
+    ${GRU_ACTOR_DIR}/gru_interface.f90)
 set(HRU_INTERFACE
     ${HRU_ACTOR_DIR}/hru_init.f90
     ${HRU_ACTOR_DIR}/hru_read.f90
     ${HRU_ACTOR_DIR}/hru_modelRun.f90
-    ${HRU_ACTOR_DIR}/hru_writeOutput.f90)
+    ${HRU_ACTOR_DIR}/hru_writeOutput.f90
+    ${HRU_ACTOR_DIR}/hru_interface.f90)
 
 # Actors actual actor modules
 set(ACTORS_GLOBAL
     ${ACTORS_DIR}/global/auxiliary.cpp
-    ${ACTORS_DIR}/global/global.cpp
-    ${ACTORS_DIR}/global/message_atoms.cpp
+    ${ACTORS_DIR}/global/fileManager.cpp
     ${ACTORS_DIR}/global/settings_functions.cpp
     ${ACTORS_DIR}/global/timing_info.cpp)
-set(SUMMA_ACTOR
-    ${ACTORS_DIR}/summa_actor/batch.cpp
-    ${ACTORS_DIR}/summa_actor/batch_container.cpp
-    ${ACTORS_DIR}/summa_actor/client.cpp
-    ${ACTORS_DIR}/summa_actor/client_container.cpp
-    ${ACTORS_DIR}/summa_actor/summa_actor.cpp
-    ${ACTORS_DIR}/summa_actor/summa_backup_server.cpp
-    ${ACTORS_DIR}/summa_actor/summa_client.cpp
-    ${ACTORS_DIR}/summa_actor/summa_server.cpp)
+set(SYS_INIT
+    ${SYS_INIT_DIR}/batch.cpp
+    ${SYS_INIT_DIR}/batch_container.cpp
+    ${SYS_INIT_DIR}/client.cpp
+    ${SYS_INIT_DIR}/client_container.cpp
+    ${SYS_INIT_DIR}/summa_global_data.cpp
+    ${SYS_INIT_DIR}/summa_actor.cpp
+    ${SYS_INIT_DIR}/summa_backup_server.cpp
+    ${SYS_INIT_DIR}/summa_client.cpp
+    ${SYS_INIT_DIR}/summa_server.cpp)
 set(FILE_ACCESS_ACTOR
-    ${ACTORS_DIR}/file_access_actor/file_access_actor.cpp
-    ${ACTORS_DIR}/file_access_actor/forcing_file_info.cpp
-    ${ACTORS_DIR}/file_access_actor/output_container.cpp)
+    ${FILE_ACCESS_DIR}/summa_init_struc.cpp
+    ${FILE_ACCESS_DIR}/file_access_actor.cpp
+    ${FILE_ACCESS_DIR}/forcing_file_info.cpp
+    ${FILE_ACCESS_DIR}/output_container.cpp)
 set(JOB_ACTOR
-    ${ACTORS_DIR}/job_actor/GRU.cpp
-    ${ACTORS_DIR}/job_actor/job_actor.cpp)
+    ${JOB_ACTOR_DIR}/GRU.cpp
+    ${JOB_ACTOR_DIR}/gru_struc.cpp
+    ${JOB_ACTOR_DIR}/job_actor.cpp
+    ${JOB_ACTOR_DIR}/async_mode.cpp
+    ${JOB_ACTOR_DIR}/data_assimilation_mode.cpp
+    ${JOB_ACTOR_DIR}/job_utils.cpp
+    ${JOB_ACTOR_DIR}/distributed_job_actor.cpp
+    ${JOB_ACTOR_DIR}/node_actor.cpp)
+set(GRU_ACTOR
+    ${GRU_ACTOR_DIR}/gru_actor.cpp)
 set(HRU_ACTOR
-    ${ACTORS_DIR}/hru_actor/hru_actor.cpp)
+    ${HRU_ACTOR_DIR}/hru_utils.cpp
+    ${HRU_ACTOR_DIR}/hru_actor.cpp
+    ${HRU_ACTOR_DIR}/hru_batch_actor.cpp)
 
 
 #=========================================================================================
@@ -478,8 +496,10 @@ set(SUMMA_ALL
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(SUMMA_ALL ${SUMMA_ALL}
+                  ${SYS_INIT_INTERFACE}
                   ${FILE_ACCESS_INTERFACE}
                   ${JOB_INTERFACE}
+                  ${GRU_INTERFACE}
                   ${HRU_INTERFACE})
 else()
     set(SUMMA_ALL ${SUMMA_ALL}
@@ -574,8 +594,9 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
         ${ACTORS_GLOBAL}
         ${FILE_ACCESS_ACTOR}
         ${JOB_ACTOR}
+        ${GRU_ACTOR}
         ${HRU_ACTOR}
-        ${SUMMA_ACTOR}
+        ${SYS_INIT}
         ${SUMMA_CLIENT}
         ${SUMMA_SERVER})
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)

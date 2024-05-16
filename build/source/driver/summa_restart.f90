@@ -66,8 +66,22 @@ contains
  USE globalData,only:elapsedRestart                          ! elapsed time to read model restart files
  ! model decisions
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
-  localColumn, & ! separate groundwater representation in each local soil column
-  singleBasin    ! single groundwater store over the entire basin
+  localColumn,     & ! separate groundwater representation in each local soil column
+  singleBasin        ! single groundwater store over the entire basin
+! look-up values for the numerical method
+USE mDecisions_module,only:&
+  numrec,          & ! home-grown backward Euler solution using free versions of Numerical recipes
+  kinsol,          & ! SUNDIALS backward Euler solution using Kinsol
+  ida                ! SUNDIALS solution using IDA
+ ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
+ USE mDecisions_module,only:&
+   closedForm,     & ! use temperature with closed form heat capacity
+   enthalpyFormLU, & ! use enthalpy with soil temperature-enthalpy lookup tables
+   enthalpyForm      ! use enthalpy with soil temperature-enthalpy analytical solution
+! look-up values for the choice of full or empty aquifer at start
+ USE mDecisions_module,only:&
+   fullStart,      & ! start with full aquifer
+   emptyStart        ! start with empty aquifer
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -80,26 +94,32 @@ contains
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
  character(LEN=256)                    :: restartFile        ! restart file name
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
+ logical(lgt)                          :: checkEnthalpy      ! flag if checking enthalpy for consistency
+ logical(lgt)                          :: use_lookup         ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
+  real(rkind)                          :: aquifer_start      ! initial aquifer storage
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
- summaVars: associate(&
-
+ summaVars: associate(& 
+  ! model decisions
+  ixNumericalMethod    => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& !choice of numerical solver
+  ixNrgConserv         => model_decisions(iLookDECISIONS%nrgConserv)%iDecision   ,& !choice of variable in either energy backward Euler residual or IDA state variable
+  spatial_gw           => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& !choice of method for the spatial representation of groundwater
+  aquiferIni           => model_decisions(iLookDECISIONS%aquiferIni)%iDecision   ,& !choice of full or empty aquifer at start
+  ! lookup table data structure
+  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
   ! primary data structures (variable length vectors)
   indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
   mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
   progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
   diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
   fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
   nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
-
  ) ! assignment to variables in the data structures
  
  ! ---------------------------------------------------------------------------------------
@@ -130,11 +150,19 @@ contains
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! check initial conditions
+! check initial conditions
+ checkEnthalpy = .false.
+ use_lookup    = .false.
+ if(ixNrgConserv .ne. closedForm) checkEnthalpy = .true. ! check enthalpy either for mixed form energy equation or enthalpy state variable
+ if(ixNrgConserv==enthalpyFormLU) use_lookup = .true.    ! use lookup tables for soil temperature-enthalpy instead of analytical solution
  call check_icond(nGRU,                         & ! intent(in):    number of response units
-                  progStruct,                   & ! intent(in):    model prognostic (state) variables
+                  progStruct,                   & ! intent(inout): model prognostic variables
+                  diagStruct,                   & ! intent(inout): model diagnostic variables
                   mparStruct,                   & ! intent(in):    model parameters
                   indxStruct,                   & ! intent(in):    layer indexes
+                  lookupStruct,                 & ! intent(in):    lookup tables
+                  checkEnthalpy,                & ! intent(in):    flag if need to start with consistent enthalpy
+                  use_lookup,                   & ! intent(in):    flag to use the lookup table for soil enthalpy
                   err,cmessage)                   ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -195,17 +223,31 @@ contains
   ! For water balance calculations it is important to ensure that the local aquifer storage is zero if groundwater is treated as a basin-average state variable (singleBasin);
   !  and ensure that basin-average aquifer storage is zero when groundwater is included in the local columns (localColumn).
 
+  ! select aquifer option
+  select case(aquiferIni)
+   case(fullStart)
+    aquifer_start  = 1._rkind ! Start with full aquifer, since easier to spin up by draining than filling (filling we need to wait for precipitation) 
+   case(emptyStart)
+    aquifer_start  = 0._rkind ! Start with empty aquifer ! If want to compare model method outputs, empty start leads to quicker equilibrium
+   case default
+    message=trim(message)//'unable to identify decision for initial aquifer storage'
+    return
+  end select  ! aquifer option
+
   ! select groundwater option
-  select case(model_decisions(iLookDECISIONS%spatial_gw)%iDecision)
+  select case(spatial_gw)
 
    ! the basin-average aquifer storage is not used if the groundwater is included in the local column
    case(localColumn)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
+    do iHRU=1,gru_struc(iGRU)%hruCount
+      if(aquiferIni==emptyStart) progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start ! leave at initialized values if fullStart
+    end do
 
    ! the local column aquifer storage is not used if the groundwater is basin-average
    ! (i.e., where multiple HRUs drain to a basin-average aquifer)
    case(singleBasin)
-    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._rkind ! Start with this full, since easier to spin up by draining than filling (filling we need to wait for precip). 
+    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = aquifer_start 
     do iHRU=1,gru_struc(iGRU)%hruCount
      progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
     end do
