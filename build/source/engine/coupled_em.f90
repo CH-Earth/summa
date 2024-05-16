@@ -20,7 +20,7 @@
 
 module coupled_em_module
 
-! numerical recipes data types
+! homegrown solver data types
 USE nrtype
 
 ! physical constants
@@ -84,7 +84,7 @@ USE mDecisions_module,only:         &
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
-                      numrec       ,&      ! home-grown backward Euler solution using free versions of Numerical recipes
+                      numrec       ,&      ! homegrown backward Euler solution based on concepts from numerical recipes
                       kinsol       ,&      ! SUNDIALS backward Euler solution using Kinsol
                       ida                  ! SUNDIALS solution using IDA
 

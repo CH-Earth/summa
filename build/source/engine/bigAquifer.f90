@@ -20,7 +20,7 @@
 
 module bigAquifer_module
 ! -----------------------------------------------------------------------------------------------------------
-! numerical recipes data types
+! homegrown solver data types
 USE nrtype
 
 ! access missing values

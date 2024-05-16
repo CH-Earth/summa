@@ -243,7 +243,7 @@ contains
     ! choose Jacobian type
     select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
      case(numerical)
-      err=20; message=trim(message)//'numerical derivatives are not implemented for BE numerical Recipes solver';
+      err=20; message=trim(message)//'numerical derivatives are not implemented for BE homegrown solver';
       return_flag=.true.; return
      case(analytical); ! this is fine
      case default

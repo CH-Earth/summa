@@ -5,7 +5,7 @@ private
 public::expint
 contains
 
- ! Numerical recipes routines removed; use code from UEB-Veg
+ ! Homegrown routines removed; use code from UEB-Veg
 
  ! ****************** EXPONENTIAL INTEGRAL FUNCTION *****************************************
  ! From UEB-Veg
