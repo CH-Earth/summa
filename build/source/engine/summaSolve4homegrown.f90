@@ -76,9 +76,9 @@ USE data_types,only:&
                     out_type_computJacob,         & ! class for computJacob arguments
                     in_type_lineSearchRefinement, & ! class for lineSearchRefinement arguments
                     out_type_lineSearchRefinement,& ! class for lineSearchRefinement arguments
-                    in_type_summaSolve4numrec,    & ! class for summaSolve4homegrown arguments
-                    io_type_summaSolve4numrec,    & ! class for summaSolve4homegrown arguments
-                    out_type_summaSolve4numrec      ! class for summaSolve4homegrown arguments
+                    in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
+                    io_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
+                    out_type_summaSolve4homegrown   ! class for summaSolve4homegrown arguments
 
 
 ! look-up values for the choice of groundwater parameterization
@@ -142,8 +142,8 @@ contains
  USE matrixOper_module,  only: scaleMatrices
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
- type(in_type_summaSolve4numrec),intent(in)     :: in_SS4HG  ! model control variables and previous function evaluation
- type(io_type_summaSolve4numrec),intent(inout)  :: io_SS4HG  ! first flux call flag and baseflow variables
+ type(in_type_summaSolve4homegrown),intent(in)     :: in_SS4HG  ! model control variables and previous function evaluation
+ type(io_type_summaSolve4homegrown),intent(inout)  :: io_SS4HG  ! first flux call flag and baseflow variables
  ! input: model control
 ! logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
  ! input: state vectors
@@ -176,7 +176,7 @@ contains
  real(rkind),intent(out)         :: fluxVecNew(:)            ! new flux vector
  real(rkind),intent(out)         :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
- type(out_type_summaSolve4numrec),intent(out)  :: out_SS4HG  ! new function evaluation, convergence flag, and error control
+ type(out_type_summaSolve4homegrown),intent(out)  :: out_SS4HG  ! new function evaluation, convergence flag, and error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -215,13 +215,13 @@ contains
 
  ! ***** Compute the Newton Step *****
 
- call initialize_summaSolve4numrec; if (return_flag) return ! initial setup -- return if error
+ call initialize_summaSolve4homegrown; if (return_flag) return ! initial setup -- return if error
 
- call update_Jacobian;              if (return_flag) return ! compute Jacobian for Newton step -- return if error
+ call update_Jacobian;                 if (return_flag) return ! compute Jacobian for Newton step -- return if error
 
- call solve_linear_system;          if (return_flag) return ! solve the linear system for the Newton step -- return if error
+ call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
 
- call refine_Newton_step;           if (return_flag) return ! refine Newton step if needed -- return if error
+ call refine_Newton_step;              if (return_flag) return ! refine Newton step if needed -- return if error
 
  associate(err => out_SS4HG % err,message   => out_SS4HG % message)
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
@@ -229,7 +229,7 @@ contains
 
  contains
 
-  subroutine initialize_summaSolve4numrec
+  subroutine initialize_summaSolve4homegrown
    ! *** Initial steps for the summaSolve4homegrown algorithm (computing the Newton step) ***
 
    associate(&
@@ -258,7 +258,7 @@ contains
   
    ! initialize the global print flag
    globalPrintFlagInit=globalPrintFlag
-  end subroutine initialize_summaSolve4numrec
+  end subroutine initialize_summaSolve4homegrown
 
   subroutine update_Jacobian
    ! *** Update Jacobian used for Newton step ***
@@ -271,9 +271,9 @@ contains
     err       => out_SS4HG % err      ,& 
     message   => out_SS4HG % message   &     
    &)
-    call initialize_computJacob_summaSolve4numrec
+    call initialize_computJacob_summaSolve4homegrown
     call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
-    call finalize_computJacob_summaSolve4numrec
+    call finalize_computJacob_summaSolve4homegrown
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
   
     ! compute the numerical Jacobian matrix
@@ -987,7 +987,7 @@ contains
    call out_computJacob % finalize(err,cmessage)
   end subroutine finalize_computJacob_testBandMat
  
-  subroutine initialize_computJacob_summaSolve4numrec
+  subroutine initialize_computJacob_summaSolve4homegrown
    ! *** Transfer data to in_computJacob class object from local variables in summaSolve4homegrown ***
    associate(&
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
@@ -1000,14 +1000,14 @@ contains
    &)   
     call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
-  end subroutine initialize_computJacob_summaSolve4numrec
+  end subroutine initialize_computJacob_summaSolve4homegrown
 
-  subroutine finalize_computJacob_summaSolve4numrec
+  subroutine finalize_computJacob_summaSolve4homegrown
    ! *** Transfer data from out_computJacob class object to local variables in summaSolve4homegrown ***
    associate(err => out_SS4HG % err)
     call out_computJacob % finalize(err,cmessage)
    end associate 
-  end subroutine finalize_computJacob_summaSolve4numrec
+  end subroutine finalize_computJacob_summaSolve4homegrown
 
   ! *********************************************************************************************************
   ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector

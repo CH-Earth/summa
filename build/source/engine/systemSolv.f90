@@ -69,15 +69,15 @@ USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,                     & ! data vector (i4b)
-                    var_d,                     & ! data vector (rkind)
-                    var_ilength,               & ! data vector with variable length dimension (i4b)
-                    var_dlength,               & ! data vector with variable length dimension (rkind)
-                    zLookup,                   & ! lookup tables
-                    model_options,             & ! defines the model decisions
-                    in_type_summaSolve4numrec, & ! class for summaSolve4numrec arguments
-                    io_type_summaSolve4numrec, & ! class for summaSolve4numrec arguments
-                    out_type_summaSolve4numrec   ! class for summaSolve4numrec arguments
+                    var_i,                        & ! data vector (i4b)
+                    var_d,                        & ! data vector (rkind)
+                    var_ilength,                  & ! data vector with variable length dimension (i4b)
+                    var_dlength,                  & ! data vector with variable length dimension (rkind)
+                    zLookup,                      & ! lookup tables
+                    model_options,                & ! defines the model decisions
+                    in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
+                    io_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
+                    out_type_summaSolve4homegrown   ! class for summaSolve4homegrown arguments
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:&
@@ -264,9 +264,9 @@ subroutine systemSolv(&
   logical(lgt)                    :: converged                     ! convergence flag numrec
   logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
   ! class objects for call to summaSolve4homegrown
-  type(in_type_summaSolve4numrec)  :: in_SS4HG  ! object for intent(in) summaSolve4numrec arguments
-  type(io_type_summaSolve4numrec)  :: io_SS4HG  ! object for intent(io) summaSolve4numrec arguments
-  type(out_type_summaSolve4numrec) :: out_SS4HG ! object for intent(out) summaSolve4numrec arguments
+  type(in_type_summaSolve4homegrown)  :: in_SS4HG  ! object for intent(in)  summaSolve4homegrown arguments
+  type(io_type_summaSolve4homegrown)  :: io_SS4HG  ! object for intent(io)  summaSolve4homegrown arguments
+  type(out_type_summaSolve4homegrown) :: out_SS4HG ! object for intent(out) summaSolve4homegrown arguments
   ! flags
   logical(lgt) :: return_flag ! flag for handling systemSolv returns trigerred from internal subroutines 
   logical(lgt) :: exit_flag   ! flag for handling loop exit statements trigerred from internal subroutines 
