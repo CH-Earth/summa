@@ -345,25 +345,6 @@ contains
                     Q_det_adj, Q_dix_adj                                                   , &    ! adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol)
                     pondVolFrac, conAreaFrac                                               , &    ! fractional volume [-], fractional contributing area [-]
                     pondArea, pondOutflow)                                                        ! pond area at the end of the time step [m2], pond outflow [m3]    
-!  depressionArea = depressionAreaFrac * totalArea
-!  depressionVol = depressionDepth * depressionArea
-!  pondVol = pondVolFrac * depressionVol
-!  landArea = totalArea - depressionArea(n)
-!  upslopeArea = max(landArea * depressionCatchAreaFrac, zero)
-!  precip = 0.0
-!  pot_evap = 0.0
-!  runoff_depth = basinTotalRunoff
-!  call runDepression(pondVol,                                             &    ! input/output:  state variable = pond volume [m3]
-!                     runoff_depth, precip, pot_evap,                         &    ! input:         forcing data = runoff, precipitation, ET [mm/day]
-!                     depressionArea(n), depressionVol(n), upslopeArea, &    ! input:         spatial attributes = depression area [m2], depression volume [m3], upstream area [m2]
-!                     p(n), tau,                                              &    ! input:         model parameters = p [-] shape of the slope profile; tau [day-1] time constant linear reservoir
-!                     b(n), vMin,                                          &    ! input:         model parameters = b [-] shape of contributing fraction curve; vmin [m3] minimum volume
-!                     dt,                                                     &    ! input:         model time step [days]
-!                     Q_det_adj, Q_dix_adj,                                   &    ! output:        adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol)
-!                     pondVolFrac, conAreaFrac,                             &    ! output:        fractional volume [-], fractional contributing area [-]
-!                     pondArea, pondOutflow)                              ! output:        pond area at the end of the time step [m2], pond outflow [m3]    
-
-
   ! ***********************************************************************************************************************                                               
                                                 
  call qOverland(&

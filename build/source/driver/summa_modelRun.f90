@@ -30,8 +30,6 @@ USE globalData,only:yes,no           ! .true. and .false.
 USE var_lookup,only:iLookTIME        ! named variables for time data structure
 USE var_lookup,only:iLookDIAG        ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookINDEX       ! look-up values for local column index variables
-! USE var_lookup,only:iLookBPAR        ! look-up values for basin parameters (used for HDS initialization)
-! USE var_lookup,only:iLookBVAR        ! look-up values for basin variables (used for HDS initialization)
 USE summa_util,only:handle_err
 
 ! safety: set private unless specified otherwise
@@ -53,7 +51,6 @@ contains
  USE vegPhenlgy_module,only:vegPhenlgy                          ! module to compute vegetation phenology
  USE run_oneGRU_module,only:run_oneGRU                          ! module to run for one GRU
  USE time_utils_module,only:elapsedSec                          ! calculate the elapsed time
-!  USE HDS,only:init_summa_HDS                                    ! initialize HDS variables for the first time step
  ! global data
  USE globalData,only:gru_struc                                  ! gru-hru mapping structures
  USE globalData,only:model_decisions                            ! model decision structure
