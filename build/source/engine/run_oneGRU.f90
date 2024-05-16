@@ -325,14 +325,14 @@ contains
  depressionVol = depressionDepth * depressionArea
  landArea = totalArea - depressionArea
  upslopeArea = max(landArea * depressionCatchAreaFrac, 0._rkind)
-!  write(*,*) data_step
+
  ! run the actual HDS depressional storage model (currently catchfrac is not accounted for)
  call runDepression(&
                     ! subroutine inputs and parameters
                     pondVol                                                                , &    ! input/output:  state variable = pond volume [m3]
                     basinTotalRunoff * 0.001 * data_step                                   , &    ! forcing data       = runoff                [m s-1] -> mm/timestep
-                    basinPrecip * 0.001 * data_step                                        , &    ! forcing data       = precipitation         [m s-1] -> mm/timestep
-                    basinPotentialEvap * 0.001 * data_step                                 , &    ! forcing data       = potential evaporation [m s-1] -> mm/timestep
+                    basinPrecip * data_step                                                , &    ! forcing data       = precipitation         [mm s-1] -> mm/timestep
+                    basinPotentialEvap * data_step                                         , &    ! forcing data       = potential evaporation [mm s-1] -> mm/timestep
                     depressionArea                                                         , &    ! spatial attributes = depression area       [m2]
                     depressionVol                                                          , &    ! spatial attributes = depression volume     [m3]
                     upslopeArea                                                            , &    ! spatial attributes = upstream area         [m2]
