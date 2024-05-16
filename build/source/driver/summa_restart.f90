@@ -30,6 +30,7 @@ USE var_lookup,only:iLookPROG                               ! look-up values for
 USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
+USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters used by HDS
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 
 ! safety: set private unless specified otherwise
@@ -68,6 +69,7 @@ contains
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
   localColumn, & ! separate groundwater representation in each local soil column
   singleBasin    ! single groundwater store over the entire basin
+ USE HDS,only:init_summa_HDS
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -226,6 +228,19 @@ contains
   do iHRU=1,gru_struc(iGRU)%hruCount
    dt_init%gru(iGRU)%hru(iHRU) = progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
   end do
+
+  ! *****************************************************************************
+  ! *** initialize HDS variables at the GRU level
+  ! *****************************************************************************
+  call init_summa_HDS(bvarStruct%gru(iGRU)%var(iLookBVAR%pondVolFrac)%dat(1)      , &
+                      bparStruct%gru(iGRU)%var(iLookBPAR%depressionDepth)         , &
+                      bparStruct%gru(iGRU)%var(iLookBPAR%depressionAreaFrac)      , &
+                      bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) , &
+                      bparStruct%gru(iGRU)%var(iLookBPAR%depression_p)            , &
+                      bvarStruct%gru(iGRU)%var(iLookBVAR%pondVol)%dat(1)          , &
+                      bvarStruct%gru(iGRU)%var(iLookBVAR%pondArea)%dat(1)         , &
+                      bvarStruct%gru(iGRU)%var(iLookBVAR%conAreaFrac)%dat(1)      , & 
+                      bvarStruct%gru(iGRU)%var(iLookBVAR%vMin)%dat(1))
 
  end do  ! end looping through GRUs
 

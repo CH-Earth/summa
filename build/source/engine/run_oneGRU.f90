@@ -318,17 +318,6 @@ contains
  ! ********** PRAIRIE POTHOLE IMPLEMENTATION (HDS)************************************************************************
  ! ***********************************************************************************************************************
 
- ! parameters: the reamining 
- !  Initialize states (currently implemented here, but will be moved to either summa_restart or summa_modelRun)
- call init_summa_HDS(pondVolFrac        , &
-                     depressionDepth    , &
-                     depressionAreaFrac , &
-                     totalArea          , &
-                     depression_p       , &
-                     pondVol            , &
-                     pondArea           , &
-                     conAreaFrac        , & 
-                     vMin)
  ! initialize pondOutflow
  pondOutflow = 0._rkind
  ! calculate some spatial attributes (should be moved somewhere else)

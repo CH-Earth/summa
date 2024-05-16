@@ -152,19 +152,6 @@ contains
     diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
 
    end do  ! looping through HRUs
-   ! *****************************************************************************
-   ! *** initialize HDS variables at the GRU level
-   ! *****************************************************************************
-  !  call init_summa_HDS(bparStruct%gru(iGRU)%var(iLookBVAR%pondVolFrac), &
-  !                      bparStruct%gru(iGRU)%var(iLookBPAR%depressionDepth), &
-  !                      bparStruct%gru(iGRU)%var(iLookBPAR%depressionAreaFrac), &
-  !                      bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1), &
-  !                      bparStruct%gru(iGRU)%var(iLookBPAR%depression_p), &
-  !                      bparStruct%gru(iGRU)%var(iLookBVAR%pondVol), &
-  !                      bparStruct%gru(iGRU)%var(iLookBVAR%pondArea), &
-  !                      bparStruct%gru(iGRU)%var(iLookBVAR%conArea), & 
-  !                      bparStruct%gru(iGRU)%var(iLookBVAR%vMin))
-
   end do  ! looping through GRUs
  end if  ! if the first time step
 
