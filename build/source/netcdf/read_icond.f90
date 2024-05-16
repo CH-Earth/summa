@@ -190,7 +190,8 @@ contains
  integer(i4b)                           :: fileHRU      ! number of HRUs in file
  integer(i4b)                           :: fileGRU      ! number of GRUs in file
  integer(i4b)                           :: iVar, i      ! loop indices
- integer(i4b),dimension(5)              :: ndx          ! intermediate array of loop indices
+ integer(i4b),dimension(1)              :: ndx          ! intermediate array of loop indices
+ integer(i4b),dimension(4)              :: hdsInitIdx   ! intermediate array of loop indices for HDS initial conditions
  integer(i4b)                           :: iGRU         ! loop index
  integer(i4b)                           :: iHRU         ! loop index
  integer(i4b)                           :: dimID        ! varible dimension ids
@@ -391,7 +392,51 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! (2) now get the basin variable(s)
  ! --------------------------------------------------------------------------------------------------------
+ 
+ !********************************
+ ! get basin variables for HDS
+ !********************************
+ hdsInitIdx = (/iLookBVAR%pondVolFrac, iLookBVAR%vMin, iLookBVAR%conAreaFrac, iLookBVAR%pondArea/) ! HDS initial conditions
 
+!  iVar = iLookBVAR%pondVolFrac  
+ ! get number of GRUs in file
+ err = nf90_inq_dimid(ncID,"gru",dimID)
+ if(err==nf90_noerr)then ! proceed if gru dimension exists 
+  err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+ 
+  do i = 1,size(hdsInitIdx)
+   iVar = hdsInitIdx(i)
+  
+   ! get gru-based variable id
+   err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
+   ! skip any other vairable if missing
+   if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); cycle; endif ! cycle is used to skip to the next hdsInitIdx if not found
+
+   ! initialize the gru variable data
+   allocate(varData(fileGRU,1),stat=err)
+   if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
+
+   ! get data
+   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+
+   ! store data in basin var (bvar) structure
+   do iGRU = 1,nGRU
+    ! put the data into data structures
+    bvarData%gru(iGRU)%var(iVar)%dat = varData((iGRU+startGRU-1),1)
+    ! ! check whether the first values is set to nf90_fill_double
+    ! if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+    ! if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
+   end do ! end iGRU loop
+
+   ! deallocate temporary data array for next variable
+   deallocate(varData, stat=err)
+   if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+  end do ! loop for hdsInitIdx
+end if ! end of check that gru dimension exists
+ !********************************
+ !********************************
+ 
  ! get the index in the file: single HRU
  if(restartFileType/=singleHRU)then
 
@@ -418,7 +463,7 @@ contains
    endif
 
    ! loop through specific basin variables (currently 1 but loop provided to enable inclusion of others)
-   ndx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%vMin,  iLookBVAR%conAreaFrac, iLookBVAR%pondVolFrac, iLookBVAR%pondArea/)   ! array of desired variable indices
+   ndx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices
    do i = 1,size(ndx)
     iVar = ndx(i)
 

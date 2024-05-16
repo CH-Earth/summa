@@ -30,6 +30,8 @@ USE globalData,only:yes,no           ! .true. and .false.
 USE var_lookup,only:iLookTIME        ! named variables for time data structure
 USE var_lookup,only:iLookDIAG        ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookINDEX       ! look-up values for local column index variables
+! USE var_lookup,only:iLookBPAR        ! look-up values for basin parameters (used for HDS initialization)
+! USE var_lookup,only:iLookBVAR        ! look-up values for basin variables (used for HDS initialization)
 USE summa_util,only:handle_err
 
 ! safety: set private unless specified otherwise
@@ -51,6 +53,7 @@ contains
  USE vegPhenlgy_module,only:vegPhenlgy                          ! module to compute vegetation phenology
  USE run_oneGRU_module,only:run_oneGRU                          ! module to run for one GRU
  USE time_utils_module,only:elapsedSec                          ! calculate the elapsed time
+!  USE HDS,only:init_summa_HDS                                    ! initialize HDS variables for the first time step
  ! global data
  USE globalData,only:gru_struc                                  ! gru-hru mapping structures
  USE globalData,only:model_decisions                            ! model decision structure
@@ -149,6 +152,19 @@ contains
     diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%scalarGreenVegFraction)%dat(1) = greenVegFrac_monthly(timeStruct%var(iLookTIME%im))
 
    end do  ! looping through HRUs
+   ! *****************************************************************************
+   ! *** initialize HDS variables at the GRU level
+   ! *****************************************************************************
+  !  call init_summa_HDS(bparStruct%gru(iGRU)%var(iLookBVAR%pondVolFrac), &
+  !                      bparStruct%gru(iGRU)%var(iLookBPAR%depressionDepth), &
+  !                      bparStruct%gru(iGRU)%var(iLookBPAR%depressionAreaFrac), &
+  !                      bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1), &
+  !                      bparStruct%gru(iGRU)%var(iLookBPAR%depression_p), &
+  !                      bparStruct%gru(iGRU)%var(iLookBVAR%pondVol), &
+  !                      bparStruct%gru(iGRU)%var(iLookBVAR%pondArea), &
+  !                      bparStruct%gru(iGRU)%var(iLookBVAR%conArea), & 
+  !                      bparStruct%gru(iGRU)%var(iLookBVAR%vMin))
+
   end do  ! looping through GRUs
  end if  ! if the first time step
 
@@ -250,6 +266,7 @@ contains
                   typeStruct%gru(iGRU),         & ! intent(in):    local classification of soil veg etc. for each HRU
                   idStruct%gru(iGRU),           & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrStruct%gru(iGRU),         & ! intent(in):    local attributes for each HRU
+                  bparStruct%gru(iGRU),         & ! intent(in):    basin-average parameters for HDS 
                   ! data structures (input-output)
                   mparStruct%gru(iGRU),         & ! intent(inout): local model parameters
                   indxStruct%gru(iGRU),         & ! intent(inout): model indices

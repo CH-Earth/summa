@@ -1,10 +1,45 @@
 module HDS
-    USE type_HDS
-
+    USE nrtype
+    ! USE globalData
+    
     contains
+    subroutine init_summa_HDS(pondVolFrac, depressionDepth, depressionAreaFrac, totalArea, p, pondVol, pondArea, conArea, vMin)
+        ! initialize HDS pothole storage model states for SUMMA
+        implicit none
+        !subroutine arguments
+        real(rkind),  intent(inout)  :: pondVolFrac                    ! depression volume fraction [-]
+        real(rkind),  intent(in)     :: depressionDepth                ! depression depth [m]
+        real(rkind),  intent(in)     :: depressionAreaFrac             ! depression area fraction [-]
+        real(rkind),  intent(in)     :: totalArea                      ! basin (GRU) total area [m2]
+        real(rkind),  intent(in)     :: p                              ! shape of the slope profile [-]. Exponent for calculating the fractional wet area
+        real(rkind),  intent(out)    :: pondVol                        ! pond volume [m3]
+        real(rkind),  intent(out)    :: pondArea                       ! pond Area [m2]
+        real(rkind),  intent(out)    :: conArea                        ! fractional contributing area [-]
+        real(rkind),  intent(out)    :: vMin                           ! minimum pond volume [m3]
 
+        ! local variables
+        real(rkind)                  :: depressionArea                 ! depression area [m2]
+        real(rkind)                  :: depressionVol                  ! depression volume [m3]
+        !*****************************************
+        ! initialize HDS pothole storage variables
+        ! GRU level
+        !*****************************************
+           pondVolFrac = max(pondVolFrac, zero)
+           depressionArea = depressionAreaFrac * totalArea
+           depressionVol = depressionDepth * depressionArea
+           ! the following checks (<0) are used to set initial values for the variables if there are set to missing value (-999)
+           ! the following calculations are approximate solutions and will be updated inside the routine
+           if(pondVol<0)  pondVol  = pondVolFrac * depressionVol   ! approximate vol calculation, will be updated later in the subroutine
+           if(pondArea<0) pondArea = depressionArea*((pondVol/depressionVol)**(two/(p + two)))
+           if(conArea<0)  conArea  = pondVol/depressionVol ! assume that contrib_frac = vol_frac_sml for initialization purposes
+           if(vMin<0)     vMin     = pondVol
+        
+
+    end subroutine init_summa_HDS
+    !=============================================================
+    !=============================================================
     subroutine init_pond_Area_Volume(depArea, depVol, totEvap, volFrac, p, pondVol, pondArea)
-        ! used to initialize pond volume and area
+        ! used to initialize pond volume and area (Not used in LSMs)
         ! initialize at capacity minus depth of evaporation
         implicit none
         !subroutine arguments
@@ -202,6 +237,7 @@ module HDS
         real(rkind),  intent(out)   :: cFrac, g, dgdv              ! output: contributing fraction, net fluxes and derivative, pond area
         ! local variables
         real(rkind), parameter      ::  ms=0.0001_rkind            ! smoothing parameter (algorithm control)
+        real(rkind),  parameter     :: verySmall = 1.0e-12_rkind   ! very small value  
         real(rkind), parameter      ::  rCoef=zero                 ! runoff coefficient [-] !HDS_standalone 0.050_rkind
         real(rkind)                 ::  pondArea                   ! calculated pond area
         real(rkind)                 ::  pInput                     ! precipitation (or rain+melt) [m/day]
