@@ -89,7 +89,7 @@ USE data_types,only:&
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
-                    numrec       ,& ! home-grown backward Euler solution using concepts from numerical recipes
+                    homegrown    ,& ! home-grown backward Euler solution using concepts from numerical recipes
                     kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida             ! SUNDIALS solution using IDA
 
@@ -607,8 +607,8 @@ subroutine opSplittin(&
    associate(ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision) ! intent(in): [i4b] choice of numerical solver
     ! we just solve the fully coupled problem if IDA for now, splitting can happen otherwise
     select case(ixNumericalMethod)
-     case(ida);            nCoupling = 1
-     case(kinsol, numrec); nCoupling = 2
+     case(ida);               nCoupling = 1
+     case(kinsol, homegrown); nCoupling = 2
      case default; err=20; message=trim(message)//'solver choice not found'; return_flag=.true.; return
     end select
    end associate

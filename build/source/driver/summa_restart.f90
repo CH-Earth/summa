@@ -70,7 +70,7 @@ contains
   singleBasin        ! single groundwater store over the entire basin
 ! look-up values for the numerical method
 USE mDecisions_module,only:&
-  numrec,          & ! homegrown backward Euler solution using concepts from numerical recipes
+  homegrown,       & ! homegrown backward Euler solution using concepts from numerical recipes
   kinsol,          & ! SUNDIALS backward Euler solution using Kinsol
   ida                ! SUNDIALS solution using IDA
  ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)

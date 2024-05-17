@@ -1,7 +1,7 @@
 
-To switch between SUMMA-BE and SUMMA-SUNDIALS, the num_method in the model_decision file can be either one of the values "numrec" (choice "itertive" is backward compatible), "kinsol", or "ida".
+To switch between SUMMA-BE and SUMMA-SUNDIALS, the num_method in the model_decision file can be either one of the values "homegrown" (choice "itertive" is backward compatible), "kinsol", or "ida".
 
-In energy conservation residual for backward Euler, either the the analytical (closed form) heat capacity formula or the enthalpy finite difference formula (dH_T/dT) is used. The "nrgConserv" variable has been added to the var_lookup module to handle such decision. A user should add this variable to the model_decision file with one of the values "closedForm" or "enthalpyFD". Choice of num_method as "itertive" will set num_method=numrec and nrgConserv=closedForm.
+In energy conservation residual for backward Euler, either the the analytical (closed form) heat capacity formula or the enthalpy finite difference formula (dH_T/dT) is used. The "nrgConserv" variable has been added to the var_lookup module to handle such decision. A user should add this variable to the model_decision file with one of the values "closedForm" or "enthalpyFD". Choice of num_method as "itertive" will set num_method=homegrown and nrgConserv=closedForm.
 
 All SUMMA-SUNDIALS files are in build/source/engine. The important ones are as following:
 

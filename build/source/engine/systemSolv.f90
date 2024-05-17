@@ -92,7 +92,7 @@ USE mDecisions_module,only:  &
 
  ! look-up values for the numerical method
 USE mDecisions_module,only:&
-                    numrec       ,& ! homegrown backward Euler solution based on concepts from numerical recipes
+                    homegrown    ,& ! homegrown backward Euler solution based on concepts from numerical recipes
                     kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida             ! SUNDIALS solution using IDA
 
@@ -145,7 +145,7 @@ subroutine systemSolv(&
                       ! output: balances (only computed at this level for ida)
                       balance,           & ! intent(out):   balance of energy per state
                       ! output: model control
-                      niter,             & ! intent(out):   number of iterations taken (numrec)
+                      niter,             & ! intent(out):   number of iterations taken (homegrown)
                       nSteps,            & ! intent(out):   number of time steps taken in solver
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
@@ -200,7 +200,7 @@ subroutine systemSolv(&
   real(rkind),intent(out)         :: stateVecTrial(:)              ! trial state vector (mixed units)
   real(rkind),intent(out)         :: stateVecPrime(:)              ! trial state vector (mixed units)
   real(rkind),intent(out)         :: fluxVec(nState)               ! flux vector (mixed units)
-  real(rkind),intent(out)         :: resSink(nState)               ! additional terms in the residual vector numrec
+  real(rkind),intent(out)         :: resSink(nState)               ! additional terms in the residual vector homegrown solver
   real(qp),intent(out)            :: resVec(nState)    ! NOTE: qp  ! residual vector
   real(rkind),intent(out)         :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
   ! output: balances (only computed at this level for ida)
@@ -244,24 +244,24 @@ subroutine systemSolv(&
   real(rkind)                     :: rtol(nState)                  ! relative tolerance ida
   type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_cur
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
-  ! ida variables outputted if use eval8summaWithPrime (not used here, just inside ida solver)
+  ! ida solver variables outputted if use eval8summaWithPrime (not used here, just inside ida solver)
   logical(lgt)                    :: firstSplitOper0               ! flag to indicate if we are processing the first flux call in a splitting operation, changed inside eval8summaWithPrime
   real(rkind)                     :: scalarCanopyTempPrime         ! prime value for temperature of the vegetation canopy (K s-1)
   real(rkind)                     :: scalarCanopyWatPrime          ! prime value for total water content of the vegetation canopy (kg m-2 s-1)
   real(rkind)                     :: mLayerTempPrime(nLayers)      ! prime vector of temperature of each snow and soil layer (K s-1)
   real(rkind), allocatable        :: mLayerMatricHeadPrime(:)      ! prime vector of matric head of each snow and soil layer (m s-1)
   real(rkind)                     :: mLayerVolFracWatPrime(nLayers)! prime vector of volumetric total water content of each snow and soil layer (s-1)
-  ! kinsol and numrec variables
+  ! kinsol and homegrown solver variables
   real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
   real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
-  real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector numrec
-  ! numrec variables
-  real(rkind)                     :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled numrec
-  real(rkind)                     :: xMin,xMax                     ! state minimum and maximum (mixed units) numrec
-  integer(i4b)                    :: maxiter                       ! maximum number of iterations numrec
-  integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type) numrec
-  integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution numrec
-  logical(lgt)                    :: converged                     ! convergence flag numrec
+  real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector homegrown solver
+  ! homegrown solver variables
+  real(rkind)                     :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled homegrown solver
+  real(rkind)                     :: xMin,xMax                     ! state minimum and maximum (mixed units) homegrown solver
+  integer(i4b)                    :: maxiter                       ! maximum number of iterations homegrown solver
+  integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type) homegrown solver
+  integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution homegrown solver
+  logical(lgt)                    :: converged                     ! convergence flag homegrown solver
   logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
   ! class objects for call to summaSolve4homegrown
   type(in_type_summaSolve4homegrown)  :: in_SS4HG  ! object for intent(in)  summaSolve4homegrown arguments
@@ -285,7 +285,7 @@ subroutine systemSolv(&
         call solve_with_IDA; if (return_flag) return              ! solve using IDA -- return if error
       case(kinsol) ! solve for BE time step using KINSOL
         call solve_with_KINSOL; if (return_flag) return           ! solve using KINSOL -- return if error
-      case(numrec) ! solve for BE time step using Newton iterations
+      case(homegrown) ! solve for BE time step using Newton iterations
         call Newton_iterations_homegrown; if (return_flag) return ! Newton iterations using homegrown solver -- return if error
     end select
   end associate 
