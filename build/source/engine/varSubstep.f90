@@ -75,7 +75,7 @@ USE multiconst,only:&
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
-                    numrec         ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    numrec         ,& ! homegrown backward Euler solution using concepts from numerical recipes
                     kinsol         ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida               ! SUNDIALS solution using IDA
 
@@ -1077,7 +1077,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ! * check mass balance...
     ! -----------------------
 
-    ! NOTE: currently this will only fail with kinsol solver, since mass balance is checked in the numrec solver and not checked for ida solver
+    ! NOTE: currently this will only fail with kinsol solver, since mass balance is checked in the homegrown numrec solver and not checked for ida solver
     !   Negative error code will mean step will be failed and retried with smaller step size
     if(computMassBalance)then
 

@@ -57,7 +57,7 @@ integer(i4b),parameter,public :: minFunc              =  62    ! do not enable c
 integer(i4b),parameter,public :: constantScaling      =  71    ! constant scaling factor
 integer(i4b),parameter,public :: laiScaling           =  72    ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
 ! look-up values for the choice of numerical method
-integer(i4b),parameter,public :: numrec               =  81    ! home-grown backward Euler solution using free versions of Numerical recipes
+integer(i4b),parameter,public :: numrec               =  81    ! homegrown backward Euler solution using concepts from numerical recipes
 integer(i4b),parameter,public :: kinsol               =  82    ! SUNDIALS backward Euler solution using Kinsol
 integer(i4b),parameter,public :: ida                  =  83    ! SUNDIALS solution using IDA
 ! look-up values for method used to compute derivative
@@ -399,8 +399,8 @@ subroutine mDecisions(err,message)
 
   ! identify the numerical method
   select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
-    case('numrec'  ); model_decisions(iLookDECISIONS%num_method)%iDecision = numrec          ! home-grown backward Euler solution using free versions of Numerical recipes
-    case('itertive'); model_decisions(iLookDECISIONS%num_method)%iDecision = numrec          ! home-grown backward Euler solution (included for backwards compatibility)
+    case('numrec'  ); model_decisions(iLookDECISIONS%num_method)%iDecision = numrec          ! homegrown backward Euler solution using concepts from numerical recipes
+    case('itertive'); model_decisions(iLookDECISIONS%num_method)%iDecision = numrec          ! homegrown backward Euler solution (included for backwards compatibility)
     case('kinsol'  ); model_decisions(iLookDECISIONS%num_method)%iDecision = kinsol          ! SUNDIALS backward Euler solution using Kinsol
     case('sundials'); model_decisions(iLookDECISIONS%num_method)%iDecision = ida             ! SUNDIALS solution using IDA
     case('ida'     ); model_decisions(iLookDECISIONS%num_method)%iDecision = ida             ! SUNDIALS solution using IDA

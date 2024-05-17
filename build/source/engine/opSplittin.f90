@@ -89,7 +89,7 @@ USE data_types,only:&
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
-                    numrec       ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    numrec       ,& ! home-grown backward Euler solution using concepts from numerical recipes
                     kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida             ! SUNDIALS solution using IDA
 

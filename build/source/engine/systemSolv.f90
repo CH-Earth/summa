@@ -69,15 +69,15 @@ USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,                     & ! data vector (i4b)
-                    var_d,                     & ! data vector (rkind)
-                    var_ilength,               & ! data vector with variable length dimension (i4b)
-                    var_dlength,               & ! data vector with variable length dimension (rkind)
-                    zLookup,                   & ! lookup tables
-                    model_options,             & ! defines the model decisions
-                    in_type_summaSolve4numrec, & ! class for summaSolve4numrec arguments
-                    io_type_summaSolve4numrec, & ! class for summaSolve4numrec arguments
-                    out_type_summaSolve4numrec   ! class for summaSolve4numrec arguments
+                    var_i,                        & ! data vector (i4b)
+                    var_d,                        & ! data vector (rkind)
+                    var_ilength,                  & ! data vector with variable length dimension (i4b)
+                    var_dlength,                  & ! data vector with variable length dimension (rkind)
+                    zLookup,                      & ! lookup tables
+                    model_options,                & ! defines the model decisions
+                    in_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
+                    io_type_summaSolve4homegrown, & ! class for summaSolve4homegrown arguments
+                    out_type_summaSolve4homegrown   ! class for summaSolve4homegrown arguments
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:&
@@ -92,7 +92,7 @@ USE mDecisions_module,only:  &
 
  ! look-up values for the numerical method
 USE mDecisions_module,only:&
-                    numrec       ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    numrec       ,& ! homegrown backward Euler solution based on concepts from numerical recipes
                     kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida             ! SUNDIALS solution using IDA
 
@@ -152,18 +152,18 @@ subroutine systemSolv(&
                       err,message)         ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
-  USE allocspace_module,only:allocLocal                   ! allocate local data structures
+  USE allocspace_module,only:allocLocal                     ! allocate local data structures
   ! state vector and solver
-  USE getVectorz_module,only:getScaling                   ! get the scaling vectors
-  USE enthalpyTemp_module,only:T2enthalpy_snwWat          ! convert temperature to liq+ice enthalpy for a snow layer
+  USE getVectorz_module,only:getScaling                     ! get the scaling vectors
+  USE enthalpyTemp_module,only:T2enthalpy_snwWat            ! convert temperature to liq+ice enthalpy for a snow layer
 #ifdef SUNDIALS_ACTIVE
-  USE tol4ida_module,only:popTol4ida                      ! populate tolerances
-  USE eval8summaWithPrime_module,only:eval8summaWithPrime ! get the fluxes and residuals
-  USE summaSolve4ida_module,only:summaSolve4ida           ! solve DAE by IDA
-  USE summaSolve4kinsol_module,only:summaSolve4kinsol     ! solve DAE by KINSOL
+  USE tol4ida_module,only:popTol4ida                        ! populate tolerances
+  USE eval8summaWithPrime_module,only:eval8summaWithPrime   ! get the fluxes and residuals
+  USE summaSolve4ida_module,only:summaSolve4ida             ! solve DAE by IDA
+  USE summaSolve4kinsol_module,only:summaSolve4kinsol       ! solve DAE by KINSOL
 #endif
-  USE eval8summa_module,only:eval8summa                   ! get the fluxes and residuals
-  USE summaSolve4numrec_module,only:summaSolve4numrec     ! solve DAE by numerical recipes
+  USE eval8summa_module,only:eval8summa                     ! get the fluxes and residuals
+  USE summaSolve4homegrown_module,only:summaSolve4homegrown ! solve DAE using homegrown solver
 
   implicit none
   ! ---------------------------------------------------------------------------------------
@@ -263,10 +263,10 @@ subroutine systemSolv(&
   integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution numrec
   logical(lgt)                    :: converged                     ! convergence flag numrec
   logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
-  ! class objects for call to summaSolve4numrec
-  type(in_type_summaSolve4numrec)  :: in_SS4NR  ! object for intent(in) summaSolve4numrec arguments
-  type(io_type_summaSolve4numrec)  :: io_SS4NR  ! object for intent(io) summaSolve4numrec arguments
-  type(out_type_summaSolve4numrec) :: out_SS4NR ! object for intent(out) summaSolve4numrec arguments
+  ! class objects for call to summaSolve4homegrown
+  type(in_type_summaSolve4homegrown)  :: in_SS4HG  ! object for intent(in)  summaSolve4homegrown arguments
+  type(io_type_summaSolve4homegrown)  :: io_SS4HG  ! object for intent(io)  summaSolve4homegrown arguments
+  type(out_type_summaSolve4homegrown) :: out_SS4HG ! object for intent(out) summaSolve4homegrown arguments
   ! flags
   logical(lgt) :: return_flag ! flag for handling systemSolv returns trigerred from internal subroutines 
   logical(lgt) :: exit_flag   ! flag for handling loop exit statements trigerred from internal subroutines 
@@ -282,11 +282,11 @@ subroutine systemSolv(&
   associate(ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision) ! intent(in): [i4b] choice of numerical solver
     select case(ixNumericalMethod)
       case(ida)    ! solve for general time step using IDA
-        call solve_with_IDA; if (return_flag) return           ! solve using IDA -- return if error
+        call solve_with_IDA; if (return_flag) return              ! solve using IDA -- return if error
       case(kinsol) ! solve for BE time step using KINSOL
-        call solve_with_KINSOL; if (return_flag) return        ! solve using KINSOL -- return if error
+        call solve_with_KINSOL; if (return_flag) return           ! solve using KINSOL -- return if error
       case(numrec) ! solve for BE time step using Newton iterations
-        call Newton_iterations_numrec; if (return_flag) return ! Newton iterations using numerical recipes -- return if error
+        call Newton_iterations_homegrown; if (return_flag) return ! Newton iterations using homegrown solver -- return if error
     end select
   end associate 
  
@@ -556,22 +556,22 @@ contains
  end subroutine initial_flux_and_residual_vectors_prime
 
  subroutine Newton_step
-  ! ** Compute the Newton step using numerical recipes ** 
+  ! ** Compute the Newton step using concepts from numerical recipes ** 
   associate(&
    ! layer geometry
    nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
    nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1) & ! intent(in): [i4b] number of soil layers
    )
-   call in_SS4NR % initialize(dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
-   call io_SS4NR % initialize(firstFluxCall,xMin,xMax,ixSaturation)
-   call summaSolve4numrec(in_SS4NR,&                                                                                ! input: model control
-                         &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                            ! input: state vectors
-                         &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
-                         &indx_data,diag_data,flux_temp,deriv_data,&                                                ! input-output: data structures
-                         &dBaseflow_dMatric,io_SS4NR,&                                                              ! input-output: baseflow
-                         &stateVecNew,fluxVec,resSink,resVecNew,out_SS4NR)                                          ! output
-   call io_SS4NR % finalize(firstFluxCall,xMin,xMax,ixSaturation)
-   call out_SS4NR % finalize(fNew,converged,err,cmessage)                
+   call in_SS4HG % initialize(dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
+   call io_SS4HG % initialize(firstFluxCall,xMin,xMax,ixSaturation)
+   call summaSolve4homegrown(in_SS4HG,&                                                                                ! input: model control
+                            &stateVecTrial,fScale,xScale,resVec,sMul,dMat,&                                            ! input: state vectors
+                            &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
+                            &indx_data,diag_data,flux_temp,deriv_data,&                                                ! input-output: data structures
+                            &dBaseflow_dMatric,io_SS4HG,&                                                              ! input-output: baseflow
+                            &stateVecNew,fluxVec,resSink,resVecNew,out_SS4HG)                                          ! output
+   call io_SS4HG % finalize(firstFluxCall,xMin,xMax,ixSaturation)
+   call out_SS4HG % finalize(fNew,converged,err,cmessage)                
   end associate
   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
  
@@ -812,8 +812,8 @@ contains
 #endif
  end subroutine solve_with_KINSOL
 
- subroutine Newton_iterations_numrec
-  ! ** Compute the backward Euler solution using Newton iterations from numerical recipes **
+ subroutine Newton_iterations_homegrown
+  ! ** Compute the backward Euler solution using Newton iterations from homegrown solver **
 
   ! define maximum number of iterations
   maxiter = nint(mpar_data%var(iLookPARAM%maxiter)%dat(1))
@@ -822,7 +822,7 @@ contains
   localMaxIter = merge(scalarMaxIter, maxIter, scalarSolution)
 
   !---------------------------
-  ! * solving F(y) = 0 from Backward Euler with free numerical recipes routines, y is the state vector 
+  ! * solving F(y) = 0 from Backward Euler using concepts from numerical recipes, y is the state vector 
   !---------------------------
   ! iterate and update trial state vector, fluxes, and derivatives
   exit_flag=.false. ! initialize exit flag
@@ -835,7 +835,7 @@ contains
   end do 
 
   if (post_massCons) call enforce_mass_conservation ! enforce mass conservation if desired
- end subroutine Newton_iterations_numrec
+ end subroutine Newton_iterations_homegrown
 
  subroutine finalize_systemSolv
   ! set untapped melt energy to zero
