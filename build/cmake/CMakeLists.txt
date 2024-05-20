@@ -438,7 +438,8 @@ set(ACTORS_GLOBAL
     ${ACTORS_DIR}/global/auxiliary.cpp
     ${ACTORS_DIR}/global/fileManager.cpp
     ${ACTORS_DIR}/global/settings_functions.cpp
-    ${ACTORS_DIR}/global/timing_info.cpp)
+    ${ACTORS_DIR}/global/timing_info.cpp
+    ${ACTORS_DIR}/global/logger.cpp)
 set(SYS_INIT
     ${SYS_INIT_DIR}/batch.cpp
     ${SYS_INIT_DIR}/batch_container.cpp

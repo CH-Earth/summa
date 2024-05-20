@@ -713,7 +713,7 @@ subroutine setSolverParams(dt_cur,ida_mem,retval)
   integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
   integer,parameter           :: fail_iter = 50     ! maximum number of error test and convergence test failures, default 10
   real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
-  real(qp),parameter          :: h_init = 0         ! initial stepsize
+  real(qp),parameter          :: h_init = 3600      ! initial stepsize
  
   ! Set the maximum BDF order
   retval = FIDASetMaxOrd(ida_mem, max_order)
