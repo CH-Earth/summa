@@ -446,7 +446,7 @@ subroutine summaSolve4ida(&
     if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetStopTime'; return; endif
     
     ! Set solver parameters at end of setup
-    call setSolverParams(dt_cur, ida_mem, retval)
+    call setSolverParams(dt_cur, eqns_data%mpar_data, ida_mem, retval)
     if (retval /= 0) then; err=20; message=trim(message)//'error in setSolverParams'; return; endif
     
     ! Disable error messages and warnings
@@ -641,9 +641,6 @@ subroutine summaSolve4ida(&
     diag_data%var(iLookDIAG%hCur)%dat(1) = hCur(1)
     diag_data%var(iLookDIAG%tCur)%dat(1) = tCur(1)
 
-
-
-
     call FIDAFree(ida_mem)
     retval = FSUNLinSolFree(sunlinsol_LS)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
@@ -692,61 +689,70 @@ end subroutine setInitialCondition
 ! ----------------------------------------------------------------
 ! setSolverParams: private routine to set parameters in IDA solver
 ! ----------------------------------------------------------------
-subroutine setSolverParams(dt_cur,ida_mem,retval)
+subroutine setSolverParams(dt_cur,mpar_data,ida_mem,retval)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
   USE fida_mod   ! Fortran interface to IDA
-
+  USE data_types,only:var_dlength
   !======= Declarations =========
   implicit none
 
   ! calling variables
-  real(rkind),intent(in)      :: dt_cur             ! current whole time step
-  type(c_ptr),intent(inout)   :: ida_mem            ! IDA memory
-  integer(i4b),intent(out)    :: retval             ! return value
+  real(rkind),intent(in)        :: dt_cur             ! current whole time step
+  type(var_dlength),intent(in)  :: mpar_data       ! model parameters
+  type(c_ptr),intent(inout)     :: ida_mem            ! IDA memory
+  integer(i4b),intent(out)      :: retval             ! return value
 
   !======= Internals ============
   integer,parameter           :: nonlin_iter = 4    ! maximum number of nonlinear iterations before reducing step size, default = 4
-  integer,parameter           :: max_order = 5      ! maximum BDF order,  default and max = 5
   real(qp),parameter          :: coef_nonlin = 0.33 ! coefficient in the nonlinear convergence test, default = 0.33
-  integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
   integer,parameter           :: fail_iter = 50     ! maximum number of error test and convergence test failures, default 10
-  real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
-  real(qp),parameter          :: h_init = 3600      ! initial stepsize
- 
-  ! Set the maximum BDF order
-  retval = FIDASetMaxOrd(ida_mem, max_order)
-  if (retval /= 0) return
+  
+  associate(&
+    max_order         => mpar_data%var(iLookPARAM%idaMaxOrder)%dat(1),         & ! maximum BDF order
+    max_err_test_fail => mpar_data%var(iLookPARAM%idaMaxErrTestFail)%dat(1),   & ! maximum number of error test failures
+    max_steps         => mpar_data%var(iLookPARAM%idaMaxInternalSteps)%dat(1), & ! maximum number of steps
+    h_init            => mpar_data%var(iLookPARAM%idaInitStepSize)%dat(1),     & ! initial stepsize
+    h_min             => mpar_data%var(iLookPARAM%idaMinStepSize)%dat(1)       & ! minimum stepsize
+    )
+    
+    ! Set the maximum BDF order
+    retval = FIDASetMaxOrd(ida_mem, int(max_order))
+    if (retval /= 0) return
 
-  ! Set coefficient in the nonlinear convergence test
-  retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
-  if (retval /= 0) return
+    ! Set coefficient in the nonlinear convergence test
+    retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
+    if (retval /= 0) return
 
-  ! Set maximun number of nonliear iterations, maybe should just make 4 (instead of SUMMA parameter)
-  retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
-  if (retval /= 0) return
+    ! Set maximun number of nonliear iterations, maybe should just make 4 (instead of SUMMA parameter)
+    retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
+    if (retval /= 0) return
 
-  !  Set maximum number of convergence test failures
-  retval = FIDASetMaxConvFails(ida_mem, fail_iter)
-  if (retval /= 0) return
+    !  Set maximum number of convergence test failures
+    retval = FIDASetMaxConvFails(ida_mem, fail_iter)
+    if (retval /= 0) return
 
-  !  Set maximum number of error test failures
-  retval = FIDASetMaxErrTestFails(ida_mem, fail_iter)
-  if (retval /= 0) return
+    !  Set maximum number of error test failures
+    retval = FIDASetMaxErrTestFails(ida_mem, int(max_err_test_fail))
+    if (retval /= 0) return
 
-  ! Set maximum number of steps
-  retval = FIDASetMaxNumSteps(ida_mem, max_step)
-  if (retval /= 0) return
+    ! Set maximum number of steps
+    retval = FIDASetMaxNumSteps(ida_mem, int(max_steps, kind=8))
+    if (retval /= 0) return
 
-  ! Set maximum stepsize
-  h_max = dt_cur
-  retval = FIDASetMaxStep(ida_mem, h_max)
-  if (retval /= 0) return
+    ! Set maximum stepsize
+    retval = FIDASetMaxStep(ida_mem, dt_cur)
+    if (retval /= 0) return
 
-  ! Set initial stepsize
-  retval = FIDASetInitStep(ida_mem, h_init)
-  if (retval /= 0) return
+    ! Set initial stepsize
+    retval = FIDASetInitStep(ida_mem, h_init)
+    if (retval /= 0) return
+
+    ! Set minimum stepsize
+    retval = FIDASetMinStep(ida_mem, h_min)
+    if (retval /= 0) return
+  end associate    ! end association to variables in the data structure
 
 end subroutine setSolverParams
 

@@ -310,6 +310,12 @@ MODULE var_lookup
   integer(i4b)    :: absTolMatric          = integerMissing    ! absolute error tolerance for matric head
   integer(i4b)    :: relTolAquifr          = integerMissing    ! relative error tolerance for aquifer hydrology
   integer(i4b)    :: absTolAquifr          = integerMissing    ! absolute error tolerance for aquifer hydrology
+  integer(i4b)    :: idaMaxOrder           = integerMissing    ! maximum order for IDA
+  integer(i4b)    :: idaMaxInternalSteps   = integerMissing    ! maximum number of internal steps for IDA before tout
+  integer(i4b)    :: idaInitStepSize       = integerMissing    ! initial step size for IDA
+  integer(i4b)    :: idaMinStepSize        = integerMissing    ! minimum step size for IDA
+  integer(i4b)    :: idaMaxStepSize        = integerMissing    ! maximum step size for IDA
+  integer(i4b)    :: idaMaxErrTestFail     = integerMissing    ! maximum number of error test failures for IDA
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)
@@ -912,7 +918,7 @@ MODULE var_lookup
                                                                         141,142,143,144,145,146,147,148,149,150,&
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
-                                                                        171,172,173,174)
+                                                                        171,172,173,174,175,176,177,178,179,180)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

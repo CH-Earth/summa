@@ -405,6 +405,12 @@ contains
   case('absTolMatric'             ); get_ixParam = iLookPARAM%absTolMatric           ! absolute error tolerance for matric head
   case('relTolAquifr'             ); get_ixParam = iLookPARAM%relTolAquifr           ! relative error tolerance for aquifer hydrology
   case('absTolAquifr'             ); get_ixParam = iLookPARAM%absTolAquifr           ! absolute error tolerance for aquifer hydrology
+  case('idaMaxOrder'              ); get_ixParam = iLookPARAM%idaMaxOrder            ! maximum order for IDA  
+  case('idaMaxInternalSteps'      ); get_ixParam = iLookPARAM%idaMaxInternalSteps    ! maximum number of internal steps for IDA before tout 
+  case('idaInitStepSize'          ); get_ixParam = iLookPARAM%idaInitStepSize        ! initial step size for IDA 
+  case('idaMinStepSize'           ); get_ixParam = iLookPARAM%idaMinStepSize         ! minimum step size for IDA
+  case('idaMaxStepSize'           ); get_ixParam = iLookPARAM%idaMaxStepSize         ! maximum step size for IDA
+  case('idaMaxErrTestFail'        ); get_ixParam = iLookPARAM%idaMaxErrTestFail      ! maximum number of error test failures for IDA
   case('zmin'                     ); get_ixParam = iLookPARAM%zmin                   ! minimum layer depth (m)
   case('zmax'                     ); get_ixParam = iLookPARAM%zmax                   ! maximum layer depth (m)
   case('zminLayer1'               ); get_ixParam = iLookPARAM%zminLayer1             ! minimum layer depth for the 1st (top) layer (m)
