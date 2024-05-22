@@ -400,7 +400,6 @@ subroutine mDecisions(err,message)
   ! identify the numerical method
   select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
     case('homegrown'); model_decisions(iLookDECISIONS%num_method)%iDecision = homegrown   ! homegrown backward Euler solution using concepts from numerical recipes
-    case('numrec'   ); model_decisions(iLookDECISIONS%num_method)%iDecision = homegrown   ! homegrown backward Euler solution using concepts from numerical recipes
     case('itertive' ); model_decisions(iLookDECISIONS%num_method)%iDecision = homegrown   ! homegrown backward Euler solution (included for backwards compatibility)
     case('kinsol'   ); model_decisions(iLookDECISIONS%num_method)%iDecision = kinsol      ! SUNDIALS backward Euler solution using Kinsol
     case('ida'      ); model_decisions(iLookDECISIONS%num_method)%iDecision = ida         ! SUNDIALS solution using IDA
