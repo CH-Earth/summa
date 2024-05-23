@@ -374,7 +374,7 @@ set(SOLVER
     ${ENGINE_DIR}/soilLiqFlx.f90
     ${ENGINE_DIR}/ssdNrgFlux.f90
     ${ENGINE_DIR}/stomResist.f90
-    ${ENGINE_DIR}/summaSolve4numrec.f90
+    ${ENGINE_DIR}/summaSolve4homegrown.f90
     ${ENGINE_DIR}/systemSolv.f90
     ${ENGINE_DIR}/varSubstep.f90
     ${ENGINE_DIR}/vegLiqFlux.f90

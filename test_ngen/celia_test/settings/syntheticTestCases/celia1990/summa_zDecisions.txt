@@ -13,7 +13,7 @@ vegeParTbl                      USGS            ! (04) vegetation category datas
 soilStress                      NoahType        ! (05) choice of function for the soil moisture control on stomatal resistance
 stomResist                      BallBerry       ! (06) choice of function for stomatal resistance
 ! ***********************************************************************************************************************
-num_method                      numrec          ! (07) choice of numerical method
+num_method                      homegrown       ! (07) choice of numerical method
 fDerivMeth                      analytic        ! (08) method used to calculate Jacobian
 LAI_method                      monTable        ! (09) method used to determine LAI and SAI
 f_Richards                      mixdform        ! (10) form of Richard's equation
@@ -63,7 +63,7 @@ nrgConserv                      closedForm      ! (30) choice of variable in ene
 ! Jarvis    ! Jarvis
 ! -----------------------------------------------------------------------------------------------
 ! (07) choice of numerical method
-! numrec    ! home-grown backward Euler
+! homegrown ! home-grown backward Euler
 ! kinsol    ! SUNDIALS backward Euler solution using Kinsol
 ! ida       ! SUNDIALS solution using IDA
 ! -----------------------------------------------------------------------------------------------

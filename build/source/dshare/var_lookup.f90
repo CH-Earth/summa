@@ -285,9 +285,9 @@ MODULE var_lookup
   integer(i4b)    :: minwind               = integerMissing    ! minimum wind speed (m s-1)
   integer(i4b)    :: minstep               = integerMissing    ! minimum length of the time step
   integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step
-  integer(i4b)    :: be_steps              = integerMissing    ! minimum number of substeps to take in a maxstep numrec
+  integer(i4b)    :: be_steps              = integerMissing    ! minimum number of substeps to take in a maxstep homegrown
   integer(i4b)    :: wimplicit             = integerMissing    ! weight assigned to the start-of-step fluxes
-  integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iterations numrec and kinsol
+  integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iterations homegrown and kinsol
   integer(i4b)    :: relConvTol_liquid     = integerMissing    ! relative convergence tolerance for vol frac liq water (-)
   integer(i4b)    :: absConvTol_liquid     = integerMissing    ! absolute convergence tolerance for vol frac liq water (-)
   integer(i4b)    :: relConvTol_matric     = integerMissing    ! relative convergence tolerance for matric head (-)

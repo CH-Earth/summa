@@ -20,7 +20,7 @@
 
 module coupled_em_module
 
-! numerical recipes data types
+! homegrown solver data types
 USE nrtype
 
 ! physical constants
@@ -84,7 +84,7 @@ USE mDecisions_module,only:         &
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
-                      numrec       ,&      ! home-grown backward Euler solution using free versions of Numerical recipes
+                      homegrown   ,&      ! homegrown backward Euler solution based on concepts from numerical recipes
                       kinsol       ,&      ! SUNDIALS backward Euler solution using Kinsol
                       ida                  ! SUNDIALS solution using IDA
 
@@ -413,9 +413,9 @@ subroutine coupled_em(&
 
       ! identify the need to check the mass balance, both methods should work if tolerance coarse enough
       select case(ixNumericalMethod)
-        case(ida);            checkMassBalance_ds = .false. ! IDA balance agreement levels are controlled by set tolerances
-        case(kinsol, numrec); checkMassBalance_ds = .true.  ! KINSOL or numrec give finite difference dt_sub fluxes and were summed for an average flux
-        case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
+        case(ida);               checkMassBalance_ds = .false. ! IDA balance agreement levels are controlled by set tolerances
+        case(kinsol, homegrown); checkMassBalance_ds = .true.  ! KINSOL or homegrown give finite difference dt_sub fluxes and were summed for an average flux
+        case default; err=20;    message=trim(message)//'expect num_method to be ida, kinsol, or homegrown (or itertive, which is homegrown)'; return
       end select
 
       ! set the flag to compute enthalpy, may want to have this true always if want to output enthalpy
