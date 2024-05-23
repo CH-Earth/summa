@@ -6,9 +6,10 @@ find_path(NetCDF_C_INCLUDE_DIR NAMES netcdf.h)
 
 # Find the NetCDF Fortran library
 find_library(NetCDF_F90_LIBRARY NAMES netcdff)
+find_path(NetCDF_F90_INCLUDE_DIR NAMES netcdf.mod)
 
 set (NetCDF_LIBRARIES ${NetCDF_C_LIBRARY} ${NetCDF_F90_LIBRARY})
-set (NetCDF_INCLUDE_DIRS ${NetCDF_C_INCLUDE_DIR})
+set (NetCDF_INCLUDE_DIRS ${NetCDF_C_INCLUDE_DIR} ${NetCDF_F90_INCLUDE_DIR})
 
 find_package_handle_standard_args(NetCDF DEFAULT_MSG
         NetCDF_LIBRARIES NetCDF_INCLUDE_DIRS)
