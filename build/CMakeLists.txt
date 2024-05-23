@@ -6,22 +6,20 @@ if(DEFINED ENV{FC})
 else()
     set (CMAKE_Fortran_COMPILER gfortran)
 endif()
-#=========================================================================================
-# When compiling Summa each configuration can be compiled in a Cluster or Debug mode,
-# which is set by the CMAKE_BUILD_TYPES variables. The default is BE, release mode no
-# cluster no Sundials no Actors no NexGen which runs the code with BE based off Numerical
-# Recipes only.
-# Note, Sundials, NexGen, and Actors will all require extra libraries to be downloaded
-# and compiled. Currently, NexGen cannot work with Actors.
-# If you install Sundials, you can compile Summa with Sundials, which allows you to run
-# Summa with a solver of BE based off Numerical Recipes, Kinsol, or IDA. The solver choice
-# is then set in the code decisions file.
-# Other options include how to drive the code, NexGen (with BMI) or Actors (without BMI)
-# framework or no extra framework (without BMI).
-# If you change the build type, you will need to delete the CMakeCache.txt file and
-# rerun cmake.
-#=========================================================================================
 
+#=========================================================================================
+# SUMMA can be compiled with debug flags by specifiying -DCMAKE_BUILD_TYPE=Debug
+#
+# There are multiple options for building SUMMA, including using the 
+# Sundials suite of solvers, the C++ Actor framework, and the NexGen framework.
+# The options are set by specifying -DOPTION=ON when running cmake.
+# For example to compile SUMMA with Sundials, use
+# cmake -B cmake_build -S ../. -DUSE_SUNDILAS=ON
+# cmake --build ../cmake_build --target all -j 
+# 
+# To compile SUMMA with Actors, see the Summa-Actors repo:
+# https://github.com/uofs-simlab/Summa-Actors
+#=========================================================================================
 
 # Add options for build type
 set(CMAKE_CONFIGURATION_TYPES Release Debug)
