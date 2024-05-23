@@ -26,6 +26,11 @@ USE nrtype
 ! access integers to define "yes" and "no"
 USE globalData,only:yes,no             ! .true. and .false.
 
+! physical constants
+USE multiconst,only:&
+                    LH_vap,  & ! latent heat of vaporization   (J kg-1)
+                    iden_water ! intrinsic density of water    (kg m-3)
+
 ! define data types
 USE data_types,only:&
                     ! GRU-to-HRU mapping
@@ -63,7 +68,8 @@ USE globalData,only:data_step              ! time step of forcing data (s) - use
 USE mDecisions_module,only:&           ! look-up values for the choice of method for the spatial representation of groundwater
  localColumn, &                        ! separate groundwater representation in each local soil column
  singleBasin, &                        ! single groundwater store over the entire basin
- bigBucket                             ! a big bucket (lumped aquifer model)
+ bigBucket,   &                        ! a big bucket (lumped aquifer model)
+ HDSmodel                              ! Hysteretic Depressional Storage model implementation for prairie potholes
 
 ! -----------------------------------------------------------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------------------------------------------------------
@@ -105,7 +111,7 @@ contains
 
  USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
- USE HDS                                                     ! module to run HDS pothole storage dynamics
+ USE HDS,only:runDepression                                  ! module to run HDS pothole storage dynamics
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
 
@@ -275,28 +281,34 @@ contains
 
   ! averaging more fluxes (and/or states) can be added to this section as desired
   basinPrecip = basinPrecip + (forcHRU%hru(iHRU)%var(iLookFORCE%pptrate) * fracHRU)
-  basinPotentialEvap = 0._rkind
+  ! calculate potential evaporation using Oudin (2005)'s formula
+  basinPotentialEvap = basinPotentialEvap + & 
+                       ! Oudin (2005)'s formula
+                       (1000._rkind * & 
+                       (forcHRU%hru(iHRU)%var(iLookFORCE%SWRadAtm) * 1e-6 / &  ! from w/m2 to MJ/m2/s
+                       (LH_vap * 1e-6 * iden_water)) * &    ! J kg-1 to MJ kg-1
+                       ((forcHRU%hru(iHRU)%var(iLookFORCE%airtemp)-273.15_rkind + 5._rkind)/100._rkind)) * fracHRU        ! K to deg C
  end do  ! (looping through HRUs)
 
  ! ***********************************************************************************************************************
  ! ********** END LOOP THROUGH HRUS **************************************************************************************
  ! ***********************************************************************************************************************
  ! perform the pothole storage and routing
- associate(totalArea      => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) , &
-           basinTotalRunoff => bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) , &  ! basin total runoff (m s-1)
+ associate(totalArea               =>    bvarData%var(iLookBVAR%basin__totalArea)%dat(1) , &
+           basinTotalRunoff        =>  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) , &  ! basin total runoff (m s-1)
           ! HDS pothole storage variables
-           vMin           =>    bvarData%var(iLookBVAR%vMin)%dat(1)             , &   ! volume of water in the meta depression at the start of a fill period (m3)
-           conAreaFrac    =>    bvarData%var(iLookBVAR%conAreaFrac)%dat(1)      , &   ! fractional contributing area (-)
-           pondVolFrac    =>    bvarData%var(iLookBVAR%pondVolFrac)%dat(1)      , &   ! fractional pond volume = pondVol/depressionVol (-)
-           pondVol        =>    bvarData%var(iLookBVAR%pondVol)%dat(1)          , &   ! pond volume at the end of time step (m3)
-           pondArea       =>    bvarData%var(iLookBVAR%pondArea)%dat(1)         , &   ! pond area at the end of the time step (m2)
-           pondOutflow    =>    bvarData%var(iLookBVAR%pondOutflow)%dat(1)      , &   ! pond outflow (m3)
+           vMin                    =>    bvarData%var(iLookBVAR%vMin)%dat(1)             , &   ! volume of water in the meta depression at the start of a fill period (m3)
+           conAreaFrac             =>    bvarData%var(iLookBVAR%conAreaFrac)%dat(1)      , &   ! fractional contributing area (-)
+           pondVolFrac             =>    bvarData%var(iLookBVAR%pondVolFrac)%dat(1)      , &   ! fractional pond volume = pondVol/depressionVol (-)
+           pondVol                 =>    bvarData%var(iLookBVAR%pondVol)%dat(1)          , &   ! pond volume at the end of time step (m3)
+           pondArea                =>    bvarData%var(iLookBVAR%pondArea)%dat(1)         , &   ! pond area at the end of the time step (m2)
+           pondOutflow             =>    bvarData%var(iLookBVAR%pondOutflow)%dat(1)      , &   ! pond outflow (m3)
            ! HDS pothole storage parameters
-           depressionDepth => bparGRU%var(iLookBPAR%depressionDepth)                 , &
-           depressionAreaFrac => bparGRU%var(iLookBPAR%depressionAreaFrac)           , &
-           depressionCatchAreaFrac => bparGRU%var(iLookBPAR%depressionCatchAreaFrac) , &
-           depression_p =>  bparGRU%var(iLookBPAR%depression_p)                      , &
-           depression_b => bparGRU%var(iLookBPAR%depression_p)                         &
+           depressionDepth         =>    bparGRU%var(iLookBPAR%depressionDepth)          , &
+           depressionAreaFrac      =>    bparGRU%var(iLookBPAR%depressionAreaFrac)       , &
+           depressionCatchAreaFrac =>    bparGRU%var(iLookBPAR%depressionCatchAreaFrac)  , &
+           depression_p            =>    bparGRU%var(iLookBPAR%depression_p)             , &
+           depression_b            =>    bparGRU%var(iLookBPAR%depression_p)               &
         )
 
  ! compute water balance for the basin aquifer
@@ -317,17 +329,17 @@ contains
  ! ***********************************************************************************************************************
  ! ********** PRAIRIE POTHOLE IMPLEMENTATION (HDS)************************************************************************
  ! ***********************************************************************************************************************
+ if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
+  ! initialize pondOutflow
+  pondOutflow = 0._rkind
+  ! calculate some spatial attributes (should be moved somewhere else)
+  depressionArea = depressionAreaFrac * totalArea
+  depressionVol = depressionDepth * depressionArea
+  landArea = totalArea - depressionArea
+  upslopeArea = max(landArea * depressionCatchAreaFrac, 0._rkind)
 
- ! initialize pondOutflow
- pondOutflow = 0._rkind
- ! calculate some spatial attributes (should be moved somewhere else)
- depressionArea = depressionAreaFrac * totalArea
- depressionVol = depressionDepth * depressionArea
- landArea = totalArea - depressionArea
- upslopeArea = max(landArea * depressionCatchAreaFrac, 0._rkind)
-
- ! run the actual HDS depressional storage model (currently catchfrac is not accounted for)
- call runDepression(&
+  ! run the actual HDS depressional storage model (currently catchfrac is not accounted for)
+  call runDepression(&
                     ! subroutine inputs and parameters
                     pondVol                                                                , &    ! input/output:  state variable = pond volume [m3]
                     basinTotalRunoff * 0.001 * data_step                                   , &    ! forcing data       = runoff                [m s-1] -> mm/timestep
@@ -345,6 +357,10 @@ contains
                     Q_det_adj, Q_dix_adj                                                   , &    ! adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol)
                     pondVolFrac, conAreaFrac                                               , &    ! fractional volume [-], fractional contributing area [-]
                     pondArea, pondOutflow)                                                        ! pond area at the end of the time step [m2], pond outflow [m3]    
+  
+  ! adjust runoff values
+     
+ endif ! model decision control for HDS
   ! ***********************************************************************************************************************                                               
                                                 
  call qOverland(&

@@ -68,7 +68,8 @@ contains
  ! model decisions
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
   localColumn, & ! separate groundwater representation in each local soil column
-  singleBasin    ! single groundwater store over the entire basin
+  singleBasin, & ! single groundwater store over the entire basin
+  HDSmodel       ! Hysteretic Depressional Storage model implementation for prairie potholes
  USE HDS,only:init_summa_HDS
  ! ---------------------------------------------------------------------------------------
  ! * variables
@@ -232,16 +233,17 @@ contains
   ! *****************************************************************************
   ! *** initialize HDS variables at the GRU level
   ! *****************************************************************************
-  call init_summa_HDS(bvarStruct%gru(iGRU)%var(iLookBVAR%pondVolFrac)%dat(1)      , &
-                      bparStruct%gru(iGRU)%var(iLookBPAR%depressionDepth)         , &
-                      bparStruct%gru(iGRU)%var(iLookBPAR%depressionAreaFrac)      , &
-                      bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) , &
-                      bparStruct%gru(iGRU)%var(iLookBPAR%depression_p)            , &
-                      bvarStruct%gru(iGRU)%var(iLookBVAR%pondVol)%dat(1)          , &
-                      bvarStruct%gru(iGRU)%var(iLookBVAR%pondArea)%dat(1)         , &
-                      bvarStruct%gru(iGRU)%var(iLookBVAR%conAreaFrac)%dat(1)      , & 
-                      bvarStruct%gru(iGRU)%var(iLookBVAR%vMin)%dat(1))
-
+  if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
+   call init_summa_HDS(bvarStruct%gru(iGRU)%var(iLookBVAR%pondVolFrac)%dat(1)      , &
+                       bparStruct%gru(iGRU)%var(iLookBPAR%depressionDepth)         , &
+                       bparStruct%gru(iGRU)%var(iLookBPAR%depressionAreaFrac)      , &
+                       bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) , &
+                       bparStruct%gru(iGRU)%var(iLookBPAR%depression_p)            , &
+                       bvarStruct%gru(iGRU)%var(iLookBVAR%pondVol)%dat(1)          , &
+                       bvarStruct%gru(iGRU)%var(iLookBVAR%pondArea)%dat(1)         , &
+                       bvarStruct%gru(iGRU)%var(iLookBVAR%conAreaFrac)%dat(1)      , & 
+                       bvarStruct%gru(iGRU)%var(iLookBVAR%vMin)%dat(1))
+  endif
  end do  ! end looping through GRUs
 
  ! *****************************************************************************

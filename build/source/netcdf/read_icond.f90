@@ -158,7 +158,7 @@ contains
  USE globalData,only:prog_meta                          ! metadata for prognostic variables
  USE globalData,only:bvar_meta                          ! metadata for basin (GRU) variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
- USE globalData,only:startGRU                          ! index of first gru for parallel runs
+ USE globalData,only:startGRU                           ! index of first gru for parallel runs
  USE globaldata,only:iname_soil,iname_snow              ! named variables to describe the type of layer
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
@@ -170,7 +170,12 @@ contains
  USE data_types,only:var_info                           ! metadata
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
  USE updatState_module,only:updateSoil                  ! update soil states
-
+ ! provide access to model decisions
+ USE globalData,only:model_decisions    ! model decision structure
+ USE var_lookup,only:iLookDECISIONS     ! look-up values for model decisions
+ ! provide access to the named variables that describe model decisions
+ USE mDecisions_module,only:HDSmodel                              ! Hysteretic Depressional Storage model implementation for prairie potholes
+ 
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
@@ -396,44 +401,42 @@ contains
  !********************************
  ! get basin variables for HDS
  !********************************
- hdsInitIdx = (/iLookBVAR%pondVolFrac, iLookBVAR%vMin, iLookBVAR%conAreaFrac, iLookBVAR%pondArea/) ! HDS initial conditions
+ if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
+  hdsInitIdx = (/iLookBVAR%pondVolFrac, iLookBVAR%vMin, iLookBVAR%conAreaFrac, iLookBVAR%pondArea/) ! HDS initial conditions
 
-!  iVar = iLookBVAR%pondVolFrac  
- ! get number of GRUs in file
- err = nf90_inq_dimid(ncID,"gru",dimID)
- if(err==nf90_noerr)then ! proceed if gru dimension exists 
-  err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
+  ! get number of GRUs in file
+  err = nf90_inq_dimid(ncID,"gru",dimID)
+  if(err==nf90_noerr)then ! proceed if gru dimension exists 
+   err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
  
-  do i = 1,size(hdsInitIdx)
-   iVar = hdsInitIdx(i)
+   do i = 1,size(hdsInitIdx)
+    iVar = hdsInitIdx(i)
   
-   ! get gru-based variable id
-   err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
-   ! skip any other vairable if missing
-   if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); cycle; endif ! cycle is used to skip to the next hdsInitIdx if not found
+    ! get gru-based variable id
+    err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
+    ! skip any other vairable if missing
+    if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); cycle; endif ! cycle is used to skip to the next hdsInitIdx if not found
 
-   ! initialize the gru variable data
-   allocate(varData(fileGRU,1),stat=err)
-   if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
+    ! initialize the gru variable data
+    allocate(varData(fileGRU,1),stat=err)
+    if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
 
-   ! get data
-   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
-   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+    ! get data
+    err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+    if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
-   ! store data in basin var (bvar) structure
-   do iGRU = 1,nGRU
-    ! put the data into data structures
-    bvarData%gru(iGRU)%var(iVar)%dat = varData((iGRU+startGRU-1),1)
-    ! ! check whether the first values is set to nf90_fill_double
-    ! if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-    ! if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
-   end do ! end iGRU loop
+    ! store data in basin var (bvar) structure
+    do iGRU = 1,nGRU
+     ! put the data into data structures
+     bvarData%gru(iGRU)%var(iVar)%dat = varData((iGRU+startGRU-1),1)
+    end do ! end iGRU loop
 
-   ! deallocate temporary data array for next variable
-   deallocate(varData, stat=err)
-   if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
-  end do ! loop for hdsInitIdx
-end if ! end of check that gru dimension exists
+    ! deallocate temporary data array for next variable
+    deallocate(varData, stat=err)
+    if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+   end do ! loop for hdsInitIdx
+  end if ! end of check that gru dimension exists
+endif ! end for model decision HDS
  !********************************
  !********************************
  

@@ -32,7 +32,4 @@ MODULE nrtype
  real(rkind),  parameter  :: half      = 0.5_rkind
  real(rkind),  parameter  :: one       = 1.0_rkind
  real(rkind),  parameter  :: two       = 2.0_rkind
- ! real(rkind),  parameter  :: verySmall = 1.0e-12_rkind
- ! physical constants
- real(rkind),  parameter  :: rho_w     = 1000._rkind  ! density of water (kg m-3)
 END MODULE nrtype

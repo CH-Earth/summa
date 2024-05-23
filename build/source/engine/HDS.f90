@@ -1,6 +1,7 @@
 module HDS
     USE nrtype
-    ! USE globalData
+    ! physical constants
+    USE multiconst,only:iden_water ! intrinsic density of water    (kg m-3)
     
     contains
     subroutine init_summa_HDS(pondVolFrac, depressionDepth, depressionAreaFrac, totalArea, p, pondVol, pondArea, conArea, vMin)
@@ -251,9 +252,9 @@ module HDS
         pondArea = depArea*((pondVol/depVol)**(two/(p + two)))
 
         ! get the forcing
-        pInput  = pRate /rho_w  ! kg m-2 -> m s-1
-        qInput  = qSeas /rho_w  + rCoef*pRate/rho_w  ! surface runoff ! kg m-2 s-1 -> m s-1
-        eLosses = etPond/rho_w  ! evaporation losses kg m-2 s-1 -> m s-1
+        pInput  = pRate /iden_water  ! kg m-2 -> m s-1
+        qInput  = qSeas /iden_water  + rCoef*pRate/iden_water  ! surface runoff ! kg m-2 s-1 -> m s-1
+        eLosses = etPond/iden_water  ! evaporation losses kg m-2 s-1 -> m s-1
 
         ! get volume fluxes from the host land model
         ! sum of water input to the depression (eq 11)
