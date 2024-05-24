@@ -10,13 +10,13 @@ endif()
 #=========================================================================================
 # SUMMA can be compiled with debug flags by specifiying -DCMAKE_BUILD_TYPE=Debug
 #
-# There are multiple options for building SUMMA, including using the 
+# There are multiple options for building SUMMA, including using the
 # Sundials suite of solvers, the C++ Actor framework, and the NexGen framework.
 # The options are set by specifying -DOPTION=ON when running cmake.
 # For example to compile SUMMA with Sundials, use
-# cmake -B cmake_build -S ../. -DUSE_SUNDILAS=ON
-# cmake --build ../cmake_build --target all -j 
-# 
+# cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON
+# cmake --build ../cmake_build --target all -j
+#
 # To compile SUMMA with Actors, see the Summa-Actors repo:
 # https://github.com/uofs-simlab/Summa-Actors
 #=========================================================================================
@@ -43,7 +43,7 @@ set(EXEC_DIR "${F_MASTER}/bin")
 if (USE_SUNDIALS)
     message("ENABLING SUNDIALS")
     find_package(SUNDIALS REQUIRED)
-    list(APPEND EXT_TARGETS SUNDIALS::fida_mod_shared 
+    list(APPEND EXT_TARGETS SUNDIALS::fida_mod_shared
                             SUNDIALS::fkinsol_mod_shared)
     add_compile_definitions(SUNDIALS_ACTIVE)
     set(EXEC_NAME summa_sundials.exe)
@@ -71,7 +71,7 @@ if (USE_NEXTGEN)
     if (USE_ACTORS)
         message(FATAL_ERROR "NexGen incompatible with Summa-Actors")
     endif()
-    add_compile_definitions(NGEN_ACTIVE BMI_ACTIVE NGEN_FORCING_ACTIVE 
+    add_compile_definitions(NGEN_ACTIVE BMI_ACTIVE NGEN_FORCING_ACTIVE
                             NGEN_OUTPUT_ACTIVE)
 
     add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
@@ -105,7 +105,7 @@ list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
 set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message("\nSetting Debug Options")
-    add_compile_definitions(DEBUG) 
+    add_compile_definitions(DEBUG)
     set(FLAGS_NOAH -g -O0 -fbacktrace -fbounds-check -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
     set(FLAGS_ALL -g -O0 -fbacktrace -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
     set(FLAGS_CXX -g -O0 -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
@@ -229,17 +229,17 @@ target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM)
 
 # For Actors, build SUMMA Shared Library add the actors libraries and add the executable
 if(USE_ACTORS)
-    add_executable(${EXEC_NAME} ${MAIN_SUMMA} ${ACTORS_GLOBAL} 
+    add_executable(${EXEC_NAME} ${MAIN_SUMMA} ${ACTORS_GLOBAL}
                    ${FILE_ACCESS_ACTOR} ${JOB_ACTOR} ${GRU_ACTOR} ${HRU_ACTOR}
                    ${SYS_INIT} ${SUMMA_CLIENT} ${SUMMA_SERVER})
 
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
     target_compile_options(${EXEC_NAME} PUBLIC ${FLAGS_CXX})
-    target_include_directories(${EXEC_NAME} PUBLIC 
-                               ${PARENT_DIR}/includes/global 
-                               ${PARENT_DIR}/includes/summa_actor 
-                               ${PARENT_DIR}/includes/job_actor 
-                               ${PARENT_DIR}/includes/file_access_actor 
+    target_include_directories(${EXEC_NAME} PUBLIC
+                               ${PARENT_DIR}/includes/global
+                               ${PARENT_DIR}/includes/summa_actor
+                               ${PARENT_DIR}/includes/job_actor
+                               ${PARENT_DIR}/includes/file_access_actor
                                ${PARENT_DIR}/includes/gru_actor
                                ${PARENT_DIR}/includes/hru_actor)
     target_link_libraries( ${EXEC_NAME} ${EXT_TARGETS} summa)

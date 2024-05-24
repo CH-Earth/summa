@@ -17,8 +17,8 @@ module load udunits/2.2.28
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
 cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 
-cmake -B extern/summa/cmake_build -S extern/summa -DCMAKE_BUILD_TYPE=BE_NexGen_Cluster
-cmake --build extern/summa/cmake_build --target all
+cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXGEN=ON
+cmake --build extern/summa/cmake_build --target all -j
 
 cmake -B cmake_build -S . -DNGEN_WITH_MPI:BOOL=OFF -DNGEN_WITH_PYTHON:BOOL=OFF -DNGEN_WITH_BMI_C:BOOL=ON -DNGEN_WITH_BMI_FORTRAN:BOOL=ON -DNGEN_WITH_NETCDF:BOOL=OFF
 # can also add -DCMAKE_BUILD_TYPE=Debug to be able to run in gdb
