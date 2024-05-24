@@ -1098,7 +1098,6 @@ subroutine enthalpy2T_soil(&
   USE soil_utils_module,only:crit_soilT           ! compute critical temperature below which ice exists
   USE soil_utils_module,only:volFracLiq           ! compute volumetric fraction of liquid water
   USE soil_utils_module,only:dTheta_dPsi          ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
-  USE soil_utilsAddPrime_module,only:d2Theta_dTk2 ! second derivative in the freezing curve w.r.t. temperature (soil)
 
   implicit none
   ! delare dummy variables

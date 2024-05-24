@@ -135,48 +135,10 @@ contains
   if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
-  if (parFallback(iLookPARAM%relTolTempCas)%default_val < 0.99_rkind*realMissing) then
-   parFallback(iLookPARAM%relTolTempCas)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%absTolTempCas)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%absTolTempCas)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%relTolTempVeg)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%relTolTempVeg)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%absTolTempVeg)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%absTolTempVeg)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%relTolWatVeg)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%relTolWatVeg)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%absTolWatVeg)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%absTolWatVeg)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%relTolTempSoilSnow)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%relTolTempSoilSnow)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%absTolTempSoilSnow)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%absTolTempSoilSnow)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%relTolWatSnow)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%relTolWatSnow)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%absTolWatSnow)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%absTolWatSnow)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%relTolMatric)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%relTolMatric)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%absTolMatric)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%absTolMatric)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%relTolAquifr)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%relTolAquifr)%default_val = 1.e-6_rkind
-  end if
-  if (parFallback(iLookPARAM%absTolAquifr)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%absTolAquifr)%default_val = 1.e-6_rkind
-  end if
+
+  call set_ida_defaults(parFallback, err, cmessage)
+  if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+
  end if
 
  ! check we have populated all variables
@@ -202,6 +164,65 @@ contains
  ! close file unit
  close(unt)
  end subroutine read_pinit
+
+ ! ************************************************************************************************
+ ! Subroutine to separate the default settings of the IDA solver from the rest of the model parameters
+ ! ************************************************************************************************
+ subroutine set_ida_defaults(parFallback, err, message)
+ USE data_types,only:par_info              ! data type for parameter constraints
+ implicit none
+ ! define input
+ type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
+ integer(i4b),intent(out)               :: err            ! error code
+ character(*),intent(out)               :: message        ! error message
+ ! local varaibles
+ integer(i4b)                           :: i   
+ real(rkind)                            :: default_relTol = 1.e-6_rkind 
+ real(rkind)                            :: default_absTol = 1.e-6_rkind
+ integer(i4b), dimension(7)             :: relTol_paramIndx = [iLookPARAM%relTolTempCas, iLookPARAM%relTolTempVeg, iLookPARAM%relTolWatVeg, &
+                                                               iLookPARAM%relTolTempSoilSnow, iLookPARAM%relTolWatSnow, iLookPARAM%relTolMatric, &
+                                                               iLookPARAM%relTolAquifr]
+ integer(i4b), dimension(7)             :: absTol_paramIndx = [iLookPARAM%absTolTempCas, iLookPARAM%absTolTempVeg, iLookPARAM%absTolWatVeg, &
+                                                               iLookPARAM%absTolTempSoilSnow, iLookPARAM%absTolWatSnow, iLookPARAM%absTolMatric, &
+                                                               iLookPARAM%absTolAquifr]
+ message="set_ida_defaults/"
+ 
+  ! Relative Tolerances
+  do i = 1, size(relTol_paramIndx)
+    if (parFallback(relTol_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(relTol_paramIndx(i))%default_val = default_relTol
+    end if
+  end do
+
+  ! Absolute Tolerances
+  do i = 1, size(absTol_paramIndx)
+    if (parFallback(absTol_paramIndx(i))%default_val < 0.99_rkind*realMissing) then
+      parFallback(absTol_paramIndx(i))%default_val = default_absTol
+    end if
+  end do
+
+  ! IDA Solver Parameters
+  if (parFallback(iLookPARAM%idaMaxOrder)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxOrder)%default_val = 5
+  end if
+  if (parFallback(iLookPARAM%idaMaxInternalSteps)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxInternalSteps)%default_val = 500
+  end if
+  if (parFallback(iLookPARAM%idaInitStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaInitStepSize)%default_val = 0
+  end if
+  if (parFallback(iLookPARAM%idaMinStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMinStepSize)%default_val = 0
+  end if
+  if (parFallback(iLookPARAM%idaMaxStepSize)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxStepSize)%default_val = 0 ! 0 means ida's default ofinfinity
+  end if
+  if (parFallback(iLookPARAM%idaMaxErrTestFail)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 10 ! IDA default is 10
+  end if
+ end subroutine set_ida_defaults
+
+ 
 
 
 end module read_pinit_module

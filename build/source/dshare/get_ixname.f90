@@ -405,6 +405,12 @@ contains
   case('absTolMatric'             ); get_ixParam = iLookPARAM%absTolMatric           ! absolute error tolerance for matric head
   case('relTolAquifr'             ); get_ixParam = iLookPARAM%relTolAquifr           ! relative error tolerance for aquifer hydrology
   case('absTolAquifr'             ); get_ixParam = iLookPARAM%absTolAquifr           ! absolute error tolerance for aquifer hydrology
+  case('idaMaxOrder'              ); get_ixParam = iLookPARAM%idaMaxOrder            ! maximum order for IDA  
+  case('idaMaxInternalSteps'      ); get_ixParam = iLookPARAM%idaMaxInternalSteps    ! maximum number of internal steps for IDA before tout 
+  case('idaInitStepSize'          ); get_ixParam = iLookPARAM%idaInitStepSize        ! initial step size for IDA 
+  case('idaMinStepSize'           ); get_ixParam = iLookPARAM%idaMinStepSize         ! minimum step size for IDA
+  case('idaMaxStepSize'           ); get_ixParam = iLookPARAM%idaMaxStepSize         ! maximum step size for IDA
+  case('idaMaxErrTestFail'        ); get_ixParam = iLookPARAM%idaMaxErrTestFail      ! maximum number of error test failures for IDA
   case('zmin'                     ); get_ixParam = iLookPARAM%zmin                   ! minimum layer depth (m)
   case('zmax'                     ); get_ixParam = iLookPARAM%zmax                   ! maximum layer depth (m)
   case('zminLayer1'               ); get_ixParam = iLookPARAM%zminLayer1             ! minimum layer depth for the 1st (top) layer (m)
@@ -600,6 +606,17 @@ contains
   case('balanceSnowMass'                ); get_ixDiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow (kg m-2 s-1)
   case('balanceSoilMass'                ); get_ixDiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil (kg m-2 s-1)
   case('balanceAqMass'                  ); get_ixDiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer (kg m-2 s-1)
+  ! sundials integrator stats
+  case('numSteps'                       ); get_ixDiag = iLookDIAG%numSteps
+  case('numResEvals'                    ); get_ixDiag = iLookDIAG%numResEvals
+  case('numLinSolvSetups'               ); get_ixDiag = iLookDIAG%numLinSolvSetups
+  case('numErrTestFails'                ); get_ixDiag = iLookDIAG%numErrTestFails
+  case('kLast'                          ); get_ixDiag = iLookDIAG%kLast
+  case('kCur'                           ); get_ixDiag = iLookDIAG%kCur
+  case('hInitUsed'                      ); get_ixDiag = iLookDIAG%hInitUsed
+  case('hLast'                          ); get_ixDiag = iLookDIAG%hLast
+  case('hCur'                           ); get_ixDiag = iLookDIAG%hCur
+  case('tCur'                           ); get_ixDiag = iLookDIAG%tCur
   ! get to here if cannot find the variable
   case default
    get_ixDiag = integerMissing

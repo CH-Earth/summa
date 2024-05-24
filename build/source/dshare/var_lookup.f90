@@ -310,6 +310,12 @@ MODULE var_lookup
   integer(i4b)    :: absTolMatric          = integerMissing    ! absolute error tolerance for matric head
   integer(i4b)    :: relTolAquifr          = integerMissing    ! relative error tolerance for aquifer hydrology
   integer(i4b)    :: absTolAquifr          = integerMissing    ! absolute error tolerance for aquifer hydrology
+  integer(i4b)    :: idaMaxOrder           = integerMissing    ! maximum order for IDA
+  integer(i4b)    :: idaMaxInternalSteps   = integerMissing    ! maximum number of internal steps for IDA before tout
+  integer(i4b)    :: idaInitStepSize       = integerMissing    ! initial step size for IDA
+  integer(i4b)    :: idaMinStepSize        = integerMissing    ! minimum step size for IDA
+  integer(i4b)    :: idaMaxStepSize        = integerMissing    ! maximum step size for IDA
+  integer(i4b)    :: idaMaxErrTestFail     = integerMissing    ! maximum number of error test failures for IDA
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)
@@ -481,6 +487,17 @@ MODULE var_lookup
   integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-2 s-1)
   integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-2 s-1)
   integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2 s-1)
+  ! sundials integrator stats
+  integer(i4b)    :: numSteps                        = integerMissing ! 
+  integer(i4b)    :: numResEvals                     = integerMissing ! 
+  integer(i4b)    :: numLinSolvSetups                = integerMissing ! 
+  integer(i4b)    :: numErrTestFails                 = integerMissing ! 
+  integer(i4b)    :: kLast                           = integerMissing ! 
+  integer(i4b)    :: kCur                            = integerMissing ! 
+  integer(i4b)    :: hInitUsed                       = integerMissing ! 
+  integer(i4b)    :: hLast                           = integerMissing ! 
+  integer(i4b)    :: hCur                            = integerMissing ! 
+  integer(i4b)    :: tCur                            = integerMissing ! 
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -901,7 +918,7 @@ MODULE var_lookup
                                                                         141,142,143,144,145,146,147,148,149,150,&
                                                                         151,152,153,154,155,156,157,158,159,160,&
                                                                         161,162,163,164,165,166,167,168,169,170,&
-                                                                        171,172,173,174)
+                                                                        171,172,173,174,175,176,177,178,179,180)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -917,7 +934,8 @@ MODULE var_lookup
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
-                                                                        101,102,103,104)
+                                                                        101,102,103,104,105,106,107,108,109,110,&
+                                                                        111,112,113,114)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
