@@ -11,7 +11,7 @@ export FC=/opt/local/bin/gfortran                             # Fortran compiler
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
 cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 
-cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXGEN=ON
+cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON
 cmake --build extern/summa/cmake_build --target all -j
 
 cmake -B cmake_build -S . -DBoost_INCLUDE_DIR=/opt/local/libexec/boost/1.81/include -DPython_NumPy_INCLUDE_DIR=/opt/local/bin/python -DNGEN_WITH_MPI:BOOL=OFF -DNGEN_WITH_PYTHON:BOOL=OFF -DNGEN_WITH_BMI_C:BOOL=ON -DNGEN_WITH_BMI_FORTRAN:BOOL=ON -DNGEN_WITH_NETCDF:BOOL=OFF

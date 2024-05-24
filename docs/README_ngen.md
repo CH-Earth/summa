@@ -79,12 +79,12 @@ We suggest you periodically update to the latest version. It is also possible to
     
 Note if you need to recompile after a system upgrade, delete the contents of sundials/instdir and sundials/buildir EXCEPT sundials/buildir/build_cmakeSundials.bash before building and installing.
 
-### Building and installing SUMMA within NexGen
+### Building and installing SUMMA within NextGen
 First, you will need to tell CMake where Sundials is if you installed it and plan to use it:
     $ export CMAKE_PREFIX_PATH=/sun_dir/sundials/instdir
 
 Then, a CMake build system must be generated.  E.g., from the top `ngen` directory:
-    $ cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXGEN=ON
+    $ cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON
 
 Note (similar to above) that when there is an existing directory, it may sometimes be necessary to clear it and regenerate, especially if any changes were made to the CMakeLists.txt file.
 

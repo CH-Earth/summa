@@ -5,13 +5,11 @@
 # Actual settings may vary
 
 # PC Example using Ubuntu: LAPACK Builds
-#export FC=gfortran                                            # Fortran compiler family
 #export FLAGS_OPT="-flto=1;-fuse-linker-plugin"                # optional compiler flags -- LAPACK builds
 
 # PC Example using Ubuntu: Intel oneMKL builds (see https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-link-line-advisor.html)
 #oneAPI_dir=/opt/intel/oneapi                                                 # Intel oneAPI main directory
 #source $oneAPI_dir/setvars.sh                                                # initialize environment variables for Intel oneAPI
-#export FC=gfortran                                                           # Fortran compiler family
 #export FLAGS_OPT="-m64;-I"${MKLROOT}/include";-flto=1;-fuse-linker-plugin"   # optional compiler flags -- Intel oneMKL builds
 
 cmake -B ../cmake_build -S ../. 

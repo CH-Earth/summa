@@ -167,9 +167,9 @@ set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_modelRun.f90
     ${DRIVER_DIR}/summa_writeOutput.f90
     CACHE INTERNAL "DRIVER_NOT_ACTORS")
-set(DRIVER_NEXGEN
+set(DRIVER_NEXTGEN
     ${DRIVER_DIR}/summa_bmi.f90
-    CACHE INTERNAL "DRIVER_NEXGEN")
+    CACHE INTERNAL "DRIVER_NEXTGEN")
 
 # Actors interface modules
 set(INTERFACE

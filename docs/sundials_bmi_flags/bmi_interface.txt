@@ -1,4 +1,4 @@
-Note, if you want to run with just BMI, not NexGen, do the following
+Note, if you want to run with just BMI, not NextGen, do the following
 First install BMI. Download the latest release of BMI from https://github.com/csdms/bmi-fortran.git
 % git clone https://github.com/csdms/bmi-fortran.git
 % git fetch --all --tags --prune
