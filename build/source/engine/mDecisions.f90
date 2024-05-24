@@ -173,7 +173,7 @@ subroutine mDecisions(err,message)
   USE globalData,only:data_step              ! length of data step (s)
   USE globalData,only:numtim                 ! number of time steps in the simulation
   ! model decision structures
-  USE globaldata,only:model_decisions        ! model decision structure
+  USE globalData,only:model_decisions        ! model decision structure
   USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
   ! forcing metadata
   USE globalData,only:forc_meta              ! metadata structures
