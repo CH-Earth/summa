@@ -53,7 +53,7 @@ contains
  USE data_types,only:gru_hru_doubleVec                   ! actual data
  USE data_types,only:gru_hru_intVec                      ! actual data
  USE data_types,only:gru_hru_z_vLookup                   ! actual data
- USE globaldata,only:iname_soil,iname_snow               ! named variables to describe the type of layer
+ USE globalData,only:iname_soil,iname_snow               ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
                        iden_ice,  &                      ! intrinsic density of ice             (kg m-3)
