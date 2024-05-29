@@ -1123,7 +1123,9 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
 
   ! compute an initial value of the canopy wet fraction
   ! - canopy below value where canopy is 100% wet
-  if (relativeCanopyWater < 0._rkind) then ! will only happen inside Sundials Solver
+  if (relativeCanopyWater < 0._rkind) then ! will only happen inside Sundials Solver, happens because rawWetFractionDeriv is blowing up
+    ! Note, this even with smoothing on -- the smoothing function does not do enough when canopyWettingExp gets smaller
+    ! FIX: tie smoothing to canopyWettingExp (would speed up the code)
     rawCanopyWetFraction = 0._rkind
     rawWetFractionDeriv  = 0._rkind
   ! - canopy is at capacity (canopyWettingFactor)
