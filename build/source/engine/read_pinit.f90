@@ -218,7 +218,7 @@ contains
     parFallback(iLookPARAM%idaMaxStepSize)%default_val = 0 ! 0 means ida's default ofinfinity
   end if
   if (parFallback(iLookPARAM%idaMaxErrTestFail)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 10 ! IDA default is 10
+    parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 50 ! IDA default is 10
   end if
  end subroutine set_ida_defaults
 
