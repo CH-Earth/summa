@@ -61,13 +61,13 @@ if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 if stat == 'rmse': 
     maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
     #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,10e-3]
 if stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,10e-3]
 if stat == 'maxe': 
     maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,0.2]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 if stat == 'mean': 
@@ -317,14 +317,14 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
         fig,axs = plt.subplots(2,2,figsize=(35,28))
     else:
         fig,axs = plt.subplots(2,2,figsize=(140,133))
+
+    # Remove the fourth subplot
+    #fig.delaxes(axs[1, 1])
+
     fig.suptitle('{} Hourly Statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
-
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
-
     plt.tight_layout()
- 
     run_loop(i,var,the_max)
-
     fig_fil1 = (var+fig_fil).format(stat)
     # Save
     plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)

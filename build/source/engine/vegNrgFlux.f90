@@ -1123,14 +1123,17 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
 
   ! compute an initial value of the canopy wet fraction
   ! - canopy below value where canopy is 100% wet
-  if (relativeCanopyWater < 1._rkind) then
+  if (relativeCanopyWater < 0._rkind) then ! will only happen inside Sundials Solver
+    rawCanopyWetFraction = 0._rkind
+    rawWetFractionDeriv  = 0._rkind
+  ! - canopy is at capacity (canopyWettingFactor)
+  elseif (relativeCanopyWater < 1._rkind) then
     rawCanopyWetFraction = canopyWettingFactor*(relativeCanopyWater**canopyWettingExp)
     if (derDesire .and. relativeCanopyWater>verySmall) then
       rawWetFractionDeriv = (canopyWettingFactor*canopyWettingExp/canopyMax)*relativeCanopyWater**(canopyWettingExp - 1._rkind)
     else
       rawWetFractionDeriv = 0._rkind
     end if
-  ! - canopy is at capacity (canopyWettingFactor)
   else
     rawCanopyWetFraction = canopyWettingFactor
     rawWetFractionDeriv  = 0._rkind
@@ -1143,7 +1146,7 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
   else
     canopyWetFraction = rawCanopyWetFraction
   end if
-
+ 
   ! compute derivative (product rule)
   if (derDesire) then
     if (smoothing) then

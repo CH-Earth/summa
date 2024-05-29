@@ -77,13 +77,13 @@ fig_fil = fig_fil.format(','.join(settings),stat)
 
 if stat == 'rmse': 
     maxes = [2,15,250,0.08,200,10e-3] 
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,10e-3]
 if stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,10e-3]
 if stat == 'maxe': 
     maxes = [15,25,0.8,2,0.3,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,0.2]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 maxes = [maxes[i] for i in use_vars]
