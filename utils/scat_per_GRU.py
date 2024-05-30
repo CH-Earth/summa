@@ -34,6 +34,9 @@ if testing:
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en']
     plt_name=['BE1 mixed']
+    method_name2=method_name
+    plt_name2=plt_name
+
 else:
     import sys
     # The first input argument specifies the run where the files are
@@ -44,16 +47,19 @@ else:
     #plt_name=['BE1','BE16','BE32','IDAe-6'] #maybe make this an argument
     method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
     plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+    method_name2=method_name+['sundials_1en8cm']
+    plt_name2=plt_name+['Reference Solution']
 
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 viz_fil = method_name.copy()
-viz_fl2 = method_name.copy()
+viz_fl2 = method_name2.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
     viz_fil[i] = viz_fil[i].format(','.join(settings))
+for i, m in enumerate(method_name2):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
     viz_fl2[i] = viz_fl2[i].format(','.join(['balance']))
 
@@ -62,6 +68,7 @@ summa1 = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+for i, m in enumerate(method_name2):
     summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     
 def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
@@ -102,8 +109,8 @@ def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
 
         axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
  
-    lgnd = axs[r,c].legend()
-    for j, m in enumerate(method_name):
+    lgnd = axs[r,c].legend(plt_name)
+    for j, m in enumerate(plt_name):
        lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_t)
     if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_t))
@@ -132,7 +139,7 @@ def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
         word = ' max'
 
     # Data
-    for m in method_name:
+    for m in method_name2:
         # Get the statistics, remove 9999 (should be nan, but just in case)
         s0 = np.fabs(summa1[m][comp].sel(stat=stat0)).where(lambda x: x != 9999)
         s = np.fabs(summa1[m][var].sel(stat=stat0)).where(lambda x: x != 9999)
@@ -146,8 +153,8 @@ def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
         stat0_word = 'Balance abs value'
         stat_word = 'Balance abs value'
  
-    lgnd = axs[r,c].legend()
-    for j, m in enumerate(method_name):
+    lgnd = axs[r,c].legend(plt_name2)
+    for j, m in enumerate(plt_name2):
        lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_t)
     axs[r,c].set_xscale('log')
@@ -184,6 +191,9 @@ if do_vars:
     for i,(var,plt_t,leg_t,leg_t0,leg_tm) in enumerate(zip(plot_vars,plt_titl,leg_titl,leg_titl0,leg_titlm)): 
         run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm)
 
+    # Remove the sixth subplot
+    fig.delaxes(axs[2, 1])
+
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
 
@@ -214,6 +224,9 @@ if do_balance:
 
     for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,leg_titl,leg_titl0,plt_titl)): 
         run_loopb(i,var,comp,leg_t,leg_t0,plt_t)
+
+    # Remove the sixth subplot
+    fig.delaxes(axs[2, 1])
 
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
