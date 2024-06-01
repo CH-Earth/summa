@@ -54,10 +54,13 @@ def power_transform(x):
 
 # Simulation statistics file locations
 use_vars = [1]
+#use_vars = [0,1,2,3,4]
+
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 settings = [settings0[i] for i in use_vars]
 
 use_vars2 = [3,8]
+#use_vars2 = [8]
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
@@ -91,29 +94,29 @@ else:
     if do_rel: fig_fil = 'Hrly_diff_cdf_{}_{}_zoom_rel_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
-if stat == 'rmse': 
+if stat == 'rmse':
     stat2 = 'mean'
-    maxes = [2,15,250,0.08,200,10e-3] 
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,10e-3]
-if stat == 'rmnz': 
+    maxes = [2,15,250,0.08,200,20e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,20e-3]
+if stat == 'rmnz':
     stat2 = 'mean'
-    maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,10e-3]
-if stat == 'maxe': 
+    maxes = [2,15,250,0.08,200,20e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,20e-3]
+if stat == 'maxe':
     stat2 = 'amax'
-    maxes = [15,25,0.8,2,0.3,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,1.0,0.2]
-if stat == 'kgem': 
+    maxes = [15,25,0.8,2,0.3,2.0]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,2.0]
+if stat == 'kgem':
     stat2 = 'mean'
-    maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
+    maxes = [0.9,0.9,0.9,0.9,0.9,20e-3]
 maxes = [maxes[i] for i in use_vars]
 
-if stat2 == 'mean': 
-    maxes2 = [1e-4,1e0,1e0,1e0]+[1e-12,1e-11,1e-10,1e-13] + [3e-3]
-    if do_rel: maxes2 = [1e-6,1e-4,1e-6,1e-7]+[1e-10,1e-11,1e-13,1e-11] + [10e-3]
-if stat2 == 'amax': 
-    maxes2 = [1e-3,1e3,1e3,1e2]+[1e-11,1e-6,1e-7,1e-8] + [1e0]
-    if do_rel: maxes2 = [1e-2,1e0,1e-4,1e-2]+[1e-7,1e-8,1e-10,1e-6] + [0.2]
+if stat2 == 'mean':
+    maxes2 = [1e-3,1e1,1e1,1e1]+[1e-12,1e-11,1e-10,1e-13] + [20e-3]
+    #if do_rel: maxes2 = [1e-6,1e-4,1e-6,1e-7]+[1e-10,1e-11,1e-13,1e-11] + [10e-3]
+if stat2 == 'amax':
+    maxes2 = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
+    #if do_rel: maxes2 = [1e-2,1e0,1e-4,1e-2]+[1e-7,1e-8,1e-10,1e-6] + [0.2]
 maxes2 = [maxes2[i] for i in use_vars2]
 
 summa = {}
@@ -217,7 +220,7 @@ def run_loop(i,var,mx):
         axs[r,c].set_ylabel('cumulative distribution')
         axs[r,c].set_ylim([0.0, 1.0])
         axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
-        if var=='scalarTotalSoilWat': # Rotate x-axis labels for axs[2, 1] subplot
+        if var=='scalarTotalSoilWat' or var=='wallClockTime': # Rotate x-axis labels for axs[2, 1] subplot
             axs[r, c].tick_params(axis='x', rotation=45)
 
 def run_loopb(i,var,mx):
@@ -229,7 +232,7 @@ def run_loopb(i,var,mx):
         mx = mx
         mn = mx*1e-4
         if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
-            mn = mx*1e-7
+            mn = mx*1e-9
         if var=='wallClockTime': mn = 0.0
     else:
         mx = 0.0
@@ -270,9 +273,9 @@ def run_loopb(i,var,mx):
         axs[r,c].set_ylabel('cumulative distribution')
         axs[r,c].set_ylim([0.0, 1.0])
         axs[r,c].set_xscale('log') #log x axis
-        if var=='wallClockTime': axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
-        #if var=='scalarTotalSoilWat': # Rotate x-axis labels for axs[2, 1] subplot
-        #    axs[r, c].tick_params(axis='x', rotation=45)
+        if var=='wallClockTime': 
+            axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
+            axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
 if len(use_vars) > 0:
     for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
