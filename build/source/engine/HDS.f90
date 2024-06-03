@@ -1,7 +1,8 @@
 module HDS
     USE nrtype
     ! physical constants
-    USE multiconst,only:iden_water ! intrinsic density of water    (kg m-3)
+    USE multiconst,only:LH_vap,  & ! latent heat of vaporization   (J kg-1)
+                        iden_water ! intrinsic density of water    (kg m-3)
     
     contains
     subroutine init_summa_HDS(pondVolFrac, depressionDepth, depressionAreaFrac, totalArea, p, pondVol, pondArea, conArea, vMin)
@@ -35,8 +36,29 @@ module HDS
            if(conArea<0)  conArea  = pondVol/depressionVol ! assume that contrib_frac = vol_frac_sml for initialization purposes
            if(vMin<0)     vMin     = pondVol
         
-
     end subroutine init_summa_HDS
+    !=============================================================
+    !=============================================================
+    function calcPotentialEvap_Oudin2005(SWRadAtm, airtemp) result(potentialEvap)
+        ! calculate potential evaporation using Oudin et al. (2005)'s formula for a specific HRU
+        implicit none
+        !function arguments
+        real(rkind),  intent(in)     :: SWRadAtm                ! downwelling shortwave radiaiton [w/m2]
+        real(rkind),  intent(in)     :: airtemp                 ! air temperature  [-]
+
+        ! local variables
+        real(rkind)                  :: potentialEvap           ! pontentail evaporation as calculated by Oudin's formula
+
+        ! Oudin (2005)'s formula
+        potentialEvap = (1000._rkind * & 
+        (SWRadAtm * 1e-6 / &                                    ! w/m2 to MJ/m2/s
+        (LH_vap * 1e-6 * iden_water)) * &                       ! J kg-1 to MJ kg-1
+        ((airtemp - 273.15_rkind + 5._rkind)/100._rkind))       ! K to deg C
+        
+        ! check for negative values
+        potentialEvap = max(potentialEvap, zero)
+
+    end function calcPotentialEvap_Oudin2005
     !=============================================================
     !=============================================================
     subroutine init_pond_Area_Volume(depArea, depVol, totEvap, volFrac, p, pondVol, pondArea)

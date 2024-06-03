@@ -26,11 +26,6 @@ USE nrtype
 ! access integers to define "yes" and "no"
 USE globalData,only:yes,no             ! .true. and .false.
 
-! physical constants
-USE multiconst,only:&
-                    LH_vap,  & ! latent heat of vaporization   (J kg-1)
-                    iden_water ! intrinsic density of water    (kg m-3)
-
 ! define data types
 USE data_types,only:&
                     ! GRU-to-HRU mapping
@@ -111,7 +106,8 @@ contains
 
  USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
- USE HDS,only:runDepression                                  ! module to run HDS pothole storage dynamics
+ USE HDS,only:runDepression, &                               ! module to run HDS pothole storage dynamics
+              calcPotentialEvap_Oudin2005                    ! function to calculate potential evaporation based on Oudin et al. (2005)'s formula
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
 
@@ -280,14 +276,13 @@ contains
   end if
 
   ! averaging more fluxes (and/or states) can be added to this section as desired
-  basinPrecip = basinPrecip + (forcHRU%hru(iHRU)%var(iLookFORCE%pptrate) * fracHRU)
-  ! calculate potential evaporation using Oudin (2005)'s formula
-  basinPotentialEvap = basinPotentialEvap + & 
-                       ! Oudin (2005)'s formula
-                       (1000._rkind * & 
-                       (forcHRU%hru(iHRU)%var(iLookFORCE%SWRadAtm) * 1e-6 / &  ! from w/m2 to MJ/m2/s
-                       (LH_vap * 1e-6 * iden_water)) * &    ! J kg-1 to MJ kg-1
-                       ((forcHRU%hru(iHRU)%var(iLookFORCE%airtemp)-273.15_rkind + 5._rkind)/100._rkind)) * fracHRU        ! K to deg C
+  ! averagin fluxes if HDS is active
+  if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
+   basinPrecip = basinPrecip + (forcHRU%hru(iHRU)%var(iLookFORCE%pptrate) * fracHRU)
+   ! calculate potential evaporation using Oudin (2005)'s formula
+   basinPotentialEvap = basinPotentialEvap + calcPotentialEvap_Oudin2005(forcHRU%hru(iHRU)%var(iLookFORCE%SWRadAtm), forcHRU%hru(iHRU)%var(iLookFORCE%airtemp)) * fracHRU
+  endif ! HDS control flag
+
  end do  ! (looping through HRUs)
 
  ! ***********************************************************************************************************************
@@ -329,7 +324,9 @@ contains
  ! ***********************************************************************************************************************
  ! ********** PRAIRIE POTHOLE IMPLEMENTATION (HDS)************************************************************************
  ! ***********************************************************************************************************************
- if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
+ ! check if HDS is active and perform calculations if the GRU has active depressionDepth > 0
+ if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel .and. depressionDepth > 0._rkind )then
+  ! activate HDS for this GRU
   ! initialize pondOutflow
   pondOutflow = 0._rkind
   ! calculate some spatial attributes (should be moved somewhere else)
@@ -357,9 +354,11 @@ contains
                     Q_det_adj, Q_dix_adj                                                   , &    ! adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol)
                     pondVolFrac, conAreaFrac                                               , &    ! fractional volume [-], fractional contributing area [-]
                     pondArea, pondOutflow)                                                        ! pond area at the end of the time step [m2], pond outflow [m3]    
-  
-  ! adjust runoff values
-     
+   
+  ! adjust runoff values (pondoutflow + contribution from non-depressional area)
+  basinTotalRunoff = pondOutflow / data_step / totalArea + & !m3/timestep -> m s-1
+                     (basinTotalRunoff * landArea * (1._rkind - depressionCatchAreaFrac)) / totalArea ! m s-1 -> m3 s-1 -> m s-1
+
  endif ! model decision control for HDS
   ! ***********************************************************************************************************************                                               
                                                 
