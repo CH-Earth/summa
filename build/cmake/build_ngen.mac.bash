@@ -7,14 +7,13 @@
 # Mac Example using MacPorts:
 export FC=/opt/local/bin/gfortran                             # Fortran compiler family
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
-
-cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
-cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
+export C_INCLUDE_PATH=/opt/local/include
+export CPLUS_INCLUDE_PATH=/opt/local/include
 
 cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON
 cmake --build extern/summa/cmake_build --target all -j
 
-cmake -B cmake_build -S . -DBoost_INCLUDE_DIR=/opt/local/libexec/boost/1.81/include -DPython_NumPy_INCLUDE_DIR=/opt/local/bin/python -DNGEN_WITH_MPI:BOOL=OFF -DNGEN_WITH_PYTHON:BOOL=OFF -DNGEN_WITH_BMI_C:BOOL=ON -DNGEN_WITH_BMI_FORTRAN:BOOL=ON -DNGEN_WITH_NETCDF:BOOL=OFF
+cmake -B cmake_build -S . -DBoost_INCLUDE_DIR=/opt/local/libexec/boost/1.81/include -DNGEN_WITH_BMI_FORTRAN=ON -DPython_NumPy_INCLUDE_DIR=/opt/local/bin/python -DNGEN_WITH_MPI:BOOL=OFF -DNGEN_WITH_PYTHON:BOOL=OFF -DNGEN_WITH_BMI_C:BOOL=ON -DNGEN_WITH_BMI_FORTRAN:BOOL=ON -DNGEN_WITH_NETCDF:BOOL=OFF
 # can also add -DCMAKE_BUILD_TYPE=Debug to be able to run in gdb
 # make -j 8 -C cmake_build    # build w/ 8 parallel jobs, also turn MPI on
 make -C cmake_build
