@@ -406,6 +406,8 @@ contains
 
   ! get number of GRUs in file
   err = nf90_inq_dimid(ncID,"gru",dimID)
+  if(err/=nf90_noerr)then; message=trim(message)//'must define at least the pondVolFrac initial condition for HDS/'//trim(nf90_strerror(err)); return; end if
+
   if(err==nf90_noerr)then ! proceed if gru dimension exists 
    err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
  

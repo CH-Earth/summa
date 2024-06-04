@@ -70,7 +70,7 @@ contains
   localColumn, & ! separate groundwater representation in each local soil column
   singleBasin, & ! single groundwater store over the entire basin
   HDSmodel       ! Hysteretic Depressional Storage model implementation for prairie potholes
- USE HDS,only:init_summa_HDS
+ USE HDS,only:init_summa_HDS                                 ! initialize HDS variables at the GRU level
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------

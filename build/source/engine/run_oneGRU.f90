@@ -57,7 +57,7 @@ USE globalData,only:model_decisions    ! model decision structure
 USE var_lookup,only:iLookDECISIONS     ! look-up values for model decisions
 
 ! global data
-USE globalData,only:data_step              ! time step of forcing data (s) - used by HDS to accumulate fluxes
+USE globalData,only:data_step              ! time step of forcing data (s) - used by HDS to accumulate fluxes at each time step (forcing data step)
 
 ! provide access to the named variables that describe model decisions
 USE mDecisions_module,only:&           ! look-up values for the choice of method for the spatial representation of groundwater
@@ -329,7 +329,7 @@ contains
   ! activate HDS for this GRU
   ! initialize pondOutflow
   pondOutflow = 0._rkind
-  ! calculate some spatial attributes (should be moved somewhere else)
+  ! calculate some spatial attributes (might be moved somewhere else)
   depressionArea = depressionAreaFrac * totalArea
   depressionVol = depressionDepth * depressionArea
   landArea = totalArea - depressionArea
