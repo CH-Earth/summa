@@ -48,7 +48,7 @@ else:
     method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
     plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
     method_name2=method_name+['sundials_1en8cm']
-    plt_name2=plt_name+['Reference Solution']
+    plt_name2=plt_name+['reference solution']
 
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
@@ -147,11 +147,11 @@ def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
         axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
 
     if comp == 'numberFluxCalc':
-        stat0_word = 'Number flux calculations'
-        stat_word = 'Wall clock time'
+        stat0_word = 'number flux calculations'
+        stat_word = 'wall clock time'
     else:
-        stat0_word = 'Balance abs value'
-        stat_word = 'Balance abs value'
+        stat0_word = 'balance abs value'
+        stat_word = 'balance abs value'
  
     lgnd = axs[r,c].legend(plt_name2)
     for j, m in enumerate(plt_name2):
@@ -162,10 +162,13 @@ def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
     axs[r,c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_t))
     axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_t0))
 
-
+plt.rcParams['xtick.color'] = 'black'
+plt.rcParams['xtick.major.width'] = 2
+plt.rcParams['ytick.color'] = 'black'
+plt.rcParams['ytick.major.width'] = 2
 if do_vars:
 
-    plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff']
+    plt_titl = ['(a) snow water equivalent','(b) total soil water content','(c) total evapotranspiration', '(d) total water on the vegetation canopy','(e) average routed runoff']
     leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$']
     leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$']
     leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$']
@@ -175,16 +178,16 @@ if do_vars:
 
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 25})
+        plt.rcParams.update({'font.size': 27})
     else:
         plt.rcParams.update({'font.size': 100})
 
     if 'compressed' in fig_fil:
-        fig,axs = plt.subplots(3,2,figsize=(31,33))
+        fig,axs = plt.subplots(3,2,figsize=(35,38))
     else:
         fig,axs = plt.subplots(3,2,figsize=(140,133))
     #fig.suptitle('Hourly Errors and Values for each GRU', fontsize=40)
-    fig.subplots_adjust(hspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+    fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 
     # Specify variables of interest
     plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff']
@@ -202,7 +205,7 @@ if do_balance:
     plot_vars = ['balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceCasNrg','wallClockTime']
     comp_vars = ['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','numberFluxCalc']
  
-    plt_titl =  ['(a) Vegetation Balance','(b) Snow Balance','(c) Soil Balance', '(d) Canopy Air Space and Aquifer Balance', '(f) Wall Clock Time']
+    plt_titl = ['(a) vegetation balance','(b) snow balance','(c) soil balance', '(d) canopy air space and aquifer balance', '(f) wall clock time']
     leg_titl = ['$W~m^{-3}$'] * 4 + ['$s$']
     leg_titl0 =['$kg~m^{-2}~s^{-1}$'] * 4 + ['$num$']
 
@@ -211,7 +214,7 @@ if do_balance:
     fig_fil = fig_fil.format(stat)
 
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 25})
+        plt.rcParams.update({'font.size': 27})
     else:
         plt.rcParams.update({'font.size': 100})
 
@@ -219,7 +222,7 @@ if do_balance:
         fig,axs = plt.subplots(3,2,figsize=(35,38))
     else:
         fig,axs = plt.subplots(3,2,figsize=(140,160))
-    fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+    fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
     #fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
 
     for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,leg_titl,leg_titl0,plt_titl)): 

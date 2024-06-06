@@ -309,7 +309,7 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
  
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 25})
+        plt.rcParams.update({'font.size': 27})
     else:
         plt.rcParams.update({'font.size': 100})
 

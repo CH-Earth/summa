@@ -25,7 +25,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 num_bins = 1000
 do_rel = True # plot relative to the benchmark simulation
 
-testing = False
+testing = True
 do_hist = False # plot histogram instead of CDF
 if testing: 
     stat = 'rmnz'
@@ -45,7 +45,7 @@ else:
     method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
     plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
     method_name2=method_name+['sundials_1en8cm']
-    plt_name2=plt_name+['Reference Solution']
+    plt_name2=plt_name+['reference solution']
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Define the power transformation function
@@ -75,14 +75,14 @@ for i, m in enumerate(method_name2):
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['Snow Water Equivalent','Total soil water content','Total evapotranspiration', 'Total water on the vegetation canopy','Average routed runoff','Wall clock time']
+plt_titl = ['snow Water Equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
 plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
 leg_titl = [leg_titl[i] for i in use_vars]
 
 plot_vars2 = settings2.copy()
-plt_titl2 = ['Canopy Air Space Energy Balance','Vegetation Energy Balance','Snow Energy Balance','Soil Energy Balance','Vegetation Mass Balance','Snow Mass Balance','Soil Mass Balance','Aquifer Mass Balance', 'Wall Clock Time']
-leg_titl2 = ['$W~m^{-3}$'] * 4 +['$num$'] + ['$kg~m^{-2}~s^{-1}$'] * 4
+plt_titl2 = ['canopy air space energy balance','vegetation energy balance','snow energy balance','soil energy balance','vegetation mass balance','snow mass balance','soil mass malance','aquifer mass balance', 'wall clock time']
+leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
 plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
 leg_titl2 = [leg_titl2[i] for i in use_vars2]
 
@@ -121,16 +121,23 @@ maxes2 = [maxes2[i] for i in use_vars2]
 
 summa = {}
 summa1 = {}
-for i, m in enumerate(method_name):
-    # Get the aggregated statistics of SUMMA simulations
-    summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
-for i, m in enumerate(method_name2):
-    summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
+if len(use_vars)>0:
+    for i, m in enumerate(method_name):
+        # Get the aggregated statistics of SUMMA simulations
+        summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+if len(use_vars2)>0:
+    for i, m in enumerate(method_name2):
+        summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     
 ##Figure
 
+plt.rcParams['xtick.color'] = 'black'
+plt.rcParams['xtick.major.width'] = 2
+plt.rcParams['ytick.color'] = 'black'
+plt.rcParams['ytick.major.width'] = 2
+
 if 'compressed' in fig_fil:
-    plt.rcParams.update({'font.size': 25})
+    plt.rcParams.update({'font.size': 27})
 else:
     plt.rcParams.update({'font.size': 100})
 
@@ -138,7 +145,7 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,38))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,160))
-fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40,y=1.0)
     
 def run_loop(i,var,mx):
@@ -205,7 +212,7 @@ def run_loop(i,var,mx):
     if statr == 'mean_ben': statr_word = 'mean'
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
-
+    
     axs[r,c].legend(plt_name)
     axs[r,c].set_title(plt_titl[i])
     if stat == 'rmse' or stat == 'rmnz' or stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
@@ -218,6 +225,7 @@ def run_loop(i,var,mx):
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')
+        if(c==1): axs[r, c].set_ylabel('')
         axs[r,c].set_ylim([0.0, 1.0])
         axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
         if var=='scalarTotalSoilWat' or var=='wallClockTime': # Rotate x-axis labels for axs[2, 1] subplot
@@ -226,6 +234,7 @@ def run_loop(i,var,mx):
 def run_loopb(i,var,mx):
     r = (i+len(use_vars))//2
     c = (i+len(use_vars))-r*2
+    print(c)
     stat0 = stat2
         
     if 'zoom' in fig_fil:
@@ -267,10 +276,12 @@ def run_loopb(i,var,mx):
 
     if do_hist: 
         axs[r,c].set_ylabel('GRU count')
+        if(c==1): axs[r, c].set_ylabel('')
         if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')
+        if(c==1): axs[r, c].set_ylabel('')
         axs[r,c].set_ylim([0.0, 1.0])
         axs[r,c].set_xscale('log') #log x axis
         if var=='wallClockTime': 
