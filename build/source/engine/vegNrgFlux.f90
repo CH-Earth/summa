@@ -1143,8 +1143,8 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
 
   ! smooth canopy wetted fraction
   if (smoothing) then
-    call logisticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
-    canopyWetFraction = rawCanopyWetFraction*smoothFunc  ! logistic smoother
+    call quadraticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
+    canopyWetFraction = rawCanopyWetFraction*smoothFunc  ! quadratic smoother, works better than old logistic smoother
   else
     canopyWetFraction = rawCanopyWetFraction
   end if
@@ -1163,44 +1163,32 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
 end subroutine wetFraction
 
 ! *******************************************************************************************************
-! private subroutine logisticSmoother: compute the smoothing function
+! private subroutine quadraticSmoother: compute the smoothing function
 ! *******************************************************************************************************
-subroutine logisticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
+subroutine quadraticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
   implicit none
   ! dummy variables
-  logical(lgt),intent(in)    :: derDesire                 ! flag to denote if analytical derivatives are desired
-  real(rkind),intent(in)     :: canopyLiq                 ! liquid water content (kg m-2)
-  real(rkind),intent(out)    :: smoothFunc                ! smoothing function (-)
-  real(rkind),intent(out)    :: smoothFuncDeriv           ! derivative in smoothing function (kg-1 m-2)
-  ! local variables
-  real(rkind)                :: xArg                      ! argument used in the smoothing function (-)
-  real(rkind)                :: expX                      ! exp(-xArg) -- used multiple times
-  real(rkind),parameter      :: smoothThresh=0.01_rkind   ! mid-point of the smoothing function (kg m-2)
-  real(rkind),parameter      :: smoothScale=0.001_rkind   ! scaling factor for the smoothing function (kg m-2)
-  real(rkind),parameter      :: xLimit=50._rkind          ! don't compute exponents for > xLimit
+  logical(lgt),intent(in)    :: derDesire                   ! flag to denote if analytical derivatives are desired
+  real(rkind),intent(in)     :: canopyLiq                   ! liquid water content (kg m-2)
+  real(rkind),intent(out)    :: smoothFunc                  ! smoothing function (-)
+  real(rkind),intent(out)    :: smoothFuncDeriv             ! derivative in smoothing function (kg-1 m-2)
+  ! local variables  
+  real(rkind)                :: xArg                        ! argument used in the smoothing function (-)
+  real(rkind),parameter      :: smoothThresh=0.01_rkind     ! mid-point of smoothing function (kg m-2)
+  real(rkind),parameter      :: smoothScale=0.001_rkind      ! width of smoothing function (kg m-2)
   ! --------------------------------------------------------------------------------------------------------------
   ! compute argument in the smoothing function
   xArg = (canopyLiq - smoothThresh)/smoothScale
 
-  ! only compute smoothing function for small exponents
-  if (xArg > -xLimit .and. xArg < xLimit) then  ! avoid huge exponents
-    expX            = exp(-xarg)                  ! also used in the derivative
-    smoothFunc      = 1._rkind / (1._rkind + expX) ! logistic smoother
-    if (derDesire) then
-      smoothFuncDeriv = expX / (smoothScale * (1._rkind + expX)**2_i4b) ! derivative in the smoothing function
-    else
-      smoothFuncDeriv = 0._rkind
-    end if
-
-  ! outside limits: special case of smooth exponents
-  else
-    if (xArg < 0._rkind) then; smoothFunc = 0._rkind   ! xArg < -xLimit
-    else;                      smoothFunc = 1._rkind   ! xArg >  xLimit
-    end if
+  smoothFunc = 0.5_rkind * xArg/sqrt((1. + xArg**2_i4b)) + 0.5_rkind  ! quadratic smoother
+  if (derDesire)then 
+    smoothFuncDeriv = 0.5_rkind * (1._rkind / sqrt((1._rkind + xArg**2_i4b)) &
+                                   - (xArg**2_i4b) / (1._rkind + xArg**2_i4b)**1.5_rkind) / smoothScale  ! derivative in the smoothing function
+  else 
     smoothFuncDeriv = 0._rkind
-  end if  ! check for huge exponents
+  endif
 
-end subroutine logisticSmoother
+end subroutine quadraticSmoother
 
 ! *******************************************************************************************************
 ! private subroutine longwaveBal: compute longwave radiation balance at the canopy and ground surface
