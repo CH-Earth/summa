@@ -61,11 +61,9 @@ if do_rel:
 plot_vars = settings.copy()
 
 if stat == 'mean': 
-    maxes = [1e-4,1e0,1e0,1e0]+[1e-12,1e-11,1e-10,1e-13] + [3e-3]
-    if do_rel: maxes = [1e-6,1e-4,1e-6,1e-7]+[1e-10,1e-11,1e-13,1e-11] + [3e-3]
+    maxes = [1e-3,1e1,1e1,1e1]+[1e-12,1e-11,1e-10,1e-13] + [20e-3]
 if stat == 'amax': 
-    maxes = [1e-3,1e3,1e3,1e2]+[1e-11,1e-6,1e-7,1e-8] + [1e0]
-    if do_rel: maxes = [1e-2,1e0,1e-4,1e-2]+[1e-7,1e-8,1e-10,1e-6] + [1e0]
+    maxes = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
 
 # Get the albers shapes
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
@@ -210,7 +208,7 @@ def run_loop(j,var,the_max):
     my_cmap.set_bad(color='white') #nan color white
     vmin,vmax = the_max*1e-4, the_max
     if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
-        vmin, vmax = the_max * 1e-7, the_max
+        vmin, vmax = the_max * 1e-9, the_max
     if var in ['wallClockTime',]: vmin,vmax = the_max*1e-1, the_max
  
     norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)

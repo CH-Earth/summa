@@ -75,7 +75,7 @@ for i, m in enumerate(method_name2):
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['snow Water Equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
 plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
 leg_titl = [leg_titl[i] for i in use_vars]
@@ -113,10 +113,8 @@ maxes = [maxes[i] for i in use_vars]
 
 if stat2 == 'mean':
     maxes2 = [1e-3,1e1,1e1,1e1]+[1e-12,1e-11,1e-10,1e-13] + [20e-3]
-    #if do_rel: maxes2 = [1e-6,1e-4,1e-6,1e-7]+[1e-10,1e-11,1e-13,1e-11] + [10e-3]
 if stat2 == 'amax':
     maxes2 = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
-    #if do_rel: maxes2 = [1e-2,1e0,1e-4,1e-2]+[1e-7,1e-8,1e-10,1e-6] + [0.2]
 maxes2 = [maxes2[i] for i in use_vars2]
 
 summa = {}

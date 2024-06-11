@@ -236,6 +236,7 @@ subroutine summaSolve4ida(&
   logical(lgt)                      :: tinystep                               ! if step goes below small size
   type(var_dlength)                 :: flux_prev                              ! previous model fluxes for a local HRU
   character(LEN=256)                :: cmessage                               ! error message of downwind routine
+  real(rkind)                       :: dt_mult                                ! multiplier for time step average values
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)           ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: resVecPrev(:)                          ! previous value for residuals
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
@@ -318,7 +319,6 @@ subroutine summaSolve4ida(&
     ! allocate space for the to save previous fluxes
     call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-    flux_prev                         = eqns_data%flux_data
     
     ! allocate space for other variables
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
@@ -341,11 +341,15 @@ subroutine summaSolve4ida(&
     allocate( resVecPrev(nState) )
 
     ! need the following values for the first substep
+    do iVar=1,size(flux_meta)  ! loop through fluxes
+      flux_prev%var(iVar)%dat(:)      = 0._rkind
+    end do
     eqns_data%scalarCanopyTempPrev    = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
     eqns_data%mLayerTempPrev(:)       = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
     eqns_data%scalarCanopyTempTrial   = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
     eqns_data%mLayerTempTrial(:)      = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
     eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
+    mLayerMatricHeadPrimePrev         = 0._rkind
     dCompress_dPsiPrev(:)             = 0._rkind
     resVecPrev(:)                     = 0._rkind
     balance(:)                        = 0._rkind
@@ -523,26 +527,32 @@ subroutine summaSolve4ida(&
       end if
     
       ! sum of fluxes smoothed over the time step, average from instantaneous values
+      if (nSteps>1) then 
+        dt_mult = dt_diff/2._rkind
+      else ! first step no averaging
+        dt_mult = dt_diff
+      end if
+
       do iVar=1,size(flux_meta)
         flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + ( eqns_data%flux_data%var(iVar)%dat(:) &
-                                                                  + flux_prev%var(iVar)%dat(:) ) *dt_diff/2._rkind
+                                                                  + flux_prev%var(iVar)%dat(:) ) * dt_mult
       end do
       mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + ( eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) * eqns_data%mLayerMatricHeadPrime(:) &
-                                                      + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_diff/2._rkind
-    
+                                                      + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_mult
+                                                      
       ! ----
       ! * compute energy balance, from residuals
       !  formulation with prime variables would cancel to closedForm version, so does not matter which formulation is used
       !------------------------
       if(computNrgBalance)then    
-    
+        
         ! compute energy balance mean, resVec is the instantaneous residual vector from the solver
         ! note, if needCm and/or updateCp are false in eval8summaWithPrime, then the energy balance is not accurate
-        if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
-        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
+        if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_mult/dt
+        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_mult/dt
         if(nSnowSoilNrg>0)then
           do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing) 
-            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_diff/2._rkind/dt
+            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_mult/dt
           enddo
         endif
       endif
@@ -553,13 +563,13 @@ subroutine summaSolve4ida(&
       if(computMassBalance)then
     
         ! compute mass balance mean, resVec is the instantaneous residual vector from the solver
-        if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_diff/2._rkind/dt
+        if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_mult/dt
         if(nSnowSoilHyd>0)then
           do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing) 
-            balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + ( eqns_data%resVec(ixSnowSoilHyd(i)) + resVecPrev(ixSnowSoilHyd(i)) )*dt_diff/2._rkind/dt
+            balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + ( eqns_data%resVec(ixSnowSoilHyd(i)) + resVecPrev(ixSnowSoilHyd(i)) )*dt_mult/dt
           enddo
         endif
-        if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + ( eqns_data%resVec(ixAqWat) + resVecPrev(ixAqWat) )*dt_diff/2._rkind/dt
+        if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + ( eqns_data%resVec(ixAqWat) + resVecPrev(ixAqWat) )*dt_mult/dt
       endif
     
       ! save required quantities for next step
@@ -570,6 +580,7 @@ subroutine summaSolve4ida(&
       dCompress_dPsiPrev(:)                  = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
       tretPrev                               = tret(1)
       resVecPrev(:)                          = eqns_data%resVec(:)
+      flux_prev                              = eqns_data%flux_data
     
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
