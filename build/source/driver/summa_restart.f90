@@ -234,15 +234,7 @@ contains
   ! *** initialize HDS variables at the GRU level
   ! *****************************************************************************
   if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
-   call init_summa_HDS(bvarStruct%gru(iGRU)%var(iLookBVAR%pondVolFrac)%dat(1)      , &
-                       bparStruct%gru(iGRU)%var(iLookBPAR%depressionDepth)         , &
-                       bparStruct%gru(iGRU)%var(iLookBPAR%depressionAreaFrac)      , &
-                       bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) , &
-                       bparStruct%gru(iGRU)%var(iLookBPAR%depression_p)            , &
-                       bvarStruct%gru(iGRU)%var(iLookBVAR%pondVol)%dat(1)          , &
-                       bvarStruct%gru(iGRU)%var(iLookBVAR%pondArea)%dat(1)         , &
-                       bvarStruct%gru(iGRU)%var(iLookBVAR%conAreaFrac)%dat(1)      , & 
-                       bvarStruct%gru(iGRU)%var(iLookBVAR%vMin)%dat(1))
+   call init_summa_HDS(bvarStruct%gru(iGRU), bparStruct%gru(iGRU))
   endif
  end do  ! end looping through GRUs
 

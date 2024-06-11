@@ -1,23 +1,26 @@
 module HDS
     USE nrtype
     ! physical constants
-    USE multiconst,only:LH_vap,  & ! latent heat of vaporization   (J kg-1)
-                        iden_water ! intrinsic density of water    (kg m-3)
+    USE multiconst,only:iden_water ! intrinsic density of water    (kg m-3)
+
+    ! define data types
+    USE data_types,only:&
+                        ! no spatial dimension
+                        var_dlength,     & ! x%var(:)%dat        (dp)
+                        var_d              ! var(:)              ! for GRU parameters
+    
+    ! provide access to the named variables that describe elements of parameter structures                        
+    USE var_lookup,only:iLookBVAR          ! look-up values for basin-average model variables
+    USE var_lookup,only:iLookBPAR          ! look-up values for basin-average model parameters (for HDS)
     
     contains
-    subroutine init_summa_HDS(pondVolFrac, depressionDepth, depressionAreaFrac, totalArea, p, pondVol, pondArea, conArea, vMin)
+    
+    subroutine init_summa_HDS(bvarData, bparGRU)
         ! initialize HDS pothole storage model states for SUMMA
         implicit none
         !subroutine arguments
-        real(rkind),  intent(inout)  :: pondVolFrac                    ! depression volume fraction [-]
-        real(rkind),  intent(in)     :: depressionDepth                ! depression depth [m]
-        real(rkind),  intent(in)     :: depressionAreaFrac             ! depression area fraction [-]
-        real(rkind),  intent(in)     :: totalArea                      ! basin (GRU) total area [m2]
-        real(rkind),  intent(in)     :: p                              ! shape of the slope profile [-]. Exponent for calculating the fractional wet area
-        real(rkind),  intent(out)    :: pondVol                        ! pond volume [m3]
-        real(rkind),  intent(out)    :: pondArea                       ! pond Area [m2]
-        real(rkind),  intent(out)    :: conArea                        ! fractional contributing area [-]
-        real(rkind),  intent(out)    :: vMin                           ! minimum pond volume [m3]
+        type(var_dlength)   , intent(inout) :: bvarData             ! x%var(:)%dat        -- basin-average variables
+        type(var_d)         , intent(in)    :: bparGRU              ! x%gru(:)%var(:)     -- basin-average parameters                   
 
         ! local variables
         real(rkind)                  :: depressionArea                 ! depression area [m2]
@@ -26,39 +29,29 @@ module HDS
         ! initialize HDS pothole storage variables
         ! GRU level
         !*****************************************
+        ! start association
+        associate(pondVolFrac        => bvarData%var(iLookBVAR%pondVolFrac)%dat(1)      , & ! depression volume fraction [-]
+                  depressionDepth    => bparGRU%var(iLookBPAR%depressionDepth)          , & ! depression depth [m]
+                  depressionAreaFrac => bparGRU%var(iLookBPAR%depressionAreaFrac)       , & ! depression area fraction [-]
+                  totalArea          => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) , & ! basin (GRU) total area [m2]
+                  p                  => bparGRU%var(iLookBPAR%depression_p)             , & ! shape of the slope profile [-]. Exponent for calculating the fractional wet area
+                  pondVol            => bvarData%var(iLookBVAR%pondVol)%dat(1)          , & ! pond volume [m3]
+                  pondArea           => bvarData%var(iLookBVAR%pondArea)%dat(1)         , & ! pond Area [m2]
+                  conAreaFrac        => bvarData%var(iLookBVAR%conAreaFrac)%dat(1)      , & ! fractional contributing area [-]
+                  vMin               => bvarData%var(iLookBVAR%vMin)%dat(1)               & ! minimum pond volume [m3]
+        )
+
            pondVolFrac = max(pondVolFrac, zero)
            depressionArea = depressionAreaFrac * totalArea
            depressionVol = depressionDepth * depressionArea
            ! the following checks (<0) are used to set initial values for the variables if there are set to missing value (-999)
            ! the following calculations are approximate solutions and will be updated inside the routine
-           if(pondVol<0)  pondVol  = pondVolFrac * depressionVol   ! approximate vol calculation, will be updated later in the subroutine
-           if(pondArea<0) pondArea = depressionArea*((pondVol/depressionVol)**(two/(p + two)))
-           if(conArea<0)  conArea  = pondVol/depressionVol ! assume that contrib_frac = vol_frac_sml for initialization purposes
-           if(vMin<0)     vMin     = pondVol
-        
+           if(pondVol < zero     )  pondVol      = pondVolFrac * depressionVol   ! approximate vol calculation, will be updated later in the subroutine
+           if(pondArea < zero    )  pondArea     = depressionArea*((pondVol/depressionVol)**(two/(p + two)))
+           if(conAreaFrac < zero )  conAreaFrac  = pondVol/depressionVol ! assume that contrib_frac = vol_frac_sml for initialization purposes
+           if(vMin < zero        )  vMin         = pondVol
+        end associate
     end subroutine init_summa_HDS
-    !=============================================================
-    !=============================================================
-    function calcPotentialEvap_Oudin2005(SWRadAtm, airtemp) result(potentialEvap)
-        ! calculate potential evaporation using Oudin et al. (2005)'s formula for a specific HRU
-        implicit none
-        !function arguments
-        real(rkind),  intent(in)     :: SWRadAtm                ! downwelling shortwave radiaiton [w/m2]
-        real(rkind),  intent(in)     :: airtemp                 ! air temperature  [-]
-
-        ! local variables
-        real(rkind)                  :: potentialEvap           ! pontentail evaporation as calculated by Oudin's formula
-
-        ! Oudin (2005)'s formula
-        potentialEvap = (1000._rkind * & 
-        (SWRadAtm * 1e-6 / &                                    ! w/m2 to MJ/m2/s
-        (LH_vap * 1e-6 * iden_water)) * &                       ! J kg-1 to MJ kg-1
-        ((airtemp - 273.15_rkind + 5._rkind)/100._rkind))       ! K to deg C
-        
-        ! check for negative values
-        potentialEvap = max(potentialEvap, zero)
-
-    end function calcPotentialEvap_Oudin2005
     !=============================================================
     !=============================================================
     subroutine init_pond_Area_Volume(depArea, depVol, totEvap, volFrac, p, pondVol, pondArea)
@@ -99,29 +92,40 @@ module HDS
 
     !=============================================================
     !=============================================================
-    subroutine runDepression(pondVol,                  &       ! input/output:  state variable = pond volume [m3]
-                             qSeas, pRate, etPond,     &       ! input:         forcing data = runoff, precipitation, ET [mm/day]
-                             depArea, depVol, upsArea, &       ! input:         spatial attributes = depression area [m2], depression volume [m3], upstream area [m2]
-                             p, tau,                   &       ! input:         model parameters = p [-] shape of the slope profile; tau [day-1] time constant linear reservoir
-                             b, vmin,                  &       ! input:         model parameters = b [-] shape of contributing fraction curve; vmin [m3] minimum volume
-                             dt,                       &       ! input:         model time step [days]
-                             Q_det_adj, Q_dix_adj,     &       ! output:        adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol)
-                             fVol, fArea,              &       ! output:        fractional volume [-], fractional contributing area [-]
-                             pondArea, pondOutflow)            ! output:        pond area at the end of the time step [m2], pond outflow [m3]
+    ! subroutine runDepression(pondVol,                  &       ! input/output:  state variable = pond volume [m3]
+    !                          qSeas, pRate, etPond,     &       ! input:         forcing data = runoff, precipitation, ET [mm/day]
+    !                          depArea, depVol, upsArea, &       ! input:         spatial attributes = depression area [m2], depression volume [m3], upstream area [m2]
+    !                          p, tau,                   &       ! input:         model parameters = p [-] shape of the slope profile; tau [day-1] time constant linear reservoir
+    !                          b, vmin,                  &       ! input:         model parameters = b [-] shape of contributing fraction curve; vmin [m3] minimum volume
+    !                          dt,                       &       ! input:         model time step [days]
+    !                          Q_det_adj, Q_dix_adj,     &       ! output:        adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol)
+    !                          fVol, fArea,              &       ! output:        fractional volume [-], fractional contributing area [-]
+    !                          pondArea, pondOutflow)            ! output:        pond area at the end of the time step [m2], pond outflow [m3]
 
-
+    subroutine runDepression(bvarData, bparGRU, basinPrecip, basinPotentialEvap)
+        
+        ! global data
+        USE globalData,only:data_step              ! time step of forcing data (s) - used by HDS to accumulate fluxes at each time step (forcing data step)
         ! Estimate the volumetric storage at the end of the time interval using the numerical solution
         implicit none
         ! subroutine arguments
-        real(rkind),  intent(inout) :: pondVol, vmin               ! state variable = pond volume [m3], vmin [m3] minimum volume
-        real(rkind),  intent(in)    :: qSeas, pRate, etPond        ! input:         forcing data = runoff, precipitation, ET [mm/day]
-        real(rkind),  intent(in)    :: depArea, depVol, upsArea    ! input:         spatial attributes = depression area [m2], depression volume [m3], upstream area [m2]
-        real(rkind),  intent(in)    :: p, tau                      ! input:         model parameters = p [-] shape of the slope profile; tau [day-1] time constant linear reservoir
-        real(rkind),  intent(in)    :: b                           ! input:         model parameters = b [-] shape of contributing fraction curve; vminold [m3] minimum volume
-        real(rkind),  intent(in)    :: dt                          ! input:         model time step [days]
-        real(rkind),  intent(out)   :: Q_det_adj, Q_dix_adj        ! output:        adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol). Zero values mean no adjustment needed.
-        real(rkind),  intent(out)   :: fVol, fArea                 ! output:        fractional volume [-], fractional contributing area [-]
-        real(rkind),  intent(out)   :: pondArea, pondOutflow       ! output:        pond area at the end of the time step [m2]
+        type(var_dlength)   , intent(inout) :: bvarData             ! x%var(:)%dat        -- basin-average variables
+        type(var_d)         , intent(in)    :: bparGRU              ! x%gru(:)%var(:)     -- basin-average parameters      
+        real(rkind)         , intent(in)    :: basinPrecip          ! average basin precipitation amount (kg m-2 s-1 = mm s-1)
+        real(rkind)         , intent(in)    :: basinPotentialEvap   ! average basin potential evaporation amount (mm s-1)
+        ! local variables -- subroutine parameters (static or deactivated)
+        real(rkind)  , parameter    :: dt=1._rkind                   ! model time step [length of timestep = 1 -- nosubsteps]
+        real(rkind)  , parameter    :: tau=0._rkind                  ! model parameters   = tau  time constant linear reservoir [timestep-1] ! currently deactivated
+        ! local variables -- general
+        real(rkind)                 :: qSeas, pRate, etPond                    ! forcing data = runoff, precipitation, ET [mm/timestep]
+        real(rkind)                 :: depArea, depVol, upsArea, landArea      ! spatial attributes = depression area [m2], depression volume [m3], upstream area [m2], land area = total area - depression area (m2)
+        
+        ! real(rkind),  intent(inout) :: pondVol, vmin               ! state variable = pond volume [m3], vmin [m3] minimum volume
+        ! real(rkind),  intent(in)    :: p, tau                      ! input:         model parameters = p [-] shape of the slope profile; tau [day-1] time constant linear reservoir
+        ! real(rkind),  intent(in)    :: b                           ! input:         model parameters = b [-] shape of contributing fraction curve; vminold [m3] minimum volume
+
+        ! real(rkind),  intent(out)   :: fVol, fArea                 ! output:        fractional volume [-], fractional contributing area [-]
+        ! real(rkind),  intent(out)   :: pondArea, pondOutflow       ! output:        pond area at the end of the time step [m2]
         ! local variables -- model decisions
         integer(i4b), parameter     :: implicitEuler=1001          ! named variable for the implicit Euler solution
         integer(i4b), parameter     :: shortSubsteps=1002          ! named variable for the short substeps solution
@@ -139,9 +143,35 @@ module HDS
         real(rkind)                 :: dtSub                       ! dt for shortSubsteps solution
         ! local variables -- diagnostic variables (model physics)
         real(rkind)                 ::  Q_di, Q_det, Q_dix, Q_do   ! fluxes [L3 T-1]: sum of water inputs to the pond, evapotranspiration, infiltration, pond outflow
+        real(rkind)                 ::  Q_det_adj, Q_dix_adj       ! adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol). Zero values mean no adjustment needed.
         real(rkind)                 ::  cFrac, g, dgdv             ! contributing fraction, net fluxes and derivative
         real(rkind)                 ::  xVol                       ! pond volume at the end of the time step [m3]
+        
+        ! start the association
+        associate(totalArea              =>    bvarData%var(iLookBVAR%basin__totalArea)%dat(1)   , &
+                 basinTotalRunoff        =>    bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) , &  ! basin total runoff (m s-1)
+                 ! HDS pothole storage variables
+                 vMin                    =>    bvarData%var(iLookBVAR%vMin)%dat(1)             , &   ! volume of water in the meta depression at the start of a fill period (m3)
+                 fArea                   =>    bvarData%var(iLookBVAR%conAreaFrac)%dat(1)      , &   ! fractional contributing area (-)
+                 fVol                    =>    bvarData%var(iLookBVAR%pondVolFrac)%dat(1)      , &   ! fractional pond volume = pondVol/depressionVol (-)
+                 pondVol                 =>    bvarData%var(iLookBVAR%pondVol)%dat(1)          , &   ! pond volume at the end of time step (m3)
+                 pondArea                =>    bvarData%var(iLookBVAR%pondArea)%dat(1)         , &   ! pond area at the end of the time step (m2)
+                 pondOutflow             =>    bvarData%var(iLookBVAR%pondOutflow)%dat(1)      , &   ! pond outflow (m3)
+                 ! HDS pothole storage parameters
+                 depDepth                =>    bparGRU%var(iLookBPAR%depressionDepth)          , &   ! depression depth (m)
+                 depAreaFrac             =>    bparGRU%var(iLookBPAR%depressionAreaFrac)       , &   ! fractional depressional area (depressionArea/basinArea) (-)
+                 depCatchAreaFrac        =>    bparGRU%var(iLookBPAR%depressionCatchAreaFrac)  , &   ! fractional area (of the landArea= basinArea - depressionArea) that drains to the depressions (-)
+                 p                       =>    bparGRU%var(iLookBPAR%depression_p)             , &   ! shape of the slope profile (-)
+                 b                       =>    bparGRU%var(iLookBPAR%depression_p)               &   ! shape of contributing fraction curve (-)
+         )
+        ! exit the subroutine if depDepth for this GRU is <= 0 (i.e., this GRU does not have depressions)
+        if(depDepth <= zero) return
 
+        ! convert fluxes to mm/timestep
+        qSeas  = max(basinTotalRunoff, zero) * 0.001 * data_step  ! runoff                [m s-1]  -> mm/timestep
+        pRate  = basinPrecip * data_step                          ! precipitation         [mm s-1] -> mm/timestep
+        etPond = basinPotentialEvap * data_step                   ! potential evaporation [mm s-1] -> mm/timestep
+        
         ! define numerical solution
         solution      = implicitEuler
         !solution      = shortSubsteps
@@ -151,6 +181,13 @@ module HDS
         ! initialize corrected evaporation and infiltration for mass balance closure
         Q_det_adj = zero
         Q_dix_adj = zero
+        ! initialize pondOutflow
+        pondOutflow = 0._rkind
+        ! calculate some spatial attributes (might be moved somewhere else)
+        depArea = depAreaFrac * totalArea
+        depVol = depDepth * depArea
+        landArea = totalArea - depArea
+        upsArea = max(landArea * depCatchAreaFrac, 0._rkind)
 
         ! ---------- option 1: implicit Euler ----------
 
@@ -236,6 +273,11 @@ module HDS
         pondArea = depArea*((pondVol/depVol)**(two/(p + two)))
         ! pond outflow [m3]
         pondOutflow = Q_do
+
+        ! adjust runoff values (pondoutflow + contribution from non-depressional area)
+        basinTotalRunoff = pondOutflow / data_step / totalArea + & !m3/timestep -> m s-1
+                            (basinTotalRunoff * landArea * (1._rkind - depCatchAreaFrac)) / totalArea ! m s-1 -> m3 s-1 -> m s-1
+        end associate
     end subroutine runDepression
 
     !=============================================================
