@@ -213,13 +213,13 @@ set(ACTORS_GLOBAL
 set(SYS_INIT
     ${SYS_INIT_DIR}/batch.cpp
     ${SYS_INIT_DIR}/batch_container.cpp
-    ${SYS_INIT_DIR}/client.cpp
-    ${SYS_INIT_DIR}/client_container.cpp
+    # ${SYS_INIT_DIR}/client.cpp
+    # ${SYS_INIT_DIR}/client_container.cpp
     ${SYS_INIT_DIR}/summa_global_data.cpp
     ${SYS_INIT_DIR}/summa_actor.cpp
-    ${SYS_INIT_DIR}/summa_backup_server.cpp
-    ${SYS_INIT_DIR}/summa_client.cpp
-    ${SYS_INIT_DIR}/summa_server.cpp
+    # ${SYS_INIT_DIR}/summa_backup_server.cpp
+    # ${SYS_INIT_DIR}/summa_client.cpp
+    # ${SYS_INIT_DIR}/summa_server.cpp
     CACHE INTERNAL "SYS_INIT")
 set(FILE_ACCESS_ACTOR
     ${FILE_ACCESS_DIR}/summa_init_struc.cpp
@@ -228,14 +228,10 @@ set(FILE_ACCESS_ACTOR
     ${FILE_ACCESS_DIR}/output_container.cpp
     CACHE INTERNAL "FILE_ACCESS_ACTOR")
 set(JOB_ACTOR
-    ${JOB_ACTOR_DIR}/GRU.cpp
     ${JOB_ACTOR_DIR}/gru_struc.cpp
     ${JOB_ACTOR_DIR}/job_actor.cpp
-    ${JOB_ACTOR_DIR}/async_mode.cpp
-    ${JOB_ACTOR_DIR}/data_assimilation_mode.cpp
-    ${JOB_ACTOR_DIR}/job_utils.cpp
-    ${JOB_ACTOR_DIR}/distributed_job_actor.cpp
-    ${JOB_ACTOR_DIR}/node_actor.cpp
+    # ${JOB_ACTOR_DIR}/distributed_job_actor.cpp
+    # ${JOB_ACTOR_DIR}/node_actor.cpp
     CACHE INTERNAL "JOB_ACTOR")
 set(GRU_ACTOR
     ${GRU_ACTOR_DIR}/gru_actor.cpp

@@ -226,10 +226,10 @@ target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM)
 
 # For Actors, build SUMMA Shared Library add the actors libraries and add the executable
 if(USE_ACTORS)
-    add_executable(${EXEC_NAME} ${MAIN_SUMMA} )
-        # ${ACTORS_GLOBAL} 
-                #    ${FILE_ACCESS_ACTOR} ${JOB_ACTOR} ${GRU_ACTOR} ${HRU_ACTOR}
-                #    ${SYS_INIT} ${SUMMA_CLIENT} ${SUMMA_SERVER})
+    add_executable(${EXEC_NAME} ${MAIN_SUMMA} ${ACTORS_GLOBAL} 
+                   ${FILE_ACCESS_ACTOR} ${JOB_ACTOR} ${GRU_ACTOR} ${SYS_INIT})
+                # ${HRU_ACTOR}
+                #     ${SUMMA_CLIENT} ${SUMMA_SERVER})
 
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
     target_compile_options(${EXEC_NAME} PUBLIC ${FLAGS_CXX})
