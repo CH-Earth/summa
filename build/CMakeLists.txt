@@ -18,10 +18,19 @@ LIST(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
-# OpenBLAS
-set(BLA_VENDOR OpenBLAS) # MKL
-find_package(OpenBLAS REQUIRED)
-list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+# Attempt to find LAPACK first
+find_package(LAPACK QUIET)
+if(LAPACK_FOUND)
+  message(STATUS "Using LAPACK")
+  list(APPEND EXT_TARGETS ${LAPACK_LIBRARIES})
+else()
+  # If LAPACK not found, fallback to OpenBLAS
+  message(STATUS "LAPACK not found, trying OpenBLAS")
+  set(BLA_VENDOR OpenBLAS)
+  find_package(OpenBLAS REQUIRED)
+  list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+endif()
+
 
 # Set Compiler Flags
 set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
