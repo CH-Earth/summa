@@ -29,7 +29,7 @@ module summabmi
 ! NGEN_ACTIVE is to be set when running in the Nextgen framework
 ! https://github.com/NOAA-OWP/ngen
 #ifdef NGEN_ACTIVE
-  use bmif_2_0_iso                                            ! BMI libraries NexGen
+  use bmif_2_0_iso                                            ! BMI libraries NextGen
 #else
   use bmif_2_0                                                ! BMI libraries standard
 #endif
