@@ -11,7 +11,7 @@ endif()
 # SUMMA can be compiled with debug flags by specifiying -DCMAKE_BUILD_TYPE=Debug
 #
 # There are multiple options for building SUMMA, including using the
-# Sundials suite of solvers, the C++ Actor framework, and the NextGen framework.
+# Sundials suite of solvers and the NextGen framework.
 # The options are set by specifying -DOPTION=ON when running cmake.
 # For example to compile SUMMA with Sundials, use
 # cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON
@@ -54,9 +54,6 @@ endif()
 
 if (USE_NEXTGEN)
     message("ENABLING NEXTGEN")
-    if (USE_ACTORS)
-        message(FATAL_ERROR "NextGen incompatible with Summa-Actors")
-    endif()
     add_compile_definitions(NGEN_ACTIVE BMI_ACTIVE NGEN_FORCING_ACTIVE
                             NGEN_OUTPUT_ACTIVE)
     add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
@@ -128,11 +125,7 @@ add_subdirectory(${F_MASTER}/build/source/)
 #=========================================================================================
 
 set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
-
 set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${DRIVER})
-
-set(SUMMA_ALL ${SUMMA_ALL} ${PRELIM_NOT_ACTORS} ${MODRUN_NOT_ACTORS}
-                  ${SOLVER_NOT_ACTORS} ${DRIVER_NOT_ACTORS})
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 if (USE_NEXTGEN)

@@ -46,9 +46,6 @@ set(DATAMS_SUNDIALS
     ${DSHARE_DIR}/type4ida.f90
     ${DSHARE_DIR}/type4kinsol.f90
     CACHE INTERNAL "DATAMS_SUNDIALS")
-set(DATAMS_ACTORS
-    ${ACTORS_DIR}/global/actor_data_types.f90
-    CACHE INTERNAL "DATAMS_ACTORS")
 
 # Utility modules
 set(UTILMS
@@ -98,6 +95,7 @@ set(MODRUN
     ${ENGINE_DIR}/layerMerge.f90
     ${ENGINE_DIR}/layerDivide.f90
     ${ENGINE_DIR}/qTimeDelay.f90
+    ${ENGINE_DIR}/read_force.f90
     ${ENGINE_DIR}/snowAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
     ${ENGINE_DIR}/tempAdjust.f90
@@ -105,9 +103,6 @@ set(MODRUN
     ${ENGINE_DIR}/var_derive.f90
     ${ENGINE_DIR}/volicePack.f90
     CACHE INTERNAL "MODRUN")
-set(MODRUN_NOT_ACTORS
-    ${ENGINE_DIR}/read_force.f90
-    CACHE INTERNAL "MODRUN_NOT_ACTORS")
 set(MODRUN_SUNDIALS
     ${ENGINE_DIR}/tol4ida.f90
     ${ENGINE_DIR}/updateVarsWithPrime.f90
@@ -127,6 +122,8 @@ set(SOLVER
     ${ENGINE_DIR}/eval8summa.f90
     ${ENGINE_DIR}/groundwatr.f90
     ${ENGINE_DIR}/opSplittin.f90
+    ${ENGINE_DIR}/run_oneGRU.f90
+    ${ENGINE_DIR}/run_oneHRU.f90
     ${ENGINE_DIR}/snowLiqFlx.f90
     ${ENGINE_DIR}/soilLiqFlx.f90
     ${ENGINE_DIR}/ssdNrgFlux.f90
@@ -139,10 +136,6 @@ set(SOLVER
     ${ENGINE_DIR}/vegPhenlgy.f90
     ${ENGINE_DIR}/vegSWavRad.f90
     CACHE INTERNAL "SOLVER")
-set(SOLVER_NOT_ACTORS
-    ${ENGINE_DIR}/run_oneGRU.f90
-    ${ENGINE_DIR}/run_oneHRU.f90
-    CACHE INTERNAL "SOLVER_NOT_ACTORS")
 set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/computJacobWithPrime.f90
     ${ENGINE_DIR}/computResidWithPrime.f90
@@ -158,15 +151,13 @@ set(DRIVER
     ${DRIVER_DIR}/summa_restart.f90
     ${DRIVER_DIR}/summa_alarms.f90
     ${DRIVER_DIR}/summa_globalData.f90
-    CACHE INTERNAL "DRIVER")
-set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_util.f90
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
     ${DRIVER_DIR}/summa_forcing.f90
     ${DRIVER_DIR}/summa_modelRun.f90
     ${DRIVER_DIR}/summa_writeOutput.f90
-    CACHE INTERNAL "DRIVER_NOT_ACTORS")
+    CACHE INTERNAL "DRIVER")
 set(DRIVER_NEXTGEN
     ${DRIVER_DIR}/summa_bmi.f90
     CACHE INTERNAL "DRIVER_NEXTGEN")
