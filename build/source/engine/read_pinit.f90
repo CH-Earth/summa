@@ -53,7 +53,7 @@ contains
  integer(i4b),intent(out)               :: err            ! error code
  character(*),intent(out)               :: message        ! error message
  ! define general variables
- logical(lgt),parameter                 :: backwardsCompatible=.false. ! .true. if skip check that all parameters are populated
+ logical(lgt),parameter                 :: backwardsCompatible=.true. ! .true. if skip check that all parameters are populated
  character(len=256)                     :: cmessage       ! error message for downwind routine
  character(LEN=256)                     :: infile         ! input filename
  integer(i4b)                           :: unt            ! file unit (free unit output from file_open)
@@ -130,7 +130,7 @@ contains
   end if
  end do  ! (looping through lines in the file)
  ! check we have populated all variables
- ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
+ ! NOTE: ultimately need a parameter dictionary to ensure that the parameters used are populated
  if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
   if(any(parFallback(:)%default_val < 0.99_rkind*realMissing))then
    do ivar=1,size(parFallback)

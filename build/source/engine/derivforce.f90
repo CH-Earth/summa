@@ -365,10 +365,10 @@ contains
   implicit none
   !function arguments
   real(rkind),  intent(in)     :: SWRadAtm                ! downwelling shortwave radiaiton [w/m2]
-  real(rkind),  intent(in)     :: airtemp                 ! air temperature  [-]
+  real(rkind),  intent(in)     :: airtemp                 ! air temperature  [K]
 
   ! local variables
-  real(rkind)                  :: potentialEvap           ! pontentail evaporation as calculated by Oudin's formula
+  real(rkind)                  :: potentialEvap           ! pontentail evaporation as calculated by Oudin's formula (mm s-1)
 
   ! Oudin (2005)'s formula
   potentialEvap = (1000._rkind * & 
