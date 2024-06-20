@@ -26,7 +26,6 @@ set(CMAKE_CONFIGURATION_TYPES Release Debug)
 
 # Options: Enable each with cmake -DOPTION=ON
 option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
-option(USE_ACTORS "Use Actors Framework" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
 set(EXT_TARGETS) # list of external targets to link to
 
@@ -52,22 +51,6 @@ if (USE_SUNDIALS)
     set(EXEC_NAME summa_sundials.exe)
 endif()
 
-if (USE_ACTORS)
-    message("ENABLING ACTORS")
-    find_package(CAF 0.18.3 QUIET) # Cluster has 0.18.3, but we can use 0.18.6
-    if(NOT CAF_FOUND)
-        find_package(CAF 0.18.6 REQUIRED)
-    endif()
-    list(APPEND EXT_TARGETS CAF::core CAF::io)
-    add_compile_definitions(ACTORS_ACTIVE V4_ACTIVE)
-
-    include(FortranCInterface)
-    FortranCInterface_VERIFY(CXX)
-
-    set(PARENT_DIR "${F_MASTER}/..")
-    set(EXEC_DIR "${PARENT_DIR}/../bin")
-    set(EXEC_NAME summa_actors.exe)
-endif()
 
 if (USE_NEXTGEN)
     message("ENABLING NEXTGEN")
@@ -132,14 +115,6 @@ set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
 set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
 set(NOAHMP_DIR ${F_MASTER}/build/source/noah-mp)
 
-# Define Actors specific directories
-set(ACTORS_DIR      ${PARENT_DIR}/source)
-set(SYS_INIT_DIR    ${ACTORS_DIR}/system_initialization)
-set(FILE_ACCESS_DIR ${ACTORS_DIR}/file_access_actor)
-set(JOB_ACTOR_DIR   ${ACTORS_DIR}/job_actor)
-set(GRU_ACTOR_DIR   ${ACTORS_DIR}/gru_actor)
-set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
-
 #=========================================================================================
 # COMPILE PART 2: Assemble all of the SUMMA sub-routines
 #=========================================================================================
@@ -156,16 +131,9 @@ set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
 
 set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${DRIVER})
 
-if (USE_ACTORS)
-    set(COMM_ALL ${COMM_ALL} ${DATAMS_ACTORS} ${INTERFACE})
-    set(SUMMA_ALL ${SUMMA_ALL} ${SYS_INIT_INTERFACE} ${FILE_ACCESS_INTERFACE}
-                  ${JOB_INTERFACE} ${GRU_INTERFACE} ${HRU_INTERFACE})
-    set(MAIN_SUMMA ${ACTORS_DIR}/main.cpp)
-else()
-    set(SUMMA_ALL ${SUMMA_ALL} ${PRELIM_NOT_ACTORS} ${MODRUN_NOT_ACTORS}
+set(SUMMA_ALL ${SUMMA_ALL} ${PRELIM_NOT_ACTORS} ${MODRUN_NOT_ACTORS}
                   ${SOLVER_NOT_ACTORS} ${DRIVER_NOT_ACTORS})
-    set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
-endif()
+set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 if (USE_NEXTGEN)
     set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_NEXTGEN})
@@ -227,28 +195,7 @@ else()
 	add_library(summa SHARED ${SUMMA_ALL})
 	target_compile_options(summa PRIVATE ${FLAGS_ALL})
 	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM)
-
-	# For Actors, build SUMMA Shared Library add the actors libraries and add the executable
-	if(USE_ACTORS)
-	    add_executable(${EXEC_NAME} ${MAIN_SUMMA} ${ACTORS_GLOBAL}
-	                   ${FILE_ACCESS_ACTOR} ${JOB_ACTOR} ${GRU_ACTOR} ${HRU_ACTOR}
-	                   ${SYS_INIT} ${SUMMA_CLIENT} ${SUMMA_SERVER})
-
-	    set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-	    target_compile_options(${EXEC_NAME} PUBLIC ${FLAGS_CXX})
-	    target_include_directories(${EXEC_NAME} PUBLIC
-	                               ${PARENT_DIR}/includes/global
-	                               ${PARENT_DIR}/includes/summa_actor
-	                               ${PARENT_DIR}/includes/job_actor
-	                               ${PARENT_DIR}/includes/file_access_actor
-	                               ${PARENT_DIR}/includes/gru_actor
-	                               ${PARENT_DIR}/includes/hru_actor)
-	    target_link_libraries( ${EXEC_NAME} ${EXT_TARGETS} summa)
-
-	# For other cases, build SUMMA Shared Library and add the executable
-	else()
-    	add_executable(${EXEC_NAME} ${MAIN_SUMMA})
-    	set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-    	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS}) # added flags to the link step
-	endif()
+    add_executable(${EXEC_NAME} ${MAIN_SUMMA})
+    set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS}) # added flags to the link step
 endif()
