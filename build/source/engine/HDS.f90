@@ -92,17 +92,10 @@ module HDS
 
     !=============================================================
     !=============================================================
-    ! subroutine runDepression(pondVol,                  &       ! input/output:  state variable = pond volume [m3]
-    !                          qSeas, pRate, etPond,     &       ! input:         forcing data = runoff, precipitation, ET [mm/day]
-    !                          depArea, depVol, upsArea, &       ! input:         spatial attributes = depression area [m2], depression volume [m3], upstream area [m2]
-    !                          p, tau,                   &       ! input:         model parameters = p [-] shape of the slope profile; tau [day-1] time constant linear reservoir
-    !                          b, vmin,                  &       ! input:         model parameters = b [-] shape of contributing fraction curve; vmin [m3] minimum volume
-    !                          dt,                       &       ! input:         model time step [days]
-    !                          Q_det_adj, Q_dix_adj,     &       ! output:        adjusted evapotranspiration & infiltration fluxes [L3 T-1] for mass balance closure (i.e., when losses > pondVol)
-    !                          fVol, fArea,              &       ! output:        fractional volume [-], fractional contributing area [-]
-    !                          pondArea, pondOutflow)            ! output:        pond area at the end of the time step [m2], pond outflow [m3]
-
-    subroutine runDepression(bvarData, bparGRU, basinPrecip, basinPotentialEvap)
+    subroutine runDepression(bvarData,    &           ! basin-average variables
+                             bparGRU,     &           ! basin-average parameters   
+                             basinPrecip, &           ! average basin precipitation amount (kg m-2 s-1 = mm s-1)
+                             basinPotentialEvap)      ! average basin potential evaporation amount (mm s-1)
         
         ! global data
         USE globalData,only:data_step              ! time step of forcing data (s) - used by HDS to accumulate fluxes at each time step (forcing data step)
@@ -120,12 +113,6 @@ module HDS
         real(rkind)                 :: qSeas, pRate, etPond                    ! forcing data = runoff, precipitation, ET [mm/timestep]
         real(rkind)                 :: depArea, depVol, upsArea, landArea      ! spatial attributes = depression area [m2], depression volume [m3], upstream area [m2], land area = total area - depression area (m2)
         
-        ! real(rkind),  intent(inout) :: pondVol, vmin               ! state variable = pond volume [m3], vmin [m3] minimum volume
-        ! real(rkind),  intent(in)    :: p, tau                      ! input:         model parameters = p [-] shape of the slope profile; tau [day-1] time constant linear reservoir
-        ! real(rkind),  intent(in)    :: b                           ! input:         model parameters = b [-] shape of contributing fraction curve; vminold [m3] minimum volume
-
-        ! real(rkind),  intent(out)   :: fVol, fArea                 ! output:        fractional volume [-], fractional contributing area [-]
-        ! real(rkind),  intent(out)   :: pondArea, pondOutflow       ! output:        pond area at the end of the time step [m2]
         ! local variables -- model decisions
         integer(i4b), parameter     :: implicitEuler=1001          ! named variable for the implicit Euler solution
         integer(i4b), parameter     :: shortSubsteps=1002          ! named variable for the short substeps solution
@@ -148,29 +135,29 @@ module HDS
         real(rkind)                 ::  xVol                       ! pond volume at the end of the time step [m3]
         
         ! start the association
-        associate(totalArea              =>    bvarData%var(iLookBVAR%basin__totalArea)%dat(1)   , &
-                 basinTotalRunoff        =>    bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) , &  ! basin total runoff (m s-1)
+        associate(totalArea              =>    bvarData%var(iLookBVAR%basin__totalArea)%dat(1)   , &    ! basin total area (m2)
+                 basinTotalRunoff        =>    bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) , &    ! basin total runoff (m s-1)
                  ! HDS pothole storage variables
-                 vMin                    =>    bvarData%var(iLookBVAR%vMin)%dat(1)             , &   ! volume of water in the meta depression at the start of a fill period (m3)
-                 fArea                   =>    bvarData%var(iLookBVAR%conAreaFrac)%dat(1)      , &   ! fractional contributing area (-)
-                 fVol                    =>    bvarData%var(iLookBVAR%pondVolFrac)%dat(1)      , &   ! fractional pond volume = pondVol/depressionVol (-)
-                 pondVol                 =>    bvarData%var(iLookBVAR%pondVol)%dat(1)          , &   ! pond volume at the end of time step (m3)
-                 pondArea                =>    bvarData%var(iLookBVAR%pondArea)%dat(1)         , &   ! pond area at the end of the time step (m2)
-                 pondOutflow             =>    bvarData%var(iLookBVAR%pondOutflow)%dat(1)      , &   ! pond outflow (m3)
+                 vMin                    =>    bvarData%var(iLookBVAR%vMin)%dat(1)               , &    ! volume of water in the meta depression at the start of a fill period (m3)
+                 fArea                   =>    bvarData%var(iLookBVAR%conAreaFrac)%dat(1)        , &    ! fractional contributing area (-)
+                 fVol                    =>    bvarData%var(iLookBVAR%pondVolFrac)%dat(1)        , &    ! fractional pond volume = pondVol/depressionVol (-)
+                 pondVol                 =>    bvarData%var(iLookBVAR%pondVol)%dat(1)            , &    ! pond volume at the end of time step (m3)
+                 pondArea                =>    bvarData%var(iLookBVAR%pondArea)%dat(1)           , &    ! pond area at the end of the time step (m2)
+                 pondOutflow             =>    bvarData%var(iLookBVAR%pondOutflow)%dat(1)        , &    ! pond outflow (m3)
                  ! HDS pothole storage parameters
-                 depDepth                =>    bparGRU%var(iLookBPAR%depressionDepth)          , &   ! depression depth (m)
-                 depAreaFrac             =>    bparGRU%var(iLookBPAR%depressionAreaFrac)       , &   ! fractional depressional area (depressionArea/basinArea) (-)
-                 depCatchAreaFrac        =>    bparGRU%var(iLookBPAR%depressionCatchAreaFrac)  , &   ! fractional area (of the landArea= basinArea - depressionArea) that drains to the depressions (-)
-                 p                       =>    bparGRU%var(iLookBPAR%depression_p)             , &   ! shape of the slope profile (-)
-                 b                       =>    bparGRU%var(iLookBPAR%depression_p)               &   ! shape of contributing fraction curve (-)
+                 depDepth                =>    bparGRU%var(iLookBPAR%depressionDepth)            , &    ! depression depth (m)
+                 depAreaFrac             =>    bparGRU%var(iLookBPAR%depressionAreaFrac)         , &    ! fractional depressional area (depressionArea/basinArea) (-)
+                 depCatchAreaFrac        =>    bparGRU%var(iLookBPAR%depressionCatchAreaFrac)    , &    ! fractional area (of the landArea= basinArea - depressionArea) that drains to the depressions (-)
+                 p                       =>    bparGRU%var(iLookBPAR%depression_p)               , &    ! shape of the slope profile (-)
+                 b                       =>    bparGRU%var(iLookBPAR%depression_p)                 &    ! shape of contributing fraction curve (-)
          )
         ! exit the subroutine if depDepth for this GRU is <= 0 (i.e., this GRU does not have depressions)
         if(depDepth <= zero) return
 
         ! convert fluxes to mm/timestep
-        qSeas  = max(basinTotalRunoff, zero) * 0.001 * data_step  ! runoff                [m s-1]  -> mm/timestep
-        pRate  = basinPrecip * data_step                          ! precipitation         [mm s-1] -> mm/timestep
-        etPond = basinPotentialEvap * data_step                   ! potential evaporation [mm s-1] -> mm/timestep
+        qSeas  = max(basinTotalRunoff, zero) * 0.001 * data_step  ! runoff                [m s-1]  -> [mm/timestep]
+        pRate  = basinPrecip * data_step                          ! precipitation         [mm s-1] -> [mm/timestep]
+        etPond = basinPotentialEvap * data_step                   ! potential evaporation [mm s-1] -> [mm/timestep]
         
         ! define numerical solution
         solution      = implicitEuler
@@ -302,7 +289,7 @@ module HDS
         real(rkind),  intent(out)   :: cFrac, g, dgdv              ! output: contributing fraction, net fluxes and derivative, pond area
         ! local variables
         real(rkind), parameter      ::  ms=0.0001_rkind            ! smoothing parameter (algorithm control)
-        real(rkind),  parameter     :: verySmall = 1.0e-12_rkind   ! very small value  
+        real(rkind), parameter      ::  verySmall = 1.0e-12_rkind  ! very small value  
         real(rkind), parameter      ::  rCoef=zero                 ! runoff coefficient [-] !HDS_standalone 0.050_rkind
         real(rkind)                 ::  pondArea                   ! calculated pond area
         real(rkind)                 ::  pInput                     ! precipitation (or rain+melt) [m/day]

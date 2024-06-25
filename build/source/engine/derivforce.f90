@@ -369,12 +369,15 @@ contains
 
   ! local variables
   real(rkind)                  :: potentialEvap           ! pontentail evaporation as calculated by Oudin's formula (mm s-1)
-
+  ! the following parameters were adjusted to produce reasonable PET values for the prairies ~ 1000 mm/year (https://doi.org/10.1038/s41598-020-78994-9)
+  real(rkind), parameter       :: K1 = 30._rkind           ! scaling factor
+  real(rkind), parameter       :: K2 = 3._rkind            ! minimum value of air temperature for which PE is not zero
+  
   ! Oudin (2005)'s formula
   potentialEvap = (1000._rkind * & 
   (SWRadAtm * 1e-6 / &                                    ! w/m2 to MJ/m2/s
   (LH_vap * 1e-6 * iden_water)) * &                       ! J kg-1 to MJ kg-1
-  ((airtemp - 273.15_rkind + 5._rkind)/100._rkind))       ! K to deg C
+  ((airtemp - 273.15_rkind + K2)/K1))                     ! K to deg C
     
   ! check for negative values
   potentialEvap = max(potentialEvap, zero)
