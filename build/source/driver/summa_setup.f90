@@ -29,7 +29,7 @@ USE globalData,only:realMissing      ! missing double precision number
 USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
-USE var_lookup,only:iLookID                              ! look-up values for local column model parameters
+USE var_lookup,only:iLookID                                 ! look-up values for local column model parameters
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
