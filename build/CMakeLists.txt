@@ -4,6 +4,12 @@ project(summa VERSION 3.2.0 LANGUAGES Fortran)
 # Add options for build type
 set(CMAKE_CONFIGURATION_TYPES Release Debug)
 
+option(USE_OPENMP "Use OpenMP for parallelization" OFF)
+if (USE_OPENMP)
+  find_package(OpenMP REQUIRED)
+  list(APPEND EXT_TARGETS OpenMP::OpenMP_Fortran)
+endif()
+
 # Set Default Executable Name
 set(EXEC_NAME summa.exe)
 set(F_MASTER "${CMAKE_CURRENT_SOURCE_DIR}/..")
