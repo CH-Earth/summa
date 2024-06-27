@@ -2,6 +2,7 @@
 
 We have successfully installed SUMMA on a number of Unix-like (\*nix) operating systems, including Linux and Darwin (Mac OS X). Since we do a lot of our development on OS X, we have a [separate page](SUMMA_on_OS_X.md) on how to install the necessary tools and libraries on that platform. If you do not want to deal with installing programs and libraries and just want to run SUMMA, then we also have a SUMMA release that uses [Docker](https://www.docker.com). Details can be found on our [SUMMA using Docker](SUMMA_docker.md) page. If you plan to use Docker, then you can skip the rest of this page.
 
+## Dependencies
 To compile SUMMA, you will need:
 
  * a Fortran compiler. We have successfully used the intel Fortran compiler (`ifort`, version 17.x) and the GNU Fortran compiler (`gfortran`, version 6 or higher), the latter of which is freely available. Since we do not use any compiler-specific extensions, you should be able to compile SUMMA with other Fortran compilers as well.
@@ -30,7 +31,11 @@ To compile SUMMA, you will need:
     * [Git Workflow for SUMMA](../development/SUMMA_git_workflow.md)
     * [SUMMA Coding Conventions](../development/SUMMA_coding_conventions.md)
 
-Once you have all the above, you can compile SUMMA using the following steps:
+## Compilation
+To compile SUMMA there are two methods, each of which is described in detail below. The first method uses a `Makefile` and is the traditional way to compile SUMMA. The second method uses `CMake` and enables parallelization for faster builds.
+
+### Makefile
+Once you have all the above, you can compile SUMMA using the following steps for using the `Makefile`:
 
  1. Navigate to your local copy of the SUMMA directory and go to the `build` subdirectory;
 
@@ -124,5 +129,25 @@ Lapack and blas libraries are loaded with library argument `-mkl`.
 ```
 
 If you get this far then SUMMA is installed correctly and functional.
+
+## CMake
+
+Most users will be able to compile SUMMA using the following steps, even on Digital Alliance of Canada machines (loaded modules usually automatically set the necessary CMake variables):
+```bash
+cd summa/build/cmake
+./compile_script.sh
+```
+If the compilation is successful, you will see the help output from running `summa.exe` in `summa/bin/` as shown in the Makefile instructions above.
+
+If you encounter issues with dependencies, it is most likely because they are installed in a non-standard location. If this is the case, you can set the `CMAKE_PREFIX_PATH` variable in the `compile_script.sh` script to the location of the dependencies. For example, if the NetCDF libraries are installed in `/home/some_user/netcdf`, you would modify the `compile_script.sh` script as follows:
+```bash
+#!/bin/bash
+
+export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH:/home/some_user/netcdf"
+
+cmake -B cmake_build -S ../. 
+cmake --build cmake_build --target all -j 
+```
+
 
 Continue reading [SUMMA configuration](../configuration/SUMMA_configuration.md) to learn more about how to configure SUMMA for your application. We strongly recommend that you get the [test applications](SUMMA_test_cases.md) to help you get started.
