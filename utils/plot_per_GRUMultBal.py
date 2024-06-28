@@ -13,7 +13,7 @@
 
 # Run:
 # python plot_per_GRUMult.py [stat]
-# where stat is rmse or maxe or kgem
+# where stat is mean or amax
 
 
 # modules
@@ -61,11 +61,9 @@ if do_rel:
 plot_vars = settings.copy()
 
 if stat == 'mean': 
-    maxes = [1e-4,1e0,1e0,1e0]+[1e-12,1e-11,1e-10,1e-13] + [3e-3]
-    if do_rel: maxes = [1e-6,1e-4,1e-6,1e-7]+[1e-10,1e-11,1e-13,1e-11] + [3e-3]
+    maxes = [1e-3,1e1,1e1,1e1]+[1e-12,1e-11,1e-10,1e-13] + [20e-3]
 if stat == 'amax': 
-    maxes = [1e-3,1e3,1e3,1e2]+[1e-11,1e-6,1e-7,1e-8] + [1e0]
-    if do_rel: maxes = [1e-2,1e0,1e-4,1e-2]+[1e-7,1e-8,1e-10,1e-6] + [1e0]
+    maxes = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
 
 # Get the albers shapes
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
@@ -210,7 +208,7 @@ def run_loop(j,var,the_max):
     my_cmap.set_bad(color='white') #nan color white
     vmin,vmax = the_max*1e-4, the_max
     if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
-        vmin, vmax = the_max * 1e-7, the_max
+        vmin, vmax = the_max * 1e-9, the_max
     if var in ['wallClockTime',]: vmin,vmax = the_max*1e-1, the_max
  
     norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
@@ -251,7 +249,7 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
  
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 25})
+        plt.rcParams.update({'font.size': 27})
     else:
         plt.rcParams.update({'font.size': 100})
 
@@ -261,16 +259,12 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
         fig,axs = plt.subplots(2,2,figsize=(140,133))
 
     # Remove the fourth subplot
-    fig.delaxes(axs[1, 1])
+    #fig.delaxes(axs[1, 1])
 
     fig.suptitle('{} Hourly Statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
-
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
-
     plt.tight_layout()
- 
     run_loop(i,var,the_max)
-
     fig_fil1 = (var+fig_fil).format(stat)
     # Save
     plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)

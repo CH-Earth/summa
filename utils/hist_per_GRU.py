@@ -32,6 +32,8 @@ if testing:
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en']
     plt_name=['BE1 mixed']
+    method_name2=method_name
+    plt_name2=plt_name
 else:
     import sys
     # The first input argument specifies the run where the files are
@@ -42,6 +44,8 @@ else:
     #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
     method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
     plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+    method_name2=method_name+['sundials_1en8cm']
+    plt_name2=plt_name+['reference solution']
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Define the power transformation function
@@ -49,23 +53,42 @@ def power_transform(x):
     return x ** 0.5  # Adjust the exponent as needed
 
 # Simulation statistics file locations
-use_vars = [1,5]
+use_vars = [1]
+rep = [0] # mark the repeats
+#use_vars = [0,1,2,3,4]
+#rep = [0,0,0,0,0] # mark the repeats
+
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 settings = [settings0[i] for i in use_vars]
 
+use_vars2 = [3,3,8]
+rep2 = [1,2,0] # mark the repeats
+#use_vars2 = [8]
+#rep2 = [0] # mark the repeats
+settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
+settings2 = [settings20[i] for i in use_vars2]
+
 viz_fil = method_name.copy()
+viz_fl2 = method_name2.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
     viz_fil[i] = viz_fil[i].format(','.join(settings0))
+for i, m in enumerate(method_name2):
+    viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
+    viz_fl2[i] = viz_fl2[i].format(','.join(['balance']))
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['Snow Water Equivalent','Total soil water content','Total evapotranspiration', 'Total water on the vegetation canopy','Average routed runoff','Wall clock time']
+plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff','wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
-leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
 plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
 leg_titl = [leg_titl[i] for i in use_vars]
-leg_titlm= [leg_titlm[i] for i in use_vars]
+
+plot_vars2 = settings2.copy()
+plt_titl2 = ['canopy air space energy balance','vegetation energy balance','snow energy balance','soil energy balance','vegetation mass balance','snow mass balance','soil mass malance','aquifer mass balance', 'wall clock time']
+leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
+plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
+leg_titl2 = [leg_titl2[i] for i in use_vars2]
 
 if do_hist:
     fig_fil = 'Hrly_diff_hist_{}_{}_zoom_compressed.png'
@@ -75,28 +98,51 @@ else:
     if do_rel: fig_fil = 'Hrly_diff_cdf_{}_{}_zoom_rel_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
-if stat == 'rmse': 
-    maxes = [2,15,250,0.08,200,10e-3] 
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
-if stat == 'rmnz': 
-    maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
-if stat == 'maxe': 
-    maxes = [15,25,0.8,2,0.3,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2]
-if stat == 'kgem': 
-    maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
+if stat == 'rmse':
+    stat2 = 'mean'
+    maxes = [2,15,250,0.08,200,20e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
+if stat == 'rmnz':
+    stat2 = 'mean'
+    maxes = [2,15,250,0.08,200,20e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
+if stat == 'maxe':
+    stat2 = 'amax'
+    maxes = [15,25,0.8,2,0.3,2.0]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,2.0]
+if stat == 'kgem':
+    stat2 = 'mean'
+    maxes = [0.9,0.9,0.9,0.9,0.9,20e-3]
 maxes = [maxes[i] for i in use_vars]
 
+if stat2 == 'mean':
+    maxes2 = [1e-3,1e1,1e1,1e1]+[1e-12,1e-11,1e-10,1e-13] + [20e-3]
+if stat2 == 'amax':
+    maxes2 = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
+maxes2 = [maxes2[i] for i in use_vars2]
+for i in range(len(maxes2)):
+    if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the range for the second repeat
+
+
 summa = {}
-for i, m in enumerate(method_name):
-    # Get the aggregated statistics of SUMMA simulations
-    summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+summa1 = {}
+if len(use_vars)>0:
+    for i, m in enumerate(method_name):
+        # Get the aggregated statistics of SUMMA simulations
+        summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+if len(use_vars2)>0:
+    for i, m in enumerate(method_name2):
+        summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     
 ##Figure
 
+plt.rcParams['xtick.color'] = 'black'
+plt.rcParams['xtick.major.width'] = 2
+plt.rcParams['ytick.color'] = 'black'
+plt.rcParams['ytick.major.width'] = 2
+
 if 'compressed' in fig_fil:
-    plt.rcParams.update({'font.size': 25})
+    plt.rcParams.update({'font.size': 27})
 else:
     plt.rcParams.update({'font.size': 100})
 
@@ -104,13 +150,15 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,38))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,160))
-fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40,y=1.0)
     
-def run_loop(i,var,mx):
+def run_loop(i,var,mx,rep):
     r = i//2
     c = i-r*2
     stat0 = stat
+    if rep == 1: stat0 = 'rmnz'
+    if rep == 2: stat0 = 'maxe'
     if stat == 'rmse' or stat == 'kgem': 
         if var == 'wallClockTime': stat0 = 'mean'
         statr = 'mean_ben'
@@ -171,11 +219,11 @@ def run_loop(i,var,mx):
     if statr == 'mean_ben': statr_word = 'mean'
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
-
+    
     axs[r,c].legend(plt_name)
     axs[r,c].set_title(plt_titl[i])
-    if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
-    if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titlm[i]))   
+    if rep>0: axs[r,c].set_title(plt_titl[i] + ' '+ stat_word)
+    if stat == 'rmse' or stat == 'rmnz' or stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
     if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
 
@@ -185,13 +233,84 @@ def run_loop(i,var,mx):
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')
+        if(c==1): axs[r, c].set_ylabel('')
         axs[r,c].set_ylim([0.0, 1.0])
         axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
-        if var=='scalarTotalSoilWat': # Rotate x-axis labels for axs[2, 1] subplot
+        if var=='scalarTotalSoilWat' or var=='wallClockTime': # Rotate x-axis labels for axs[2, 1] subplot
             axs[r, c].tick_params(axis='x', rotation=45)
 
-for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
-    run_loop(i,var,mx)
+def run_loopb(i,var,mx,rep):
+    r = (i+len(use_vars))//2
+    c = (i+len(use_vars))-r*2
+    stat0 = stat2
+    if rep == 1: stat0 = 'mean'
+    if rep == 2: stat0 = 'amax'
+        
+    if 'zoom' in fig_fil:
+        mx = mx
+        mn = mx*1e-4
+        if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
+            mn = mx*1e-9
+        if var=='wallClockTime': mn = 0.0
+    else:
+        mx = 0.0
+        mn = 1.0
+        for m in method_name2:
+            # Get the statistics, remove 9999 (should be nan, but just in case)
+            s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+            mx = max(s.max(),mx)
+            mn = min(s.min(),mn)
+
+    # Data
+    for m in method_name2:
+        s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+
+        range = (mn,mx)
+        if do_hist: 
+            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
+        else: #cdf
+            sorted_data = np.sort(np.fabs(s))
+            valid_data = sorted_data[~np.isnan(sorted_data)]
+            yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
+            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=2.0)
+            axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
+
+
+    if stat0 == 'mean': stat_word = 'mean'
+    if stat0 == 'amax': stat_word = 'max'
+
+    axs[r,c].legend(plt_name2)
+    axs[r,c].set_title(plt_titl2[i])
+    if rep>0: axs[r,c].set_title(plt_titl2[i] + ' '+ stat_word)
+    axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl2[i]))   
+
+    if do_hist: 
+        axs[r,c].set_ylabel('GRU count')
+        if(c==1): axs[r, c].set_ylabel('')
+        if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
+ 
+    else:
+        axs[r,c].set_ylabel('cumulative distribution')
+        if(c==1): axs[r, c].set_ylabel('')
+        axs[r,c].set_ylim([0.0, 1.0])
+        axs[r,c].set_xscale('log') #log x axis
+        if var=='wallClockTime': 
+            axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
+            axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
+
+if len(use_vars) > 0:
+    for i,(var,mx,rep) in enumerate(zip(plot_vars,maxes,rep)): 
+        run_loop(i,var,mx,rep)
+if len(use_vars2) > 0:
+    for i,(var,mx,rep) in enumerate(zip(plot_vars2,maxes2,rep2)): 
+        run_loopb(i,var,mx,rep)
+
+# Remove the extra subplots
+if (len(plot_vars)+len(plot_vars2)) < 6:
+    for i in range((len(plot_vars)+len(plot_vars2)),6):
+        r = i//2
+        c = i-r*2
+        fig.delaxes(axs[r, c])
 
 # Save
 plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)

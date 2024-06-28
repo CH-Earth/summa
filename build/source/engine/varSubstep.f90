@@ -75,7 +75,7 @@ USE multiconst,only:&
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
-                    numrec         ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    homegrown      ,& ! homegrown backward Euler solution using concepts from numerical recipes
                     kinsol         ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida               ! SUNDIALS solution using IDA
 
@@ -381,7 +381,7 @@ subroutine varSubstep(&
                       ! output: balances (only computed at this level for ida)
                       balance,           & ! intent(out):   balance per state variable
                       ! output  model control
-                      niter,             & ! intent(out):   number of iterations taken (numrec)
+                      niter,             & ! intent(out):   number of iterations taken (homegrown solver)
                       nSteps,            & ! intent(out):   number of time steps taken in solver
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
@@ -448,7 +448,7 @@ subroutine varSubstep(&
         return
       endif
 
-      ! update prognostic variables, update balances, and check them for possible step reduction if numrec or kinsol
+      ! update prognostic variables, update balances, and check them for possible step reduction if homegrown or kinsol solver
       call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                                    & ! input: states
                       doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthTemp,enthalpyStateVec,use_lookup,& ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                  & ! input-output: data structures
@@ -980,7 +980,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                     ! output: error control
                     err,cmessage)                       ! intent(out):   error control
 #endif
-      case(kinsol, numrec)
+      case(kinsol, homegrown)
         ! update diagnostic variables
         call updateVars(&
                  ! input
@@ -1020,7 +1020,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
       ! compute energy balance if didn't do inside solver substeps
       select case(ixNumericalMethod)
         case(ida); ! do nothing, already computed
-        case(kinsol, numrec)
+        case(kinsol, homegrown)
           ! calculate delta ice
           scalarCanopyIceDelta  = scalarCanopyIceTrial - scalarCanopyIce
           mLayerVolFracIceDelta = mLayerVolFracIceTrial - mLayerVolFracIce(1:nLayers)
@@ -1077,7 +1077,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ! * check mass balance...
     ! -----------------------
 
-    ! NOTE: currently this will only fail with kinsol solver, since mass balance is checked in the numrec solver and not checked for ida solver
+    ! NOTE: currently this will only fail with kinsol solver, since mass balance is checked in the homegrown solver and not checked for ida solver
     !   Negative error code will mean step will be failed and retried with smaller step size
     if(computMassBalance)then
 
@@ -1127,7 +1127,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
       ! compute mass balance if didn't do inside solver substeps
       select case(ixNumericalMethod)
         case(ida); ! do nothing
-        case(kinsol, numrec)
+        case(kinsol, homegrown)
           ! old mass balance checks
           if(ixVegHyd/=integerMissing)then
             ! check the mass balance for the canopy for step reduction (ida and kinsol should have done this already unless modified canopy water above)

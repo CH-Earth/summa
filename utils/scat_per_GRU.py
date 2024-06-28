@@ -34,6 +34,9 @@ if testing:
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en']
     plt_name=['BE1 mixed']
+    method_name2=method_name
+    plt_name2=plt_name
+
 else:
     import sys
     # The first input argument specifies the run where the files are
@@ -44,16 +47,19 @@ else:
     #plt_name=['BE1','BE16','BE32','IDAe-6'] #maybe make this an argument
     method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
     plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+    method_name2=method_name+['sundials_1en8cm']
+    plt_name2=plt_name+['reference solution']
 
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 viz_fil = method_name.copy()
-viz_fl2 = method_name.copy()
+viz_fl2 = method_name2.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
     viz_fil[i] = viz_fil[i].format(','.join(settings))
+for i, m in enumerate(method_name2):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
     viz_fl2[i] = viz_fl2[i].format(','.join(['balance']))
 
@@ -62,6 +68,7 @@ summa1 = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+for i, m in enumerate(method_name2):
     summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     
 def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
@@ -102,8 +109,8 @@ def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
 
         axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
  
-    lgnd = axs[r,c].legend()
-    for j, m in enumerate(method_name):
+    lgnd = axs[r,c].legend(plt_name)
+    for j, m in enumerate(plt_name):
        lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_t)
     if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_t))
@@ -132,7 +139,7 @@ def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
         word = ' max'
 
     # Data
-    for m in method_name:
+    for m in method_name2:
         # Get the statistics, remove 9999 (should be nan, but just in case)
         s0 = np.fabs(summa1[m][comp].sel(stat=stat0)).where(lambda x: x != 9999)
         s = np.fabs(summa1[m][var].sel(stat=stat0)).where(lambda x: x != 9999)
@@ -140,14 +147,14 @@ def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
         axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
 
     if comp == 'numberFluxCalc':
-        stat0_word = 'Number flux calculations'
-        stat_word = 'Wall clock time'
+        stat0_word = 'number flux calculations'
+        stat_word = 'wall clock time'
     else:
-        stat0_word = 'Balance abs value'
-        stat_word = 'Balance abs value'
+        stat0_word = 'balance abs value'
+        stat_word = 'balance abs value'
  
-    lgnd = axs[r,c].legend()
-    for j, m in enumerate(method_name):
+    lgnd = axs[r,c].legend(plt_name2)
+    for j, m in enumerate(plt_name2):
        lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_t)
     axs[r,c].set_xscale('log')
@@ -155,10 +162,13 @@ def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
     axs[r,c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_t))
     axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_t0))
 
-
+plt.rcParams['xtick.color'] = 'black'
+plt.rcParams['xtick.major.width'] = 2
+plt.rcParams['ytick.color'] = 'black'
+plt.rcParams['ytick.major.width'] = 2
 if do_vars:
 
-    plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff']
+    plt_titl = ['(a) snow water equivalent','(b) total soil water content','(c) total evapotranspiration', '(d) total water on the vegetation canopy','(e) average routed runoff']
     leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$']
     leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$']
     leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$']
@@ -168,21 +178,24 @@ if do_vars:
 
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 25})
+        plt.rcParams.update({'font.size': 27})
     else:
         plt.rcParams.update({'font.size': 100})
 
     if 'compressed' in fig_fil:
-        fig,axs = plt.subplots(3,2,figsize=(31,33))
+        fig,axs = plt.subplots(3,2,figsize=(35,38))
     else:
         fig,axs = plt.subplots(3,2,figsize=(140,133))
     #fig.suptitle('Hourly Errors and Values for each GRU', fontsize=40)
-    fig.subplots_adjust(hspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+    fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 
     # Specify variables of interest
     plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff']
     for i,(var,plt_t,leg_t,leg_t0,leg_tm) in enumerate(zip(plot_vars,plt_titl,leg_titl,leg_titl0,leg_titlm)): 
         run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm)
+
+    # Remove the sixth subplot
+    fig.delaxes(axs[2, 1])
 
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
@@ -192,7 +205,7 @@ if do_balance:
     plot_vars = ['balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceCasNrg','wallClockTime']
     comp_vars = ['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','numberFluxCalc']
  
-    plt_titl =  ['(a) Vegetation Balance','(b) Snow Balance','(c) Soil Balance', '(d) Canopy Air Space and Aquifer Balance', '(f) Wall Clock Time']
+    plt_titl = ['(a) vegetation balance','(b) snow balance','(c) soil balance', '(d) canopy air space and aquifer balance', '(f) wall clock time']
     leg_titl = ['$W~m^{-3}$'] * 4 + ['$s$']
     leg_titl0 =['$kg~m^{-2}~s^{-1}$'] * 4 + ['$num$']
 
@@ -201,7 +214,7 @@ if do_balance:
     fig_fil = fig_fil.format(stat)
 
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 25})
+        plt.rcParams.update({'font.size': 27})
     else:
         plt.rcParams.update({'font.size': 100})
 
@@ -209,11 +222,14 @@ if do_balance:
         fig,axs = plt.subplots(3,2,figsize=(35,38))
     else:
         fig,axs = plt.subplots(3,2,figsize=(140,160))
-    fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+    fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
     #fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
 
     for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,leg_titl,leg_titl0,plt_titl)): 
         run_loopb(i,var,comp,leg_t,leg_t0,plt_t)
+
+    # Remove the sixth subplot
+    fig.delaxes(axs[2, 1])
 
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)

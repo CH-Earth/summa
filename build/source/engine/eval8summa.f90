@@ -68,7 +68,7 @@ USE mDecisions_module,only:  &
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:  &
- numrec,                     & ! home-grown backward Euler solution using free versions of Numerical recipes
+ homegrown,                  & ! homegrown backward Euler solution based on concepts from numerical recipes
  kinsol,                     & ! SUNDIALS backward Euler solution using Kinsol
  ida                           ! SUNDIALS solution using IDA
 
@@ -219,8 +219,8 @@ subroutine eval8summa(&
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: updateFluxCp                ! flag to indicate if we update Cp at each step for RHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: needStateCm                 ! flag to indicate if the energy equation contains LHS Cm = dH_T/dTheta_m,, set with nrgConserv choice and needStateCm_closedForm flag
-  logical(lgt),parameter          :: updateCp_closedForm=.false. ! nrgConserv = closedForm flag to indicate if we update Cp at each step
-  logical(lgt),parameter          :: needCm_closedForm=.false.   ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
+  logical(lgt),parameter          :: updateCp_closedForm=.true. ! nrgConserv = closedForm flag to indicate if we update Cp at each step
+  logical(lgt),parameter          :: needCm_closedForm=.true.   ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -292,7 +292,7 @@ subroutine eval8summa(&
     ! initialize error control
     err=0; message="eval8summa/"
 
-    ! check the feasibility of the solution always with BE numrec but not inside Sundials solver
+    ! check the feasibility of the solution always with BE homegrown but not inside Sundials solver
     feasible=.true.
     if (.not.insideSUN) then
       call checkFeas(&
@@ -530,7 +530,7 @@ subroutine eval8summa(&
 
     ! only need to check longwave balance with numerical recipes solver 
     checkLWBalance = .false.
-    if(ixNumericalMethod==numrec) checkLWBalance = .true.
+    if(ixNumericalMethod==homegrown) checkLWBalance = .true.
 
     ! compute the fluxes for a given state vector
     call computFlux(&
@@ -874,7 +874,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT, works best if on
         epsT                = 1.e-7_rkind ! small interval above/below critical (K), works better if larger
         water_bounds        = .true.      ! flag to force water bounds, works best if on
-      case(numrec)
+      case(homegrown)
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
         zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)
         small_delMatric     = .true.      ! flag to constain matric head change to be less than zMaxMatricIncrement
@@ -882,7 +882,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT
         epsT                = 1.e-7_rkind ! small interval above/below critical (K)
         water_bounds        = .true.      ! flag to force water bounds
-      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
+      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or homegrown (or itertive, which is homegrown)'; return
     end select
     
     vGn_m = 1._rkind - 1._rkind/vGn_n

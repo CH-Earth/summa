@@ -53,7 +53,7 @@ contains
  USE data_types,only:gru_hru_doubleVec                   ! actual data
  USE data_types,only:gru_hru_intVec                      ! actual data
  USE data_types,only:gru_hru_z_vLookup                   ! actual data
- USE globaldata,only:iname_soil,iname_snow               ! named variables to describe the type of layer
+ USE globalData,only:iname_soil,iname_snow               ! named variables to describe the type of layer
  USE multiconst,only:&
                        LH_fus,    &                      ! latent heat of fusion                (J kg-1)
                        iden_ice,  &                      ! intrinsic density of ice             (kg m-3)
@@ -63,7 +63,6 @@ contains
  USE snow_utils_module,only:fracliquid                   ! compute volumetric fraction of liquid water in snow based on temperature
  USE updatState_module,only:updateSnow                   ! update snow states
  USE updatState_module,only:updateSoil                   ! update soil states
- USE indexState_module,only:indexState                   ! index the state variables
  USE enthalpyTemp_module,only:T2enthTemp_cas             ! convert temperature to enthalpy for canopy air space
  USE enthalpyTemp_module,only:T2enthTemp_veg             ! convert temperature to enthalpy for vegetation
  USE enthalpyTemp_module,only:T2enthTemp_snow            ! convert temperature to enthalpy for snow

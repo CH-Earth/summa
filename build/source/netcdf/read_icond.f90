@@ -155,7 +155,7 @@ contains
  USE globalData,only:bvar_meta                          ! metadata for basin (GRU) variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
  USE globalData,only:startGRU                          ! index of first gru for parallel runs
- USE globaldata,only:iname_soil,iname_snow              ! named variables to describe the type of layer
+ USE globalData,only:iname_soil,iname_snow              ! named variables to describe the type of layer
  USE netcdf_util_module,only:nc_file_open               ! open netcdf file
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling

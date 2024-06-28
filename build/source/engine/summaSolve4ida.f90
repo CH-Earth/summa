@@ -236,9 +236,20 @@ subroutine summaSolve4ida(&
   logical(lgt)                      :: tinystep                               ! if step goes below small size
   type(var_dlength)                 :: flux_prev                              ! previous model fluxes for a local HRU
   character(LEN=256)                :: cmessage                               ! error message of downwind routine
+  real(rkind)                       :: dt_mult                                ! multiplier for time step average values
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)           ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: resVecPrev(:)                          ! previous value for residuals
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
+  integer(c_long)                   :: nStepsSun(1)
+  integer(c_long)                   :: nREvals(1)
+  integer(c_long)                   :: nLinSetups(1)
+  integer(c_long)                   :: netFails(1)
+  integer(c_int)                    :: qLast(1)
+  integer(c_int)                    :: qCur(1)
+  real(c_double)                    :: hInitUsed(1)
+  real(c_double)                    :: hLast(1)
+  real(c_double)                    :: hCur(1)
+  real(c_double)                    :: tCur(1)
   ! flags
   logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn IDA warnings off, default true
@@ -308,7 +319,6 @@ subroutine summaSolve4ida(&
     ! allocate space for the to save previous fluxes
     call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-    flux_prev                         = eqns_data%flux_data
     
     ! allocate space for other variables
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
@@ -331,11 +341,15 @@ subroutine summaSolve4ida(&
     allocate( resVecPrev(nState) )
 
     ! need the following values for the first substep
+    do iVar=1,size(flux_meta)  ! loop through fluxes
+      flux_prev%var(iVar)%dat(:)      = 0._rkind
+    end do
     eqns_data%scalarCanopyTempPrev    = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
     eqns_data%mLayerTempPrev(:)       = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
     eqns_data%scalarCanopyTempTrial   = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
     eqns_data%mLayerTempTrial(:)      = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
     eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
+    mLayerMatricHeadPrimePrev         = 0._rkind
     dCompress_dPsiPrev(:)             = 0._rkind
     resVecPrev(:)                     = 0._rkind
     balance(:)                        = 0._rkind
@@ -436,7 +450,7 @@ subroutine summaSolve4ida(&
     if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetStopTime'; return; endif
     
     ! Set solver parameters at end of setup
-    call setSolverParams(dt_cur, ida_mem, retval)
+    call setSolverParams(dt_cur, eqns_data%mpar_data, ida_mem, retval)
     if (retval /= 0) then; err=20; message=trim(message)//'error in setSolverParams'; return; endif
     
     ! Disable error messages and warnings
@@ -513,26 +527,32 @@ subroutine summaSolve4ida(&
       end if
     
       ! sum of fluxes smoothed over the time step, average from instantaneous values
+      if (nSteps>1) then 
+        dt_mult = dt_diff/2._rkind
+      else ! first step no averaging
+        dt_mult = dt_diff
+      end if
+
       do iVar=1,size(flux_meta)
         flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + ( eqns_data%flux_data%var(iVar)%dat(:) &
-                                                                  + flux_prev%var(iVar)%dat(:) ) *dt_diff/2._rkind
+                                                                  + flux_prev%var(iVar)%dat(:) ) * dt_mult
       end do
       mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + ( eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) * eqns_data%mLayerMatricHeadPrime(:) &
-                                                      + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_diff/2._rkind
-    
+                                                      + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_mult
+                                                      
       ! ----
       ! * compute energy balance, from residuals
       !  formulation with prime variables would cancel to closedForm version, so does not matter which formulation is used
       !------------------------
       if(computNrgBalance)then    
-    
+        
         ! compute energy balance mean, resVec is the instantaneous residual vector from the solver
         ! note, if needCm and/or updateCp are false in eval8summaWithPrime, then the energy balance is not accurate
-        if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
-        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
+        if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_mult/dt
+        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_mult/dt
         if(nSnowSoilNrg>0)then
           do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing) 
-            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_diff/2._rkind/dt
+            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_mult/dt
           enddo
         endif
       endif
@@ -543,13 +563,13 @@ subroutine summaSolve4ida(&
       if(computMassBalance)then
     
         ! compute mass balance mean, resVec is the instantaneous residual vector from the solver
-        if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_diff/2._rkind/dt
+        if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_mult/dt
         if(nSnowSoilHyd>0)then
           do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing) 
-            balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + ( eqns_data%resVec(ixSnowSoilHyd(i)) + resVecPrev(ixSnowSoilHyd(i)) )*dt_diff/2._rkind/dt
+            balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + ( eqns_data%resVec(ixSnowSoilHyd(i)) + resVecPrev(ixSnowSoilHyd(i)) )*dt_mult/dt
           enddo
         endif
-        if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + ( eqns_data%resVec(ixAqWat) + resVecPrev(ixAqWat) )*dt_diff/2._rkind/dt
+        if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + ( eqns_data%resVec(ixAqWat) + resVecPrev(ixAqWat) )*dt_mult/dt
       endif
     
       ! save required quantities for next step
@@ -560,6 +580,7 @@ subroutine summaSolve4ida(&
       dCompress_dPsiPrev(:)                  = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
       tretPrev                               = tret(1)
       resVecPrev(:)                          = eqns_data%resVec(:)
+      flux_prev                              = eqns_data%flux_data
     
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
@@ -614,7 +635,23 @@ subroutine summaSolve4ida(&
     deallocate( eqns_data%resSink )
     deallocate( rootsfound )
     deallocate( rootdir )
+
+    ! Get Stats from IDA
+    retval = FIDAGetIntegratorStats(ida_mem, nStepsSun, nREvals, nLinSetups, &
+                                    netFails, qLast, qCur, hInitUsed, hLast, &
+                                    hCur, tCur)
     
+    diag_data%var(iLookDIAG%numSteps)%dat(1) = nStepsSun(1)
+    diag_data%var(iLookDIAG%numResEvals)%dat(1) = nREvals(1)
+    diag_data%var(iLookDIAG%numLinSolvSetups)%dat(1) = nLinSetups(1)
+    diag_data%var(iLookDIAG%numErrTestFails)%dat(1) = netFails(1)
+    diag_data%var(iLookDIAG%kLast)%dat(1) = qLast(1)
+    diag_data%var(iLookDIAG%kCur)%dat(1) = qCur(1)
+    diag_data%var(iLookDIAG%hInitUsed)%dat(1) = hInitUsed(1)
+    diag_data%var(iLookDIAG%hLast)%dat(1) = hLast(1)
+    diag_data%var(iLookDIAG%hCur)%dat(1) = hCur(1)
+    diag_data%var(iLookDIAG%tCur)%dat(1) = tCur(1)
+
     call FIDAFree(ida_mem)
     retval = FSUNLinSolFree(sunlinsol_LS)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
@@ -663,61 +700,70 @@ end subroutine setInitialCondition
 ! ----------------------------------------------------------------
 ! setSolverParams: private routine to set parameters in IDA solver
 ! ----------------------------------------------------------------
-subroutine setSolverParams(dt_cur,ida_mem,retval)
+subroutine setSolverParams(dt_cur,mpar_data,ida_mem,retval)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
   USE fida_mod   ! Fortran interface to IDA
-
+  USE data_types,only:var_dlength
   !======= Declarations =========
   implicit none
 
   ! calling variables
-  real(rkind),intent(in)      :: dt_cur             ! current whole time step
-  type(c_ptr),intent(inout)   :: ida_mem            ! IDA memory
-  integer(i4b),intent(out)    :: retval             ! return value
+  real(rkind),intent(in)        :: dt_cur             ! current whole time step
+  type(var_dlength),intent(in)  :: mpar_data       ! model parameters
+  type(c_ptr),intent(inout)     :: ida_mem            ! IDA memory
+  integer(i4b),intent(out)      :: retval             ! return value
 
   !======= Internals ============
   integer,parameter           :: nonlin_iter = 4    ! maximum number of nonlinear iterations before reducing step size, default = 4
-  integer,parameter           :: max_order = 5      ! maximum BDF order,  default and max = 5
   real(qp),parameter          :: coef_nonlin = 0.33 ! coefficient in the nonlinear convergence test, default = 0.33
-  integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
   integer,parameter           :: fail_iter = 50     ! maximum number of error test and convergence test failures, default 10
-  real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
-  real(qp),parameter          :: h_init = 0         ! initial stepsize
- 
-  ! Set the maximum BDF order
-  retval = FIDASetMaxOrd(ida_mem, max_order)
-  if (retval /= 0) return
+  
+  associate(&
+    max_order         => mpar_data%var(iLookPARAM%idaMaxOrder)%dat(1),         & ! maximum BDF order
+    max_err_test_fail => mpar_data%var(iLookPARAM%idaMaxErrTestFail)%dat(1),   & ! maximum number of error test failures
+    max_steps         => mpar_data%var(iLookPARAM%idaMaxInternalSteps)%dat(1), & ! maximum number of steps
+    h_init            => mpar_data%var(iLookPARAM%idaInitStepSize)%dat(1),     & ! initial stepsize
+    h_min             => mpar_data%var(iLookPARAM%idaMinStepSize)%dat(1)       & ! minimum stepsize
+    )
+    
+    ! Set the maximum BDF order
+    retval = FIDASetMaxOrd(ida_mem, int(max_order))
+    if (retval /= 0) return
 
-  ! Set coefficient in the nonlinear convergence test
-  retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
-  if (retval /= 0) return
+    ! Set coefficient in the nonlinear convergence test
+    retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
+    if (retval /= 0) return
 
-  ! Set maximun number of nonliear iterations, maybe should just make 4 (instead of SUMMA parameter)
-  retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
-  if (retval /= 0) return
+    ! Set maximun number of nonliear iterations, maybe should just make 4 (instead of SUMMA parameter)
+    retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
+    if (retval /= 0) return
 
-  !  Set maximum number of convergence test failures
-  retval = FIDASetMaxConvFails(ida_mem, fail_iter)
-  if (retval /= 0) return
+    !  Set maximum number of convergence test failures
+    retval = FIDASetMaxConvFails(ida_mem, fail_iter)
+    if (retval /= 0) return
 
-  !  Set maximum number of error test failures
-  retval = FIDASetMaxErrTestFails(ida_mem, fail_iter)
-  if (retval /= 0) return
+    !  Set maximum number of error test failures
+    retval = FIDASetMaxErrTestFails(ida_mem, int(max_err_test_fail))
+    if (retval /= 0) return
 
-  ! Set maximum number of steps
-  retval = FIDASetMaxNumSteps(ida_mem, max_step)
-  if (retval /= 0) return
+    ! Set maximum number of steps
+    retval = FIDASetMaxNumSteps(ida_mem, int(max_steps, kind=8))
+    if (retval /= 0) return
 
-  ! Set maximum stepsize
-  h_max = dt_cur
-  retval = FIDASetMaxStep(ida_mem, h_max)
-  if (retval /= 0) return
+    ! Set maximum stepsize
+    retval = FIDASetMaxStep(ida_mem, dt_cur)
+    if (retval /= 0) return
 
-  ! Set initial stepsize
-  retval = FIDASetInitStep(ida_mem, h_init)
-  if (retval /= 0) return
+    ! Set initial stepsize
+    retval = FIDASetInitStep(ida_mem, h_init)
+    if (retval /= 0) return
+
+    ! Set minimum stepsize
+    retval = FIDASetMinStep(ida_mem, h_min)
+    if (retval /= 0) return
+  end associate    ! end association to variables in the data structure
 
 end subroutine setSolverParams
 

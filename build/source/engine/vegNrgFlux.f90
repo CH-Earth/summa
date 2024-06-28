@@ -1114,40 +1114,41 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
   real(rkind)                :: relativeCanopyWater         ! water stored on vegetation canopy, expressed as a fraction of maximum storage (-)
   real(rkind)                :: rawCanopyWetFraction        ! initial value of the canopy wet fraction (before smoothing)
   real(rkind)                :: rawWetFractionDeriv         ! derivative in canopy wet fraction w.r.t. storage (kg-1 m2)
-  real(rkind)                :: smoothFunc                  ! smoothing function used to improve numerical stability at times with limited water storage (-)
-  real(rkind)                :: smoothFuncDeriv             ! derivative in the smoothing function w.r.t.canopy storage (kg-1 m2)
+  real(rkind)                :: smoothTheta                 ! smoothing function of water used to improve numerical stability at times with limited water storage (-)
+  real(rkind)                :: smoothThetaDeriv            ! derivative in the smoothing water w.r.t.canopy storage (kg-1 m2)
   real(rkind)                :: verySmall=epsilon(1._rkind) ! a very small number
   ! --------------------------------------------------------------------------------------------------------------
   ! compute relative canopy water
-  relativeCanopyWater = canopyLiq/canopyMax
+  if (smoothing) then ! smooth canopy wetted fraction by smoothing canopy liquid water content as in Kavetski and Kuczera (2007)
+    call thetaSmoother(derDesire,canopyLiq,smoothTheta,smoothThetaDeriv)
+    relativeCanopyWater = smoothTheta/canopyMax
+  else
+    relativeCanopyWater = canopyLiq/canopyMax
+  end if
 
   ! compute an initial value of the canopy wet fraction
   ! - canopy below value where canopy is 100% wet
-  if (relativeCanopyWater < 1._rkind) then
+  if (relativeCanopyWater < 0._rkind .and. .not.smoothing) then ! will only happen inside Sundials Solver, otherwise would be infeasible
+    rawCanopyWetFraction = 0._rkind
+    rawWetFractionDeriv  = 0._rkind
+  ! - canopy is at capacity (canopyWettingFactor)
+  elseif (relativeCanopyWater < 1._rkind) then
     rawCanopyWetFraction = canopyWettingFactor*(relativeCanopyWater**canopyWettingExp)
     if (derDesire .and. relativeCanopyWater>verySmall) then
       rawWetFractionDeriv = (canopyWettingFactor*canopyWettingExp/canopyMax)*relativeCanopyWater**(canopyWettingExp - 1._rkind)
     else
       rawWetFractionDeriv = 0._rkind
     end if
-  ! - canopy is at capacity (canopyWettingFactor)
   else
     rawCanopyWetFraction = canopyWettingFactor
     rawWetFractionDeriv  = 0._rkind
   end if
-
-  ! smooth canopy wetted fraction
-  if (smoothing) then
-    call logisticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
-    canopyWetFraction = rawCanopyWetFraction*smoothFunc  ! logistic smoother
-  else
-    canopyWetFraction = rawCanopyWetFraction
-  end if
-
-  ! compute derivative (product rule)
+  canopyWetFraction = rawCanopyWetFraction
+ 
+  ! compute derivative
   if (derDesire) then
     if (smoothing) then
-      canopyWetFractionDeriv = rawWetFractionDeriv*smoothFunc + rawCanopyWetFraction*smoothFuncDeriv
+      canopyWetFractionDeriv = rawWetFractionDeriv * smoothThetaDeriv
     else ! raw derivative is used if not smoothing
       canopyWetFractionDeriv = rawWetFractionDeriv
     end if
@@ -1158,44 +1159,43 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
 end subroutine wetFraction
 
 ! *******************************************************************************************************
-! private subroutine logisticSmoother: compute the smoothing function
+! private subroutine thetaSmoother: compute the smoothed canopy liquid water content as in Kavetski and Kuczera (2007)
 ! *******************************************************************************************************
-subroutine logisticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
+subroutine thetaSmoother(derDesire,canopyLiq,smoothTheta,smoothThetaDeriv)
   implicit none
   ! dummy variables
-  logical(lgt),intent(in)    :: derDesire                 ! flag to denote if analytical derivatives are desired
-  real(rkind),intent(in)     :: canopyLiq                 ! liquid water content (kg m-2)
-  real(rkind),intent(out)    :: smoothFunc                ! smoothing function (-)
-  real(rkind),intent(out)    :: smoothFuncDeriv           ! derivative in smoothing function (kg-1 m-2)
-  ! local variables
-  real(rkind)                :: xArg                      ! argument used in the smoothing function (-)
-  real(rkind)                :: expX                      ! exp(-xArg) -- used multiple times
-  real(rkind),parameter      :: smoothThresh=0.01_rkind   ! mid-point of the smoothing function (kg m-2)
-  real(rkind),parameter      :: smoothScale=0.001_rkind   ! scaling factor for the smoothing function (kg m-2)
-  real(rkind),parameter      :: xLimit=50._rkind          ! don't compute exponents for > xLimit
+  logical(lgt),intent(in)    :: derDesire                   ! flag to denote if analytical derivatives are desired
+  real(rkind),intent(in)     :: canopyLiq                   ! liquid water content (kg m-2)
+  real(rkind),intent(out)    :: smoothTheta                 ! smoothed function of water(-)
+  real(rkind),intent(out)    :: smoothThetaDeriv            ! derivative in smoothed function (kg-1 m-2)
+  ! local variables  
+  real(rkind)                :: xArg                        ! argument used in the smoothing function (-)
+  real(rkind)                :: expX                        ! exponential term used in the smoothing function (-)
+  real(rkind),parameter      :: smoothThresh=0.01_rkind     ! midpoint of smoothing function, move the discontiunity a bit away from 0 (kg m-2)
+  real(rkind),parameter      :: smoothScale=0.0001_rkind    ! width of smoothing function (kg m-2)
+  logical(lgt),parameter     :: use_logistic=.true.         ! flag to denote if using logistic smoother if true, quadratic smoother if false
   ! --------------------------------------------------------------------------------------------------------------
   ! compute argument in the smoothing function
   xArg = (canopyLiq - smoothThresh)/smoothScale
 
-  ! only compute smoothing function for small exponents
-  if (xArg > -xLimit .and. xArg < xLimit) then  ! avoid huge exponents
-    expX            = exp(-xarg)                  ! also used in the derivative
-    smoothFunc      = 1._rkind / (1._rkind + expX) ! logistic smoother
+  if (use_logistic) then
+    expX = exp(-xArg)  ! also used in the derivative
+    smoothTheta = smoothScale * (xArg + log((1._rkind + expX)))  ! logistic smoother
     if (derDesire) then
-      smoothFuncDeriv = expX / (smoothScale * (1._rkind + expX)**2_i4b) ! derivative in the smoothing function
+        smoothThetaDeriv = 1._rkind/(1._rkind + expX) ! derivative in the smoothing function
     else
-      smoothFuncDeriv = 0._rkind
+        smoothThetaDeriv = 0._rkind
     end if
-
-  ! outside limits: special case of smooth exponents
-  else
-    if (xArg < 0._rkind) then; smoothFunc = 0._rkind   ! xArg < -xLimit
-    else;                      smoothFunc = 1._rkind   ! xArg >  xLimit
+  else ! use quadratic smoother instead
+    smoothTheta = 0.5_rkind * smoothScale * (xArg + sqrt((1._rkind + xArg**2_i4b)))  ! quadratic smoother
+    if (derDesire) then
+      smoothThetaDeriv = 0.5_rkind * (1._rkind + xArg/sqrt((1._rkind + xArg**2_i4b))) ! derivative in the smoothing function
+    else
+      smoothThetaDeriv = 0._rkind
     end if
-    smoothFuncDeriv = 0._rkind
-  end if  ! check for huge exponents
+  end if
 
-end subroutine logisticSmoother
+end subroutine thetaSmoother
 
 ! *******************************************************************************************************
 ! private subroutine longwaveBal: compute longwave radiation balance at the canopy and ground surface

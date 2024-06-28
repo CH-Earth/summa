@@ -309,7 +309,7 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
  
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 25})
+        plt.rcParams.update({'font.size': 27})
     else:
         plt.rcParams.update({'font.size': 100})
 
@@ -317,14 +317,14 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
         fig,axs = plt.subplots(2,2,figsize=(35,28))
     else:
         fig,axs = plt.subplots(2,2,figsize=(140,133))
+
+    # Remove the fourth subplot
+    #fig.delaxes(axs[1, 1])
+
     fig.suptitle('{} Hourly Statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
-
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
-
     plt.tight_layout()
- 
     run_loop(i,var,the_max)
-
     fig_fil1 = (var+fig_fil).format(stat)
     # Save
     plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)

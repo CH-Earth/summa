@@ -378,19 +378,19 @@ contains
   case('soilIceCV'                ); get_ixParam = iLookPARAM%soilIceCV              ! CV of depth of soil ice, used to get frozen fraction (-)
   ! algorithmic control parameters
   case('minwind'                  ); get_ixParam = iLookPARAM%minwind                ! minimum wind speed (m s-1)
-  case('minstep'                  ); get_ixParam = iLookPARAM%minstep                ! minimum length of the time step numrec, not currently used
-  case('maxstep'                  ); get_ixParam = iLookPARAM%maxstep                ! maximum length of the time step numrec
-  case('be_steps'                 ); get_ixParam = iLookPARAM%be_steps               ! minimum number of substeps to take in a maxstep numrec
-  case('wimplicit'                ); get_ixParam = iLookPARAM%wimplicit              ! weight assigned to start-of-step fluxes numrec, not currently used
-  case('maxiter'                  ); get_ixParam = iLookPARAM%maxiter                ! maximum number of iterations numrec and kinsol
-  case('relConvTol_liquid'        ); get_ixParam = iLookPARAM%relConvTol_liquid      ! relative convergence tolerance for vol frac liq water (-) numrec
-  case('absConvTol_liquid'        ); get_ixParam = iLookPARAM%absConvTol_liquid      ! absolute convergence tolerance for vol frac liq water (-) numrec
-  case('relConvTol_matric'        ); get_ixParam = iLookPARAM%relConvTol_matric      ! relative convergence tolerance for matric head (-) numrec
-  case('absConvTol_matric'        ); get_ixParam = iLookPARAM%absConvTol_matric      ! absolute convergence tolerance for matric head (m) numrec
-  case('relConvTol_energy'        ); get_ixParam = iLookPARAM%relConvTol_energy      ! relative convergence tolerance for energy (-) numrec
-  case('absConvTol_energy'        ); get_ixParam = iLookPARAM%absConvTol_energy      ! absolute convergence tolerance for energy (J m-3) numrec
-  case('relConvTol_aquifr'        ); get_ixParam = iLookPARAM%relConvTol_aquifr      ! relative convergence tolerance for aquifer storage (-) numrec
-  case('absConvTol_aquifr'        ); get_ixParam = iLookPARAM%absConvTol_aquifr      ! absolute convergence tolerance for aquifer storage (m) numrec
+  case('minstep'                  ); get_ixParam = iLookPARAM%minstep                ! minimum length of the time step homegrown, not currently used
+  case('maxstep'                  ); get_ixParam = iLookPARAM%maxstep                ! maximum length of the time step homegrown
+  case('be_steps'                 ); get_ixParam = iLookPARAM%be_steps               ! minimum number of substeps to take in a maxstep homegrown
+  case('wimplicit'                ); get_ixParam = iLookPARAM%wimplicit              ! weight assigned to start-of-step fluxes homegrown, not currently used
+  case('maxiter'                  ); get_ixParam = iLookPARAM%maxiter                ! maximum number of iterations homegrown and kinsol
+  case('relConvTol_liquid'        ); get_ixParam = iLookPARAM%relConvTol_liquid      ! relative convergence tolerance for vol frac liq water (-) homegrown
+  case('absConvTol_liquid'        ); get_ixParam = iLookPARAM%absConvTol_liquid      ! absolute convergence tolerance for vol frac liq water (-) homegrown
+  case('relConvTol_matric'        ); get_ixParam = iLookPARAM%relConvTol_matric      ! relative convergence tolerance for matric head (-) homegrown
+  case('absConvTol_matric'        ); get_ixParam = iLookPARAM%absConvTol_matric      ! absolute convergence tolerance for matric head (m) homegrown
+  case('relConvTol_energy'        ); get_ixParam = iLookPARAM%relConvTol_energy      ! relative convergence tolerance for energy (-) homegrown
+  case('absConvTol_energy'        ); get_ixParam = iLookPARAM%absConvTol_energy      ! absolute convergence tolerance for energy (J m-3) homegrown
+  case('relConvTol_aquifr'        ); get_ixParam = iLookPARAM%relConvTol_aquifr      ! relative convergence tolerance for aquifer storage (-) homegrown
+  case('absConvTol_aquifr'        ); get_ixParam = iLookPARAM%absConvTol_aquifr      ! absolute convergence tolerance for aquifer storage (m) homegrown
   case('relTolTempCas'            ); get_ixParam = iLookPARAM%relTolTempCas          ! relative error tolerance for canopy temperature state variable
   case('absTolTempCas'            ); get_ixParam = iLookPARAM%absTolTempCas          ! absolute error tolerance for canopy temperature state variable
   case('relTolTempVeg'            ); get_ixParam = iLookPARAM%relTolTempVeg          ! relative error tolerance for vegitation temp state var
@@ -405,6 +405,12 @@ contains
   case('absTolMatric'             ); get_ixParam = iLookPARAM%absTolMatric           ! absolute error tolerance for matric head
   case('relTolAquifr'             ); get_ixParam = iLookPARAM%relTolAquifr           ! relative error tolerance for aquifer hydrology
   case('absTolAquifr'             ); get_ixParam = iLookPARAM%absTolAquifr           ! absolute error tolerance for aquifer hydrology
+  case('idaMaxOrder'              ); get_ixParam = iLookPARAM%idaMaxOrder            ! maximum order for IDA  
+  case('idaMaxInternalSteps'      ); get_ixParam = iLookPARAM%idaMaxInternalSteps    ! maximum number of internal steps for IDA before tout 
+  case('idaInitStepSize'          ); get_ixParam = iLookPARAM%idaInitStepSize        ! initial step size for IDA 
+  case('idaMinStepSize'           ); get_ixParam = iLookPARAM%idaMinStepSize         ! minimum step size for IDA
+  case('idaMaxStepSize'           ); get_ixParam = iLookPARAM%idaMaxStepSize         ! maximum step size for IDA
+  case('idaMaxErrTestFail'        ); get_ixParam = iLookPARAM%idaMaxErrTestFail      ! maximum number of error test failures for IDA
   case('zmin'                     ); get_ixParam = iLookPARAM%zmin                   ! minimum layer depth (m)
   case('zmax'                     ); get_ixParam = iLookPARAM%zmax                   ! maximum layer depth (m)
   case('zminLayer1'               ); get_ixParam = iLookPARAM%zminLayer1             ! minimum layer depth for the 1st (top) layer (m)
@@ -600,6 +606,17 @@ contains
   case('balanceSnowMass'                ); get_ixDiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow (kg m-2 s-1)
   case('balanceSoilMass'                ); get_ixDiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil (kg m-2 s-1)
   case('balanceAqMass'                  ); get_ixDiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer (kg m-2 s-1)
+  ! sundials integrator stats
+  case('numSteps'                       ); get_ixDiag = iLookDIAG%numSteps
+  case('numResEvals'                    ); get_ixDiag = iLookDIAG%numResEvals
+  case('numLinSolvSetups'               ); get_ixDiag = iLookDIAG%numLinSolvSetups
+  case('numErrTestFails'                ); get_ixDiag = iLookDIAG%numErrTestFails
+  case('kLast'                          ); get_ixDiag = iLookDIAG%kLast
+  case('kCur'                           ); get_ixDiag = iLookDIAG%kCur
+  case('hInitUsed'                      ); get_ixDiag = iLookDIAG%hInitUsed
+  case('hLast'                          ); get_ixDiag = iLookDIAG%hLast
+  case('hCur'                           ); get_ixDiag = iLookDIAG%hCur
+  case('tCur'                           ); get_ixDiag = iLookDIAG%tCur
   ! get to here if cannot find the variable
   case default
    get_ixDiag = integerMissing

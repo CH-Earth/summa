@@ -57,7 +57,7 @@ integer(i4b),parameter,public :: minFunc              =  62    ! do not enable c
 integer(i4b),parameter,public :: constantScaling      =  71    ! constant scaling factor
 integer(i4b),parameter,public :: laiScaling           =  72    ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
 ! look-up values for the choice of numerical method
-integer(i4b),parameter,public :: numrec               =  81    ! home-grown backward Euler solution using free versions of Numerical recipes
+integer(i4b),parameter,public :: homegrown            =  81    ! homegrown backward Euler solution using concepts from numerical recipes
 integer(i4b),parameter,public :: kinsol               =  82    ! SUNDIALS backward Euler solution using Kinsol
 integer(i4b),parameter,public :: ida                  =  83    ! SUNDIALS solution using IDA
 ! look-up values for method used to compute derivative
@@ -173,7 +173,7 @@ subroutine mDecisions(err,message)
   USE globalData,only:data_step              ! length of data step (s)
   USE globalData,only:numtim                 ! number of time steps in the simulation
   ! model decision structures
-  USE globaldata,only:model_decisions        ! model decision structure
+  USE globalData,only:model_decisions        ! model decision structure
   USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
   ! forcing metadata
   USE globalData,only:forc_meta              ! metadata structures
@@ -399,11 +399,10 @@ subroutine mDecisions(err,message)
 
   ! identify the numerical method
   select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
-    case('numrec'  ); model_decisions(iLookDECISIONS%num_method)%iDecision = numrec          ! home-grown backward Euler solution using free versions of Numerical recipes
-    case('itertive'); model_decisions(iLookDECISIONS%num_method)%iDecision = numrec          ! home-grown backward Euler solution (included for backwards compatibility)
-    case('kinsol'  ); model_decisions(iLookDECISIONS%num_method)%iDecision = kinsol          ! SUNDIALS backward Euler solution using Kinsol
-    case('sundials'); model_decisions(iLookDECISIONS%num_method)%iDecision = ida             ! SUNDIALS solution using IDA
-    case('ida'     ); model_decisions(iLookDECISIONS%num_method)%iDecision = ida             ! SUNDIALS solution using IDA
+    case('homegrown'); model_decisions(iLookDECISIONS%num_method)%iDecision = homegrown   ! homegrown backward Euler solution using concepts from numerical recipes
+    case('itertive' ); model_decisions(iLookDECISIONS%num_method)%iDecision = homegrown   ! homegrown backward Euler solution (included for backwards compatibility)
+    case('kinsol'   ); model_decisions(iLookDECISIONS%num_method)%iDecision = kinsol      ! SUNDIALS backward Euler solution using Kinsol
+    case('ida'      ); model_decisions(iLookDECISIONS%num_method)%iDecision = ida         ! SUNDIALS solution using IDA
     case default
       err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
   end select
