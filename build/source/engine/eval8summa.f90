@@ -219,8 +219,8 @@ subroutine eval8summa(&
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: updateFluxCp                ! flag to indicate if we update Cp at each step for RHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: needStateCm                 ! flag to indicate if the energy equation contains LHS Cm = dH_T/dTheta_m,, set with nrgConserv choice and needStateCm_closedForm flag
-  logical(lgt),parameter          :: updateCp_closedForm=.false. ! nrgConserv = closedForm flag to indicate if we update Cp at each step
-  logical(lgt),parameter          :: needCm_closedForm=.false.   ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
+  logical(lgt),parameter          :: updateCp_closedForm=.true. ! nrgConserv = closedForm flag to indicate if we update Cp at each step
+  logical(lgt),parameter          :: needCm_closedForm=.true.   ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
