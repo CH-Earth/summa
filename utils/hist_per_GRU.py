@@ -25,7 +25,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 num_bins = 1000
 do_rel = True # plot relative to the benchmark simulation
 
-testing = True
+testing = False
 do_hist = False # plot histogram instead of CDF
 if testing: 
     stat = 'rmnz'
@@ -54,13 +54,17 @@ def power_transform(x):
 
 # Simulation statistics file locations
 use_vars = [1]
+rep = [0] # mark the repeats
 #use_vars = [0,1,2,3,4]
+#rep = [0,0,0,0,0] # mark the repeats
 
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 settings = [settings0[i] for i in use_vars]
 
-use_vars2 = [3,8]
+use_vars2 = [3,3,8]
+rep2 = [1,2,0] # mark the repeats
 #use_vars2 = [8]
+#rep2 = [0] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 
@@ -97,15 +101,15 @@ fig_fil = fig_fil.format(','.join(settings),stat)
 if stat == 'rmse':
     stat2 = 'mean'
     maxes = [2,15,250,0.08,200,20e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,20e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
 if stat == 'rmnz':
     stat2 = 'mean'
     maxes = [2,15,250,0.08,200,20e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,20e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
 if stat == 'maxe':
     stat2 = 'amax'
     maxes = [15,25,0.8,2,0.3,2.0]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,2.0]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,2.0]
 if stat == 'kgem':
     stat2 = 'mean'
     maxes = [0.9,0.9,0.9,0.9,0.9,20e-3]
@@ -116,6 +120,9 @@ if stat2 == 'mean':
 if stat2 == 'amax':
     maxes2 = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
 maxes2 = [maxes2[i] for i in use_vars2]
+for i in range(len(maxes2)):
+    if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the range for the second repeat
+
 
 summa = {}
 summa1 = {}
@@ -146,10 +153,12 @@ else:
 fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40,y=1.0)
     
-def run_loop(i,var,mx):
+def run_loop(i,var,mx,rep):
     r = i//2
     c = i-r*2
     stat0 = stat
+    if rep == 1: stat0 = 'rmnz'
+    if rep == 2: stat0 = 'maxe'
     if stat == 'rmse' or stat == 'kgem': 
         if var == 'wallClockTime': stat0 = 'mean'
         statr = 'mean_ben'
@@ -213,6 +222,7 @@ def run_loop(i,var,mx):
     
     axs[r,c].legend(plt_name)
     axs[r,c].set_title(plt_titl[i])
+    if rep>0: axs[r,c].set_title(plt_titl[i] + ' '+ stat_word)
     if stat == 'rmse' or stat == 'rmnz' or stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
     if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
@@ -229,11 +239,12 @@ def run_loop(i,var,mx):
         if var=='scalarTotalSoilWat' or var=='wallClockTime': # Rotate x-axis labels for axs[2, 1] subplot
             axs[r, c].tick_params(axis='x', rotation=45)
 
-def run_loopb(i,var,mx):
+def run_loopb(i,var,mx,rep):
     r = (i+len(use_vars))//2
     c = (i+len(use_vars))-r*2
-    print(c)
     stat0 = stat2
+    if rep == 1: stat0 = 'mean'
+    if rep == 2: stat0 = 'amax'
         
     if 'zoom' in fig_fil:
         mx = mx
@@ -270,6 +281,7 @@ def run_loopb(i,var,mx):
 
     axs[r,c].legend(plt_name2)
     axs[r,c].set_title(plt_titl2[i])
+    if rep>0: axs[r,c].set_title(plt_titl2[i] + ' '+ stat_word)
     axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl2[i]))   
 
     if do_hist: 
@@ -287,11 +299,11 @@ def run_loopb(i,var,mx):
             axs[r, c].tick_params(axis='x', rotation=45) # Rotate x-axis labels for subplot
 
 if len(use_vars) > 0:
-    for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
-        run_loop(i,var,mx)
+    for i,(var,mx,rep) in enumerate(zip(plot_vars,maxes,rep)): 
+        run_loop(i,var,mx,rep)
 if len(use_vars2) > 0:
-    for i,(var,mx) in enumerate(zip(plot_vars2,maxes2)): 
-        run_loopb(i,var,mx)
+    for i,(var,mx,rep) in enumerate(zip(plot_vars2,maxes2,rep2)): 
+        run_loopb(i,var,mx,rep)
 
 # Remove the extra subplots
 if (len(plot_vars)+len(plot_vars2)) < 6:

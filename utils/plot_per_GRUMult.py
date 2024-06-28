@@ -61,13 +61,13 @@ if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
 if stat == 'rmse': 
     maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
     #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
 if stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
 if stat == 'maxe': 
     maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,3.0,0.2]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 if stat == 'mean': 
