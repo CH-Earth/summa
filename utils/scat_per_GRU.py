@@ -65,11 +65,13 @@ for i, m in enumerate(method_name2):
 
 summa = {}
 summa1 = {}
-for i, m in enumerate(method_name):
-    # Get the aggregated statistics of SUMMA simulations
-    summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
-for i, m in enumerate(method_name2):
-    summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
+if do_vars:
+    for i, m in enumerate(method_name):
+        # Get the aggregated statistics of SUMMA simulations
+        summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+if do_balance:
+    for i, m in enumerate(method_name2):
+        summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     
 def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
 
@@ -87,9 +89,28 @@ def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
         stat0_word = 'mean' # no 0s'
         statr = 'mnnz_ben'
         stat_word = 'RMSE' # no 0s'
+
     if stat == 'maxe': 
         stat0 = 'amax'
         stat0_word = 'max'
+        statr = 'amax_ben'
+        stat_word = 'max abs error'
+
+    if stat == 'mnnz':
+        stat0 = 'mnnz_ben'
+        stat0_word = 'mean - mean reference' # no 0s'
+        statr = 'mnnz_ben'
+        stat_word = 'mean' # no 0s'
+
+    if stat == 'mean':
+        stat0 = 'mean_ben'
+        stat0_word = 'mean - mean reference' # no 0s'
+        statr = 'mean_ben'
+        stat_word = 'mean' # no 0s'
+
+    if stat == 'amax':
+        stat0 = 'amax_ben'
+        stat0_word = 'max abs - max abs reference'
         statr = 'amax_ben'
         stat_word = 'max abs error'
 
@@ -97,31 +118,32 @@ def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
     if do_rel: s_rel = summa[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         s = summa[m][var].sel(stat=[stat,stat0])
-        if do_rel and var != 'wallClockTime': s = s/s_rel
+        if do_rel and var != 'wallClockTime': s.loc[dict(stat=stat)] = s.loc[dict(stat=stat)]/s_rel
 
         if var == 'scalarTotalET' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' : s = s*31557600 # make annual total
-            if stat =='maxe': s = s*3600 # make hourly max
+            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600 # make annual total
+            if stat =='maxe' or stat=='amax': s = s*3600 # make hourly max
         if var == 'averageRoutedRunoff'and not do_rel:
-            if stat =='rmse' or stat =='rmnz' : s = s*31557600*1000 # make annual total
-            if stat =='maxe': s = s*3600*1000 # make hourly max      
+            if stat =='rmse' or stat =='rmnz' or stat=='mnnz 'or stat=='mean': s = s*31557600*1000 # make annual total
+            if stat =='maxe' or stat=='amax': s = s*3600*1000 # make hourly max      
         if stat == 'maxe': s.loc[dict(stat='maxe')] = np.fabs(s.loc[dict(stat='maxe')]) # make absolute value norm
 
-        axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
- 
+        if stat=='mnnz' or stat=='mean' or stat=='amax': 
+            axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat).values-s.sel(stat=stat0).values,s=1,zorder=0,label=m)       
+        else: 
+            axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
+
     lgnd = axs[r,c].legend(plt_name)
     for j, m in enumerate(plt_name):
        lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_t)
-    if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_t))
-    if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_tm))   
+    if stat == 'rmse' or stat == 'rmnz' or stat=='mnnz' or stat=='mean': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_t))
+    if stat == 'maxe' or stat=='amax': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_tm))   
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
-    #if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + stat0_word)
     if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
 
     axs[r,c].set_ylabel(stat0_word + ' [{}]'.format(leg_t0))
-    #if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + ' rel to bench ' + stat0_word)
-    if do_rel and var!='wallClockTime': axs[r,c].set_ylabel('relative '+ stat0_word)
+    #if do_rel and var!='wallClockTime': axs[r,c].set_ylabel('relative '+ stat0_word)
 
 
 def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
@@ -174,6 +196,7 @@ if do_vars:
     leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$']
 
     fig_fil = 'Hrly_diff_scat_{}_{}_compressed.png'
+    if do_rel: fig_fil = 'Hrly_diff_scat_{}_{}_rel_compressed.png'
     fig_fil = fig_fil.format(','.join(settings),stat)
 
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
