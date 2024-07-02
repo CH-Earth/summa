@@ -19,12 +19,20 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import copy
 import pandas as pd
+from matplotlib.colors import LogNorm
+from matplotlib.colors import ListedColormap
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 nbatch_hrus = 518 # number of HRUs per batch
 do_rel = False # plot relative to the benchmark simulation
+do_heat = True # plot heatmaps instead of scatterplots
+rainbow_cmap = plt.cm.get_cmap('rainbow', 256)  # Get the rainbow colormap
+rainbow_colors = rainbow_cmap(np.linspace(0, 1, 256))
+rainbow_colors_with_white = np.vstack((rainbow_colors, [1, 1, 1, 1]))
+custom_cmap = ListedColormap(rainbow_colors_with_white, name='rainbow_white')
+custom_cmap.set_under('white')  # Ensure that values under the lower bound are white
 
-# which statistics to plot
+# which statistics to plot, can do both
 do_vars = True
 do_balance = True
 
@@ -73,7 +81,7 @@ if do_balance:
     for i, m in enumerate(method_name2):
         summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     
-def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
+def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm):
 
     r = i//2
     c = i-r*2
@@ -116,57 +124,167 @@ def run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm):
 
     # Data
     if do_rel: s_rel = summa[method_name[0]][var].sel(stat=statr)
-    for m in method_name:
+    for j, m in enumerate(method_name):
         s = summa[m][var].sel(stat=[stat,stat0])
-        if do_rel and var != 'wallClockTime': s.loc[dict(stat=stat)] = s.loc[dict(stat=stat)]/s_rel
-
-        if var == 'scalarTotalET' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': s = s*31557600 # make annual total
-            if stat =='maxe' or stat=='amax': s = s*3600 # make hourly max
-        if var == 'averageRoutedRunoff'and not do_rel:
-            if stat =='rmse' or stat =='rmnz' or stat=='mnnz 'or stat=='mean': s = s*31557600*1000 # make annual total
-            if stat =='maxe' or stat=='amax': s = s*3600*1000 # make hourly max      
+        if var == 'scalarTotalET':
+            if stat =='rmse' or stat =='rmnz' or stat=='mnnz' or stat=='mean': 
+                s = s*31557600 # make annual total
+                if do_rel: s_rel = s_rel*31557600
+            if stat =='maxe' or stat=='amax': 
+                s = s*3600 # make hourly max
+                if do_rel: s_rel = s_rel*3600
+        if var == 'averageRoutedRunoff':
+            if stat =='rmse' or stat =='rmnz' or stat=='mnnz'or stat=='mean': 
+                s = s*31557600*1000 # make annual total
+                if do_rel: s_rel = s_rel*31557600*1000
+            if stat =='maxe' or stat=='amax': 
+                s = s*3600*1000 # make hourly max
+                if do_rel: s_rel = s_rel*3600*1000
         if stat == 'maxe': s.loc[dict(stat='maxe')] = np.fabs(s.loc[dict(stat='maxe')]) # make absolute value norm
 
-        if stat=='mnnz' or stat=='mean' or stat=='amax': 
-            axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat).values-s.sel(stat=stat0).values,s=1,zorder=0,label=m)       
-        else: 
-            axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
+        if do_rel and var != 'wallClockTime': 
+            s.loc[dict(stat=stat)] = s.loc[dict(stat=stat)]/s_rel
+            stat_word = 'relative '+ stat_word
 
-    lgnd = axs[r,c].legend(plt_name)
-    for j, m in enumerate(plt_name):
-       lgnd.legendHandles[j]._sizes = [80]
-    axs[r,c].set_title(plt_t)
-    if stat == 'rmse' or stat == 'rmnz' or stat=='mnnz' or stat=='mean': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_t))
-    if stat == 'maxe' or stat=='amax': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_tm))   
+        if do_heat and j==0:
+            x_points = []
+            y_points = []
+            if stat=='mnnz' or stat=='mean' or stat=='amax': 
+                x = s.sel(stat=stat).values
+                y = s.sel(stat=stat).values-s.sel(stat=stat0).values
+            else:
+                x = np.fabs(s.sel(stat=stat).values)
+                y = s.sel(stat=stat0).values
+            if lx:
+                x = np.where(x > 0, np.log10(x), np.nan)
+                stat_word = 'log10 ' + stat_word
+            if ly:
+                if stat!='mnnz' and stat!='mean': 
+                    if var == 'scalarTotalET':
+                        y = np.where(-y > 0, np.log10(-y), np.nan)
+                        stat0_word = 'log10 negative ' + stat0_word
+                    else:
+                        y = np.where(y > 0, np.log10(y), np.nan)
+                        stat0_word = 'log10 ' + stat0_word
+            x_points.extend(x)
+            y_points.extend(y)
+            x_points = np.array(x_points)  # Convert lists to numpy arrays
+            y_points = np.array(y_points)
+
+            # Ensure no NaNs or infs before proceeding
+            is_valid = ~np.isnan(x_points) & ~np.isnan(y_points) & ~np.isinf(x_points) & ~np.isinf(y_points)
+            x_points = x_points[is_valid]
+            y_points = y_points[is_valid]
+            if not is_valid.any():
+                print('no valid values')
+                continue
+            numbin = int(np.sqrt(x_points.size)/2) + 1
+            print(var,'numbin', numbin)
+
+            # Define the bins for the histogram and calculate
+            x_edges = np.linspace(x_points.min(), x_points.max(), num=numbin)
+            y_edges = np.linspace(y_points.min(), y_points.max(), num=numbin)
+            zi, _, _ = np.histogram2d(x_points, y_points, bins=[x_edges, y_edges])
+
+            # Calculate bin centers from edges for X and Y
+            x_centers = (x_edges[:-1] + x_edges[1:]) / 2
+            y_centers = (y_edges[:-1] + y_edges[1:]) / 2
+            X, Y = np.meshgrid(x_centers, y_centers)
+
+            # Adjust the pcolormesh call to use the centers and compatible shading
+            norm = LogNorm(vmin=np.min(zi[zi > 0]), vmax=np.max(zi))
+            mesh = axs[r, c].pcolormesh(X, Y, zi.T, shading='gouraud', cmap=custom_cmap, zorder=0,norm=norm)
+            fig.colorbar(mesh, ax=axs[r, c], label='GRU count')
+
+        elif not do_heat:
+            if stat=='mnnz' or stat=='mean' or stat=='amax': 
+                axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat).values-s.sel(stat=stat0).values,s=1,zorder=0,label=m)       
+            else: 
+                axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
+
+    if do_heat:
+        axs[r,c].set_title(plt_t + ' '+ plt_name[0] + ' heatmap')
+    elif not(do_heat):
+        lgnd = axs[r,c].legend(plt_name)
+        for j, m in enumerate(plt_name):
+           lgnd.legendHandles[j]._sizes = [80]
+        axs[r,c].set_title(plt_t)
+    if do_rel: 
+        axs[r,c].set_xlabel(stat_word)  
+    else:
+        if stat == 'rmse' or stat == 'rmnz' or stat=='mnnz' or stat=='mean': 
+            axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_t))
+        if stat == 'maxe' or stat=='amax': 
+            axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_tm)) 
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
-    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
-
     axs[r,c].set_ylabel(stat0_word + ' [{}]'.format(leg_t0))
-    #if do_rel and var!='wallClockTime': axs[r,c].set_ylabel('relative '+ stat0_word)
 
-
-def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
+def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t):
     r = i//2
     c = i-r*2
 
     if stat == 'rmse' or stat == 'kgem': 
         stat0 = 'mean'
-        word = ' mean'
+        wordx = ' mean'
     if stat == 'rmnz':
         stat0 = 'mean'
-        word = ' mean' # no 0s'
+        wordx = ' mean' # no 0s'
     if stat == 'maxe': 
         stat0 = 'amax'
-        word = ' max'
+        wordx = ' max'
+    wordy = np.copy(wordx)
 
     # Data
-    for m in method_name2:
+    for j, m in enumerate(method_name2):
         # Get the statistics, remove 9999 (should be nan, but just in case)
         s0 = np.fabs(summa1[m][comp].sel(stat=stat0)).where(lambda x: x != 9999)
         s = np.fabs(summa1[m][var].sel(stat=stat0)).where(lambda x: x != 9999)
 
-        axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
+        if do_heat and j==0:
+            x_points = []
+            y_points = []
+            x = s.values
+            y = s0.values
+            x_points.extend(x)
+            y_points.extend(y)
+            x_points = np.array(x_points)  # Convert lists to numpy arrays
+            y_points = np.array(y_points)
+            if lx:
+                x = np.log10(x[x > 0])
+                wordx = 'log10 ' + wordx
+            if ly:
+                y = np.log10(y[y > 0])
+                wordy = 'log10 ' + wordy
+
+            x_points.extend(x)
+            y_points.extend(y)
+            x_points = np.array(x_points)  # Convert lists to numpy arrays
+            y_points = np.array(y_points)
+
+            # Ensure no NaNs or infs before proceeding
+            is_valid = ~np.isnan(x_points) & ~np.isnan(y_points) & ~np.isinf(x_points) & ~np.isinf(y_points)
+            x_points = x_points[is_valid]
+            y_points = y_points[is_valid]
+            numbin = int(np.sqrt(x_points.size)/2) + 1
+            print(var,'numbin', numbin)
+
+            # Define the bins for the histogram and calculate
+            x_edges = np.linspace(x_points.min(), x_points.max(), num=numbin)
+            y_edges = np.linspace(y_points.min(), y_points.max(), num=numbin)
+            zi, _, _ = np.histogram2d(x_points, y_points, bins=[x_edges, y_edges])
+
+            # Calculate bin centers from edges for X and Y
+            x_centers = (x_edges[:-1] + x_edges[1:]) / 2
+            y_centers = (y_edges[:-1] + y_edges[1:]) / 2
+            X, Y = np.meshgrid(x_centers, y_centers)
+
+            # Adjust the pcolormesh call to use the centers and compatible shading
+            norm = LogNorm(vmin=np.min(zi[zi > 0]), vmax=np.max(zi))
+            mesh = axs[r, c].pcolormesh(X, Y, zi.T, shading='gouraud', cmap=custom_cmap, zorder=0,norm=norm)
+            fig.colorbar(mesh, ax=axs[r, c], label='GRU count')
+
+        elif not do_heat:
+            axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
 
     if comp == 'numberFluxCalc':
         stat0_word = 'number flux calculations'
@@ -174,29 +292,48 @@ def run_loopb(i,var,comp,leg_t,leg_t0,plt_t):
     else:
         stat0_word = 'balance abs value'
         stat_word = 'balance abs value'
- 
-    lgnd = axs[r,c].legend(plt_name2)
-    for j, m in enumerate(plt_name2):
-       lgnd.legendHandles[j]._sizes = [80]
-    axs[r,c].set_title(plt_t)
-    axs[r,c].set_xscale('log')
-    if comp != 'numberFluxCalc': axs[r,c].set_yscale('log')
-    axs[r,c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_t))
-    axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_t0))
+
+    if do_heat:
+        axs[r,c].set_title(plt_t + ' '+ plt_name[0] + ' heatmap')
+    elif not(do_heat):
+        lgnd = axs[r,c].legend(plt_name2)
+        for j, m in enumerate(plt_name2):
+           lgnd.legendHandles[j]._sizes = [80]
+        axs[r,c].set_title(plt_t)
+        axs[r,c].set_xscale('log')
+        if comp != 'numberFluxCalc': axs[r,c].set_yscale('log')
+    axs[r,c].set_xlabel(stat_word  + wordx + ' [{}]'.format(leg_t))
+    axs[r,c].set_ylabel(stat0_word + wordy + ' [{}]'.format(leg_t0))
 
 plt.rcParams['xtick.color'] = 'black'
 plt.rcParams['xtick.major.width'] = 2
 plt.rcParams['ytick.color'] = 'black'
 plt.rcParams['ytick.major.width'] = 2
 if do_vars:
+    # Specify variables of interest
+    use_vars = [1,2,4]
+    #logx = [0,0,0] # log scale x axis
+    #logy = [0,0,1] # log scale y axis
+    use_vars = [0,1,2,3,4]
+    logx = np.ones(len(use_vars)) # log scale x axis
+    logy = np.ones(len(use_vars)) # log scale y axis
 
-    plt_titl = ['(a) snow water equivalent','(b) total soil water content','(c) total evapotranspiration', '(d) total water on the vegetation canopy','(e) average routed runoff']
-    leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$']
-    leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$']
-    leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$']
+    plot_vars = settings
+    plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff']
+    leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$mm~y^{-1}$']
+    leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$mm~y^{-1}$']
+    leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$mm~h^{-1}$']
 
-    fig_fil = 'Hrly_diff_scat_{}_{}_compressed.png'
-    if do_rel: fig_fil = 'Hrly_diff_scat_{}_{}_rel_compressed.png'
+    plot_vars = [plot_vars[i] for i in use_vars]
+    plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
+    leg_titl = [leg_titl[i] for i in use_vars]
+    leg_titl0 = [leg_titl0[i] for i in use_vars]
+    leg_titlm = [leg_titlm[i] for i in use_vars]
+
+    fig_fil = 'Hrly_diff_scat_{}_{}'
+    if do_rel: fig_fil = fig_fil + '_rel'
+    if do_heat: fig_fil = method_name[0]+fig_fil + '_heat'
+    fig_fil = fig_fil + '_compressed.png'
     fig_fil = fig_fil.format(','.join(settings),stat)
 
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
@@ -212,28 +349,40 @@ if do_vars:
     #fig.suptitle('Hourly Errors and Values for each GRU', fontsize=40)
     fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 
-    # Specify variables of interest
-    plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff']
-    for i,(var,plt_t,leg_t,leg_t0,leg_tm) in enumerate(zip(plot_vars,plt_titl,leg_titl,leg_titl0,leg_titlm)): 
-        run_loop(i,var,plt_t,leg_t,leg_t0,leg_tm)
+    for i,(var,lx,ly,plt_t,leg_t,leg_t0,leg_tm) in enumerate(zip(plot_vars,logx,logy,plt_titl,leg_titl,leg_titl0,leg_titlm)): 
+        run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm)
 
-    # Remove the sixth subplot
-    fig.delaxes(axs[2, 1])
+    # Remove the extra subplots
+    if (len(plot_vars)) < 6:
+        for i in range(len(plot_vars),6):
+            r = i//2
+            c = i-r*2
+            fig.delaxes(axs[r, c])
 
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
 
 if do_balance:
 # Specify variables of interest
+    use_vars = [0,1,2,3]
+    logx = np.ones(len(use_vars)) # log scale x axis
+    logy = np.ones(len(use_vars)) # log scale y axis
+
     plot_vars = ['balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceCasNrg','wallClockTime']
     comp_vars = ['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','numberFluxCalc']
- 
-    plt_titl = ['(a) vegetation balance','(b) snow balance','(c) soil balance', '(d) canopy air space and aquifer balance', '(f) wall clock time']
+    plt_titl = ['vegetation balance','snow balance','soil balance', 'canopy air space and aquifer balance', 'wall clock time']
     leg_titl = ['$W~m^{-3}$'] * 4 + ['$s$']
     leg_titl0 =['$kg~m^{-2}~s^{-1}$'] * 4 + ['$num$']
 
-    fig_fil = 'balance_scat_{}_compressed.png'
-    if do_rel: fig_fil = 'balance_scat_{}_rel_compressed.png'
+    plot_vars = [plot_vars[i] for i in use_vars]
+    comp_vars = [comp_vars[i] for i in use_vars]
+    plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
+    leg_titl = [leg_titl[i] for i in use_vars]
+    leg_titl0 = [leg_titl0[i] for i in use_vars]
+
+    fig_fil = 'balance_scat_{}'
+    if do_heat: fig_fil = method_name[0]+fig_fil + '_heat'
+    fig_fil = fig_fil + '_compressed.png'
     fig_fil = fig_fil.format(stat)
 
     if 'compressed' in fig_fil:
@@ -248,11 +397,13 @@ if do_balance:
     fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
     #fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
 
-    for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,leg_titl,leg_titl0,plt_titl)): 
-        run_loopb(i,var,comp,leg_t,leg_t0,plt_t)
+    for i,(var,comp,lx,ly,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,logx,logy,leg_titl,leg_titl0,plt_titl)): 
+        run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t)
 
-    # Remove the sixth subplot
-    fig.delaxes(axs[2, 1])
-
+    if (len(plot_vars)) < 6:
+        for i in range(len(plot_vars),6):
+            r = i//2
+            c = i-r*2
+            fig.delaxes(axs[r, c])
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
