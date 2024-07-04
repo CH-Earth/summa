@@ -6,8 +6,6 @@ import numpy as np
 import xarray as xr
 from pathlib import Path
 
-top_fold    = '/home/avanb/scratch/'
-attr_fold = '/home/avanb/TestScripts/settings/'
 nBig = 10
 do_rel = True # plot relative to the benchmark simulation
 
@@ -19,6 +17,8 @@ if run_local:
     stat = 'rmnz'
 else:
     import sys
+    top_fold    = '/home/avanb/scratch/'
+    attr_fold = '/home/avanb/TestScripts/settings/'
     method_name = sys.argv[1]
     stat = sys.argv[2]
 

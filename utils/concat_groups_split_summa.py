@@ -12,7 +12,6 @@ import netCDF4 as nc
 import numpy as np
 
 catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
-top_fold    = '/home/avanb/scratch/'
 
 missing = False # if appending nan hrus to batch because failed
 missgru = 72055933 # batch 205 summa-be32 value
@@ -25,7 +24,7 @@ if run_local:
 else:
     import multiprocessing as mp
     import sys
-    # The first input argument specifies the run where the files are
+    top_fold    = '/home/avanb/scratch/'
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
 
 ncdir        = top_fold + 'summa-' + method_name + '_nocat'
