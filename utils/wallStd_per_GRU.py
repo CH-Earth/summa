@@ -21,8 +21,8 @@ import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 
-testing = False
-if testing: 
+run_local = False
+if run_local: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en','be1en'] #cm','be1en','be1lu'] #maybe make this an argument
 else:

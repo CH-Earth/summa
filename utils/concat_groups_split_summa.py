@@ -18,8 +18,8 @@ missing = False # if appending nan hrus to batch because failed
 missgru = 72055933 # batch 205 summa-be32 value
 misshru = missgru  # could be different
 
-testing = False
-if testing:
+run_local = False
+if run_local:
     top_fold = '/Users/amedin/Research/USask/test_py/'
     method_name = 'sundials_1en8'
 else:
@@ -138,7 +138,7 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
 # -- end functions
 
 
-if testing:
+if run_local:
     # -- no parallel processing
     for g in range(0,int(len(outfilelist0)/catby_num)):
         get_stat(g,catby_num,outfilelist0,ctdir)

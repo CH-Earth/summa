@@ -22,8 +22,8 @@ import pandas as pd
 viz_dir = Path('/home/avanb/scratch/statistics')
 nbatch_hrus = 518 # number of HRUs per batch
 
-testing = False
-if testing: 
+run_local = False
+if run_local: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1'] #maybe make this an argument
 else:

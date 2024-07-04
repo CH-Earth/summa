@@ -25,9 +25,9 @@ nbatch_hrus = 518 # number of HRUs per batch
 num_bins = 1000
 do_rel = True # plot relative to the benchmark simulation
 
-testing = False
+run_local = False
 do_hist = False # plot histogram instead of CDF
-if testing: 
+if run_local: 
     stat = 'rmnz'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en']
@@ -122,7 +122,6 @@ if stat2 == 'amax':
 maxes2 = [maxes2[i] for i in use_vars2]
 for i in range(len(maxes2)):
     if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the range for the second repeat
-
 
 summa = {}
 summa1 = {}
@@ -229,7 +228,7 @@ def run_loop(i,var,mx,rep):
 
     if do_hist: 
         axs[r,c].set_ylabel('GRU count')
-        if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
+        if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')
@@ -287,7 +286,7 @@ def run_loopb(i,var,mx,rep):
     if do_hist: 
         axs[r,c].set_ylabel('GRU count')
         if(c==1): axs[r, c].set_ylabel('')
-        if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
+        if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')

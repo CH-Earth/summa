@@ -11,8 +11,8 @@ attr_fold = '/home/avanb/TestScripts/settings/'
 nBig = 10
 do_rel = True # plot relative to the benchmark simulation
 
-testing = False
-if testing:
+run_local = False
+if run_local:
     top_fold = '/Users/amedin/Research/USask/test_py/'
     attr_fold = '/Users/amedin/Research/USask/test_py/settings/'
     method_name= 'be1'
