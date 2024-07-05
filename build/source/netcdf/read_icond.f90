@@ -403,10 +403,10 @@ contains
  !********************************
  if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
   hdsInitIdx = (/iLookBVAR%pondVolFrac, iLookBVAR%vMin, iLookBVAR%conAreaFrac, iLookBVAR%pondArea/) ! HDS initial conditions
-
+  message='updateHDS_States/'
   ! get number of GRUs in file
   err = nf90_inq_dimid(ncID,"gru",dimID)
-  if(err/=nf90_noerr)then; message=trim(message)//'must define at least the pondVolFrac initial condition for HDS/'//trim(nf90_strerror(err)); return; end if
+  if(err/=nf90_noerr)then; message=trim(message)//'must define at least the pondVolFrac initial condition for HDS (per gru)/'//trim(nf90_strerror(err)); return; end if
 
   if(err==nf90_noerr)then ! proceed if gru dimension exists 
    err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
@@ -415,9 +415,12 @@ contains
     iVar = hdsInitIdx(i)
   
     ! get gru-based variable id
-    err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
+    err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID)
     ! skip any other vairable if missing
-    if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); cycle; endif ! cycle is used to skip to the next hdsInitIdx if not found
+    if(err/=0)then
+     write(*,'(A)') ' WARNING: '//trim(bvar_meta(iVar)%varName)//' is not in the initial conditions file ... populating using pondVolFrac'
+     cycle ! cycle is used to skip to the next hdsInitIdx if not found
+    endif 
 
     ! initialize the gru variable data
     allocate(varData(fileGRU,1),stat=err)
