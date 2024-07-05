@@ -155,9 +155,9 @@ module HDS
         if(depDepth <= zero) return
 
         ! convert fluxes to mm/timestep
-        qSeas  = max(basinTotalRunoff, zero) * 0.001 * data_step  ! runoff                [m s-1]  -> [mm/timestep]
-        pRate  = basinPrecip * data_step                          ! precipitation         [mm s-1] -> [mm/timestep]
-        etPond = basinPotentialEvap * data_step                   ! potential evaporation [mm s-1] -> [mm/timestep]
+        qSeas  = max(basinTotalRunoff, zero) * 1000.0_rkind * data_step  ! runoff                [m s-1]  -> [mm/timestep]
+        pRate  = basinPrecip * data_step                                 ! precipitation         [mm s-1] -> [mm/timestep]
+        etPond = basinPotentialEvap * data_step                          ! potential evaporation [mm s-1] -> [mm/timestep]
         
         ! define numerical solution
         solution      = implicitEuler
