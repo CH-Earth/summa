@@ -230,14 +230,15 @@ def run_loop(j,var,the_max):
         axs[r,c].set_ylim(ymin, ymax)
 
         # Custom colorbar
-        f_x = base_f_x + (subplot_width + margin_x) * (c + 1)
-        f_y = base_f_y + (subplot_height + margin_y) * (nrow - 1 - r)  # Subtract from nrow - 1 because y increases upwards
-
-        cax = fig.add_axes([f_x,f_y,0.04/nrow,0.75/ncol])
-        sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
-        sm.set_array([])
-        cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-        cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]), labelpad=40, rotation=270)
+        # Custom colorbar
+        if i==len(method_name)-1:
+            sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
+            sm._A = []
+            if one_plot:
+                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/3)
+            else:
+                cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
+            cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]))
 
         # lakes
         if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
@@ -249,7 +250,7 @@ if one_plot:
     use_vars = [1,2,3]
     use_meth = [0,2,4]
 else:
-    use_vars = [0,1,2,3,4,5,6,7,8]
+    use_vars = [0,1,2,3,4,5,6,7]
     use_meth = [0,1,2,3]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
@@ -259,31 +260,19 @@ method_name = [method_name[i] for i in use_meth]
 
 if one_plot:
     ncol = len(use_meth)
-    nrow = 3
-    if len(use_meth)!=3:
-        print('Assuming 3 methods for plot ncol in code')
-        sys.exit()   
+    nrow = len(use_vars)
+
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 27})
+        plt.rcParams.update({'font.size': 33})
+        fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,14*nrow),constrained_layout=True)
     else:
-        plt.rcParams.update({'font.size': 100})
+        plt.rcParams.update({'font.size': 120})
+        fig,axs = plt.subplots(nrow,ncol,figsize=(62*ncol,58*nrow),constrained_layout=True)
 
-    if 'compressed' in fig_fil:
-        fig,axs = plt.subplots(nrow,ncol,figsize=(17*ncol,14*nrow))
-    else:
-        fig,axs = plt.subplots(nrow,ncol,figsize=(70*ncol,58*nrow))
-
+    axs_list = axs.ravel().tolist()
     fig.suptitle('hourly statistics', fontsize=40,y=1.05)
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
-    plt.tight_layout()
-
-    subplot_width = 1.0 / ncol
-    subplot_height = 1.0 / nrow
-    margin_x = 0.0  # Adjust this value as needed
-    margin_y = -0.03/nrow  # Adjust this value as needed
-    base_f_x = -0.08/ncol  # Adjust this value as needed
-    base_f_y = 0.14/nrow  # Adjust this value as needed
 
 else:
     #size hardwired to 2x2 for now
@@ -296,13 +285,6 @@ else:
     base_row = 0
     plt_name = [f"({chr(97+n)}) {plt_name0[i]}" for n,i in enumerate(use_meth)]
 
-    subplot_width = 1.0 / ncol
-    subplot_height = 1.0 / nrow
-    margin_x = 0.0  # Adjust this value as needed
-    margin_y = -0.03/nrow  # Adjust this value as needed
-    base_f_x = -0.08/ncol  # Adjust this value as needed
-    base_f_y = 0.14/nrow  # Adjust this value as needed
-
 for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
     
     if one_plot:
@@ -312,14 +294,11 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
     else:
         # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
         if 'compressed' in fig_fil:
-            plt.rcParams.update({'font.size': 27})
+            plt.rcParams.update({'font.size': 33})
+            fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,14*nrow),constrained_layout=True)
         else:
-            plt.rcParams.update({'font.size': 100})
-
-        if 'compressed' in fig_fil: 
-            fig,axs = plt.subplots(nrow,ncol,figsize=(17*ncol,14*nrow))
-        else:
-            fig,axs = plt.subplots(nrow,ncol,figsize=(70*ncol,58*nrow))
+            plt.rcParams.update({'font.size': 120})
+            fig,axs = plt.subplots(nrow,ncol,figsize=(62*ncol,58*nrow),constrained_layout=True)
 
         # Remove the extra subplots
         if len(method_name) < nrow*ncol:
@@ -327,10 +306,10 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
                 r = j//ncol
                 c = j-r*ncol
                 fig.delaxes(axs[r, c])
-
+                
+        axs_list = axs.ravel().tolist()
         fig.suptitle('{} hourly statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
         plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
-        plt.tight_layout()
 
     run_loop(i,var,the_max)
 

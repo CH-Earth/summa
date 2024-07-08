@@ -23,16 +23,17 @@ from matplotlib.colors import LogNorm
 from matplotlib.colors import ListedColormap
 
 do_rel = False # true is plot relative to the benchmark simulation
-do_heat = False # true is plot heatmaps instead of scatterplots
+do_heat = True # true is plot heatmaps instead of scatterplots
 run_local = True # true is run on local machine, false is run on cluster
+inferno_col= True # Set to True if want to match geographic plots, False if want rainbow colormap (does not matter if do_heat is False)
 
 # which statistics to plot, can do both
 do_vars = True
-do_balance = True
+do_balance = False
 
 if run_local: 
     stat = 'rmnz'
-    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
+    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
 else:
     import sys
     stat = sys.argv[1]
@@ -43,17 +44,20 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6']
 method_name=['be1','be16','be32','sundials_1en6']
 plt_name=['BE1','BE16','BE32','SUNDIALS']
-method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
-plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+#method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
+#plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
 method_name2=method_name+['sundials_1en8cm']
 plt_name2=plt_name+['reference solution']
 
-rainbow_cmap = plt.cm.get_cmap('rainbow', 256)  # Get the rainbow colormap
-rainbow_colors = rainbow_cmap(np.linspace(0, 1, 256))
-rainbow_colors_with_white = np.vstack((rainbow_colors, [1, 1, 1, 1]))
-custom_cmap = ListedColormap(rainbow_colors_with_white, name='rainbow_white')
-custom_cmap.set_under('white')  # Ensure that values under the lower bound are white
-
+if inferno_col:
+    custom_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+    custom_cmap.set_bad(color='white') #nan color white
+else: # use rainbow colormap, I think looks better
+    rainbow_cmap = plt.cm.get_cmap('rainbow', 256)  # Get the rainbow colormap
+    rainbow_colors = rainbow_cmap(np.linspace(0, 1, 256))
+    rainbow_colors_with_white = np.vstack((rainbow_colors, [1, 1, 1, 1]))
+    custom_cmap = ListedColormap(rainbow_colors_with_white, name='rainbow_white')
+    custom_cmap.set_under('white')  # Ensure that values under the lower bound are white
 
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
@@ -158,12 +162,8 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
                     s = s0.sel(stat=stat0)
                 mxy = max(s.max(),mxy)
                 mny = min(s.min(),mny)
-            if rep: 
-                method_name = [method_name0[1]]
-                plt_name = [plt_name0[1]]
-            else:
-                method_name = [method_name0[0]]
-                plt_name = [plt_name0[0]]
+            method_name = [method_name0[rep]]
+            plt_name = [plt_name0[rep]]
     else: # only one method
         mxx = 0.0
         mnx = 1.0
@@ -226,18 +226,18 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
                 y = s.sel(stat=stat0).values
             if lx:
                 x = np.where(x > 0, np.log10(x), np.nan)
-                mnx = np.log10(mnx+1e-30)
-                mxx = np.log10(mxx+1e-30)
+                mnx = np.log10(np.where(mnx <= 0, 1e-30, mnx))
+                mxx = np.log10(np.where(mxx <= 0, 1e-30, mxx))
             if ly:
                 if stat!='mnnz' and stat!='mean': 
                     if var == 'scalarTotalET':
                         y = np.where(-y > 0, np.log10(-y), np.nan)
-                        mny = np.log10(-mny+1e-30)
-                        mxy = np.log10(-mxy+1e-30)
+                        mny = np.log10(np.where(-mny <= 0, 1e-30, -mny))
+                        mxy = np.log10(np.where(-mxy <= 0, 1e-30, -mxy))
                     else:
                         y = np.where(y > 0, np.log10(y), np.nan)
-                        mny = np.log10(mny)
-                        mxy = np.log10(mxy)
+                        mny = np.log10(np.where(mny <= 0, 1e-30, mny))
+                        mxy = np.log10(np.where(mxy <= 0, 1e-30, mxy))
             x_points.extend(x)
             y_points.extend(y)
             x_points = np.array(x_points)  # Convert lists to numpy arrays
@@ -285,7 +285,7 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
             # Adjust the pcolormesh call to use the centers and compatible shading
             norm = LogNorm(vmin=1, vmax=maxcolor)
             mesh = axs[r, c].pcolormesh(X, Y, zi_clipped, shading='gouraud', cmap=custom_cmap, zorder=0,norm=norm)
-            fig.colorbar(mesh, ax=axs[r, c], label='GRU count')
+            if r==1 and c==len(method_name)-1: fig.colorbar(mesh, ax=axs.ravel().tolist(), label='GRU count',aspect=20/3*nrow)
 
         elif not do_heat:
             if stat=='mnnz' or stat=='mean' or stat=='amax': 
@@ -311,6 +311,7 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
             axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_tm)) 
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
     axs[r,c].set_ylabel(stat0_word + ' [{}]'.format(leg_t0))
+    if do_heat and c>0: axs[r, c].set_ylabel('')
 
 def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
     r = i//ncol
@@ -333,7 +334,7 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
 
     # Data
     do_same = False
-    if do_heat and len(method_name)>1:
+    if do_heat and len(method_name2)>1:
         if len(method_name2)>1:
             do_same = True
             mxx = 0.0
@@ -350,12 +351,8 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
                 s = summa1[m][comp].sel(stat=stat0).where(lambda x: x != 9999)
                 mxy = max(s.max(),mxy)
                 mny = min(s.min(),mny)
-            if rep: 
-                method_name2 = [method_name20[1]]
-                plt_name2 = [plt_name0[1]]
-            else:
-                method_name2 = [method_name20[0]]
-                plt_name2 = [plt_name20[0]]
+            method_name2 = [method_name20[rep]]
+            plt_name2 = [plt_name20[rep]]
     else: # only one method
         mxx = 0.0
         mnx = 1.0
@@ -373,12 +370,12 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
             y = s0.values
             if lx:
                 x = np.where(x > 0, np.log10(x), np.nan)
-                mxx = np.log10(mxx+1e-30)
-                mnx = np.log10(mnx+1e-30)
+                mxx = np.log10(np.where(mxx <= 0, 1e-30, mxx))
+                mnx = np.log10(np.where(mnx <= 0, 1e-30, mnx))
             if ly:
                 y = np.where(y > 0, np.log10(y), np.nan)
-                mxy = np.log10(mxy+1e-30)
-                mny = np.log10(mny+1e-30)
+                mxy = np.log10(np.where(mxy <= 0, 1e-30, mxy))
+                mny = np.log10(np.where(mny <= 0, 1e-30, mny))
             x_points.extend(x)
             y_points.extend(y)
             x_points = np.array(x_points)  # Convert lists to numpy arrays
@@ -413,8 +410,7 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
             # Adjust the pcolormesh call to use the centers and compatible shading
             norm = LogNorm(vmin=1, vmax=maxcolor)
             mesh = axs[r, c].pcolormesh(X, Y, zi_clipped, shading='gouraud', cmap=custom_cmap, zorder=0,norm=norm)
-            fig.colorbar(mesh, ax=axs[r, c], label='GRU count')
-
+            if r==1 and c==len(method_name2)-1: fig.colorbar(mesh, ax=axs.ravel().tolist(), label='GRU count',aspect=20/3*nrow)
         elif not do_heat:
             axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
 
@@ -436,6 +432,7 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
     if ly: axs[r,c].set_yscale('log')
     axs[r,c].set_xlabel(stat_word  + wordx + ' [{}]'.format(leg_t))
     axs[r,c].set_ylabel(stat0_word + wordy + ' [{}]'.format(leg_t0))
+    if do_heat and c>0: axs[r, c].set_ylabel('')
 
 plt.rcParams['xtick.color'] = 'black'
 plt.rcParams['xtick.major.width'] = 2
@@ -444,18 +441,23 @@ plt.rcParams['ytick.major.width'] = 2
 if do_vars:
     # Specify variables of interest
     if do_heat:
-        use_vars = [1,1,2,2,4,4]
-        logx = np.zeros(len(use_vars)) # no log scale x axis
-        logy = [0,0,0,0,1,1] # log scale y axis
-        rep = [0,1,0,1,0,1]
+        use_vars = [1,2,4]
         use_meth = [0,3]
+        logx = np.zeros(len(use_vars)) # no log scale x axis
+        logy = [0,0,1] # log scale y axis
     else:
         use_vars = [0,1,2,3,4]
+        use_meth = [0,1,2,3]
         logx = np.ones(len(use_vars)) # log scale x axis
         logy = np.ones(len(use_vars)) # log scale y axis
-        rep = np.zeros(len(use_vars))
-        use_meth = [0,1,2,3]
 
+    rep = np.zeros(len(use_vars)) 
+    if do_heat:
+        use_vars = [val for val in use_vars for _ in range(len(use_meth))]
+        logy = [val for val in logy for _ in range(len(use_meth))]
+        logx = [val for val in logx for _ in range(len(use_meth))]
+        rep = [int(val+_) for val in rep for _ in range(len(use_meth))]
+             
     plot_vars = settings
     plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff']
     leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$mm~y^{-1}$']
@@ -487,8 +489,8 @@ if do_vars:
     plt_name0 = np.copy(plt_name)
 
     if do_heat:
-        ncol = 2 # assumes to 2 methods
-        nrow = int(plot_vars/ncol)
+        ncol = len(use_meth)
+        nrow = len(plot_vars)//ncol
     else:
         ncol = 2
         nrow = len(plot_vars)//ncol + 1
@@ -503,20 +505,19 @@ if do_vars:
         fig_fil = fig_fil.format(','.join(plot_vars),stat)
     fig_fil = fig_fil + '_compressed.png'
 
-    # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
-    if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 27})
-    else:
-        plt.rcParams.update({'font.size': 100})
-
     if 'compressed' in fig_fil: 
-        fig,axs = plt.subplots(nrow,ncol,figsize=(17*ncol,13*nrow))
+        if do_heat: 
+            plt.rcParams.update({'font.size': 33})
+        else:
+            plt.rcParams.update({'font.size': 27})
+        fig,axs = plt.subplots(nrow,ncol,figsize=(17*ncol,13*nrow),constrained_layout=do_heat)
     else:
-        fig,axs = plt.subplots(nrow,ncol,figsize=(70*ncol,54*nrow))
+        if do_heat: 
+            plt.rcParams.update({'font.size': 120})
+        else:
+            plt.rcParams.update({'font.size': 100})    
+    if not do_heat: fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
         
-    #fig.suptitle('Hourly Errors and Values for each GRU', fontsize=40)
-    fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
-
     for i,(var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx) in enumerate(zip(plot_vars,logx,logy,plt_titl,leg_titl,leg_titl0,leg_titlm,rep,maxes)): 
         run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx)
 
@@ -530,21 +531,28 @@ if do_vars:
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
 
+
 if do_balance:
-# Specify variables of interest
+ 
+ # Specify variables of interest
     if do_heat:
-        use_vars = [0,0,1,1,2,2]
-        rep = [0,1,0,1,0,1]
+        use_vars = [0,1,2]
+        use_meth = [0,1,3]
         logx = np.ones(len(use_vars)) # log scale x axis
         logy = np.ones(len(use_vars)) # log scale y axis
-        use_meth = [0,3]
     else:
         use_vars = [0,1,2,3]
+        use_meth = [0,1,2,3,4]
         logx = np.zeros(len(use_vars)) # no log scale x axis
         logx = np.ones(len(use_vars)) # log scale x axis
         logy = np.ones(len(use_vars)) # log scale y axis
-        rep = np.zeros(len(use_vars))
-        use_meth = [0,1,2,3,4]
+
+    rep = np.zeros(len(use_vars)) 
+    if do_heat:
+        use_vars = [val for val in use_vars for _ in range(len(use_meth))]
+        logy = [val for val in logy for _ in range(len(use_meth))]
+        logx = [val for val in logx for _ in range(len(use_meth))]
+        rep = [int(val+_) for val in rep for _ in range(len(use_meth))]
 
     plot_vars = ['balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceCasNrg','wallClockTime']
     comp_vars = ['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','numberFluxCalc']
@@ -564,8 +572,8 @@ if do_balance:
     plt_name20 = np.copy(plt_name2)
 
     if do_heat:
-        ncol = 2 # assumes to 2 methods
-        nrow = int(plot_vars/ncol)
+        ncol = len(use_meth)
+        nrow = len(plot_vars)//ncol
     else:
         ncol = 2
         nrow = len(plot_vars)//ncol + 1
@@ -573,23 +581,24 @@ if do_balance:
     fig_fil = 'Hrly_balance_scat_{}'
     if do_heat:
         fig_fil = '{}'+fig_fil + '_heat'
-        fig_fil = fig_fil.format(','.join(method_name),','.join(plot_vars),stat)
+        fig_fil = fig_fil.format(','.join(method_name2),','.join(plot_vars),stat)
     else:
         fig_fil = fig_fil.format(','.join(plot_vars),stat)
     fig_fil = fig_fil + '_compressed.png'
 
-    if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 27})
-    else:
-        plt.rcParams.update({'font.size': 100})
-
     if 'compressed' in fig_fil: 
-        fig,axs = plt.subplots(nrow,ncol,figsize=(17*ncol,13*nrow))
+        if do_heat: 
+            plt.rcParams.update({'font.size': 33})
+        else:
+            plt.rcParams.update({'font.size': 27})
+        fig,axs = plt.subplots(nrow,ncol,figsize=(17*ncol,13*nrow),constrained_layout=do_heat)
     else:
-        fig,axs = plt.subplots(nrow,ncol,figsize=(70*ncol,54*nrow))
-
-    fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
-    #fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
+        if do_heat: 
+            plt.rcParams.update({'font.size': 120})
+        else:
+            plt.rcParams.update({'font.size': 100})
+        fig,axs = plt.subplots(nrow,ncol,figsize=(70*ncol,54*nrow),constrained_layout=do_heat)   
+    if not do_heat: fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 
     for i,(var,comp,lx,ly,leg_t,leg_t0,plt_t,rep) in enumerate(zip(plot_vars,comp_vars,logx,logy,leg_titl,leg_titl0,plt_titl,rep)): 
         run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,rep)
