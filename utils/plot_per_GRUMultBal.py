@@ -233,7 +233,7 @@ def run_loop(j,var,the_max):
         # Custom colorbar
         if i==len(method_name)-1:
             sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
-            sm._A = []
+            sm.set_array([])
             if one_plot:
                 cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/3)
             else:
@@ -265,10 +265,10 @@ if one_plot:
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
         plt.rcParams.update({'font.size': 33})
-        fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,14*nrow),constrained_layout=True)
+        fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,13*nrow),constrained_layout=True)
     else:
         plt.rcParams.update({'font.size': 120})
-        fig,axs = plt.subplots(nrow,ncol,figsize=(62*ncol,58*nrow),constrained_layout=True)
+        fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
     axs_list = axs.ravel().tolist()
     fig.suptitle('hourly statistics', fontsize=40,y=1.05)
@@ -295,10 +295,10 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
         # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
         if 'compressed' in fig_fil:
             plt.rcParams.update({'font.size': 33})
-            fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,14*nrow),constrained_layout=True)
+            fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,13*nrow),constrained_layout=True)
         else:
             plt.rcParams.update({'font.size': 120})
-            fig,axs = plt.subplots(nrow,ncol,figsize=(62*ncol,58*nrow),constrained_layout=True)
+            fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
         # Remove the extra subplots
         if len(method_name) < nrow*ncol:
