@@ -165,12 +165,12 @@ module HDS
 
         ! initialize pond volume
         xVol = pondVol
-        ! initialize corrected evaporation and infiltration for mass balance closure
+        ! initialize corrected evaporation and infiltration for mass balance closure (not used here)
         Q_det_adj = zero
         Q_dix_adj = zero
         ! initialize pondOutflow
         pondOutflow = 0._rkind
-        ! calculate some spatial attributes (might be moved somewhere else)
+        ! calculate some spatial attributes
         depArea = depAreaFrac * totalArea
         depVol = depDepth * depArea
         landArea = totalArea - depArea

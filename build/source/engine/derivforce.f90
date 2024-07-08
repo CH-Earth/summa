@@ -358,7 +358,7 @@ contains
  ! function calcPotentialEvap_Oudin2005: compute potential evaporation for HDS pond calculations
  ! ************************************************************************************************
  !=============================================================
- function calcPotentialEvap_Oudin2005(SWRadAtm, airtemp) result(potentialEvap)
+ function calcPotentialEvap_Oudin2005(SWRadAtm, airtemp, K1, K2) result(potentialEvap)
   ! calculate potential evaporation using Oudin et al. (2005)'s formula for a specific HRU
   USE multiconst,only:LH_vap,  & ! latent heat of vaporization   (J kg-1)
                       iden_water ! intrinsic density of water    (kg m-3)
@@ -366,12 +366,11 @@ contains
   !function arguments
   real(rkind),  intent(in)     :: SWRadAtm                ! downwelling shortwave radiaiton [w/m2]
   real(rkind),  intent(in)     :: airtemp                 ! air temperature  [K]
+  real(rkind),  intent(in)     :: K1                      ! scaling factor (deg C)
+  real(rkind),  intent(in)     :: K2                      ! minimum value of air temperature for which PE is not zero (deg C)
 
   ! local variables
   real(rkind)                  :: potentialEvap           ! pontentail evaporation as calculated by Oudin's formula (mm s-1)
-  ! the following parameters were adjusted to produce reasonable PET values for the prairies ~ 1000 mm/year (https://doi.org/10.1038/s41598-020-78994-9)
-  real(rkind), parameter       :: K1 = 30._rkind           ! scaling factor
-  real(rkind), parameter       :: K2 = 3._rkind            ! minimum value of air temperature for which PE is not zero
   
   ! Oudin (2005)'s formula
   potentialEvap = (1000._rkind * & 

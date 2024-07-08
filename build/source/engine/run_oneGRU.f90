@@ -50,6 +50,7 @@ USE var_lookup,only:iLookINDEX         ! look-up values for local column index v
 USE var_lookup,only:iLookFLUX          ! look-up values for local column model fluxes
 USE var_lookup,only:iLookBVAR          ! look-up values for basin-average model variables
 USE var_lookup,only:iLookBPAR          ! look-up values for basin-average model parameters (for HDS)
+USE var_lookup,only:iLookPARAM         ! look-up values for HRU model parameters (for HDS PET calculations)
 USE var_lookup, only:iLookFORCE        ! look-up values for HRU forcing - used to estimate basin average forcing for HDS
 
 ! provide access to model decisions
@@ -271,10 +272,25 @@ contains
   ! averaging more fluxes (and/or states) can be added to this section as desired
   ! averagin fluxes if HDS is active
   if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
-   basinPrecip = basinPrecip + (forcHRU%hru(iHRU)%var(iLookFORCE%pptrate) * fracHRU)
+
+   associate(pptrate     =>   forcHRU%hru(iHRU)%var(iLookFORCE%pptrate) , &
+             SWRadAtm    =>   forcHRU%hru(iHRU)%var(iLookFORCE%SWRadAtm), &
+             airtemp     =>   forcHRU%hru(iHRU)%var(iLookFORCE%airtemp) , &
+             ! parameters of Oudin PET formula
+             scaleK1     =>   mparHRU%hru(iHRU)%var(iLookPARAM%oudinPETScaleK1)%dat(1), &
+             tempThrK2   =>   mparHRU%hru(iHRU)%var(iLookPARAM%oudinPETTempThrK2)%dat(1))
+
+
+   basinPrecip = basinPrecip + pptrate * fracHRU
    ! calculate potential evaporation using Oudin (2005)'s formula
-   basinPotentialEvap = basinPotentialEvap + calcPotentialEvap_Oudin2005(forcHRU%hru(iHRU)%var(iLookFORCE%SWRadAtm), forcHRU%hru(iHRU)%var(iLookFORCE%airtemp)) * fracHRU
-  endif ! HDS control flag
+   ! check the parameters of Oudin PET formula
+   if(scaleK1 < 0._rkind .or. tempThrK2 < 0._rkind)then
+    write(message(len_trim(message) + 1:), '(A7,I0,A75)') 'hruId=',gruInfo%hruInfo(iHRU)%hru_id, '/oudinPETFormula/missing or negative values for ScaleK1 or TempThrK2'
+    err=20; return
+   endif
+   basinPotentialEvap = basinPotentialEvap + calcPotentialEvap_Oudin2005(SWRadAtm, airtemp, scaleK1, tempThrK2) * fracHRU
+   end associate
+  end if ! HDS control flag
 
  end do  ! (looping through HRUs)
 
