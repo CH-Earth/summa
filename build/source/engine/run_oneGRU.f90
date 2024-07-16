@@ -280,7 +280,6 @@ contains
              scaleK1     =>   mparHRU%hru(iHRU)%var(iLookPARAM%oudinPETScaleK1)%dat(1), &
              tempThrK2   =>   mparHRU%hru(iHRU)%var(iLookPARAM%oudinPETTempThrK2)%dat(1))
 
-
    basinPrecip = basinPrecip + pptrate * fracHRU
    ! calculate potential evaporation using Oudin (2005)'s formula
    ! check the parameters of Oudin PET formula

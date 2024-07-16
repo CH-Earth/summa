@@ -912,6 +912,7 @@ contains
   case('pondVol'                       ); get_ixbvar = iLookBVAR%pondVol                         ! pond volume at the end of time step (m3)
   case('pondArea'                      ); get_ixbvar = iLookBVAR%pondArea                        ! pond area at the end of the time step (m2)
   case('pondOutflow'                   ); get_ixbvar = iLookBVAR%pondOutflow                     ! pond outflow (m3)
+  case('pondEvap'                      ); get_ixbvar = iLookBVAR%pondEvap                        ! pond evaporation (kg m-2 s-1)
   ! get to here if cannot find the variable
   case default
    get_ixbvar = integerMissing

@@ -144,6 +144,7 @@ module HDS
                  pondVol                 =>    bvarData%var(iLookBVAR%pondVol)%dat(1)            , &    ! pond volume at the end of time step (m3)
                  pondArea                =>    bvarData%var(iLookBVAR%pondArea)%dat(1)           , &    ! pond area at the end of the time step (m2)
                  pondOutflow             =>    bvarData%var(iLookBVAR%pondOutflow)%dat(1)        , &    ! pond outflow (m3)
+                 pondEvap                =>    bvarData%var(iLookBVAR%pondEvap)%dat(1)           , &    ! pond evaporation (kg m-2 s-1)
                  ! HDS pothole storage parameters
                  depDepth                =>    bparGRU%var(iLookBPAR%depressionDepth)            , &    ! depression depth (m)
                  depAreaFrac             =>    bparGRU%var(iLookBPAR%depressionAreaFrac)         , &    ! fractional depressional area (depressionArea/basinArea) (-)
@@ -260,6 +261,8 @@ module HDS
         pondArea = depArea*((pondVol/depVol)**(two/(p + two)))
         ! pond outflow [m3]
         pondOutflow = Q_do
+        ! pond evaporation [kg m-2 s-1]
+        pondEvap = basinPotentialEvap
 
         ! adjust runoff values (pondoutflow + contribution from non-depressional area)
         basinTotalRunoff = pondOutflow / data_step / totalArea + & !m3/timestep -> m s-1

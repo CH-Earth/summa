@@ -612,12 +612,13 @@ contains
  ! -----
  ! * basin-wide HDS pothole storage fluxes/variables...
  ! -----------------------------------------
- bvar_meta(iLookBVAR%vMin)                    = var_info('vMin'        , 'volume of water in the meta depression at the start of a fill period'  , 'm3'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- bvar_meta(iLookBVAR%conAreaFrac)             = var_info('conAreaFrac' , 'fractional contributing area'                                          , '-'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
- bvar_meta(iLookBVAR%pondVolFrac)             = var_info('pondVolFrac' , 'fractional pond volume at the end of time step'                        , '-'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
- bvar_meta(iLookBVAR%pondVol)                 = var_info('pondVol'     , 'pond volume at the end of time step'                                   , 'm3'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
- bvar_meta(iLookBVAR%pondArea)                = var_info('pondArea'    , 'pond area at the end of the time step'                                 , 'm2'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
- bvar_meta(iLookBVAR%pondOutflow)             = var_info('pondOutflow' , 'pond outflow'                                                          , 'm3'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
+ bvar_meta(iLookBVAR%vMin)                    = var_info('vMin'        , 'volume of water in the meta depression at the start of a fill period'  , 'm3'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bvar_meta(iLookBVAR%conAreaFrac)             = var_info('conAreaFrac' , 'fractional contributing area'                                          , '-'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
+ bvar_meta(iLookBVAR%pondVolFrac)             = var_info('pondVolFrac' , 'fractional pond volume at the end of time step'                        , '-'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
+ bvar_meta(iLookBVAR%pondVol)                 = var_info('pondVol'     , 'pond volume at the end of time step'                                   , 'm3'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
+ bvar_meta(iLookBVAR%pondArea)                = var_info('pondArea'    , 'pond area at the end of the time step'                                 , 'm2'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
+ bvar_meta(iLookBVAR%pondOutflow)             = var_info('pondOutflow' , 'pond outflow'                                                          , 'm3'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
+ bvar_meta(iLookBVAR%pondEvap)                = var_info('pondEvap'    , 'pond evaporation'                                                      , 'kg m-2 s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)   
 
  ! -----
  ! * model indices...

@@ -729,6 +729,7 @@ MODULE var_lookup
   integer(i4b)    :: pondVol                    = integerMissing ! pond volume at the end of time step (m3)
   integer(i4b)    :: pondArea                   = integerMissing ! pond area at the end of the time step (m2)
   integer(i4b)    :: pondOutflow                = integerMissing ! pond outflow (m3)
+  integer(i4b)    :: pondEvap                   = integerMissing ! pond evaporation (kg m-2 s-1)
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
@@ -860,7 +861,7 @@ MODULE var_lookup
 
  ! named variables: basin-average variables (including HDS variables)
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19)
+                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
 
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
