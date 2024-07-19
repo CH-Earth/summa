@@ -34,8 +34,8 @@ run_local = False
 # which statistics to compute
 do_vars = False
 do_steps = False
-do_balance = False
-do_wall = True
+do_balance = True
+do_wall = False
 
 if run_local:
     not_parallel = True 
@@ -68,6 +68,7 @@ des_fl4 = method_name + '_hrly_diff_wall_{}_{}.nc'
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
 balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc']
+#balssets= ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
 wallsets= ['wallClockTime']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
