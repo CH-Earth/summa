@@ -437,7 +437,6 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%mLayerCompress)                  = var_info('mLayerCompress'                 , 'change in volumetric water content due to compression of soil'    , 's-1'             , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarSoilCompress)              = var_info('scalarSoilCompress'             , 'change in total soil storage due to compression of soil matrix'   , 'kg m-2 s-1 '     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerMatricHeadLiq)             = var_info('mLayerMatricHeadLiq'            , 'matric potential of liquid water'                                 , 'm'               , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
-  ! mass balance check
   diag_meta(iLookDIAG%scalarTotalSoilLiq)              = var_info('scalarTotalSoilLiq'             , 'total mass of liquid water in the soil'                           , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarTotalSoilIce)              = var_info('scalarTotalSoilIce'             , 'total mass of ice in the soil'                                    , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarTotalSoilWat)              = var_info('scalarTotalSoilWat'             , 'total mass of water in the soil'                                  , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -928,7 +927,7 @@ subroutine read_output_file(err,message)
 
     ! identify the data structure for the given variable (structName) and the variable index (vDex)
     call get_ixUnknown(trim(varName),structName,vDex,err,cmessage)
-    if (err/=0) then; message=trim(message)//trim(cmessage)//trim(varName); return; end if;
+    if (err/=0) then; message=trim(message)//trim(cmessage)// ': deprecated variable name, remove from output file'; return; end if;
 
     ! id variables should not be specified in output control file
     if (trim(structName)=='id')then
@@ -969,9 +968,8 @@ subroutine read_output_file(err,message)
 
       ! temporally constant variables use timestep-level output (no aggregation)
       case default
-        message=trim(message)//'unable to identify desired output frequency for variable '//trim(varName)&
-                            //' [entered "'//trim(freqName)//'"];'&
-                            //' outputting variable in timestep file'
+        freqName = trim(lineWords(freqIndex))
+        write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting variable in timestep file and will be the same value throughout file'
         iFreq    = iLookFREQ%timestep
         freqName = 'timestep'
     end select
