@@ -20,10 +20,8 @@ import matplotlib.pyplot as plt
 import copy
 import pandas as pd
 
-viz_dir = Path('/home/avanb/scratch/statistics')
-
-testing = False
-if testing: 
+run_local = False
+if run_local: 
     stat = 'amax'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1'] #maybe make this an argument
@@ -31,6 +29,7 @@ else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
+    viz_dir = Path('/home/avanb/scratch/statistics')
     method_name=['be1','be4','be8','be16','be32'] #maybe make this an argument
     method_name=['be1'] #maybe make this an argument
     #method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument

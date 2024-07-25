@@ -19,14 +19,13 @@ import matplotlib.pyplot as plt
 import copy
 import pandas as pd
 
-viz_dir = Path('/home/avanb/scratch/statistics')
-
-testing = False
-if testing: 
+run_local = False
+if run_local: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1en','be1en'] #cm','be1en','be1lu'] #maybe make this an argument
 else:
     import sys
+    viz_dir = Path('/home/avanb/scratch/statistics')
     method_name=['sundials_1en4','sundials_1en6','sundials_1en8'] #maybe make this an argument
 
 # Simulation statistics file locations

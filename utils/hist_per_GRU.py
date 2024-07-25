@@ -20,32 +20,31 @@ import matplotlib.pyplot as plt
 import copy
 import pandas as pd
 
-viz_dir = Path('/home/avanb/scratch/statistics')
-nbatch_hrus = 518 # number of HRUs per batch
-num_bins = 1000
-do_rel = True # plot relative to the benchmark simulation
+do_rel = True # true is plot relative to the benchmark simulation
+do_hist = False # true is plot histogram instead of CDF
+run_local = True # true is run on local machine, false is run on cluster
+fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
 
-testing = False
-do_hist = False # plot histogram instead of CDF
-if testing: 
+if run_local: 
     stat = 'rmnz'
-    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1en']
-    plt_name=['BE1 mixed']
-    method_name2=method_name
-    plt_name2=plt_name
+    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
-    # The first input argument specifies the run where the files are
     stat = sys.argv[1]
-    #method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
-    #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
-    #method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
-    #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-    method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
-    plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
-    method_name2=method_name+['sundials_1en8cm']
-    plt_name2=plt_name+['reference solution']
+    viz_dir = Path('/home/avanb/scratch/statistics')
+    
+
+#method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
+#plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
+#method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
+#plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
+method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
+plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+method_name2=method_name+['sundials_1en8cm']
+plt_name2=plt_name+['reference solution']
+
+num_bins = 1000
+
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Define the power transformation function
@@ -53,16 +52,22 @@ def power_transform(x):
     return x ** 0.5  # Adjust the exponent as needed
 
 # Simulation statistics file locations
+use_vars = []
+rep = [] # mark the repeats
 use_vars = [1]
 rep = [0] # mark the repeats
 #use_vars = [0,1,2,3,4]
 #rep = [0,0,0,0,0] # mark the repeats
-
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 settings = [settings0[i] for i in use_vars]
 
-use_vars2 = [3,3,8]
-rep2 = [1,2,0] # mark the repeats
+#use_vars2 = [4,4,5,5,6,6,7,7]
+#use_vars2 = [0,0,1,1,2,2,3,3]
+#rep2 = [1,2,1,2,1,2,1,2] # mark the repeats
+use_vars2 = [0,0,1,1,2,2]
+rep2 = [1,2,1,2,1,2] # mark the repeats
+use_vars2 = [8,3,3]
+rep2 = [0,1,2] # mark the repeats
 #use_vars2 = [8]
 #rep2 = [0] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -85,8 +90,9 @@ plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
 leg_titl = [leg_titl[i] for i in use_vars]
 
 plot_vars2 = settings2.copy()
-plt_titl2 = ['canopy air space energy balance','vegetation energy balance','snow energy balance','soil energy balance','vegetation mass balance','snow mass balance','soil mass malance','aquifer mass balance', 'wall clock time']
+plt_titl2 = ['canopy air space energy balance','vegetation energy balance','snow energy balance','soil energy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
+if fixed_Mass_units: leg_titl2 = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
 plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
 leg_titl2 = [leg_titl2[i] for i in use_vars2]
 
@@ -98,31 +104,26 @@ else:
     if do_rel: fig_fil = 'Hrly_diff_cdf_{}_{}_zoom_rel_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
-if stat == 'rmse':
+if stat == 'rmse' or stat=='rmnz':
     stat2 = 'mean'
-    maxes = [2,15,250,0.08,200,20e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
-if stat == 'rmnz':
-    stat2 = 'mean'
-    maxes = [2,15,250,0.08,200,20e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
+    maxes = [2,15,250,0.08,200,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
 if stat == 'maxe':
     stat2 = 'amax'
     maxes = [15,25,0.8,2,0.3,2.0]
     if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,2.0]
 if stat == 'kgem':
     stat2 = 'mean'
-    maxes = [0.9,0.9,0.9,0.9,0.9,20e-3]
+    maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 maxes = [maxes[i] for i in use_vars]
 
 if stat2 == 'mean':
-    maxes2 = [1e-3,1e1,1e1,1e1]+[1e-12,1e-11,1e-10,1e-13] + [20e-3]
+    maxes2 = [1e-1,1e1,1e1,1e1]+[1e-7,1e-7,1e-7,1e-9] + [20e-3]
 if stat2 == 'amax':
-    maxes2 = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
+    maxes2 = [1e1,1e3,1e3,1e3]+[1e-5,1e-5,1e-5,1e-7] + [2.0]
 maxes2 = [maxes2[i] for i in use_vars2]
 for i in range(len(maxes2)):
     if rep2[i]==2: maxes2[i] = maxes2[i]*1e2 #clunky way to increase the range for the second repeat
-
 
 summa = {}
 summa1 = {}
@@ -147,9 +148,9 @@ else:
     plt.rcParams.update({'font.size': 100})
 
 if 'compressed' in fig_fil:
-    fig,axs = plt.subplots(3,2,figsize=(35,38))
+    fig,axs = plt.subplots(4,2,figsize=(35,52))
 else:
-    fig,axs = plt.subplots(3,2,figsize=(140,160))
+    fig,axs = plt.subplots(4,2,figsize=(140,160))
 fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40,y=1.0)
     
@@ -229,7 +230,7 @@ def run_loop(i,var,mx,rep):
 
     if do_hist: 
         axs[r,c].set_ylabel('GRU count')
-        if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
+        if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')
@@ -248,10 +249,13 @@ def run_loopb(i,var,mx,rep):
         
     if 'zoom' in fig_fil:
         mx = mx
-        mn = mx*1e-4
+        mn = mx*1e-9
         if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
             mn = mx*1e-9
         if var=='wallClockTime': mn = 0.0
+        if fixed_Mass_units and 'Mass' in var: # /density for mass balance
+            mn = mn/1000
+            mx = mx/1000
     else:
         mx = 0.0
         mn = 1.0
@@ -264,6 +268,7 @@ def run_loopb(i,var,mx,rep):
     # Data
     for m in method_name2:
         s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+        if fixed_Mass_units and 'Mass' in var: s = s/1000 # /density for mass balance
 
         range = (mn,mx)
         if do_hist: 
@@ -287,7 +292,7 @@ def run_loopb(i,var,mx,rep):
     if do_hist: 
         axs[r,c].set_ylabel('GRU count')
         if(c==1): axs[r, c].set_ylabel('')
-        if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
+        if var != 'wallClockTime' and not run_local: axs[r,c].set_ylim([0, 25000])
  
     else:
         axs[r,c].set_ylabel('cumulative distribution')
@@ -306,8 +311,8 @@ if len(use_vars2) > 0:
         run_loopb(i,var,mx,rep)
 
 # Remove the extra subplots
-if (len(plot_vars)+len(plot_vars2)) < 6:
-    for i in range((len(plot_vars)+len(plot_vars2)),6):
+if (len(plot_vars)+len(plot_vars2)) < 8:
+    for i in range((len(plot_vars)+len(plot_vars2)),8):
         r = i//2
         c = i-r*2
         fig.delaxes(axs[r, c])

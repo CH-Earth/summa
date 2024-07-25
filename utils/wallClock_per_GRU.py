@@ -19,17 +19,16 @@ import matplotlib.pyplot as plt
 import copy
 import pandas as pd
 
-viz_dir = Path('/home/avanb/scratch/statistics')
-nbatch_hrus = 518 # number of HRUs per batch
-
-testing = False
-if testing: 
+run_local = False
+if run_local: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1'] #maybe make this an argument
 else:
     import sys
+    viz_dir = Path('/home/avanb/scratch/statistics')
     method_name=['be1','be4','be8','be16','be32'] #sundials will not show node differences as much
 
+nbatch_hrus = 518 # number of HRUs per batch
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 viz_fil = method_name.copy()

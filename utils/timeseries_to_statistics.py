@@ -29,15 +29,15 @@ warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 
 bench_name  = 'sundials_1en8cm'
 
 not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sundials_1en6 1 1` for single batch, and `python timeseries_to_statistics.py sundials_1en6 2 1` to merge
-testing = False
+run_local = False
 
 # which statistics to compute
 do_vars = False
 do_steps = False
-do_balance = False
-do_wall = True
+do_balance = True
+do_wall = False
 
-if testing:
+if run_local:
     not_parallel = True 
     method_name ='be1en'
     ibatch = 1 # Run as 1, 2, and then 3 to fully test
@@ -68,6 +68,7 @@ des_fl4 = method_name + '_hrly_diff_wall_{}_{}.nc'
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
 balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc']
+#balssets= ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
 wallsets= ['wallClockTime']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'

@@ -1251,10 +1251,10 @@ subroutine coupled_em(&
       ! sum the balance of energy and water per state
       innerBalance(1) = innerBalance(1) + diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)*dt_wght ! W m-3
       innerBalance(2) = innerBalance(2) + diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)*dt_wght ! W m-3
-      innerBalance(3) = innerBalance(3) + diag_data%var(iLookDIAG%balanceVegMass)%dat(1)*dt_wght              ! kg m-2 s-1
-      innerBalance(4) = innerBalance(4) + diag_data%var(iLookDIAG%balanceAqMass)%dat(1)*dt_wght * iden_water  ! kg m-2 s-1
+      innerBalance(3) = innerBalance(3) + diag_data%var(iLookDIAG%balanceVegMass)%dat(1)*dt_wght/diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)  ! kg m-3 s-1
+      innerBalance(4) = innerBalance(4) + diag_data%var(iLookDIAG%balanceAqMass)%dat(1)*dt_wght * iden_water  ! kg m-2 s-1 (no depth to aquifer)
       innerBalanceLayerNrg(:) = innerBalanceLayerNrg(:) + diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:)*dt_wght ! W m-3
-      innerBalanceLayerMass(:) = innerBalanceLayerMass(:) + diag_data%var(iLookDIAG%balanceLayerMass)%dat(:)*dt_wght * prog_data%var(iLookPROG%mLayerDepth)%dat(:) * iden_water ! kg m-2 s-1
+      innerBalanceLayerMass(:) = innerBalanceLayerMass(:) + diag_data%var(iLookDIAG%balanceLayerMass)%dat(:)*dt_wght * iden_water ! kg m-3 s-1
 
       ! save balance of energy and water per snow+soil layer after inner step, since can change nLayers with outer steps
       diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:) = innerBalanceLayerNrg(:)
@@ -1465,12 +1465,12 @@ subroutine coupled_em(&
       ! save balance of energy and water per single layer domain
       diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = meanBalance(1) ! W m-3
       diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = meanBalance(2) ! W m-3      will be realMissing if computeVegFlux is false
-      diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = meanBalance(3) ! kg m-2 s-1 will be realMissing if computeVegFlux is false
+      diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = meanBalance(3) ! kg m-3 s-1 will be realMissing if computeVegFlux is false
       diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = meanBalance(4) ! kg m-2 s-1 will be realMissing if no aquifer
       diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = meanBalance(5) ! W m-3      will be realMissing if no snow during data step
       diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = meanBalance(6) ! W m-3       
-      diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = meanBalance(7) ! kg m-2 s-1 will be realMissing if no snow during data step
-      diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = meanBalance(8) ! kg m-2 s-1
+      diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = meanBalance(7) ! kg m-3 s-1 will be realMissing if no snow during data step
+      diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = meanBalance(8) ! kg m-3 s-1
       if (.not.bal_snow)then ! will be 0, make realMissing
         diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = realMissing
         diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = realMissing

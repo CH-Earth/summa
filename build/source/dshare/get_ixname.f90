@@ -601,11 +601,11 @@ contains
   case('balanceLayerNrg'                ); get_ixDiag = iLookDIAG%balanceLayerNrg                  ! balance of energy in each snow+soil layer (W m-3)
   case('balanceSnowNrg'                 ); get_ixDiag = iLookDIAG%balanceSnowNrg                   ! balance of energy in the snow (W m-3)
   case('balanceSoilNrg'                 ); get_ixDiag = iLookDIAG%balanceSoilNrg                   ! balance of energy in the soil (W m-3)
-  case('balanceVegMass'                 ); get_ixDiag = iLookDIAG%balanceVegMass                   ! balance of water in the vegetation canopy (kg m-2 s-1)
-  case('balanceLayerMass'               ); get_ixDiag = iLookDIAG%balanceLayerMass                 ! balance of water in each snow+soil layer (kg m-2 s-1)
-  case('balanceSnowMass'                ); get_ixDiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow (kg m-2 s-1)
-  case('balanceSoilMass'                ); get_ixDiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil (kg m-2 s-1)
-  case('balanceAqMass'                  ); get_ixDiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer (kg m-2 s-1)
+  case('balanceVegMass'                 ); get_ixDiag = iLookDIAG%balanceVegMass                   ! balance of water in the vegetation canopy (kg m-3 s-1)
+  case('balanceLayerMass'               ); get_ixDiag = iLookDIAG%balanceLayerMass                 ! balance of water in each snow+soil layer (kg m-3 s-1)
+  case('balanceSnowMass'                ); get_ixDiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow (kg m-3 s-1)
+  case('balanceSoilMass'                ); get_ixDiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil (kg m-3 s-1)
+  case('balanceAqMass'                  ); get_ixDiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer (kg m-2 s-1) (no depth to aquifer)
   ! sundials integrator stats
   case('numSteps'                       ); get_ixDiag = iLookDIAG%numSteps
   case('numResEvals'                    ); get_ixDiag = iLookDIAG%numResEvals

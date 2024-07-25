@@ -30,53 +30,53 @@ import fiona
 import geopandas as gpd
 import pandas as pd
 
-# plot all runs, pick statistic
-stat = sys.argv[1]
-method_name=['be1','be1cm','be1en','sundials_1en6cm']  #maybe make this an argument
-plt_name=['(a) SUMMA-BE1 Common Form of Heat Eq.','(b) SUMMA-BE1 Temperature Form of Heat Eq.','(c) SUMMA-BE1 Mixed Form of Heat Eq.','(d) SUMMA-SUNDIALS Temperature Form of Heat Eq.']
+
+one_plot = False # true is one plot, false is multiple plots (one per variable)
+run_local = False # true is run on local machine (only does testing), false is run on cluster
+fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
+
+
+if run_local: 
+    stat = 'mean'
+    viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
+else:
+    import sys
+    stat = sys.argv[1]
+    viz_dir = Path('/home/avanb/scratch/statistics')
+
+
+method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en8cm']  #maybe make this an argument
+plt_name0=['SUMMA-BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','reference solution']
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 
-viz_dir = Path('/home/avanb/scratch/statistics')
 viz_fil = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_bals_{}.nc'
     viz_fil[i] = viz_fil[i].format(','.join(['balance']))
-do_rel = False # use scaled values
 nbatch_hrus = 518 # number of HRUs per batch
 
-# Specify variables of interest
-plt_titl = ['Canopy Air Space Energy Balance','Vegetation Energy Balance','Snow Energy Balance','Soil Energy Balance','Vegetation Mass Balance','Snow Mass Balance','Soil Mass Balance','Aquifer Mass Balance', 'Wall Clock Time']
-leg_titl = ['$W~m^{-3}$'] * 4 +['$num$'] + ['$kg~m^{-2}~s^{-1}$'] * 4
+# Specify variables in files
+plt_titl = ['canopy air space energy balance','vegetation energy balance','snow energy balance','soil energy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
+leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
+if fixed_Mass_units: leg_titl = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
-if do_rel: 
-    fig_fil = '_hrly_scaledBalance_{}_rel_compressed.png'
-    for i in range(8):
-        settings[i] = 'scaledB' + settings[i][1:]
-        plt_titl[i] = 'Scaled ' + plt_titl[i]
-    leg_titl = ['$s^{-1}$'] * 8 + ['$s$']
-
 plot_vars = settings.copy()
 
 if stat == 'mean': 
-    maxes = [1e-3,1e1,1e1,1e1]+[1e-12,1e-11,1e-10,1e-13] + [20e-3]
-if stat == 'amax': 
-    maxes = [1e-2,1e4,1e4,1e3]+[1e-11,1e-6,1e-7,1e-8] + [2.0]
+    maxes = [1e-1,1e1,1e1,1e1]+[1e-7,1e-7,1e-7,1e-9] + [20e-3]
+if stat == 'amax':
+    maxes = [1e1,1e3,1e3,1e3]+[1e-5,1e-5,1e-5,1e-7] + [2.0]
 
-# Get the albers shapes
-main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
+# Get simulation statistics
+summa = {}
+for i, m in enumerate(method_name):
+    # Get the aggregated statistics of SUMMA simulations
+    summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
 
-# Plot lakes?
-plot_lakes = True
-# lakes shapefile WHERE IS THIS
-#lake_path = Path('C:/Globus endpoint/HydroLAKES/HydroLAKES_polys_v10_shp')
-#lake_name = 'HydroLAKES_polys_v10_subset_NA.shp'
 
-## Control file handling
-# Store the name of the 'active' file in a variable
-controlFile = 'plot_control_NorthAmerica.txt'
 
 # Function to extract a given setting from the control file
 def read_from_control( file, setting ):
@@ -112,62 +112,66 @@ def make_default_path(suffix):
 
     return defaultPath
 
-## Catchment shapefile location and variable names
-# HM catchment shapefile path & name
-hm_catchment_path = read_from_control(controlFile,'catchment_shp_path')
-hm_catchment_name = read_from_control(controlFile,'catchment_shp_name')
-# Specify default path if needed
-if hm_catchment_path == 'default':
-    hm_catchment_path = make_default_path('shapefiles/catchment') # outputs a Path()
+if run_local:
+    # Make stubs to check if the plots set up properly
+    plot_lakes = False
+    plot_rivers = False
+
+    # Create a mock DataFrame
+    from shapely.geometry import Point
+
+    s = summa[method_name[0]][plot_vars[0]].sel(stat=stat)
+    mock_data = {
+        'hm_hruid': s.hru.values[range(100)],  # Example HRU IDs
+        'geometry': [Point(x, y) for x, y in zip(range(100), range(100))]  # Simple geometries
+    }
+    bas_albers = gpd.GeoDataFrame(mock_data, geometry='geometry')    
+    hm_hruid = 'hm_hruid'  # Correctly define the variable name in the shapefile
+    xmin, ymin, xmax, ymax = bas_albers.total_bounds
+
 else:
-    hm_catchment_path = Path(hm_catchment_path) # make sure a user-specified path is a Path()
+    # Get the albers shapes
+    main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
+    plot_lakes = True
+    plot_rivers = False
 
-# Find the GRU and HRU identifiers
-hm_hruid = read_from_control(controlFile,'catchment_shp_hruid')
+    # Control file handling
+    controlFile = 'plot_control_NorthAmerica.txt'
 
-## River network shapefile location and variable names
-# Plot rivers?
-plot_rivers = False
-# River network path & name
-river_network_path = read_from_control(controlFile,'river_network_shp_path')
-river_network_name = read_from_control(controlFile,'river_network_shp_name')
-# Specify default path if needed
-if river_network_path == 'default':
-    river_network_path = make_default_path('shapefiles/river_network') # outputs a Path()
-else:
-    river_network_path = Path(river_network_path) # make sure a user-specified path is a Path()
+    # HM catchment shapefile path & name
+    hm_catchment_path = read_from_control(controlFile,'catchment_shp_path')
+    hm_catchment_name = read_from_control(controlFile,'catchment_shp_name')
+    # Specify default path if needed
+    if hm_catchment_path == 'default':
+        hm_catchment_path = make_default_path('shapefiles/catchment') # outputs a Path()
+    else:
+        hm_catchment_path = Path(hm_catchment_path) # make sure a user-specified path is a Path()
 
-# Find the segment ID
-seg_id = read_from_control(controlFile,'river_network_shp_segid')
+    # Find the GRU and HRU identifiers
+    hm_hruid = read_from_control(controlFile,'catchment_shp_hruid')
 
-## Load all shapefiles and project to Albers Conformal Conic and reproject
-# Set the target CRS
-acc = 'ESRI:102008'
+    ## River network shapefile location and variable names
+    river_network_path = read_from_control(controlFile,'river_network_shp_path')
+    river_network_name = read_from_control(controlFile,'river_network_shp_name')
+    # Specify default path if needed
+    if river_network_path == 'default':
+        river_network_path = make_default_path('shapefiles/river_network') # outputs a Path()
+    else:
+        river_network_path = Path(river_network_path) # make sure a user-specified path is a Path()
 
-# catchment shapefile, first 2 lines throw error so cutting them
-#bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
-#bas_albers = bas.to_crs(acc)
-bas_albers = gpd.read_file(main/'basin.shp')
-xmin, ymin, xmax, ymax = bas_albers.total_bounds
+    # Find the segment ID
+    seg_id = read_from_control(controlFile,'river_network_shp_segid')
 
-# river network shapefile, first 2 lines throw error so cutting them
-if plot_rivers:
-	#riv = gpd.read_file(river_network_path/river_network_name)
-	#riv_albers = riv.to_crs(acc)
-	riv_albers = gpd.read_file(main/'river.shp')
+    ## Load all shapefiles and project to Albers Conformal Conic and reproject
+    acc = 'ESRI:102008' # Set the target CRS
 
-# lakes shapefile, first 2 lines throw error so cutting them
-if plot_lakes:
-	#lakes = gpd.read_file(lake_path/lake_name)
-	#lak_albers = lakes.to_crs(acc)
-	lak_albers = gpd.read_file(main/'lakes.shp')
+    bas_albers = gpd.read_file(main/'basin.shp')
+    xmin, ymin, xmax, ymax = bas_albers.total_bounds
 
-## Pre-processing, map SUMMA sims to catchment shapes
-# Get the aggregated statistics of SUMMA simulations
-summa = {}
-for i, m in enumerate(method_name):
-    # Get the aggregated statistics of SUMMA simulations
-    summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+    if plot_rivers: riv_albers = gpd.read_file(main/'river.shp')
+    if plot_lakes: lak_albers = gpd.read_file(main/'lakes.shp')
+
+
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
@@ -176,6 +180,7 @@ for plot_var in plot_vars:
 
     for m in method_name:
         s = summa[m][plot_var].sel(stat=stat0)
+        if fixed_Mass_units and 'Mass' in plot_var: s = s/1000 # /density for mass balance
 
         # Make absolute value norm, not all positive
         s = np.fabs(s) 
@@ -187,7 +192,6 @@ for plot_var in plot_vars:
         bas_albers[plot_var+m] = np.nan
         hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
         bas_albers.loc[hru_ind, plot_var+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values 
-        #bas_albers[plot_var+m]= s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
 if plot_lakes:
@@ -199,72 +203,130 @@ if plot_lakes:
     large_lakes_albers = lak_albers.loc[(lak_albers['Lake_area'] > minSize) & in_domain & (~out_domain) ]
     lake_col = (8/255,81/255,156/255)
 
-##Figure
 
+
+# Figure
 def run_loop(j,var,the_max):
     stat0 = stat
 
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
-    vmin,vmax = the_max*1e-4, the_max
+    vmin,vmax = the_max*1e-9, the_max
     if any(substring in var for substring in ['VegNrg', 'SnowNrg', 'SoilNrg']):
         vmin, vmax = the_max * 1e-9, the_max
     if var in ['wallClockTime',]: vmin,vmax = the_max*1e-1, the_max
+    if fixed_Mass_units and 'Mass' in var: # / density for mass balance
+        vmin = vmin/1000
+        vmax = vmax/1000
  
     norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'amax': stat_word = 'max'
 
-    # colorbar axes
-    f_x_mat = [0.46,0.96,0.46,0.96]
-    f_y_mat = [0.55,0.55,0.07,0.07]
-
-    for i,(m,f_x,f_y) in enumerate(zip(method_name,f_x_mat,f_y_mat)):
-        r = i//2
-        c = i-r*2
+    for i,m in enumerate(method_name):
+        r = i//ncol + base_row
+        c = i - (r-base_row)*ncol
 
         # Plot the data with the full extent of the bas_albers shape
         bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
-
+        print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m].values):<10.5f}")
         axs[r,c].set_title(plt_name[i])
         axs[r,c].axis('off')
         axs[r,c].set_xlim(xmin, xmax)
         axs[r,c].set_ylim(ymin, ymax)
 
         # Custom colorbar
-        cax = fig.add_axes([f_x,f_y,0.02,0.375])
-        sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
-        sm.set_array([])
-        cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-        cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]), labelpad=40, rotation=270)
-        if do_rel and var!='wallClockTime': cbr.ax.set_ylabel('scaled '+ stat_word, labelpad=40, rotation=270)
-
-        #cbr.ax.yaxis.set_offset_position('right')
+        # Custom colorbar
+        if i==len(method_name)-1:
+            sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
+            sm.set_array([])
+            if one_plot:
+                cbr = fig.colorbar(sm, ax=axs_list[r*len(method_name):(r+1)*len(method_name)],aspect=27/nrow)
+            else:
+                cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
+            cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]))
 
         # lakes
         if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
 
-for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
- 
+
+
+# Specify plotting options
+if one_plot:
+    use_vars = [1,2,3]
+    use_meth = [0,2,4]
+else:
+    use_vars = [0,1,2,3,4,5,6,7]
+    use_vars = [3]
+    use_meth = [0,1,2,3]
+plot_vars = [plot_vars[i] for i in use_vars]
+plt_titl = [plt_titl[i] for i in use_vars]
+leg_titl = [leg_titl[i] for i in use_vars]
+maxes = [maxes[i] for i in use_vars]
+method_name = [method_name[i] for i in use_meth]
+
+if one_plot:
+    ncol = len(use_meth)
+    nrow = len(use_vars)
+
     # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
     if 'compressed' in fig_fil:
-        plt.rcParams.update({'font.size': 27})
+        plt.rcParams.update({'font.size': 33})
+        fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,13*nrow),constrained_layout=True)
     else:
-        plt.rcParams.update({'font.size': 100})
+        plt.rcParams.update({'font.size': 120})
+        fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
 
-    if 'compressed' in fig_fil:
-        fig,axs = plt.subplots(2,2,figsize=(35,28))
-    else:
-        fig,axs = plt.subplots(2,2,figsize=(140,133))
-
-    # Remove the fourth subplot
-    #fig.delaxes(axs[1, 1])
-
-    fig.suptitle('{} Hourly Statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
+    axs_list = axs.ravel().tolist()
+    fig.suptitle('hourly statistics', fontsize=40,y=1.05)
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
-    plt.tight_layout()
+
+else:
+    #size hardwired to 2x2 for now
+    ncol = 2
+    nrow = 2
+    if len(method_name)>4:
+        print('Too many methods for 2x2 plot')
+        sys.exit()
+
+    base_row = 0
+    plt_name = [f"({chr(97+n)}) {plt_name0[i]}" for n,i in enumerate(use_meth)]
+
+for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
+    
+    if one_plot:
+        # Reset the names
+        base_row = i
+        plt_name = [f"({chr(97+n+i*len(use_meth))}) {plt_titl[i] + ' ' + plt_name0[j]}" for n,j in enumerate(use_meth)]
+    else:
+        # Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
+        if 'compressed' in fig_fil:
+            plt.rcParams.update({'font.size': 33})
+            fig,axs = plt.subplots(nrow,ncol,figsize=(15*ncol,13*nrow),constrained_layout=True)
+        else:
+            plt.rcParams.update({'font.size': 120})
+            fig,axs = plt.subplots(nrow,ncol,figsize=(67*ncol,58*nrow),constrained_layout=True)
+
+        # Remove the extra subplots
+        if len(method_name) < nrow*ncol:
+            for j in range(len(method_name),nrow*ncol):
+                r = j//ncol
+                c = j-r*ncol
+                fig.delaxes(axs[r, c])
+                
+        axs_list = axs.ravel().tolist()
+        fig.suptitle('{} hourly statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
+        plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
+
     run_loop(i,var,the_max)
-    fig_fil1 = (var+fig_fil).format(stat)
-    # Save
+
+    if not one_plot:
+        # Save the figure
+        fig_fil1 = (var+fig_fil).format(stat)
+        plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)
+
+if one_plot:
+    # Save the figure
+    fig_fil1 = ('all'+fig_fil).format(stat)
     plt.savefig(viz_dir/fig_fil1, bbox_inches='tight', transparent=True)

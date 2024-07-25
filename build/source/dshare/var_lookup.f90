@@ -482,11 +482,11 @@ MODULE var_lookup
   integer(i4b)    :: balanceLayerNrg                 = integerMissing ! balance of energy in each snow+soil layer (W m-3)
   integer(i4b)    :: balanceSnowNrg                  = integerMissing ! balance of energy in the snow (W m-3)
   integer(i4b)    :: balanceSoilNrg                  = integerMissing ! balance of energy in the soil (W m-3)
-  integer(i4b)    :: balanceVegMass                  = integerMissing ! balance of water in the vegetation (kg m-2 s-1)
-  integer(i4b)    :: balanceLayerMass                = integerMissing ! balance of water in each snow+soil layer (kg m-2 s-1)
-  integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-2 s-1)
-  integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-2 s-1)
-  integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2 s-1)
+  integer(i4b)    :: balanceVegMass                  = integerMissing ! balance of water in the vegetation (kg m-3 s-1)
+  integer(i4b)    :: balanceLayerMass                = integerMissing ! balance of water in each snow+soil layer (kg m-3 s-1)
+  integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-3 s-1)
+  integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-3 s-1)
+  integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2 s-1) (no depth to aquifer)
   ! sundials integrator stats
   integer(i4b)    :: numSteps                        = integerMissing ! 
   integer(i4b)    :: numResEvals                     = integerMissing ! 
