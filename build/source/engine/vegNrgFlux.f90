@@ -2127,6 +2127,8 @@ subroutine turbFluxes(&
   groundConductanceSH = 1._rkind/groundResistance
 
   ! compute total conductance for sensible heat
+  if(groundConductanceSH < 0._rkind) groundConductanceSH = 0._rkind ! to avoid negative conductance, will make large residual error instead of old version where failed outright
+  if(canopyConductance   < 0._rkind) canopyConductance   = 0._rkind ! to avoid negative conductance, will make large residual error instead of old version where failed outright
   totalConductanceSH  = leafConductance + groundConductanceSH + canopyConductance
 
   ! compute conductances for latent heat (m s-1)
@@ -2138,25 +2140,9 @@ subroutine turbFluxes(&
     transConductance   = 0._rkind
   end if
   groundConductanceLH = 1._rkind/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =0 when snow cover is 100%
+  if(groundConductanceLH < 0._rkind) groundConductanceLH = 0._rkind   ! to avoid negative conductance, will make large residual error instead of old version where failed outright
   totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
-
-  ! check sensible heat conductance
-  if(totalConductanceSH < tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
-    if(groundConductanceSH < -tinyVal) groundConductanceSH = 0._rkind
-    if(canopyConductance   < -tinyVal) canopyConductance   = 0._rkind
-    totalConductanceSH  = leafConductance + groundConductanceSH + canopyConductance
-    if(totalConductanceSH  < tinyVal) totalConductanceSH  = 0._rkind
-    message=trim(message)//'negative conductance for sensible heat'
-    !err=20; return
-  endif
-  ! check latent heat conductance
-  if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
-    if(groundConductanceLH < -tinyVal) groundConductanceLH = 0._rkind
-    totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
-    if(totalConductanceLH  < tinyVal) totalConductanceLH  = 0._rkind
-    message=trim(message)//'negative conductance for latent heat'
-    !err=20; return
-  endif
+  if(totalConductanceLH  < 0._rkind) totalConductanceLH  = tinyVal    ! to avoid division by zero, will make large residual error instead of old version where failed outright
 
   ! compute derivatives in individual conductances for sensible heat w.r.t. canopy temperature (m s-1 K-1)
   ! NOTE: it may be more efficient to compute these derivatives when computing resistances
