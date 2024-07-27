@@ -1,7 +1,14 @@
 # What's new
-This page provides simple, high-level documentation about what has changed in each new release of SUMMA. Please add any changes made in pull requests to under the `Pre-release` header. Use `Minor changes` for changes that do not affect science outputs or are likely to affect only a minority of users. Use `Major changes` for anything else.
+This page provides simple, high-level documentation about what has changed in each new release of SUMMA. Please add any changes made in pull requests to under the `Pre-release` header.
 
 ## Pre-release
+### Major changes
+- 
+
+### Minor changes
+- 
+
+## Version 3.3.0
 ### Major changes
 - 
 
