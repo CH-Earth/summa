@@ -10,4 +10,4 @@ The meta folder contains the setting files that typically do not change for diff
 - `VEGPARM.TBL`: lookup table for vegetation parameters
 
 ## Case studies 
-For other (non-NextGen) examples the user is directed to clone the Laugh-Tests github repository at https://git.cs.usask.ca/numerical_simulations_lab/laugh_tests.git.
+For other (non-NextGen) examples the user is directed to clone the Laugh-Tests github repository at https://git.cs.usask.ca/numerical_simulations_lab/hydrology/laugh_tests
