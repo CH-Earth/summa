@@ -121,22 +121,24 @@ Ball-Berry: scaling of photosynthesis from the leaf to the canopy
 
 <a id="num_method"></a>
 ## 14. num_method
-Numerical method
+Numerical method choice
 
 | Option | Description |
 |---|---|
-| itertive | **TODO: Describe itertive <br> [Reference](http://doi.org/)** |
-| non_iter | **TODO: Describe non_iter <br> [Reference](http://doi.org/)** |
-| itersurf | **TODO: Describe itersurf <br> [Reference](http://doi.org/)** |
+| itertive | **Use homegrown SUMMA Backward Euler solver (backwards compatible naming)** |
+| homegrown | **Use homegrown SUMMA Backward Euler solver** |
+| kinsol | **SUNDIALS (must have installed SUNDIALS) Backward Euler solution using KINSOL, backwards Euler solver with constant step-size <br> [SUNDIALS KINSOL](https://sundials.readthedocs.io/en/latest/kinsol/index.html)** |
+| ida | **SUNDIALS  (must have installed SUNDIALS) solution using IDA, adaptive step-size Implicit Differential-Algebraic solver <br> [SUNDIALS IDA](https://sundials.readthedocs.io/en/latest/ida/index.html)** |
+
 
 <a id="fDerivMeth"></a>
 ## 15. fDerivMeth
-Method to calculate flux derivatives
+Method to calculate flux derivatives for Jacobian
 
 | Option | Description |
 |---|---|
-| numericl | **TODO: Describe numericl <br> [Reference](http://doi.org/)** |
-| analytic | **TODO: Describe analytic <br> [Reference](http://doi.org/)** |
+| numericl | **numerical derivatives** |
+| analytic | **analytical derivatives, only works with SUNDIALS num_method (kinsol or ida <br> [SUNDIALS IDA](https://sundials.readthedocs.io/en/latest/kinsol/Mathematics_link.html#difference-quotient-jacobian-approximations)** |
 
 
 <a id="LAI_method"></a>
@@ -384,6 +386,7 @@ Method for new snow density
 | pahaut_76 | **An empirical calculation dependant on air temperature and wind speed. <br> [Pahaut, 1976](http://doi.org/)** |
 | constDens | **A constant new snow density of 330 kg/m^3 <br> [Reference](http://doi.org/)** |
 
+
 <a id="snowUnload"></a>
 ## 40. snowUnload
 Method for unloading snow from the canopy
@@ -392,4 +395,25 @@ Method for unloading snow from the canopy
 |---|---|
 | meltDripUnload | **Contains a temperature unloading function where the parameter *snowUnloadingCoeff* controls the exponential unloading rate and *ratioDrip2Unloading* is the ratio of liquid water drip from the canopy to snow unloading. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4) <br> [Storck et al. 2002]( https://doi.org/10.1029/2002WR001281)** |
 | windUnload | **Contains temperature and wind dependent unloading functions. The rates of temperature and wind unloading are adjustable through parameters *rateTempUnloading* and *rateWindUnloading*. Both functions contain parameter thresholds for the minimum temperature and windspeed required for unloading.  <br> [Roesch et al. 2001](https://doi.org/10.1007/s003820100153)** |
+
+
+<a id="nrgConserv"></a>
+## 41. nrgConserv
+Choice of variable in energy equations (BE residual or IDA state variable)
+
+| Option | Description |
+|---|---|
+| closedForm | **use temperature with closed form heat capacity <br> [Energy paper stub](http://doi.org/)** |
+| enthalpyFormLU | **use enthalpy with soil temperature-enthalpy lookup table <br> [Energy paper stub](http://doi.org/)** |
+| enthalpyForm | **use enthalpy with soil temperature-enthalpy analytical solutions <br> [Energy paper stub](http://doi.org/)** |
+
+
+<a id="aquiferIni"></a>
+## 42. aquiferIni
+Choice of initial fill level for aquifer, should be used at default unless comparing solution methods
+
+| Option | Description |
+|---|---|
+| fullStart | **(default) start with initial value aquifer, usually full for cold start as easier to drain the aquifer to equilibrium than fill to equilibrium** |
+| emptyStart | **start with empty aquifer, only used if comparing solution solution methods and not looking to simulate reality** |
 
