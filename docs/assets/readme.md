@@ -1,0 +1,19 @@
+# Explanation of figures 
+
+Explanation of NAmermean_NAmerRMSE_differences.png and the mean of these points in figure MeanNAmermean_MeanNAmerRMSE_differences.png. These are results of runs for 6 years (52,608 hours) and 517,315 GRUs. These simulations were run to understand the nature of the code changes listed in file listedChanges.txt.
+
+
+## The second half of the legend is what is plotted and the first half is what the RMSE is computed against. Most of them are ``be1`*`, the new BE1 code with various bug fixes taken out and the heat capacity (change #3) not updated on iterations, compared against dev, the old develop branch with a banded Jacobian, `devFix`, the old develop with the changes marked c in the change list all made, except #30 (do not increase Zmax), `devFixZ`, the old develop with the changes marked c in the change list all made and #30 (increasing Zmax), and `devFixZM`, the old develop with the changes marked c in the change list all made and #30 (increasing Zmax), as well as the as the max number of backtracks allowed till we just accept the solution increased from 5 to 100. We note that all dev* do not update heat capacity, and this makes a large substantial difference to the solution as well as improvement to the energy conservation as discussed in the energy conservation paper [ref].
+
+The biggest RMSE is the blue, the new `be1` but the heat capacity not updated on iterations  (change #3) compared to dev with none of the changes (and also does not update heat capacity). These are the most different solutions, as would be expected.
+
+Pink is the smallest RMSE,  from the new `be1` with the Jacobian terms I fixed zeroed out  (changes #6 and #7) with the RMSE compared to `devFix`, both solutions not updating heat capacity.
+
+Next smallest is usually is the red, the new `be1` with a lower precision for the residuals (the new code has quadruple precision, change #25) plotting over the with the RMSE compared to `devFix`, both solutions not updating heat capacity. (Note that the green dot should not be in the legend as it was a repeat of the red.)
+
+The pink and the red I see as sort of a baseline for how close we can reasonably expect the solutions to be — we can’t do better than this. We can see the mean of the solution (y-axis) changes from the blue to the red and pink solutions even through we are just changing the Jacobian and the residual precision. Note that even changing the order of the terms in the BE1 solution residual changes the solution, see change #27.
+
+Next are the brown and purple, purple is new `be1` where we change the constraints in how much we allow the temperature to change in a substep (Zmax)-- it was 1 degree and we changed it to be larger because it was found that was to constraining to get good convergence and stablity (change #30) (we fail if we remove the Zmax constraint completely), with the RMSE compared to `devFixZ` (`devFix` with the Zmax increased). Brown is the opposite direction (mean will be `devFixZ` and RMSE will be to `be1`). All solutions are not updating heat capacity. We see that these solutions basically plot on top of each other in the mean point plot, lending support to the idea that increasing Zmax stabilizes the solution.
+
+Next is the orange, the new `be1` with the Zmax increased as well as the max number of backtracks allowed till we just accept the solution increased from 5 to 100, compared to
+`devFixZM` (`devFix` with the Zmax increased as well as the number of allowed backtracks). These solutions are substantially more different than the above, suggesting that increasing the number of backtracks makes the solution more unstable, but also that the changing the number of allowed backtracks changes the solution.

@@ -1,0 +1,113 @@
+These are the changes: (- for effects BE, c- for put commented fix in versions of old develop branch.
+c-01) eval8summa.f90 calling subroutine soilCmpres with mLayerMatricHead not mLayerMatricHeadLiq version, commit ce60d55d Aug 25 2022 (makes a lot less compressibility because the water changes less than the liquid)
+c-02) eval8summa.f90 soil min water is now theta_res, commit c19473df Apr 12 2022
+ -03) eval8summa.f90 updateCp (update heat capacity true or false) and needCm flag, commit b69592b0 Nov 30 2022
+ 	  Original Summa BE equivalent to updateCp_closedForm==.false. needCm_closedForm==.false., however these are currently hard coded to true as energy is not conserved well without this.
+      These are both .true. if nrgConserv=enthalpyFD or enthalpyFDlu.
+  04) paramCheck.f90 check k_macropore>k_soil, makes code fail right away if not true, commit 00a10bd7 Dec 7 2022
+  05) run_oneHRU.f90 and run_onGRU.f90 correct error readout id’s, does not effect code results, commit d3904b51 Dec 6 2022
+ -06) Jacobian fixes, computed in various subroutines and then included in computJacob.f90:
+       1) Fix bulk heat capacity depends on frac ice/liq if updateCp, not needed it don't updateCp
+       2) Fix thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux) if updateCp, not needed it don't updateCp
+      -3) Fix soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration), no effect if banded Jacobian
+      -4) Fix aquifer recharge depends on soil drainage from interface above
+      -5) Fix soil infiltration at surface depends on all layers below and above water and temp, not huge effect (but some) if banded Jacobian
+c-07) Jacobian, scalarCanopyLiq derivatives were getting overwritten and thus zeroed out in calculations, commit cd5002c Jul 6, 2023
+  08) Throughout, made “indian bread” terminology for NaN say it’s not a number for advised clarity, and there might be other other spaces and comments changed (e.g. tabs deleted and comments deleted or clarified), does not effect code results
+c-09) flxMapping.f90 flux mapping of soil resistance as an energy variable corrected (was missing and messed up splitting), commit 315583df June 5, 2023
+c-10) runOneGRU.f90 fixed basin aquifer recharge was summing incorrectly the HRU soil drainage instead of the HRU aquifer recharge, commit cd6f07f1 June 20, 2023 (only affects basin aquifer recharge so does not influence results except this basin variable)
+c-11) read_icond.f90 canopy water only initialized to be 1e-4 positive at the start of the simulation if it is smaller (through canopy liquid), commit c0f7fa26 Jan 30, 2023, and commit 0f2e9df2 Aug 15, 2023
+      The canopy water was being bumped up to at least 1e-4 at the start of every substep.
+  12) Build with cmake now, with build options for no Sundials (BE), Sundials, Actors, Cluster, Personal Computer, Debug, Release, NexGen, and combinations of these.
+      NexGen and Actors do not currently work togethere.
+       set(CMAKE_CONFIGURATION_TYPES BE BE_Debug BE_Cluster BE_Cluster_Debug
+                                     BE_NexGen BE_NexGen_Debug BE_NexGen_Cluster BE_NexGen_Cluster_Debug
+                                     BE_Actors BE_Actors_Debug BE_Actors_Cluster BE_Actors_Cluster_Debug
+                                     Sundials Sundials_Debug Sundials_Cluster Sundials_Cluster_Debug
+                                     Sundials_NexGen Sundials_NexGen_Debug Sundials_NexGen_Cluster Sundials_NexGen_Cluster_Debug
+                                     Sundials_Actors Sundials_Actors_Debug Sundials_Actors_Cluster Sundials_Actors_Cluster_Debug)
+  13) Sundials has options of IDA and KINSOL, ACTORS, and we added BMI/NGEN -- adds new files and some compiler directives in code
+       New decision choices in num_method
+       num_method                    [numrec or kinsol or ida]        ! (07) choice of numerical method
+      Choice 'itertive' is backwards compatible to numrec
+      For compilation under NexGen, main driver is BMIed and the code is able to read NexGen forcing
+  14) Added possible parameters for adding more steps for BEXX and Sundials tolerances, commit 0619a403 May 31, 2023
+       be_steps                  |       1.0000 |       1.0000 |     512.0000
+       relTolTempCas             |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolTempCas             |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolTempVeg             |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolTempVeg             |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolWatVeg              |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolWatVeg              |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolTempSoilSnow        |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolTempSoilSnow        |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolWatSnow             |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolWatSnow             |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolMatric              |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolMatric              |       1.0d-6 |       1.0d-10|       1.0d-1
+       relTolAquifr              |       1.0d-6 |       1.0d-10|       1.0d-1
+       absTolAquifr              |       1.0d-6 |       1.0d-10|       1.0d-1
+      This is backwards compatible to give default values if not put in.
+  15) ascii_util.f90 memory leak, commit 44933953 May 9, 2023
+  16) Took out all calculation of numerical derivatives in flux routines, commit 9e5b703 Jun 28, 2023
+      We can do that better with Sundials and a lot of them were wrong/not completely calculated. It made some of the flux routines very long to include that.
+      So now model decision choice
+       fDerivMeth                      [analytic or numericl]       ! (08) method used to calculate flux derivatives
+      refers to whether or not you want Sundials to use the provided analytical Jacobian or a finite difference one that it calculates.
+      (the numrec num_method choice will not have numerical derivatives as an option). commit 9e5b703, Jun 28, 2023
+c-17) Use dense matrix as default with vegetation (so transpiration derivatives are accounted for). commit	8d15e4e2, Aug 7, 2023
+  18) Soil matrix compression per layer and total (mLayerCompres and scalarSoilCompress) are now outputted as averages over the data window (kg m-2 s-1) like all fluxes are done
+      Soil matrix compression is used in the balance computations, so to have instantaneous values outputted did not make sense. Does not affect solution.
+c-19) If split to a scalar solution, soil compressibility was outputting as 0. Refactor for BE >1 fixes this since save inner splitting steps.
+      Or, if wanted to fix the old code would need to modify part of varSubStep.
+c-20) Need to compute dTheta_dTkCanopy off of trial canopy water instead of previous canopy water, affects Jacobian and temperature adjustment in splitting operations, commit 19fca2ba Jun 7, 2023
+c-21) Flux modification flag was not initialized in varSubstep, commit 312004fd Sep 20, 2022, and commit 0c5af7db Aug 11, 2023
+c-22) SWE mass balance error should fail based on tolerance absConvTol_liquid*iden_water*10._rkind, not 1e-6. commit ? Reza changed this around June 16, 2021.
+      This will not affect solution, just might fail the test (and kill, throwing the error "SWE does not balance" at a different time/run)
+c-23) After new snowfall, need to update the volume fraction water in the top layer of snow from changed liq and ice if there is a layer of snow, commit 9943858b Jan 30, 2023
+      This is true for canopy water and sublimation also, commit 4ff60baa Jan 30, 2023
+      All layers have their water updated from their liq and ice at the start of the next step, so this just affects the water output (not the solution)
+c-24) Remove post-processing that changes solution to perfectly conserve mass and push errors into the state variables
+ -25) The residual vector is now quadruple precision. Change was by Reza, sometime 2021. Makes a difference when residuals are large in step direction (I'm seeing differences especially in temperature)
+c-26) Wrong precision for parameter used in canopy air space, fixed in Sean's refactoring
+ -27) Reorder terms in residual calculations to have (paramTrial - param) so if same will give a zero, and to be more like the prime construction, commit 5f5a6f1a Aug 30, 2023
+c-28) Check upper bounds for water fractions (ie 1, or saturation) in feasibility checks, so will cut step if infeasible. commit a58ec0d1, Aug 31, 2023
+      Before, when the solution went over the upper bound, usually a residual was large, and because of the post-processing, the residual make the state vector very off which resulted in a failure to converge.
+      Now, should be more efficiently catching these errors.
+  29) Added buffers so IDA can deal with small negatives as agreeing with Sundials theory on how much error is accepted, commit cf659c5e Sep 12, 2023
+c-30) Made zMax increment on temperature and matric head 10 instead of 1 in a timestep to allow for more rapid changes, such as at after a cold start (and other times comes into play, results in more stable solution) commit cbaa747b Sep 11, 2023
+c-31) Better to have large residual than NaNs (and failures) in residual, changes for canopy energy commit 19c9bc7 Aug 18, 2022, and commit cf659c5e Sep 12, 2023
+c-32) First flux call fluxes need be added to the mask in the first flux call, otherwise can delete values if splits to scalar solution and solves canopy air before canopy (and canopy fluxes), commit 3637f3a0 Oct 13, 2023, and commit 2c018c10 Oct 18, 2023, and commit b5656281 Oct 19, 2023
+  33) New variable for output, meanStepSize (seconds over data window), commit 02baeba0	Oct 17, 2023
+
+AFTER tag of v4.0.0-exp-Sundials
+  01) Enthalpy formulation, new decision (renamed from howHeatCap)
+       nrgConserv       [closedForm or enthalpyFD or enthalpyFDlu]      ! (30) choice of variable in energy conservation backward Euler residual
+      refers to if you want the numrec or kinsol residual to be computed with closed form heat capacity (does not conserve energy)
+      or enthalpy finite difference, with enthalpy calculated in the soil with the analytical solution or the lookup tables.
+      Decision of numMethod=itertive will give give set nrgConserv=closedForm for backwards compatibility.
+  02) New output values of the balances, inputted to the outputControl.txt as:
+       balanceCasNrg         | 1
+       balanceVegNrg         | 1
+       balanceSnowNrg        | 1
+       balanceSoilNrg        | 1
+       balanceVegMass        | 1
+       balanceSnowMass       | 1
+       balanceSoilMass       | 1
+       balanceAqMass         | 1
+      The balance*Nrg are in units of W/m^3 and the balance*Mass are in units of kg/m^3/s.
+  03) Cm derivatives, will be used if needCm is on in eval8summa or eval8summaPrime.
+  04) Sean's refactor and object-orientated work, numerous and ongoing changes affecting conciseness and speed.
+c-05) six allocation errors commits c0624a68, b2709388, 0b921c65, a23ac832, e43c766d, 6d3ac180 Feb 21, 2024
+c-06) two uninitialized variables fixes, commit 11a47b2b, 6b130053 Feb 15, 13, 2024
+c-07) snow water upper bound should be 1, not iden_ice, commit 265721b5 Feb 13, 2024
+ -08) constraints now just scale the state variable they effect, commit 24bae32c Feb 13, 2024
+ -09) constraint corrections for state variable changes in liq_layer vs wat_layer, commit 523774e1 Feb 15, 2024
+  10) Kyle's actors work, ongoing changes
+  11) Added parameters for model control IDA, default values are fine
+idaMaxOrder               |          5.0 |         1.0  |        5.0
+idaMaxInternalSteps       |        500.0 |        500.0 |     999999.0
+idaMaxErrTestFail         |         50.0 |         10.0 |         50.0
+idaMinStepSize            |         0.0  |          0.0 |      3600.0
+  13) Added decision aquiferIni, where default is fullStart as a full aquifer, but may use emptyStart for RMSE calculation.
+idaMaxStepSize            |         0.0  |          0.0  |      3600.0

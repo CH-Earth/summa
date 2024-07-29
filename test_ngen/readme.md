@@ -1,5 +1,5 @@
 # SUMMA case studies
-This folder contains a case study to show how a typical SUMMA setup looks in the NextGen seti[. The folder serves a double purpose as a way to track default versions of certain input files, such as the Noah-MP tables and spatially constant parameter files. These files are in /settings/meta.
+This folder contains a case study to show how a typical SUMMA setup looks in the NextGen setup.The folder serves a double purpose as a way to track default versions of certain input files, such as the Noah-MP tables and spatially constant parameter files. These files are in /settings/meta.
 
 
 ## Settings
