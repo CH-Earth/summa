@@ -139,7 +139,7 @@ The model decisions and their options or values are listed in the following tabl
 |[bbNumerics](../configuration/SUMMA_model_decisions.md#bbNumerics) | NoahMPsolution <br> newtonRaphson | (12) Ball-Berry: iterative numerical solution method
 |[bbAssimFnc](../configuration/SUMMA_model_decisions.md#bbAssimFnc) | colimitation <br> minFunc | (13) Ball-Berry: controls on carbon assimilation
 |[bbCanIntg8](../configuration/SUMMA_model_decisions.md#bbCanIntg8) | constantScaling <br> laiScaling | (14) Ball-Berry: scaling of photosynthesis from the leaf to the canopy
-|[num_method](../configuration/SUMMA_model_decisions.md#num_method) | itertive <br> non_iter <br> itersurf | (15) choice of numerical method
+|[num_method](../configuration/SUMMA_model_decisions.md#num_method) | itertive <br> homegrown <br> kinsol <br> ida| (15) choice of numerical method
 |[fDerivMeth](../configuration/SUMMA_model_decisions.md#fDerivMeth) | numericl <br> analytic | (16) choice of method to calculate flux derivatives
 |[LAI_method](../configuration/SUMMA_model_decisions.md#LAI_method) | monTable <br> specified | (17) choice of method to determine LAI and SAI
 |[cIntercept](../configuration/SUMMA_model_decisions.md#cIntercept) | sparseCanopy <br> storageFunc <br> notPopulatedYet | (18) choice of parameterization for canopy interception
@@ -165,6 +165,8 @@ The model decisions and their options or values are listed in the following tabl
 |[spatial_gw](../configuration/SUMMA_model_decisions.md#spatial_gw) | localColumn <br> singleBasin | (38) choice of method for spatial representation of groundwater
 |[subRouting](../configuration/SUMMA_model_decisions.md#subRouting) | timeDlay <br> qInstant | (39) choice of method for sub-grid routing
 |[snowDenNew](../configuration/SUMMA_model_decisions.md#snowDenNew) | hedAndPom <br> anderson <br> pahaut_76 <br> constDens | (40) choice of method for new snow density
+|[nrgConserv](../configuration/SUMMA_model_decisions.md#nrgConserv) | closedForm <br> enthalpyFormLU <br> enthalpyForm | (41) choice of variable in energy equations (BE residual or IDA state variable)
+|[aquiferIni](../configuration/SUMMA_model_decisions.md#aquiferIni) | fullStart <br> emptyStart | (40) choice of initial fill level for aquifer, should be used at default unless comparing solution methods
 
 The model decisions for each simulation are included as global attributes in [SUMMA output files](SUMMA_output.md).
 
