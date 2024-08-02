@@ -332,7 +332,7 @@ module HDS
 
         ! update the minimum parameter (force hysteresis)
         if(iter == 1) then
-            if(Q_di < Q_det+Q_dix) vmin = pondVol
+            if(Q_di < Q_det+Q_dix .and. pondVol < depVol-verySmall) vMin = pondVol
         endif
 
         ! compute the outflow from the meta depression
