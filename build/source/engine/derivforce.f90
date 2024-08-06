@@ -57,7 +57,7 @@ USE mDecisions_module,only:  &
 ! privacy
 implicit none
 private
-public::derivforce
+public::derivforce, calcPotentialEvap_Oudin2005
 contains
 
  ! ************************************************************************************************
@@ -354,5 +354,33 @@ contains
 
  end subroutine derivforce
 
+ ! ************************************************************************************************
+ ! function calcPotentialEvap_Oudin2005: compute potential evaporation for HDS pond calculations
+ ! ************************************************************************************************
+ !=============================================================
+ function calcPotentialEvap_Oudin2005(SWRadAtm, airtemp, K1, K2) result(potentialEvap)
+  ! calculate potential evaporation using Oudin et al. (2005)'s formula for a specific HRU
+  USE multiconst,only:LH_vap,  & ! latent heat of vaporization   (J kg-1)
+                      iden_water ! intrinsic density of water    (kg m-3)
+  implicit none
+  !function arguments
+  real(rkind),  intent(in)     :: SWRadAtm                ! downwelling shortwave radiaiton [w/m2]
+  real(rkind),  intent(in)     :: airtemp                 ! air temperature  [K]
+  real(rkind),  intent(in)     :: K1                      ! scaling factor (deg C)
+  real(rkind),  intent(in)     :: K2                      ! minimum value of air temperature for which PE is not zero (deg C)
+
+  ! local variables
+  real(rkind)                  :: potentialEvap           ! pontentail evaporation as calculated by Oudin's formula (mm s-1)
+  
+  ! Oudin (2005)'s formula
+  potentialEvap = (1000._rkind * & 
+  (SWRadAtm * 1e-6 / &                                    ! w/m2 to MJ/m2/s
+  (LH_vap * 1e-6 * iden_water)) * &                       ! J kg-1 to MJ kg-1
+  ((airtemp - 273.15_rkind + K2)/K1))                     ! K to deg C
+    
+  ! check for negative values
+  potentialEvap = max(potentialEvap, zero)
+
+end function calcPotentialEvap_Oudin2005
 
 end module derivforce_module
