@@ -80,10 +80,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXEC_DIR})
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
-# OpenBLAS
-set(BLA_VENDOR OpenBLAS) # MKL
-find_package(OpenBLAS REQUIRED)
-list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+# OpenBLAS (MAY HAVE OpenMP enabled which slows execution) 
+# USE LAPACK INSTEAD TO AVOID THIS ISSUE
+# set(BLA_VENDOR OpenBLAS) # MKL
+# find_package(OpenBLAS REQUIRED)
+# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+
+# LAPACK
+find_package(LAPACK REQUIRED)
+list(APPEND EXT_TARGETS LAPACK::LAPACK)
 
 # Set compiler flags
 set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
