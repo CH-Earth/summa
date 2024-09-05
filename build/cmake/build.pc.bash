@@ -12,5 +12,5 @@
 #source $oneAPI_dir/setvars.sh                                                # initialize environment variables for Intel oneAPI
 #export FLAGS_OPT="-m64;-I"${MKLROOT}/include";-flto=1;-fuse-linker-plugin"   # optional compiler flags -- Intel oneMKL builds
 
-cmake -B ../cmake_build -S ../. 
+cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_OPENWQ=ON
 cmake --build ../cmake_build --target all -j 

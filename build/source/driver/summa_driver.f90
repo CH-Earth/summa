@@ -40,6 +40,15 @@ program summa_driver
   ! global data
   USE globalData, only: numtim                                ! number of model time steps
   USE globalData, only: print_step_freq
+
+!   ! OpenWQ coupling
+#ifdef OPENWQ_ACTIVE
+  USE summa_openwq,only:openwq_init
+  USE summa_openwq,only:openwq_run_time_start
+  USE summa_openwq,only:openwq_run_space_step
+  USE summa_openwq,only:openwq_run_time_end
+#endif
+
   implicit none
 
   ! *****************************************************************************
@@ -79,6 +88,11 @@ program summa_driver
   call summa_readRestart(summa1_struc(n), err, message)
   call handle_err(err, message)
 
+#ifdef OPENWQ_ACTIVE
+  call openwq_init(err)
+  if (err /= 0) call stop_program(1, 'Problem Initializing OpenWQ')
+#endif
+
   ! *****************************************************************************
   ! * model simulation
   ! *****************************************************************************
@@ -89,16 +103,30 @@ program summa_driver
     call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
     call handle_err(err, message)
 
+#ifdef OPENWQ_ACTIVE
+    call openwq_run_time_start(summa1_struc(n)) ! Passing state volumes to openWQ
+#endif
+
     if (mod(modelTimeStep, print_step_freq) == 0)then
       print *, 'step ---> ', modelTimeStep
     endif
+
     ! run the summa physics for one time step
     call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
     call handle_err(err, message)
 
+#ifdef OPENWQ_ACTIVE
+    call openwq_run_space_step(summa1_struc(n)) ! Passing fluxes to openWQ
+#endif
+
     ! write the model output
     call summa_writeOutputFiles(modelTimeStep, summa1_struc(n), err, message)
     call handle_err(err, message)
+
+#ifdef OPENWQ_ACTIVE
+    call openwq_run_time_end(summa1_struc(n))
+#endif
+
   end do  ! looping through time
 
   ! successful end
