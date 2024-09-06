@@ -70,6 +70,12 @@ endif()
 if (USE_OPENWQ)
     message("ENABLING OPENWQ")
     add_compile_definitions(OPENWQ_ACTIVE)
+    
+    if (USE_SUNDIALS)
+        set(EXEC_NAME summa_openwq_sundials.exe)
+    else()
+        set(EXEC_NAME summa_openwq.exe)
+    endif()
 endif() 
 
 
