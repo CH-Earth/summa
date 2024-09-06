@@ -1,6 +1,11 @@
 #===============================================================================
 # Compilation directives for the (optional) OpenWQ framework
 #===============================================================================
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    SET(CMAKE_CXX_FLAGS "-O3 -Wall -pedantic -fPIC")
+else()    
+    SET(CMAKE_CXX_FLAGS "-O3 -Wall -pedantic ${OpenMP_CXX_FLAGS} -fPIC")
+endif()
 
 # Check if the openwq directory exists relative to the current CMakeLists.txt
 message(STATUS "Checking for openwq directory in ${CMAKE_CURRENT_SOURCE_DIR}")
@@ -34,23 +39,24 @@ set (OPENWQ_COUPLER
 
 FIND_PACKAGE(Armadillo REQUIRED) 
 FIND_PACKAGE(HDF5 REQUIRED)
+FIND_PACKAGE(OpenMP)
+
 
 SET(HYDROLINK_SOURCES 
     ${CMAKE_CURRENT_SOURCE_DIR}/OpenWQ_hydrolink.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/OpenWQ_interface.cpp 
     CACHE INTERNAL "HYDROLINK_SOURCES")
 
-SET(CMAKE_CXX_FLAGS "-O3 -Wall -pedantic -fPIC")
 ADD_LIBRARY(openWQ OBJECT ${OPENWQ_SOURCES} ${HYDROLINK_SOURCES})
-    TARGET_INCLUDE_DIRECTORIES(openWQ PRIVATE
-        ${ARMADILLO_INCLUDE_DIR}
-        ${HDF5_INCLUDE_DIRS}
-        ${OPENWQ_INCLUDES})
-    TARGET_LINK_LIBRARIES(openWQ PUBLIC
-        ${ARMADILLO_LIBRARIES}
-        ${HDF5_C_LIBRARY_hdf5})
-    IF(OpenMP_CXX_FOUND)
-        MESSAGE("** OpenWQ **: OpenMP enabled!")
-        TARGET_LINK_LIBRARIES(openWQ PUBLIC OpenMP::OpenMP_CXX)
-    ENDIF()
+TARGET_INCLUDE_DIRECTORIES(openWQ PRIVATE
+    ${ARMADILLO_INCLUDE_DIR}
+    ${HDF5_INCLUDE_DIRS}
+    ${OPENWQ_INCLUDES})
+TARGET_LINK_LIBRARIES(openWQ PUBLIC
+    ${ARMADILLO_LIBRARIES}
+    ${HDF5_C_LIBRARY_hdf5})
+IF(OpenMP_CXX_FOUND)
+    MESSAGE("** OpenWQ **: OpenMP enabled!")
+    TARGET_LINK_LIBRARIES(openWQ PUBLIC OpenMP::OpenMP_CXX)
+ENDIF()
 

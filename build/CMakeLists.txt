@@ -67,12 +67,12 @@ else()
     LIST(INSERT CMAKE_PREFIX_PATH 0 "${CMAKE_SOURCE_DIR}/cmake/")
 endif()
 
+# OpenWQ Framework
 if (USE_OPENWQ)
     message("ENABLING OPENWQ")
     add_compile_definitions(OPENWQ_ACTIVE)
-    
     if (USE_SUNDIALS)
-        set(EXEC_NAME summa_openwq_sundials.exe)
+        set(EXEC_NAME summa_sundials_openwq.exe)
     else()
         set(EXEC_NAME summa_openwq.exe)
     endif()
