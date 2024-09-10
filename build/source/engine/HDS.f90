@@ -37,7 +37,7 @@ module HDS
                   p                  => bparGRU%var(iLookBPAR%depression_p)             , & ! shape of the slope profile [-]. Exponent for calculating the fractional wet area
                   pondVol            => bvarData%var(iLookBVAR%pondVol)%dat(1)          , & ! pond volume [m3]
                   pondArea           => bvarData%var(iLookBVAR%pondArea)%dat(1)         , & ! pond Area [m2]
-                  conAreaFrac        => bvarData%var(iLookBVAR%conAreaFrac)%dat(1)      , & ! fractional contributing area [-]
+                  depConAreaFrac     => bvarData%var(iLookBVAR%depConAreaFrac)%dat(1)      , & ! fractional contributing area [-]
                   vMin               => bvarData%var(iLookBVAR%vMin)%dat(1)               & ! minimum pond volume [m3]
         )
 
@@ -46,10 +46,10 @@ module HDS
            depressionVol = depressionDepth * depressionArea
            ! the following checks (<0) are used to set initial values for the variables if there are set to missing value (-999)
            ! the following calculations are approximate solutions and will be updated inside the routine
-           if(pondVol < zero     )  pondVol      = pondVolFrac * depressionVol   ! approximate vol calculation, will be updated later in the subroutine
-           if(pondArea < zero    )  pondArea     = depressionArea*((pondVol/depressionVol)**(two/(p + two)))
-           if(conAreaFrac < zero )  conAreaFrac  = pondVol/depressionVol ! assume that contrib_frac = vol_frac_sml for initialization purposes
-           if(vMin < zero        )  vMin         = pondVol
+           if(pondVol < zero       )  pondVol         = pondVolFrac * depressionVol   ! approximate vol calculation, will be updated later in the subroutine
+           if(pondArea < zero      )  pondArea        = depressionArea*((pondVol/depressionVol)**(two/(p + two)))
+           if(depConAreaFrac < zero)  depConAreaFrac  = pondVol/depressionVol ! assume that contrib_frac = vol_frac_sml for initialization purposes
+           if(vMin < zero          )  vMin            = pondVol
         end associate
     end subroutine init_summa_HDS
     !=============================================================
@@ -111,8 +111,8 @@ module HDS
         real(rkind)  , parameter    :: tau=0._rkind                  ! model parameters   = tau  time constant linear reservoir [timestep-1] ! currently deactivated
         ! local variables -- general
         real(rkind)                 :: qSeas, pRate, etPond                    ! forcing data = runoff, precipitation, ET [mm/timestep]
-        real(rkind)                 :: depArea, depVol, upsArea, landArea      ! spatial attributes = depression area [m2], depression volume [m3], upstream area [m2], land area = total area - depression area (m2)
-        
+        real(rkind)                 :: depArea, depVol, depUpsArea, landArea   ! spatial attributes = depression area [m2], depression volume [m3], upstream area of depressions [m2], land area = total area - depression area (m2)
+        real(rkind)                 :: rvrUpsArea                              ! spatial attributes = upland area contributing to the river from non-pothole areas [m2]
         ! local variables -- model decisions
         integer(i4b), parameter     :: implicitEuler=1001          ! named variable for the implicit Euler solution
         integer(i4b), parameter     :: shortSubsteps=1002          ! named variable for the short substeps solution
@@ -139,7 +139,8 @@ module HDS
                  basinTotalRunoff        =>    bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) , &    ! basin total runoff (m s-1)
                  ! HDS pothole storage variables
                  vMin                    =>    bvarData%var(iLookBVAR%vMin)%dat(1)               , &    ! volume of water in the meta depression at the start of a fill period (m3)
-                 fArea                   =>    bvarData%var(iLookBVAR%conAreaFrac)%dat(1)        , &    ! fractional contributing area (-)
+                 fArea                   =>    bvarData%var(iLookBVAR%depConAreaFrac)%dat(1)     , &    ! fractional contributing areas of pothole-dominated areas (-)
+                 basinConAreaFrac        =>    bvarData%var(iLookBVAR%basinConAreaFrac)%dat(1)   , &    ! contributing area fraction per the entire subbasin from pothole and non-pothole areas [-]
                  fVol                    =>    bvarData%var(iLookBVAR%pondVolFrac)%dat(1)        , &    ! fractional pond volume = pondVol/depressionVol (-)
                  pondVol                 =>    bvarData%var(iLookBVAR%pondVol)%dat(1)            , &    ! pond volume at the end of time step (m3)
                  pondArea                =>    bvarData%var(iLookBVAR%pondArea)%dat(1)           , &    ! pond area at the end of the time step (m2)
@@ -175,7 +176,8 @@ module HDS
         depArea = depAreaFrac * totalArea
         depVol = depDepth * depArea
         landArea = totalArea - depArea
-        upsArea = max(landArea * depCatchAreaFrac, 0._rkind)
+        depUpsArea = max(landArea * depCatchAreaFrac, 0._rkind)
+        rvrUpsArea = landArea * (1._rkind - depCatchAreaFrac)
 
         ! ---------- option 1: implicit Euler ----------
 
@@ -190,7 +192,7 @@ module HDS
             do iter=1,nIter
 
                 ! compute fluxes and derivatives
-                call computFlux(iter, xVol, qSeas, pRate, etPond, depArea, depVol, upsArea, p, tau, b, vMin, Q_di, Q_det, Q_dix, Q_do, cFrac, g, dgdv)
+                call computFlux(iter, xVol, qSeas, pRate, etPond, depArea, depVol, depUpsArea, p, tau, b, vMin, Q_di, Q_det, Q_dix, Q_do, cFrac, g, dgdv)
 
                 ! compute residual
                 xRes = (pondVol + g*dt) - xVol
@@ -231,7 +233,7 @@ module HDS
 
             ! loop through substeps
             do iSub=1,nSub
-                call computFlux(iter, xVol, qSeas, pRate, etPond, depArea, depVol, upsArea, p, tau, b, vMin, Q_di, Q_det, Q_dix, Q_do, cFrac, g, dgdv)
+                call computFlux(iter, xVol, qSeas, pRate, etPond, depArea, depVol, depUpsArea, p, tau, b, vMin, Q_di, Q_det, Q_dix, Q_do, cFrac, g, dgdv)
                 xVol = xVol + g*dtSub
 
                 ! prevent -ve ponVol values to avoid nans
@@ -273,10 +275,11 @@ module HDS
         pondOutflow = Q_do
         ! pond evaporation [kg m-2 s-1]
         pondEvap = basinPotentialEvap
-
+        ! compute integrated basin contributing areas
+        basinConAreaFrac = ((fArea * (depArea + depUpsArea)) + rvrUpsArea)/totalArea
         ! adjust runoff values (pondoutflow + contribution from non-depressional area)
         basinTotalRunoff = pondOutflow / data_step / totalArea + & !m3/timestep -> m s-1
-                            (basinTotalRunoff * landArea * (1._rkind - depCatchAreaFrac)) / totalArea ! m s-1 -> m3 s-1 -> m s-1
+                            (basinTotalRunoff * rvrUpsArea) / totalArea ! m s-1 -> m3 s-1 -> m s-1
         end associate
     end subroutine runDepression
 

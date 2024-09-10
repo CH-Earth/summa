@@ -724,7 +724,8 @@ MODULE var_lookup
   integer(i4b)    :: averageRoutedRunoff        = integerMissing ! routed runoff (m s-1)
   ! define variables for pothole storage (HDS)
   integer(i4b)    :: vMin                       = integerMissing ! volume of water in the meta depression at the start of a fill period (m3)
-  integer(i4b)    :: conAreaFrac                = integerMissing ! fractional contributing area (-)
+  integer(i4b)    :: depConAreaFrac             = integerMissing ! contributing area fraction of pothole dominated areas [-]
+  integer(i4b)    :: basinConAreaFrac           = integerMissing ! contributing area fraction per the entire subbasin from pothole and non-pothole areas [-]
   integer(i4b)    :: pondVolFrac                = integerMissing ! fractional pond volume at the end of time step (-)
   integer(i4b)    :: pondVol                    = integerMissing ! pond volume at the end of time step (m3)
   integer(i4b)    :: pondArea                   = integerMissing ! pond area at the end of the time step (m2)
@@ -861,7 +862,8 @@ MODULE var_lookup
 
  ! named variables: basin-average variables (including HDS variables)
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
+                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
+                                                                         21)
 
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

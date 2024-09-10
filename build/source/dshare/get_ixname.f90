@@ -907,7 +907,8 @@ contains
   case('averageRoutedRunoff'           ); get_ixbvar = iLookBVAR%averageRoutedRunoff             ! routed runoff (m s-1)
   ! variables for pothole storage (HDS)
   case('vMin'                          ); get_ixbvar = iLookBVAR%vMin                            ! volume of water in the meta depression at the start of a fill period (m3)
-  case('conAreaFrac'                   ); get_ixbvar = iLookBVAR%conAreaFrac                     ! fractional contributing area (-)
+  case('depConAreaFrac'                ); get_ixbvar = iLookBVAR%depConAreaFrac                  ! contributing area fraction of pothole dominated areas [-]
+  case('basinConAreaFrac'              ); get_ixbvar = iLookBVAR%basinConAreaFrac                ! contributing area fraction per the entire subbasin from pothole and non-pothole areas [-]
   case('pondVolFrac'                   ); get_ixbvar = iLookBVAR%pondVolFrac                     ! fractional pond volume = pondVol/depressionVol (-)
   case('pondVol'                       ); get_ixbvar = iLookBVAR%pondVol                         ! pond volume at the end of time step (m3)
   case('pondArea'                      ); get_ixbvar = iLookBVAR%pondArea                        ! pond area at the end of the time step (m2)

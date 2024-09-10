@@ -402,7 +402,7 @@ contains
  ! get basin variables for HDS
  !********************************
  if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
-  hdsInitIdx = (/iLookBVAR%pondVolFrac, iLookBVAR%vMin, iLookBVAR%conAreaFrac, iLookBVAR%pondArea/) ! HDS initial conditions
+  hdsInitIdx = (/iLookBVAR%pondVolFrac, iLookBVAR%vMin, iLookBVAR%depConAreaFrac, iLookBVAR%pondArea/) ! HDS initial conditions
   message='updateHDS_States/'
   ! get number of GRUs in file
   err = nf90_inq_dimid(ncID,"gru",dimID)

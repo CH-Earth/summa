@@ -607,7 +607,7 @@ contains
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
  
  ! write HDS related states
- hdsInitIdx = (/iLookBVAR%pondVolFrac, iLookBVAR%vMin, iLookBVAR%conAreaFrac, iLookBVAR%pondArea/) ! HDS initial conditions
+ hdsInitIdx = (/iLookBVAR%pondVolFrac, iLookBVAR%vMin, iLookBVAR%depConAreaFrac, iLookBVAR%pondArea/) ! HDS initial conditions
 
  do i = 1,size(hdsInitIdx)
   iVar = hdsInitIdx(i)
