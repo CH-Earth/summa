@@ -27,6 +27,7 @@ set(CMAKE_CONFIGURATION_TYPES Release Debug)
 # Options: Enable each with cmake -DOPTION=ON
 option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
+option(USE_OPENWQ "Use OpenWQ Framework" OFF)
 set(EXT_TARGETS) # list of external targets to link to
 
 # Set Default Executable Name
@@ -51,7 +52,6 @@ if (USE_SUNDIALS)
     set(EXEC_NAME summa_sundials.exe)
 endif()
 
-
 if (USE_NEXTGEN)
     message("ENABLING NEXTGEN")
     add_compile_definitions(NGEN_ACTIVE BMI_ACTIVE NGEN_FORCING_ACTIVE
@@ -66,6 +66,18 @@ else()
     LIST(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake/")
     LIST(INSERT CMAKE_PREFIX_PATH 0 "${CMAKE_SOURCE_DIR}/cmake/")
 endif()
+
+# OpenWQ Framework
+if (USE_OPENWQ)
+    message("ENABLING OPENWQ")
+    add_compile_definitions(OPENWQ_ACTIVE)
+    if (USE_SUNDIALS)
+        set(EXEC_NAME summa_sundials_openwq.exe)
+    else()
+        set(EXEC_NAME summa_openwq.exe)
+    endif()
+endif() 
+
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
 get_filename_component(PARENT_DIR "${PARENT_DIR}" REALPATH)
@@ -142,6 +154,15 @@ if (USE_SUNDIALS)
     set(SUMMA_ALL ${SUMMA_ALL} ${MODRUN_SUNDIALS} ${SOLVER_SUNDIALS})
 endif()
 
+if (USE_OPENWQ)
+    add_subdirectory(${F_MASTER}/build/source/openwq)
+    if (DEFINED OPENWQ_ERROR)
+        message(FATAL_ERROR "OpenWQ build failed")
+    endif()
+    set(SUMMA_ALL ${SUMMA_ALL} ${OPENWQ_COUPLER})
+    list(APPEND EXT_TARGETS openWQ)
+endif ()
+
 
 # Define version number, not working correctly
 set(VERSIONFILE     ${DRIVER_DIR}/summaversion.inc)
@@ -194,6 +215,7 @@ else()
 	target_compile_options(summa PRIVATE ${FLAGS_ALL})
 	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM)
     add_executable(${EXEC_NAME} ${MAIN_SUMMA})
+    target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
     target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS}) # added flags to the link step
 endif()
