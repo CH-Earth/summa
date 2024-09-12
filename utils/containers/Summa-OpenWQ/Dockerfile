@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 WORKDIR /code
 RUN apt-get update -y && \
@@ -37,9 +37,9 @@ RUN make install
 
 # Install Armadillo in conventional linux directory (/opt)
 WORKDIR /opt
-RUN wget http://sourceforge.net/projects/arma/files/armadillo-10.3.0.tar.xz
-RUN tar -xf armadillo-10.3.0.tar.xz
-WORKDIR /opt/armadillo-10.3.0
+RUN wget https://sourceforge.net/projects/arma/files/armadillo-10.5.0.tar.xz
+RUN tar -xf armadillo-10.5.0.tar.xz
+WORKDIR /opt/armadillo-10.5.0
 RUN cmake . -D DETECT_HDF5=true -DCMAKE_C_FLAGS="-DH5_USE_110_API"
 RUN make install
 # Enable HDF5 Support
