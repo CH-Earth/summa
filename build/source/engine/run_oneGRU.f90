@@ -26,9 +26,6 @@ USE nrtype
 ! access integers to define "yes" and "no"
 USE globalData,only:yes,no             ! .true. and .false.
 
-! access missing values
-USE globalData,only:integerMissing            ! missing integer
-
 ! define data types
 USE data_types,only:&
                     ! GRU-to-HRU mapping
@@ -251,24 +248,24 @@ contains
 
   ! otherwise just increment basin (GRU) column outflow (m3 s-1) with the hru fraction
   else
-   if(all(fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:) /= integerMissing)) bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
+   bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
   end if
 
   ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
 
   ! increment basin surface runoff (m s-1)
-  if(fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) /= integerMissing) bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracHRU
+  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracHRU
 
   ! increment basin soil drainage (m s-1)
-  if(fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1) /= integerMissing)  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)  * fracHRU
+  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)  * fracHRU
 
   ! increment aquifer variables -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
   ! NOTE: groundwater computed later for singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
 
-   if(fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     /= integerMissing) bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
-   if(fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) /= integerMissing) bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
-   if(fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)  /= integerMissing) bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)  * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)  * fracHRU
   end if
 
   ! averaging more fluxes (and/or states) can be added to this section as desired
