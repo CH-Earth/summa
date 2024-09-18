@@ -54,7 +54,7 @@ method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 plt_nameshort=plt_name0
 method_name=['be1','be1cm','be1en','sundials_1en6cm','diff','ref']
-plt_name0=['BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','SUMMA-BE1 common - mixed','reference solution']
+plt_name0=['BE1 common thermo. eq..','SUMMA-BE1 temperature thermo. eq..','SUMMA-BE1 mixed thermo. eq..','SUMMA-SUNDIALS temperature thermo. eq..','SUMMA-BE1 common - mixed','reference solution']
 plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','BE1 common - mixed','reference soln']
 
 if one_plot: plt_name0 = plt_nameshort
@@ -76,7 +76,7 @@ if more_mean: # extra vars in a balance file
     plt_titl_exVar = ['rain plus melt','top 4m soil temperature','air temperature','snow water equivalent']
     #plot_vars_exVar = ['balanceCasNrg','balanceSoilNrg','balanceVegNrg','balanceSnowNrg']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
-    plt_name0_exVar = 'SUMMA-BE1 temperature heat eq.'
+    plt_name0_exVar = 'SUMMA-BE1 temperature thermo. eq..'
     plt_nameshort_exVar = 'BE1 temp' # identify method here
     plt_titl_exVar = ['rain plus melt','root zone temperature','air temperature','snow water equivalent']
     leg_titl_exVar = ['$mm~y^{-1}$','$K$','$K$','$kg~m^{-2}$']

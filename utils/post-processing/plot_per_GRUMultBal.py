@@ -46,7 +46,7 @@ else:
 
 
 method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en8cm']  #maybe make this an argument
-plt_name0=['SUMMA-BE1 common heat eq.','SUMMA-BE1 temperature heat eq.','SUMMA-BE1 mixed heat eq.','SUMMA-SUNDIALS temperature heat eq.','reference solution']
+plt_name0=['SUMMA-BE1 common thermo. eq..','SUMMA-BE1 temperature thermo. eq..','SUMMA-BE1 mixed thermo. eq..','SUMMA-SUNDIALS temperature thermo. eq..','reference solution']
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -58,7 +58,7 @@ for i, m in enumerate(method_name):
 nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables in files
-plt_titl = ['canopy air space energy balance','vegetation energy balance','snow energy balance','soil energy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
+plt_titl = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
 leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
 if fixed_Mass_units: leg_titl = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
 
