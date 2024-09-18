@@ -922,7 +922,7 @@ subroutine enthalpy2T_veg(&
     ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    T = brent(diff_H_veg, T, 200._rkind, Tfreeze, vec)
+    T = brent(diff_H_veg, T, 0._rkind, Tfreeze, vec)
 
     ! compute Jacobian terms
     if(computJac)then
@@ -1029,11 +1029,11 @@ subroutine enthalpy2T_snow(&
   if(mLayerEnthalpy>0._rkind)then
     T = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
   else
-    l_bound = diff_H_snow(200._rkind, vec)
+    l_bound = diff_H_snow(0._rkind, vec)
     if (l_bound > 0._rkind) then
       T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
     else
-      T = brent(diff_H_snow, T, 200._rkind, Tfreeze, vec)
+      T = brent(diff_H_snow, T, 0._rkind, Tfreeze, vec)
     end if
   endif
 
@@ -1225,7 +1225,7 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    T = brent(diff_H_soil, T, 200._rkind, Tcrit, vec, use_lookup, lookup_data, ixControlIndex)
+    T = brent(diff_H_soil, T, 0._rkind, Tcrit, vec, use_lookup, lookup_data, ixControlIndex)
 
   ! compute Jacobian terms
     if(computJac)then
@@ -1380,7 +1380,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, use_lookup, l
   if (disp == 1 ) then 
     write(*,*) 'Brents method to find a root of f(x)'
     write(*,*) ' '
-    write(*,*) '  i           x          bracketsize       f(x)'
+    write(*,*) '  i           x         bracketsize           f(x)'
   end if
   
   ! main iteration
@@ -1405,7 +1405,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, use_lookup, l
 
     if (disp == 1) then 
       tmp = c-b
-      write(*,"('  ', 1I2, 3F16.10)") i, b, abs(b-c), fb
+      write(*,"('  ', 1I2, 2F16.10,1F20.10)") i, b, abs(b-c), fb
     end if
     
     ! convergence check
@@ -1593,13 +1593,9 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, use_lookup, l
     
     ! case for non convergence
     if (exitflag /=  1 ) then   
-      write(*,*) ' Error (brent2) : Proper initial value for Brents method could not be found'
-      write(*,*) ' Change initial guess and try again. '
-      write(*,*) ' You might want to try disp = 1 option too'
+      write(*,*) ' Error (temperature from enthalpy computation) : Proper initial value for Brents method could not be found, decrease lower temperature bound'
       write(*,*) '  i           x1               x2            f(x1)            f(x2)'
       write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
-      write(*,*) '  press any key to abort the program'
-      read(*,*) 
       stop
     else if (disp == 1) then
       write(*,*) '  Initial guess was found.'
@@ -1692,7 +1688,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, use_lookup, l
     xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
     mLayerPsiLiq = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
     fLiq         = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
-    diff_H_soil = mLayerEnthTemp - iden_water * LH_fus * (volFracWat - fLiq) - mLayerEnthalpy
+    diff_H_soil  = mLayerEnthTemp - iden_water * LH_fus * (volFracWat - fLiq) - mLayerEnthalpy
   
   end function diff_H_soil
 

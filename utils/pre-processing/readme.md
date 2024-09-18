@@ -1,0 +1,3 @@
+# pre-processing folder
+Helpful scripts for a variety of pre-processing purposes:
+- `convert_summa_config_v2_v3.py`: convert SUMMA v2.x configuration to SUMMA v3.0.0- `gen_coldstate.py`: create a vector cold state file for SUMMA from constant values- `subsetGRU.sh`: subset out a NA HRU forcing, parameter, and attribute files where GRU matches HRU- `SUMMA_merge_restarts_into_warmState.py`: combine split domain state files (with 2 dimensions, hru and gru)
