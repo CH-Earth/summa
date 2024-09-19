@@ -884,14 +884,15 @@ subroutine enthalpy2T_veg(&
   err=0; message="enthalpy2T_veg/"
  
   ! ***** get temperature if unfrozen vegetation
-  T            = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
-  if(computJac)then  
-    dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
-    dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
-  endif
-
+  if (scalarCanopyEnthalpy>=0)then
+    T            = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
+    if(computJac)then  
+      dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
+      dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
+    endif
+  
   ! ***** iterate to find temperature if ice exists
-  if( T<Tfreeze )then
+  else
     T = min(scalarCanopyTemp,Tfreeze) ! initial guess
 
     ! find the root of the function
@@ -899,7 +900,7 @@ subroutine enthalpy2T_veg(&
     ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    T = brent(diff_H_veg, T, 0._rkind, Tfreeze, vec, err, cmessage)
+    T = brent(diff_H_veg, T, -1.e6_rkind, Tfreeze, vec, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! compute Jacobian terms
@@ -1012,7 +1013,7 @@ subroutine enthalpy2T_snow(&
     if (l_bound > 0._rkind) then
       T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
     else
-      T = brent(diff_H_snow, T, 0._rkind, Tfreeze, vec, err, cmessage)
+      T = brent(diff_H_snow, T, -1.e6_rkind, Tfreeze, vec, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     end if
   endif
@@ -1109,7 +1110,8 @@ subroutine enthalpy2T_soil(&
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   character(len=256)               :: cmessage               ! error message in downwind routine
-  real(rkind)                      :: Tcrit                  ! temperature where all water is unfrozen (K)
+  real(rkind)                      :: Tcrit                  ! temperature above which all water is unfrozen (K)
+  real(rkind)                      :: entCrit                ! enthalpy above which all water is unfrozen (J m-3)
   real(rkind)                      :: volFracWat             ! volumetric fraction of total water, liquid+ice (-)
   real(rkind)                      :: diff0                  ! temperature difference of Tcrit from Tfreeze
   real(rkind)                      :: dTcrit_dPsi0           ! derivative of temperature where all water is unfrozen (K) with matric head
@@ -1126,7 +1128,7 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: arg                    ! argument of soil hypergeometric function
   real(rkind)                      :: gauss_hg_T             ! soil hypergeometric function result
   real(rkind)                      :: vec(9)                 ! vector of parameters for the enthalpy function
-  ! variable derivatives
+  ! variable derivatives    
   real(rkind)                      :: dvolFracWat_dPsi0      ! derivative of the soil water content w.r.t. matric head
   real(rkind)                      :: dintegral_unf_dWat     ! derivative of integral of unfrozen soil water content with water content
   real(rkind)                      :: dintegral_frz_low_dWat ! derivative of integral of frozen soil water content with water content
@@ -1152,19 +1154,22 @@ subroutine enthalpy2T_soil(&
   volFracWat        = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
   dTcrit_dPsi0      = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead<=0._rkind)
   dvolFracWat_dPsi0 = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
+  entCrit           = ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
+                       + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) * (Tcrit - Tfreeze)
 
   ! ***** get temperature if unfrozen soil
-  T            = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
-                                   + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
-  if(computJac)then  
-    dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
-                               + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
-    dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
-                                     + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
-  endif
+  if (mLayerEnthalpy>=entCrit )then
+    T            = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
+                                     + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
+    if(computJac)then  
+      dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
+                                 + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
+      dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
+                                       + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
+    endif
 
   ! ***** iterate to find temperature if ice exists
-  if( T<Tcrit )then
+  else
     T = min(mLayerTemp,Tcrit) ! initial guess
 
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
@@ -1205,7 +1210,7 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    T = brent(diff_H_soil, T, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+    T = brent(diff_H_soil, T, -1.e6_rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! compute Jacobian terms
