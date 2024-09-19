@@ -861,7 +861,7 @@ subroutine enthalpy2T_veg(&
   ! -------------------------------------------------------------------------------------------------------------------------
    ! declare local variables
   character(len=256)               :: cmessage           ! error message of downwind routine
-  real(rkind)                      :: T                  ! temperature (K)
+  real(rkind)                      :: T,T_out            ! temperature (K)
   real(rkind)                      :: H                  ! enthalpy (J m-3)
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
@@ -900,7 +900,8 @@ subroutine enthalpy2T_veg(&
     ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    T = brent(diff_H_veg, T, -1.e6_rkind, Tfreeze, vec, err, cmessage)
+    call brent(diff_H_veg, T, T_out, -1.e6_rkind, Tfreeze, vec, err, cmessage)
+    T = T_out
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! compute Jacobian terms
@@ -975,7 +976,7 @@ subroutine enthalpy2T_snow(&
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   character(len=256)               :: cmessage           ! error message of downwind routine
-  real(rkind)                      :: T                  ! temperature (K)
+  real(rkind)                      :: T,T_out            ! temperature (K)
   real(rkind)                      :: H                  ! enthalpy (J m-3)
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
@@ -1013,8 +1014,9 @@ subroutine enthalpy2T_snow(&
     if (l_bound > 0._rkind) then
       T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
     else
-      T = brent(diff_H_snow, T, -1.e6_rkind, Tfreeze, vec, err, cmessage)
+      call brent(diff_H_snow, T, T_out, -1.e6_rkind, Tfreeze, vec, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      T = T_out
     end if
   endif
 
@@ -1120,7 +1122,7 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: integral_frz_low       ! lower limit of integral of frozen soil water content (from Tfreeze to Tcrit)
   real(rkind)                      :: xConst                 ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq           ! liquid water matric potential (m)
-  real(rkind)                      :: T                      ! temperature (K)
+  real(rkind)                      :: T, T_out               ! temperature (K)
   real(rkind)                      :: H                      ! enthalpy (J m-3)
   real(rkind)                      :: diffT                  ! temperature difference of temp from Tfreeze
   real(rkind)                      :: fLiq                   ! fraction liquid water
@@ -1210,8 +1212,9 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    T = brent(diff_H_soil, T, -1.e6_rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+    call brent(diff_H_soil, T, T_out, -1.e6_rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    T = T_out
 
   ! compute Jacobian terms
     if(computJac)then
@@ -1472,9 +1475,9 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   end function brent0
 
 !----------------------------------------------------------------------
-! private function: Find an initial guess of bracket and call brent0
+! private subroutine: Find an initial guess of bracket and call brent0
 !----------------------------------------------------------------------
-  function brent (fun, x0, LowerBound, UpperBound, vec, err, message, use_lookup, lookup_data, ixControlIndex)
+  subroutine brent (fun, x0, brent_out, LowerBound, UpperBound, vec, err, message, use_lookup, lookup_data, ixControlIndex)
     ! 
     ! Inputs
     !   fun: function to evaluate
@@ -1482,11 +1485,11 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     !   LowerBound, UpperBound : Lower and upper bound of the function 
     
     implicit none
-    real(rkind) :: brent
     integer, parameter :: d = rkind
-    real(rkind), intent(IN) :: x0, vec(9)
+    real(rkind), intent(in) :: x0, vec(9)
     real(rkind), external :: fun
-    real(rkind), intent(IN) :: LowerBound, UpperBound
+    real(rkind), intent(out) :: brent_out
+    real(rkind), intent(in) :: LowerBound, UpperBound
     logical(lgt), intent(in), optional :: use_lookup
     type(zLookup),intent(in), optional :: lookup_data
     integer(i4b), intent(in), optional :: ixControlIndex
@@ -1525,8 +1528,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     fb = sgn
 
     if(abs(sgn) <= tol_f ) then ! if solution didn't change, initial guess is the solution
-      brent = x0
-      return
+      brent_out = x0; return
     end if  
     
     ! set initial change dx
@@ -1590,11 +1592,12 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! case for non convergence
     if (exitflag /=  1 ) then   
-      write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
-      write(*,*) '  i           x1               x2            f(x1)            f(x2)'
-      write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
-      write(*,*) 'vec=',vec
-      err = 20;message = trim(message)//'proper initial value could not be found'; return
+      !write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
+      !write(*,*) '  i           x1               x2            f(x1)            f(x2)'
+      !write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
+      !write(*,*) 'vec=',vec
+      !err = 20;message = trim(message)//'proper initial value could not be found'; return
+      brent_out = LowerBound; return ! if bracket is not found, use lower bound
     else if (disp == 1) then
       write(*,*) '  Initial guess was found.'
       write(*,*) ''
@@ -1602,13 +1605,13 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! call brent0
     if(present(use_lookup))then
-      brent = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+      brent_out = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     else
-      brent = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage)
+      brent_out = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage)
     end if
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
-    end function brent  
+  end subroutine brent  
 
   !----------------------------------------------------------------------
   ! private functions for temperature to enthalpy conversion for Brent's method
