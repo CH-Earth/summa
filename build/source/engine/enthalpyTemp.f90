@@ -1592,12 +1592,15 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! case for non convergence
     if (exitflag /=  1 ) then   
-      !write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
-      !write(*,*) '  i           x1               x2            f(x1)            f(x2)'
-      !write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
-      !write(*,*) 'vec=',vec
-      !err = 20;message = trim(message)//'proper initial value could not be found'; return
-      brent_out = LowerBound; return ! if bracket is not found, use lower bound
+      if (a==LowerBound .and. fa>0 .and. fb>0)then
+        brent_out = LowerBound; return ! if bracket is not found, use lower bound since true temperature and enthalpy is very low, LowerBound is close enough
+      else 
+        write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
+        write(*,*) '  i           x1               x2            f(x1)            f(x2)'
+        write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
+        write(*,*) 'vec=',vec
+        err = 20;message = trim(message)//'proper initial value could not be found'; return
+      endif
     else if (disp == 1) then
       write(*,*) '  Initial guess was found.'
       write(*,*) ''
