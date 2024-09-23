@@ -80,16 +80,16 @@ real(rkind), intent(out)           :: dSVP_dT  ! d(SVP)/dT
 real(rkind), parameter             :: X1 = 17.27_rkind
 real(rkind), parameter             :: X2 = 237.30_rkind
 ! local (use to test derivative calculations)
-real(rkind),parameter              :: dx = 1.e-8_rkind     ! finite difference increment
-logical(lgt),parameter          :: testDeriv=.false. ! flag to test the derivative
+real(rkind),parameter              :: dx = 1.e-8_rkind  ! finite difference increment
+logical(lgt),parameter             :: testDeriv=.false. ! flag to test the derivative
 !---------------------------------------------------------------------------------------------------
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
 
-if(X2 + TC < 0)then
- !print*, "error, canopy temperature is very low, satVapPress=Inf" !will fail as SVP=inf
- SVP     = 0._rkind
- dSVP_dT = 0._rkind
+if(X2 + TC <= 0.0_rkind)then ! will fail if divide by 0, but will blow up if negative top and bottom of fraction
+ !print*, "error, canopy temperature is very low, satVapPress=Inf" 
+ SVP     = tiny(1.0_rkind)
+ dSVP_dT = tiny(1.0_rkind)
 else
  SVP     = SATVPFRZ * EXP( (X1*TC)/(X2 + TC) ) ! Saturated Vapour Press (Pa)
  dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2_i4b)

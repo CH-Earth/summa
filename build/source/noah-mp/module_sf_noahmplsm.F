@@ -1520,7 +1520,7 @@ contains
   ! ==================================================================================================
 ! ----------------------------------------------------------------------
   SUBROUTINE STOMATA (VEGTYP  ,MPE     ,APAR    ,FOLN    ,ILOC    , JLOC, & !in
-                      TV      ,EI      ,EA      ,SFCTMP  ,SFCPRS  , & !in
+                      TV      ,EI0     ,EA      ,SFCTMP  ,SFCPRS  , & !in
                       O2      ,CO2     ,IGS     ,BTRAN   ,RB      , & !in
                       RS      ,PSN     )                              !out
 ! --------------------------------------------------------------------------------------------------
@@ -1537,7 +1537,7 @@ contains
       REAL(rkind), INTENT(IN)    :: MPE    !prevents division by zero errors
 
       REAL(rkind), INTENT(IN)    :: TV     !foliage temperature (k)
-      REAL(rkind), INTENT(IN)    :: EI     !vapor pressure inside leaf (sat vapor press at tv) (pa)
+      REAL(rkind), INTENT(IN)    :: EI0    !vapor pressure inside leaf (sat vapor press at tv) (pa)
       REAL(rkind), INTENT(IN)    :: EA     !vapor pressure of canopy air (pa)
       REAL(rkind), INTENT(IN)    :: APAR   !par absorbed per unit lai (w/m2)
       REAL(rkind), INTENT(IN)    :: O2     !atmospheric o2 concentration (pa)
@@ -1569,6 +1569,7 @@ contains
       REAL(rkind) :: F2          !generic temperature inhibition (statement function)
       REAL(rkind) :: TC          !foliage temperature (degree Celsius)
       REAL(rkind) :: CS          !co2 concentration at leaf surface (pa)
+      REAL(rkind) :: EI          !vapor pressure inside leaf (sat vapor press at tv) (pa)
       REAL(rkind) :: KC          !co2 Michaelis-Menten constant (pa)
       REAL(rkind) :: KO          !o2 Michaelis-Menten constant (pa)
       REAL(rkind) :: A,B,C,Q     !intermediate calculations for RS
@@ -1598,7 +1599,11 @@ contains
 
 ! initialize RS=RSMAX and PSN=0 because will only do calculations
 ! for APAR > 0, in which case RS <= RSMAX and PSN >= 0
-
+         if (EI0<tiny(1.0))then
+          EI=tiny(1.0)
+         else
+          EI = EI0
+         endif
          CF = SFCPRS/(8.314*SFCTMP)*1.e06
          RS = 1./(BP(VEGTYP)*BTRAN) * CF    ! MPC change: include BTRAN multiplier
          PSN = 0.
