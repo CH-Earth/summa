@@ -900,7 +900,7 @@ subroutine enthalpy2T_veg(&
     ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    call brent(diff_H_veg, T, T_out, -1.e3_rkind, Tfreeze, vec, err, cmessage)
+    call brent(diff_H_veg, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
     T = T_out
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -1008,18 +1008,13 @@ subroutine enthalpy2T_snow(&
   vec = 0._rkind
   vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
   if(mLayerEnthalpy>0._rkind)then
-    T = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
+    T = Tfreeze - 1.e-6_rkind ! need to merge layers, don't iterate to find the temperature
   else
-    l_bound = diff_H_snow(0._rkind, vec)
-    if (l_bound > 0._rkind) then
-      T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
-    else
-      call brent(diff_H_snow, T, T_out, -1.e3_rkind, Tfreeze, vec, err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      T = T_out
-    end if
+    call brent(diff_H_snow, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    T = T_out
   endif
-
+  
   ! compute Jacobian terms
   if(computJac)then
     ! NOTE: dintegral_dT = fLiq
@@ -1212,7 +1207,7 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    call brent(diff_H_soil, T, T_out, -1.e3_rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+    call brent(diff_H_soil, T, T_out, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     T = T_out
 
