@@ -894,6 +894,7 @@ subroutine enthalpy2T_veg(&
   ! ***** iterate to find temperature if ice exists
   else
     T = min(scalarCanopyTemp,Tfreeze) ! initial guess
+    T = max(T,200._rkind)             ! don't give too cold of an initial guess
 
     ! find the root of the function
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
@@ -1000,7 +1001,8 @@ subroutine enthalpy2T_snow(&
   err=0; message="enthalpy2T_snow/"
 
   ! ***** iterate to find temperature, ice always exists
-  T  = mLayerTemp ! initial guess, will be less than Tfreeze since was a solution
+  T  = mLayerTemp       ! initial guess, will be less than Tfreeze since was a solution
+  T = max(T,200._rkind) ! don't give too cold of an initial guess
 
   ! find the root of the function
   ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
@@ -1168,6 +1170,7 @@ subroutine enthalpy2T_soil(&
   ! ***** iterate to find temperature if ice exists
   else
     T = min(mLayerTemp,Tcrit) ! initial guess
+    T = max(T,200._rkind)     ! don't give too cold of an initial guess
 
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
     ! get the unfrozen water content of enthalpy
@@ -1529,10 +1532,10 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     end if  
     
     ! set initial change dx
-    if (abs(x0)<0.00000002_rkind) then 
-      dx = 1.0_rkind/50.0_rkind
+    if (abs(x0)<240._rkind) then ! a very cold temperature
+      dx = 2.0_rkind/50.0_rkind * UpperBound
     else
-      dx = 1.0_rkind/50.0_rkind * x0
+      dx = 1.0_rkind/50.0_rkind * UpperBound
     end if
     
     if (disp == 1) then 
@@ -1571,7 +1574,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
         if (exitb/= 1) fb = fun(b, vec)
       end if
       
-      if (disp == 1) write(*,"(3I4,4F17.6)") exita,exitb,iter, a, b, fa, fb
+      if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
       
       ! check if sign of functions changed or not
       if (( (sgn >= 0 ) .and.  (fa <= 0) ) .or. & 
