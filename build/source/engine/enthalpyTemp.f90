@@ -1495,7 +1495,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     real(rkind), parameter :: sqrt2 = sqrt(2.0_d)! change in dx
     integer, parameter :: maxiter = 40, detail = 0
     real(rkind) :: dx  ! change in bracket
-    integer :: iter, exitflag, disp
+    integer :: iter, exitflag, disp, exita, exitb
     real(rkind) :: sgn
     real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e0_rkind
     character(LEN=256):: cmessage ! error message of downwind routine
@@ -1507,6 +1507,8 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     a  = x0 ! lower bracket
     b =  x0 ! upper bracket
     exitflag = 0  ! flag to see we found the bracket
+    exita = 0
+    exitb = 0
 
     if(present(use_lookup))then
       sgn = fun(x0, vec, use_lookup, lookup_data, ixControlIndex) ! sign of initial guess
@@ -1544,13 +1546,17 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! main loop to extend a and b
     do iter = 1, maxiter
-      ! update boundary
+      ! update boundary, function is monotonically increasing
+      if (fa<=0) exita = 1
+      if (fb<=0)then; a = b;fa = fb; exita = 1; endif
+      if (fb>=0) exitb = 1
+      if (fa>=0)then; b = a; fb = fa; exitb = 1; endif
       olda = a 
       oldb = b
       folda = fa
       foldb = fb
-      a = a - dx
-      b = b + dx
+      if (exita/= 1) a = a - dx
+      if (exitb/= 1) b = b + dx
       dx = dx * sqrt2
       
       ! boundary check
@@ -1558,14 +1564,14 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
       if (b > UpperBound ) b = UpperBound
 
       if(present(use_lookup))then
-        fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
-        fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
+        if (exita/= 1) fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
+        if (exitb/= 1) fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
       else  
-        fa = fun(a, vec)
-        fb = fun(b, vec)
+        if (exita/= 1) fa = fun(a, vec)
+        if (exitb/= 1) fb = fun(b, vec)
       end if
       
-      if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
+      if (disp == 1) write(*,"(3I4,4F17.6)") exita,exitb,iter, a, b, fa, fb
       
       ! check if sign of functions changed or not
       if (( (sgn >= 0 ) .and.  (fa <= 0) ) .or. & 
