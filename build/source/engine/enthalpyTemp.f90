@@ -1504,8 +1504,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     character(LEN=256):: cmessage ! error message of downwind routine
     
     ! initialize error control
-     err=0; message='brent/'
-  
+    err=0; message='brent/'
 
     a  = x0 ! lower bracket
     b =  x0 ! upper bracket
@@ -1546,7 +1545,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
       write(*,*) '  i           x1               x2            f(x1)            f(x2)'
       write(*,"(1I4,4F17.6)") 0, a, b, fa, fb
     end if
-    
+    if (a<200)disp = 1
     ! main loop to extend a and b
     do iter = 1, maxiter
       ! update boundary, function is monotonically increasing
@@ -1563,8 +1562,8 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
       dx = dx * sqrt2
       
       ! boundary check
-      if (a < LowerBound ) a = LowerBound
-      if (b > UpperBound ) b = UpperBound
+      if (exita/= 1 .and. a < LowerBound ) a = LowerBound
+      if (exitb/= 1 .and. b > UpperBound ) b = UpperBound
 
       if(present(use_lookup))then
         if (exita/= 1) fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
@@ -1582,12 +1581,14 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
         ! use a and olda as bracket
         b = olda
         fb = folda
+        if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
         exitflag = 1
         exit
       else if  (( (sgn >= 0 ) .and.  (fb <= 0  ) ) .or. & 
                 ( (sgn <= 0 ) .and.  (fb >= 0  ) )) then ! sign of b changed
         a = oldb
         fa = foldb
+        if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
         exitflag = 1
         exit
       end if

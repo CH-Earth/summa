@@ -483,7 +483,8 @@ subroutine summaSolve4ida(&
       ! early return if IDASolve failed
       if( retvalr < 0 )then
         idaSucceeds = .false.
-        call getErrMessage(retvalr,cmessage)
+        if (eqns_data%err/=0)then; message=trim(message)//trim(eqns_data%message); return; endif !fail from summa problem
+        call getErrMessage(retvalr,cmessage) ! fail from solver problem
         message=trim(message)//trim(cmessage)
         !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
         exit
