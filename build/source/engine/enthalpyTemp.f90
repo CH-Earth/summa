@@ -1210,7 +1210,11 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    call brent(diff_H_soil, T, T_out, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+    if (Tcrit>0._rkind) then
+      call brent(diff_H_soil, T, T_out, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+    else
+      T_out = 0._rkind ! bail with a low temperature
+    end if
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     T = T_out
 
@@ -1496,7 +1500,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     real(rkind) :: a , b , olda, oldb, fa, fb, folda, foldb
     real(rkind), parameter :: sqrt2 = sqrt(2.0_d)! change in dx
-    integer, parameter :: maxiter = 40, detail = 0
+    integer, parameter :: maxiter = 20, detail = 0
     real(rkind) :: dx  ! change in bracket
     integer :: iter, exitflag, disp, exita, exitb
     real(rkind) :: sgn
@@ -1525,6 +1529,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     end if
     fa = sgn
     fb = sgn
+    if (vec(1)< -1391120611) disp =1
 
     if(abs(sgn) <= tol_f ) then ! if solution didn't change, initial guess is the solution
       brent_out = x0; return
@@ -1532,9 +1537,9 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! set initial change dx
     if (abs(x0)<240._rkind) then ! a very cold temperature
-      dx = 2.0_rkind/50.0_rkind * UpperBound
+      dx = 2.0_rkind/50.0_rkind * Tfreeze
     else
-      dx = 1.0_rkind/50.0_rkind * UpperBound
+      dx = 1.0_rkind/50.0_rkind * Tfreeze
     end if
     
     if (disp == 1) then 
@@ -1545,25 +1550,27 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
       write(*,*) '  i           x1               x2            f(x1)            f(x2)'
       write(*,"(1I4,4F17.6)") 0, a, b, fa, fb
     end if
-    if (a<200)disp = 1
+
     ! main loop to extend a and b
     do iter = 1, maxiter
       ! update boundary, function is monotonically increasing
       if (fa<=0) exita = 1
-      if (fb<=0)then; a = b;fa = fb; exita = 1; endif
+      if (fb<=0)then; a = b; fa = fb; exita = 1; endif
       if (fb>=0) exitb = 1
       if (fa>=0)then; b = a; fb = fa; exitb = 1; endif
       olda = a 
       oldb = b
       folda = fa
       foldb = fb
-      if (exita/= 1) a = a - dx
-      if (exitb/= 1) b = b + dx
+      if (exita/= 1)then
+        a = a - dx
+        if (a < LowerBound ) a = LowerBound
+      endif
+      if (exitb/= 1)then
+        b = b + dx
+        if (b > UpperBound ) b = UpperBound
+      endif
       dx = dx * sqrt2
-      
-      ! boundary check
-      if (exita/= 1 .and. a < LowerBound ) a = LowerBound
-      if (exitb/= 1 .and. b > UpperBound ) b = UpperBound
 
       if(present(use_lookup))then
         if (exita/= 1) fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
@@ -1572,6 +1579,8 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
         if (exita/= 1) fa = fun(a, vec)
         if (exitb/= 1) fb = fun(b, vec)
       end if
+      if (a==LowerBound) exita = 1
+      if (b==UpperBound) exitb = 1
       
       if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
       
@@ -1581,14 +1590,14 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
         ! use a and olda as bracket
         b = olda
         fb = folda
-        if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
+        if (disp == 1) write(*,"(1A4,4F17.6)") "end ", a, b, fa, fb
         exitflag = 1
         exit
       else if  (( (sgn >= 0 ) .and.  (fb <= 0  ) ) .or. & 
                 ( (sgn <= 0 ) .and.  (fb >= 0  ) )) then ! sign of b changed
         a = oldb
         fa = foldb
-        if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
+        if (disp == 1) write(*,"(1A4,4F17.6)") "end ", a, b, fa, fb
         exitflag = 1
         exit
       end if
