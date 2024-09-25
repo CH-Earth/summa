@@ -1504,7 +1504,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     real(rkind) :: dx  ! change in bracket
     integer :: iter, exitflag, disp, exita, exitb
     real(rkind) :: sgn
-    real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e0_rkind
+    real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e0_rkind ! maybe these should be tied to the state variable tolerances
     character(LEN=256):: cmessage ! error message of downwind routine
     
     ! initialize error control
@@ -1529,7 +1529,6 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     end if
     fa = sgn
     fb = sgn
-    if (vec(1)< -1391120611) disp =1
 
     if(abs(sgn) <= tol_f ) then ! if solution didn't change, initial guess is the solution
       brent_out = x0; return
@@ -1590,14 +1589,12 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
         ! use a and olda as bracket
         b = olda
         fb = folda
-        if (disp == 1) write(*,"(1A4,4F17.6)") "end ", a, b, fa, fb
         exitflag = 1
         exit
       else if  (( (sgn >= 0 ) .and.  (fb <= 0  ) ) .or. & 
                 ( (sgn <= 0 ) .and.  (fb >= 0  ) )) then ! sign of b changed
         a = oldb
         fa = foldb
-        if (disp == 1) write(*,"(1A4,4F17.6)") "end ", a, b, fa, fb
         exitflag = 1
         exit
       end if
@@ -1608,6 +1605,8 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     if (exitflag /=  1 ) then   
       if (a==LowerBound .and. fa>0 .and. fb>0)then
         brent_out = LowerBound; return ! if bracket is not found, use lower bound since true temperature and enthalpy is very low, LowerBound is close enough
+      elseif (b==UpperBound .and. fa<0 .and. fb<0)then ! fb will be a small negative value but should be zero to tolerances
+        brent_out = UpperBound; return ! if bracket is not found, use upper bound since true temperature is very close to upper bound, UpperBound is close enough
       else 
         write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
         write(*,*) '  i           x1               x2            f(x1)            f(x2)'
