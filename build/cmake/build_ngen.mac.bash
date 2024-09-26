@@ -9,6 +9,7 @@ export FC=/opt/local/bin/gfortran                             # Fortran compiler
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
 export C_INCLUDE_PATH=/opt/local/include
 export CPLUS_INCLUDE_PATH=/opt/local/include
+export SUNDIALS_DIR=../../../sundials/instdir/
 
 cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON
 cmake --build extern/summa/cmake_build --target all -j

@@ -8,9 +8,8 @@ module load openblas/0.3.24
 module load openmpi/4.1.5
 module load netcdf-fortran/4.6.1
 
-export SUNDIALS_PATH=../../../sundials/instdir/
-
 export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
+export SUNDIALS_PATH=../../../sundials/instdir/
 
 cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON
 cmake --build ../cmake_build --target all -j
