@@ -105,6 +105,8 @@ if(APPLE)
 else()
 	# OpenBLAS (MAY HAVE OpenMP enabled which slows execution)
 	# USE LAPACK INSTEAD TO AVOID THIS ISSUE
+    # set($ENV{OMP_NUM_THREADS} 1)
+    # message("\nOpenMp number of threads (OMP_NUM_THREADS) =1, to ward off bad behavior assuming not using multithreading")
 	# set(BLA_VENDOR OpenBLAS) # MKL
 	# find_package(OpenBLAS REQUIRED)
 	# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
