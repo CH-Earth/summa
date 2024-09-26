@@ -14,4 +14,5 @@ export INCLUDES_DIRS='/opt/local/include;/opt/local/lib'      # directories for 
 export LIBRARY_LINKS='-llapack'                               # list of library links 
 
 cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON
+cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build ../cmake_build --target all -j

@@ -894,13 +894,14 @@ subroutine enthalpy2T_veg(&
   ! ***** iterate to find temperature if ice exists
   else
     T = min(scalarCanopyTemp,Tfreeze) ! initial guess
+    T = max(T,200._rkind)             ! don't give too cold of an initial guess
 
     ! find the root of the function
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layers
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    call brent(diff_H_veg, T, T_out, -1.e3_rkind, Tfreeze, vec, err, cmessage)
+    call brent(diff_H_veg, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
     T = T_out
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -1000,7 +1001,8 @@ subroutine enthalpy2T_snow(&
   err=0; message="enthalpy2T_snow/"
 
   ! ***** iterate to find temperature, ice always exists
-  T  = mLayerTemp ! initial guess, will be less than Tfreeze since was a solution
+  T  = mLayerTemp       ! initial guess, will be less than Tfreeze since was a solution
+  T = max(T,200._rkind) ! don't give too cold of an initial guess
 
   ! find the root of the function
   ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
@@ -1008,18 +1010,13 @@ subroutine enthalpy2T_snow(&
   vec = 0._rkind
   vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
   if(mLayerEnthalpy>0._rkind)then
-    T = Tfreeze+ 0.1_rkind ! need to merge layers, trigger the merge
+    T = Tfreeze - 1.e-6_rkind ! need to merge layers, don't iterate to find the temperature
   else
-    l_bound = diff_H_snow(0._rkind, vec)
-    if (l_bound > 0._rkind) then
-      T = Tfreeze + 0.1_rkind ! need to merge layers, trigger the merge
-    else
-      call brent(diff_H_snow, T, T_out, -1.e3_rkind, Tfreeze, vec, err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      T = T_out
-    end if
+    call brent(diff_H_snow, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    T = T_out
   endif
-
+  
   ! compute Jacobian terms
   if(computJac)then
     ! NOTE: dintegral_dT = fLiq
@@ -1173,6 +1170,7 @@ subroutine enthalpy2T_soil(&
   ! ***** iterate to find temperature if ice exists
   else
     T = min(mLayerTemp,Tcrit) ! initial guess
+    T = max(T,200._rkind)     ! don't give too cold of an initial guess
 
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
     ! get the unfrozen water content of enthalpy
@@ -1212,7 +1210,11 @@ subroutine enthalpy2T_soil(&
     ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
     ! and the vector of parameters, not.snow_layer, lookup data
     vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
-    call brent(diff_H_soil, T, T_out, -1.e3_rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+    if (Tcrit>0._rkind) then
+      call brent(diff_H_soil, T, T_out, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+    else
+      T_out = 0._rkind ! bail with a low temperature
+    end if
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     T = T_out
 
@@ -1498,20 +1500,21 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     real(rkind) :: a , b , olda, oldb, fa, fb, folda, foldb
     real(rkind), parameter :: sqrt2 = sqrt(2.0_d)! change in dx
-    integer, parameter :: maxiter = 40, detail = 0
+    integer, parameter :: maxiter = 20, detail = 0
     real(rkind) :: dx  ! change in bracket
-    integer :: iter, exitflag, disp
+    integer :: iter, exitflag, disp, exita, exitb
     real(rkind) :: sgn
-    real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e0_rkind
+    real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e0_rkind ! maybe these should be tied to the state variable tolerances
     character(LEN=256):: cmessage ! error message of downwind routine
     
     ! initialize error control
-     err=0; message='brent/'
-  
+    err=0; message='brent/'
 
     a  = x0 ! lower bracket
     b =  x0 ! upper bracket
     exitflag = 0  ! flag to see we found the bracket
+    exita = 0
+    exitb = 0
 
     if(present(use_lookup))then
       sgn = fun(x0, vec, use_lookup, lookup_data, ixControlIndex) ! sign of initial guess
@@ -1532,10 +1535,10 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     end if  
     
     ! set initial change dx
-    if (abs(x0)<0.00000002_rkind) then 
-      dx = 1.0_rkind/50.0_rkind
+    if (abs(x0)<240._rkind) then ! a very cold temperature
+      dx = 2.0_rkind/50.0_rkind * Tfreeze
     else
-      dx = 1.0_rkind/50.0_rkind * x0
+      dx = 1.0_rkind/50.0_rkind * Tfreeze
     end if
     
     if (disp == 1) then 
@@ -1546,29 +1549,37 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
       write(*,*) '  i           x1               x2            f(x1)            f(x2)'
       write(*,"(1I4,4F17.6)") 0, a, b, fa, fb
     end if
-    
+
     ! main loop to extend a and b
     do iter = 1, maxiter
-      ! update boundary
+      ! update boundary, function is monotonically increasing
+      if (fa<=0) exita = 1
+      if (fb<=0)then; a = b; fa = fb; exita = 1; endif
+      if (fb>=0) exitb = 1
+      if (fa>=0)then; b = a; fb = fa; exitb = 1; endif
       olda = a 
       oldb = b
       folda = fa
       foldb = fb
-      a = a - dx
-      b = b + dx
+      if (exita/= 1)then
+        a = a - dx
+        if (a < LowerBound ) a = LowerBound
+      endif
+      if (exitb/= 1)then
+        b = b + dx
+        if (b > UpperBound ) b = UpperBound
+      endif
       dx = dx * sqrt2
-      
-      ! boundary check
-      if (a < LowerBound ) a = LowerBound
-      if (b > UpperBound ) b = UpperBound
 
       if(present(use_lookup))then
-        fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
-        fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
+        if (exita/= 1) fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
+        if (exitb/= 1) fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
       else  
-        fa = fun(a, vec)
-        fb = fun(b, vec)
+        if (exita/= 1) fa = fun(a, vec)
+        if (exitb/= 1) fb = fun(b, vec)
       end if
+      if (a==LowerBound) exita = 1
+      if (b==UpperBound) exitb = 1
       
       if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
       
@@ -1594,6 +1605,8 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     if (exitflag /=  1 ) then   
       if (a==LowerBound .and. fa>0 .and. fb>0)then
         brent_out = LowerBound; return ! if bracket is not found, use lower bound since true temperature and enthalpy is very low, LowerBound is close enough
+      elseif (b==UpperBound .and. fa<0 .and. fb<0)then ! fb will be a small negative value but should be zero to tolerances
+        brent_out = UpperBound; return ! if bracket is not found, use upper bound since true temperature is very close to upper bound, UpperBound is close enough
       else 
         write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
         write(*,*) '  i           x1               x2            f(x1)            f(x2)'
