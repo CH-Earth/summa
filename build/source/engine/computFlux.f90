@@ -223,7 +223,7 @@ subroutine computFlux(&
   ! initialize error control
   err=0; message='computFlux/'
 
-  call initialize_computFlux ! Preliminary operations to start routine
+  call initialize_computFlux; if(err/=0)then; return; endif ! Preliminary operations to start routine
 
   ! *** CALCULATE ENERGY FLUXES OVER VEGETATION ***
   associate(&
@@ -235,7 +235,7 @@ subroutine computFlux(&
     if (doVegNrgFlux) then ! if necessary, calculate the energy fluxes over vegetation
       call initialize_vegNrgFlux
       call vegNrgFlux(in_vegNrgFlux,type_data,forc_data,mpar_data,indx_data,prog_data,diag_data,flux_data,bvar_data,model_decisions,out_vegNrgFlux)
-      call finalize_vegNrgFlux
+      call finalize_vegNrgFlux; if(err/=0)then; return; endif
     end if
   end associate
 
@@ -244,7 +244,7 @@ subroutine computFlux(&
     if (nSnowSoilNrg>0) then ! if necessary, calculate energy fluxes at layer interfaces through the snow and soil domain
       call initialize_ssdNrgFlux
       call ssdNrgFlux(in_ssdNrgFlux,mpar_data,indx_data,prog_data,diag_data,flux_data,io_ssdNrgFlux,out_ssdNrgFlux)
-      call finalize_ssdNrgFlux
+      call finalize_ssdNrgFlux; if(err/=0)then; return; endif
     end if
   end associate
 
@@ -253,7 +253,7 @@ subroutine computFlux(&
     if (ixVegHyd/=integerMissing) then ! if necessary, calculate liquid water fluxes through vegetation
       call initialize_vegLiqFlux
       call vegLiqFlux(in_vegLiqFlux,mpar_data,diag_data,out_vegLiqFlux)
-      call finalize_vegLiqFlux
+      call finalize_vegLiqFlux; if(err/=0)then; return; endif
     end if
   end associate
 
@@ -262,7 +262,7 @@ subroutine computFlux(&
     if (nSnowOnlyHyd>0) then ! if necessary, compute liquid fluxes through snow
       call initialize_snowLiqFlx
       call snowLiqFlx(in_snowLiqFlx,indx_data,mpar_data,prog_data,diag_data,io_snowLiqFlx,out_snowLiqFlx)
-      call finalize_snowLiqFlx
+      call finalize_snowLiqFlx; if(err/=0)then; return; endif
     else
       call soilForcingNoSnow ! define forcing for the soil domain for the case of no snow layers
     end if
@@ -273,7 +273,7 @@ subroutine computFlux(&
     if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
       call initialize_soilLiqFlx
       call soilLiqFlx(in_soilLiqFlx,mpar_data,indx_data,prog_data,diag_data,flux_data,io_soilLiqFlx,out_soilLiqFlx)
-      call finalize_soilLiqFlx
+      call finalize_soilLiqFlx; if(err/=0)then; return; endif
     end if 
   end associate
 
@@ -283,9 +283,9 @@ subroutine computFlux(&
       if (local_ixGroundwater/=qbaseTopmodel) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
         call zeroBaseflowFluxes
       else ! compute the baseflow flux for topmodel-ish shallow groundwater
-        call initialize_groundwatr
+        call initialize_groundwatr; if(err/=0)then; return; endif
         call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,diag_data,flux_data,io_groundwatr,out_groundwatr)
-        call finalize_groundwatr
+        call finalize_groundwatr;   if(err/=0)then; return; endif
       end if
       call computeBaseflowRunoff ! compute total baseflow from soil and runoff
     end if
@@ -297,14 +297,14 @@ subroutine computFlux(&
       if (local_ixGroundwater==bigBucket) then ! compute fluxes for the big bucket
         call initialize_bigAquifer
         call bigAquifer(in_bigAquifer,mpar_data,diag_data,io_bigAquifer,out_bigAquifer)
-        call finalize_bigAquifer
+        call finalize_bigAquifer; if(err/=0)then; return; endif
       else ! if no aquifer, then fluxes are zero
         call zeroAquiferFluxes
       end if ! end check aquifer model decision
     end if  ! if computing aquifer fluxes
   end associate
 
-  call finalize_computFlux ! final operations to prep for end of routine
+  call finalize_computFlux; if(err/=0)then; return; endif ! final operations to prep for end of routine
 
 contains
 

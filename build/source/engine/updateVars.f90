@@ -338,12 +338,8 @@ subroutine updateVars(&
       if(ixDomainType==iname_cas)then
         if(computeEnthTemp)then
           call T2enthTemp_cas(&
-                      ! input
                       scalarCanairTempTrial,       & ! intent(in): canopy air temperature (K)
-                      ! output
-                      scalarCanairEnthalpyTrial,   & ! intent(out): enthalpy of the canopy air space (J m-3)
-                      err,cmessage)                  ! intent(out):   error control
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+                      scalarCanairEnthalpyTrial)     ! intent(out): enthalpy of the canopy air space (J m-3)
         else
           scalarCanairEnthalpyTrial = realMissing
         endif
@@ -668,38 +664,29 @@ subroutine updateVars(&
       if(ixDomainType==iname_veg)then
         if(computeEnthTemp)then
           call T2enthTemp_veg(&
-                      ! input
                       canopyDepth,                 & ! intent(in): canopy depth (m)
                       specificHeatVeg,             & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                       maxMassVegetation,           & ! intent(in): maximum mass of vegetation (kg m-2)
                       snowfrz_scale,               & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
                       scalarCanopyTempTrial,       & ! intent(in): canopy temperature (K)
                       scalarCanopyWatTrial,        & ! intent(in): canopy water content (kg m-2)
-                      ! output
-                      scalarCanopyEnthTempTrial,   & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                      err,cmessage)                  ! intent(out):   error control
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+                      scalarCanopyEnthTempTrial)     ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
         else
           scalarCanopyEnthTempTrial = realMissing
         endif
       elseif(ixDomainType==iname_snow)then
         if(computeEnthTemp)then
           call T2enthTemp_snow(&
-                      ! input
                       snowfrz_scale,                   & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTempTrial(iLayer),         & ! intent(in):  layer temperature (K)
                       mLayerVolFracWatTrial(iLayer),   & ! intent(in):  volumetric total water content (-)
-                      ! output
-                      mLayerEnthTempTrial(iLayer),     & ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
-                      err,cmessage)                      ! intent(out): error control
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+                      mLayerEnthTempTrial(iLayer))       ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
         else
           mLayerEnthTempTrial(iLayer) = realMissing
         endif
       elseif(ixDomainType==iname_soil)then
         if(computeEnthTemp)then
           call T2enthTemp_soil(&
-                      ! input
                       use_lookup,                            & ! intent(in):  flag to use the lookup table for soil enthalpy
                       soil_dens_intr(ixControlIndex),        & ! intent(in):  intrinsic soil density (kg m-3)
                       vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
@@ -708,10 +695,7 @@ subroutine updateVars(&
                       realMissing,                           & ! intent(in):  lower value of integral (not computed)
                       mLayerTempTrial(iLayer),               & ! intent(in):  layer temperature (K)
                       mLayerMatricHeadTrial(ixControlIndex), & ! intent(in):  matric head (m)
-                     ! output
-                      mLayerEnthTempTrial(iLayer),           & ! intent(out): temperature component of enthalpy soil layer (J m-3)
-                      err,cmessage)                            ! intent(out): error control      
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+                      mLayerEnthTempTrial(iLayer))             ! intent(out): temperature component of enthalpy soil layer (J m-3)
         else
           mLayerEnthTempTrial(iLayer) = realMissing
         endif

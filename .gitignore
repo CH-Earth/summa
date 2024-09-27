@@ -41,3 +41,5 @@ Laugh-Tests/
 # cmake_build containing cmake build objects
 build/cmake_build
 runinfo.txt
+# OpenWQ source code
+build/source/openwq/openwq

@@ -1533,9 +1533,9 @@ subroutine aeroResist(&
         funcLAI =  cd_CM*exposedVAI
         zeroPlaneDisplacement = 1.1_rkind*heightCanopyTopAboveSnow*log(1._rkind + sqrt(sqrt(funcLAI)))
         if (funcLAI < 0.2_rkind) then
-        z0Canopy = z0Ground + 0.3_rkind*heightCanopyTopAboveSnow*sqrt(funcLAI)
+          z0Canopy = z0Ground + 0.3_rkind*heightCanopyTopAboveSnow*sqrt(funcLAI)
         else
-        z0Canopy = 0.3_rkind*heightCanopyTopAboveSnow*(1._rkind - zeroPlaneDisplacement/heightCanopyTopAboveSnow)
+          z0Canopy = 0.3_rkind*heightCanopyTopAboveSnow*(1._rkind - zeroPlaneDisplacement/heightCanopyTopAboveSnow)
         end if
       ! constant parameters dependent on the vegetation type
       case(vegTypeTable)

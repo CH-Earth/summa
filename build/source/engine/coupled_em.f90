@@ -644,17 +644,13 @@ subroutine coupled_em(&
           scalarCanopyIce      => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)       & ! mass of ice on the vegetation canopy (kg m-2)
           )  ! (associate local variables with model parameters)       
           call T2enthTemp_veg(&
-                          ! input
                           canopyDepth,            & ! intent(in): canopy depth (m)
                           specificHeatVeg,        & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                           maxMassVegetation,      & ! intent(in): maximum mass of vegetation (kg m-2)
                           snowfrz_scale,          & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
                           scalarCanopyTemp,       & ! intent(in): canopy temperature (K)
                           (scalarCanopyLiq+scalarCanopyIce), & ! intent(in): canopy water content (kg m-2)
-                           ! output
-                          scalarCanopyEnthTemp,   & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                          err,cmessage)              ! intent(out):   error control
-          if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+                          scalarCanopyEnthTemp)     ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
           scalarCanopyEnthalpy = scalarCanopyEnthTemp  - LH_fus * scalarCanopyIce/ canopyDepth ! new ice and/or temperature
         end associate enthalpyVeg
       end if ! (need to recalculate enthalpy state variable)
@@ -820,9 +816,7 @@ subroutine coupled_em(&
                              snowfrz_scale,             & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              mLayerTemp(iLayer),        & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),  & ! intent(in):  volumetric total water content (-)
-                             mLayerEnthTemp(iLayer),    & ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
-                             err,cmessage)                ! intent(out): error control
-                if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+                             mLayerEnthTemp(iLayer))      ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
                 mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
               end do  ! looping through snow layers
             endif
@@ -831,7 +825,6 @@ subroutine coupled_em(&
               ! compute enthalpy for soil layers
               iSoil = iLayer - nSnow
               call T2enthTemp_soil(&
-                             ! input
                              use_lookup,                   & ! intent(in):  flag to use the lookup table for soil enthalpy
                              soil_dens_intr(iSoil),        & ! intent(in):  intrinsic soil density (kg m-3)
                              vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil), & ! intent(in): soil parameters
@@ -840,10 +833,7 @@ subroutine coupled_em(&
                              realMissing,                  & ! intent(in):  lower value of integral (not computed)
                              mLayerTemp(iLayer),           & ! intent(in):  layer temperature (K)
                              mLayerMatricHead(iSoil),      & ! intent(in):  matric head (m)
-                            ! output
-                             mLayerEnthTemp(iLayer),       & ! intent(out): temperature component of enthalpy soil layer (J m-3)
-                             err,cmessage)                   ! intent(out): error control 
-              if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+                             mLayerEnthTemp(iLayer))         ! intent(out): temperature component of enthalpy soil layer (J m-3)
               mLayerEnthalpy(iLayer) = mLayerEnthTemp(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
             end do  ! looping through soil layers
           end associate enthalpySnow
@@ -951,7 +941,6 @@ subroutine coupled_em(&
           ! compute enthalpy of the top soil layer if changed with surface melt pond
           if( (enthalpyStateVec .or. computeEnthalpy) .and. nSnow==0 .and. prog_data%var(iLookPROG%scalarSWE)%dat(1)>0._rkind )then
             call T2enthTemp_soil(&
-                     ! input
                       use_lookup,                                               & ! intent(in):  flag to use the lookup table for soil enthalpy
                       soil_dens_intr,                                           & ! intent(in):  intrinsic soil density (kg m-3)
                       vGn_alpha(1),vGn_n(1),theta_sat(1),theta_res(1),vGn_m(1), & ! intent(in):  van Genutchen soil parameters
@@ -960,10 +949,7 @@ subroutine coupled_em(&
                       realMissing,                                              & ! intent(in):  lower value of integral (not computed)
                       prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),         & ! intent(in):  surface layer temperature (K)
                       mLayerMatricHead(1),                                      & ! intent(in):  surface layer matric head (m)
-                     ! output
-                      diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1),     & ! intent(out): temperature component of enthalpy soil layer (J m-3)
-                      err,cmessage)                      ! intent(out): error control
-            if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+                      diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1))       ! intent(out): temperature component of enthalpy soil layer (J m-3)
             diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(nSnow+1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(nSnow+1) - iden_water * LH_fus * mLayerVolFracIce(nSnow+1)
           end if
     
@@ -1140,17 +1126,13 @@ subroutine coupled_em(&
             scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
             if(enthalpyStateVec .or. computeEnthalpy)then ! recompute enthalpy of the canopy if changed water and ice content
               call T2enthTemp_veg(&
-                          ! input
                           diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),    & ! intent(in): canopy depth (m), send in specific value since diag_data may have changed
                           specificHeatVeg,                                      & ! intent(in): specific heat of vegetation (J kg-1 K-1)
                           maxMassVegetation,                                    & ! intent(in): maximum mass of vegetation (kg m-2)
                           snowfrz_scale,                                        & ! intent(in): scaling parameter for the snow freezing curve  (K-1)
                           prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),     & ! intent(in): canopy temperature (K)
                           scalarCanopyWat,                                      & ! intent(in): canopy water content (kg m-2)
-                           ! output
-                          diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1), & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                          err,cmessage)                                           ! intent(out):   error control
-              if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+                          diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1))   ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
               diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1) = diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1) - LH_fus * scalarCanopyIce/ diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)
             endif
           end if  ! (if computing the vegetation flux)
@@ -1221,9 +1203,7 @@ subroutine coupled_em(&
                              snowfrz_scale,                                       & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                              prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer),     & ! intent(in):  layer temperature (K)
                              mLayerVolFracWat(iLayer),                            & ! intent(in):  volumetric total water content (-)
-                             diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer), & ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
-                             err,cmessage)                                          ! intent(out): error control
-                if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+                             diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer))   ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
                 diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(iLayer) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
               end do  ! looping through snow layers
             endif
@@ -1377,9 +1357,7 @@ subroutine coupled_em(&
                        snowfrz_scale,                                     & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                        prog_data%var(iLookPROG%mLayerTemp)%dat(1),        & ! temperature of the top layer (K)
                        prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1),  & ! intent(in):  volumetric total water content (-)
-                       diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(1),    & ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
-                       err,cmessage)                ! intent(out): error control
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+                       diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(1))      ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
         diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(1) = diag_data%var(iLookDIAG%mLayerEnthTemp)%dat(1) - iden_ice * LH_fus * prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)
       end if
     end if

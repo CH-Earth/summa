@@ -27,6 +27,7 @@ set(CMAKE_CONFIGURATION_TYPES Release Debug)
 # Options: Enable each with cmake -DOPTION=ON
 option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
+option(USE_OPENWQ "Use OpenWQ Framework" OFF)
 set(EXT_TARGETS) # list of external targets to link to
 
 # Set Default Executable Name
@@ -51,7 +52,6 @@ if (USE_SUNDIALS)
     set(EXEC_NAME summa_sundials.exe)
 endif()
 
-
 if (USE_NEXTGEN)
     message("ENABLING NEXTGEN")
     add_compile_definitions(NGEN_ACTIVE BMI_ACTIVE NGEN_FORCING_ACTIVE
@@ -67,6 +67,18 @@ else()
     LIST(INSERT CMAKE_PREFIX_PATH 0 "${CMAKE_SOURCE_DIR}/cmake/")
 endif()
 
+# OpenWQ Framework
+if (USE_OPENWQ)
+    message("ENABLING OPENWQ")
+    add_compile_definitions(OPENWQ_ACTIVE)
+    if (USE_SUNDIALS)
+        set(EXEC_NAME summa_sundials_openwq.exe)
+    else()
+        set(EXEC_NAME summa_openwq.exe)
+    endif()
+endif()
+
+
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
 get_filename_component(PARENT_DIR "${PARENT_DIR}" REALPATH)
 get_filename_component(EXEC_DIR "${EXEC_DIR}" REALPATH)
@@ -80,10 +92,29 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXEC_DIR})
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
-# OpenBLAS
-set(BLA_VENDOR OpenBLAS) # MKL
-find_package(OpenBLAS REQUIRED)
-list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+if(APPLE)
+	# Set link directories and include directories from environment variables to get most optimized lapack
+	set(LINK_DIRS $ENV{LINK_DIRS})
+	set(INCLUDES_DIRS $ENV{INCLUDES_DIRS})
+	set(LIBRARY_LINKS $ENV{LIBRARY_LINKS})
+
+	# Add link directories
+	link_directories(${LINK_DIRS})
+	include_directories(${INCLUDES_DIRS})
+
+else()
+	# OpenBLAS (MAY HAVE OpenMP enabled which slows execution)
+	# USE LAPACK INSTEAD TO AVOID THIS ISSUE
+    # set($ENV{OMP_NUM_THREADS} 1)
+    # message("\nOpenMp number of threads (OMP_NUM_THREADS) =1, to ward off bad behavior assuming not using multithreading")
+	# set(BLA_VENDOR OpenBLAS) # MKL
+	# find_package(OpenBLAS REQUIRED)
+	# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+
+	# LAPACK
+    find_package(LAPACK REQUIRED)
+    list(APPEND EXT_TARGETS LAPACK::LAPACK)
+endif()
 
 # Set compiler flags
 set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
@@ -137,6 +168,15 @@ if (USE_SUNDIALS)
     set(SUMMA_ALL ${SUMMA_ALL} ${MODRUN_SUNDIALS} ${SOLVER_SUNDIALS})
 endif()
 
+if (USE_OPENWQ)
+    add_subdirectory(${F_MASTER}/build/source/openwq)
+    if (DEFINED OPENWQ_ERROR)
+        message(FATAL_ERROR "OpenWQ build failed")
+    endif()
+    set(SUMMA_ALL ${SUMMA_ALL} ${OPENWQ_COUPLER})
+    list(APPEND EXT_TARGETS openWQ)
+endif ()
+
 
 # Define version number, not working correctly
 set(VERSIONFILE     ${DRIVER_DIR}/summaversion.inc)
@@ -163,7 +203,11 @@ target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
-target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS}) # added flags to the link step
+if(LIBRARY_LINKS)
+	target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS} ${LIBRARY_LINKS})
+else()
+	target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS})
+endif()
 
 # For NextGen, build SUMMA Shared Library and add the outside BMI libraries
 if(USE_NEXTGEN)
@@ -187,8 +231,17 @@ if(USE_NEXTGEN)
 else()
 	add_library(summa SHARED ${SUMMA_ALL})
 	target_compile_options(summa PRIVATE ${FLAGS_ALL})
-	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM)
+	if(LIBRARY_LINKS)
+		target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+	else()
+		target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM )
+	endif()
     add_executable(${EXEC_NAME} ${MAIN_SUMMA})
+    target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS}) # added flags to the link step
+	if(LIBRARY_LINKS)
+    	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS} ${LIBRARY_LINKS})
+	else()
+    	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS})
+	endif()
 endif()
