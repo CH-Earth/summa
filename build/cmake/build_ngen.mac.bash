@@ -10,8 +10,6 @@ export FC=/opt/local/bin/gfortran                             # Fortran compiler
 export C_INCLUDE_PATH=/opt/local/include
 export CPLUS_INCLUDE_PATH=/opt/local/include
 export SUNDIALS_DIR=../../../sundials/instdir/
-export LINK_DIRS=/opt/local/lib                               # Link directories for cmake
-export INCLUDES_DIRS='/opt/local/include;/opt/local/lib'      # directories for INCLUDES \
 export LIBRARY_LINKS='-llapack'                               # list of library links
 
 cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON

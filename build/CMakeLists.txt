@@ -93,20 +93,13 @@ find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
 if(APPLE)
-	# Set link directories and include directories from environment variables to get most optimized lapack
-	set(LINK_DIRS $ENV{LINK_DIRS})
-	set(INCLUDES_DIRS $ENV{INCLUDES_DIRS})
+	# Get most optimized lapack
 	set(LIBRARY_LINKS $ENV{LIBRARY_LINKS})
-
-	# Add link directories
-	link_directories(${LINK_DIRS})
-	include_directories(${INCLUDES_DIRS})
 
 else()
 	# OpenBLAS (MAY HAVE OpenMP enabled which slows execution)
 	# USE LAPACK INSTEAD TO AVOID THIS ISSUE
-    # set($ENV{OMP_NUM_THREADS} 1)
-    # message("\nOpenMp number of threads (OMP_NUM_THREADS) =1, to ward off bad behavior assuming not using multithreading")
+    # message("\nRun export OPENBLAS_NUM_THREADS=1, to ward off bad behavior assuming not using multithreading")
 	# set(BLA_VENDOR OpenBLAS) # MKL
 	# find_package(OpenBLAS REQUIRED)
 	# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
