@@ -421,7 +421,7 @@ contains
      ! set flag and error codes for too much melt
      if (-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur) then
        tooMuchMelt = .true.
-       message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
+       !message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
        err=-20; return ! negative error code to denote a warning
      end if
    end if
