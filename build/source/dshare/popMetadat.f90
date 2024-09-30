@@ -333,6 +333,10 @@ subroutine popMetadat(err,message)
   prog_meta(iLookPROG%mLayerVolFracLiq)                = var_info('mLayerVolFracLiq'               , 'volumetric fraction of liquid water in each layer'                , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%mLayerVolFracWat)                = var_info('mLayerVolFracWat'               , 'volumetric fraction of total water in each layer'                 , '-'               , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%mLayerMatricHead)                = var_info('mLayerMatricHead'               , 'matric head of water in the soil'                                 , 'm'               , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  ! enthalpy
+  prog_meta(iLookPROG%scalarCanairEnthalpy)            = var_info('scalarCanairEnthalpy'           , 'enthalpy of the canopy air space'                                 , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%scalarCanopyEnthalpy)            = var_info('scalarCanopyEnthalpy'           , 'enthalpy of the vegetation canopy'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  prog_meta(iLookPROG%mLayerEnthalpy)                  = var_info('mLayerEnthalpy'                 , 'enthalpy of the snow+soil layers'                                 , 'J m-3'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! other state variables
   prog_meta(iLookPROG%scalarAquiferStorage)            = var_info('scalarAquiferStorage'           , 'water required to bring aquifer to the bottom of the soil profile', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   prog_meta(iLookPROG%scalarSurfaceTemp)               = var_info('scalarSurfaceTemp'              , 'surface temperature (just a copy of the upper-layer temperature)' , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -369,11 +373,8 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%mLayerThermalC)                  = var_info('mLayerThermalC'                 , 'thermal conductivity at the mid-point of each layer'              , 'W m-1 K-1'       , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%iLayerThermalC)                  = var_info('iLayerThermalC'                 , 'thermal conductivity at the interface of each layer'              , 'W m-1 K-1'       , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   ! enthalpy
-  diag_meta(iLookDIAG%scalarCanairEnthalpy)            = var_info('scalarCanairEnthalpy'           , 'enthalpy of the canopy air space'                                 , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarCanopyEnthTemp)            = var_info('scalarCanopyEnthTemp'           , 'temperature component of enthalpy of the vegetation canopy'       , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scalarCanopyEnthalpy)            = var_info('scalarCanopyEnthalpy'           , 'enthalpy of the vegetation canopy'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerEnthTemp)                  = var_info('mLayerEnthTemp'                 , 'temperature component of enthalpy of the snow+soil layers'        , 'J m-3'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%mLayerEnthalpy)                  = var_info('mLayerEnthalpy'                 , 'enthalpy of the snow+soil layers'                                 , 'J m-3'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarTotalSoilEnthalpy)         = var_info('scalarTotalSoilEnthalpy'        , 'total enthalpy of the soil column'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarTotalSnowEnthalpy)         = var_info('scalarTotalSnowEnthalpy'        , 'total enthalpy of the snow column'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! forcing

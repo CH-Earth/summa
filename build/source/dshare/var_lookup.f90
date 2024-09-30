@@ -357,6 +357,10 @@ MODULE var_lookup
   integer(i4b)    :: mLayerVolFracLiq            = integerMissing    ! volumetric fraction of liquid water in each layer (-)
   integer(i4b)    :: mLayerVolFracWat            = integerMissing    ! volumetric fraction of total water in each layer (-)
   integer(i4b)    :: mLayerMatricHead            = integerMissing    ! matric head of water in the soil (m)
+  ! enthalpy
+  integer(i4b)    :: scalarCanairEnthalpy        = integerMissing    ! enthalpy of the canopy air space (J m-3)
+  integer(i4b)    :: scalarCanopyEnthalpy        = integerMissing    ! enthalpy of the vegetation canopy (J m-3)
+  integer(i4b)    :: mLayerEnthalpy              = integerMissing    ! enthalpy of the snow+soil layers (J m-3)
   ! other state variables
   integer(i4b)    :: scalarAquiferStorage        = integerMissing    ! relative aquifer storage -- above bottom of the soil profile (m)
   integer(i4b)    :: scalarSurfaceTemp           = integerMissing    ! surface temperature (K)
@@ -396,11 +400,8 @@ MODULE var_lookup
   integer(i4b)    :: mLayerThermalC                  = integerMissing ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   integer(i4b)    :: iLayerThermalC                  = integerMissing ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
-  integer(i4b)    :: scalarCanairEnthalpy            = integerMissing ! enthalpy of the canopy air space (J m-3)
   integer(i4b)    :: scalarCanopyEnthTemp            = integerMissing ! temperature component of enthalpy of the vegetation canopy (J m-3)
-  integer(i4b)    :: scalarCanopyEnthalpy            = integerMissing ! enthalpy of the vegetation canopy (J m-3)
   integer(i4b)    :: mLayerEnthTemp                  = integerMissing ! temperature component of enthalpy of the snow+soil layers (J m-3)
-  integer(i4b)    :: mLayerEnthalpy                  = integerMissing ! enthalpy of the snow+soil layers (J m-3)
   integer(i4b)    :: scalarTotalSoilEnthalpy         = integerMissing ! total enthalpy of the soil column (J m-3)
   integer(i4b)    :: scalarTotalSnowEnthalpy         = integerMissing ! total enthalpy of the snow column (J m-3)
   ! forcing
@@ -922,7 +923,7 @@ MODULE var_lookup
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21)
+                                                                         21, 22, 23, 24)
  ! named variables: model diagnostic variables
  type(iLook_diag),    public,parameter :: iLookDIAG     =iLook_diag    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -935,7 +936,7 @@ MODULE var_lookup
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
-                                                                        111,112,113,114)
+                                                                        111)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

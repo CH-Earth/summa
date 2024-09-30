@@ -95,8 +95,9 @@ USE mDecisions_module,only:&
  character(LEN=256)                    :: restartFile        ! restart file name
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
  logical(lgt)                          :: checkEnthalpy      ! flag if checking enthalpy for consistency
+ logical(lgt)                          :: no_icond_enth      ! flag that enthalpy not in initial conditions
  logical(lgt)                          :: use_lookup         ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
-  real(rkind)                          :: aquifer_start      ! initial aquifer storage
+ real(rkind)                           :: aquifer_start      ! initial aquifer storage
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(& 
@@ -147,6 +148,7 @@ USE mDecisions_module,only:&
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables
                  indxStruct,                    & ! intent(inout): model indices
+                 no_icond_enth,                 & ! intent(in):    flag that enthalpy not in initial conditions
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -162,6 +164,7 @@ USE mDecisions_module,only:&
                   indxStruct,                   & ! intent(in):    layer indexes
                   lookupStruct,                 & ! intent(in):    lookup tables
                   checkEnthalpy,                & ! intent(in):    flag if need to start with consistent enthalpy
+                  no_icond_enth,                & ! intent(in):    flag that enthalpy not in initial conditions
                   use_lookup,                   & ! intent(in):    flag to use the lookup table for soil enthalpy
                   err,cmessage)                   ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
