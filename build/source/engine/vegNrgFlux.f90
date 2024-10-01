@@ -808,7 +808,7 @@ subroutine vegNrgFlux(&
           !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
           ! relative humidity in the soil pores [0-1]
           if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
-            if (groundTempTrial /= 0._rkind) then
+            if (groundTempTrial < 0._rkind) then
               soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
               if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
             else
