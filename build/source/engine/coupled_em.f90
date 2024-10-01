@@ -250,7 +250,10 @@ subroutine coupled_em(&
   real(rkind)                          :: meanLatHeatCanopyEvap  ! timestep-average latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
   real(rkind)                          :: meanSenHeatCanopy      ! timestep-average sensible heat flux from the canopy to the canopy air space (W m-2)
   ! balance checks
+  logical(lgt)                         :: bal_veg                ! flag to denote if computed a vegetation balance
   logical(lgt)                         :: bal_snow               ! flag to denote if computed a snow balance
+  logical(lgt)                         :: bal_soil               ! flag to denote if computed a soil balance
+  logical(lgt)                         :: bal_aq                 ! flag to denote if computed an aquifer balance
   integer(i4b)                         :: iVar                   ! loop through model variables
   real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
   real(rkind)                          :: scalarCanopyWatBalError! water balance error for the vegetation canopy (kg m-2)
@@ -682,8 +685,11 @@ subroutine coupled_em(&
     nsub = 0
     nsub_success = 0
 
-    ! initialize if used a snow balance
+    ! initialize if used a balance
+    bal_veg = .false.
     bal_snow = .false.
+    bal_soil = .false.
+    bal_aq   = .false.
 
     ! loop through sub-steps
     substeps: do  ! continuous do statement with exit clause (alternative to "while")
@@ -1229,10 +1235,11 @@ subroutine coupled_em(&
       if (nSnow>0) innerEffRainfall = innerEffRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
 
       ! sum the balance of energy and water per state
-      innerBalance(1) = innerBalance(1) + diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)*dt_wght ! W m-3
       if(computeVegFlux)then
+        innerBalance(1) = innerBalance(1) + diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)*dt_wght ! W m-3
         innerBalance(2) = innerBalance(2) + diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)*dt_wght ! W m-3
         innerBalance(3) = innerBalance(3) + diag_data%var(iLookDIAG%balanceVegMass)%dat(1)*dt_wght/diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)  ! kg m-3 s-1
+        bal_veg = .true.
       endif
       innerBalance(4) = innerBalance(4) + diag_data%var(iLookDIAG%balanceAqMass)%dat(1)*dt_wght * iden_water  ! kg m-2 s-1 (no depth to aquifer)
       innerBalanceLayerNrg(:) = innerBalanceLayerNrg(:) + diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:)*dt_wght ! W m-3
@@ -1258,8 +1265,10 @@ subroutine coupled_em(&
             lyr_wght = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) / sum( prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers) )
             diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1) + innerBalanceLayerNrg(iLayer)*lyr_wght
             diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + innerBalanceLayerMass(iLayer)*lyr_wght
+            bal_soil = .true.
         end select
       end do
+      if (model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) bal_aq = .true. ! aquifer does not change existance with time steps
 
       if(do_outer)then
         deallocate(innerBalanceLayerNrg)
@@ -1451,9 +1460,21 @@ subroutine coupled_em(&
       diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = meanBalance(6) ! W m-3       
       diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = meanBalance(7) ! kg m-3 s-1 will be realMissing if no snow during data step
       diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = meanBalance(8) ! kg m-3 s-1
+      if(.not.bal_veg)then ! will be 0, make realMissing
+        diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = realMissing
+        diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = realMissing
+        diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = realMissing
+      endif
       if (.not.bal_snow)then ! will be 0, make realMissing
         diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = realMissing
         diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = realMissing
+      endif
+      if (.not.bal_soil)then ! will be 0, make realMissing
+        diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = realMissing
+        diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = realMissing
+      endif
+      if (.not.bal_aq)then ! will be 0, make realMissing
+        diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = realMissing
       endif
 
       ! -----
