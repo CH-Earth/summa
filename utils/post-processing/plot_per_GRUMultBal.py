@@ -59,7 +59,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables in files
 plt_titl = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
-leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
+leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 4 + ['$s$']
 if fixed_Mass_units: leg_titl = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'

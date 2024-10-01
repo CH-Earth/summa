@@ -90,7 +90,7 @@ leg_titl = [leg_titl[i] for i in use_vars]
 
 plot_vars2 = settings2.copy()
 plt_titl2 = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
-leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
+leg_titl2 = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 4 + ['$s$']
 if fixed_Mass_units: leg_titl2 = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
 plt_titl2 = [f"({chr(97+n + len(use_vars))}) {plt_titl2[i]}" for n,i in enumerate(use_vars2)]
 leg_titl2 = [leg_titl2[i] for i in use_vars2]

@@ -560,7 +560,7 @@ if do_balance:
     comp_vars = ['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','numberFluxCalc']
     plt_titl = ['vegetation balance','snow balance','soil balance', 'canopy air space and aquifer balance', 'wall clock time']
     leg_titl = ['$W~m^{-3}$'] * 4 + ['$s$']
-    leg_titl0 =['$kg~m^{-2}~s^{-1}$'] * 4 + ['$num$']
+    leg_titl0 =['$kg~m^{-3}~s^{-1}$'] * 4 + ['$num$']
     if fixed_Mass_units: leg_titl0 = ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$num$']
 
     plot_vars = [plot_vars[i] for i in use_vars]
