@@ -38,8 +38,8 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
 #method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
-method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
-plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en'] 
+plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp', 'SUNDIALS enth']
 method_name2=method_name+['sundials_1en8cm']
 plt_name2=plt_name+['reference solution']
 
@@ -52,17 +52,23 @@ def power_transform(x):
     return x ** 0.5  # Adjust the exponent as needed
 
 # Simulation statistics file locations
-use_vars = []
-rep = [] # mark the repeats
-#use_vars = [1]
-#rep = [0] # mark the repeats
+#use_vars = []
+#rep = [] # mark the repeats
+use_vars = [1]
+rep = [0] # mark the repeats
+#use_vars = [0,1,2,3,4,5]
+#rep = [0,0,0,0,0,0] # mark the repeats
 settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 settings = [settings0[i] for i in use_vars]
 
-use_vars2 = [0,0,1,1,2,2]
-rep2 = [1,2,1,2,1,2] # mark the repeats
-#use_vars2 = [8,3,3]
-#rep2 = [0,1,2] # mark the repeats
+#use_vars2 = [0,0,1,1,2,2]
+#rep2 = [1,2,1,2,1,2] # mark the repeats
+#use_vars2 = [4,4,5,5,6,6,7,7]
+#rep2 = [1,2,1,2,1,2,1,2] # mark the repeats
+use_vars2 = [8,3,3]
+rep2 = [0,1,2] # mark the repeats
+#use_vars2 = []
+#rep2 = [] # mark the repeats
 settings20= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
 settings2 = [settings20[i] for i in use_vars2]
 

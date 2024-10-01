@@ -33,10 +33,10 @@ import matplotlib.colors as mcolors
 from matplotlib.ticker import ScalarFormatter
 
 
-do_rel = False # true is plot relative to the benchmark simulation
-one_plot = True # true is one plot, false is multiple plots (one per variable)
+do_rel = True # true is plot relative to the benchmark simulation
+one_plot = False # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
-more_mean = True # true is plot mean/amax extra variables in a balance file
+more_mean = False # true is plot mean/amax extra variables in a balance file
 
 if run_local: 
     stat = 'mean'
@@ -53,9 +53,9 @@ else:
 method_name=['be1','be16','be32','sundials_1en6','ref']
 plt_name0=['SUMMA-BE1','SUMMA-BE16','SUMMA-BE32','SUMMA-SUNDIALS','reference solution']
 plt_nameshort=plt_name0
-method_name=['be1','be1cm','be1en','sundials_1en6cm','diff','ref']
-plt_name0=['BE1 common thermo. eq..','SUMMA-BE1 temperature thermo. eq..','SUMMA-BE1 mixed thermo. eq..','SUMMA-SUNDIALS temperature thermo. eq..','SUMMA-BE1 common - mixed','reference solution']
-plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','BE1 common - mixed','reference soln']
+method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en','diff','ref']
+plt_name0=['BE1 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','SUMMA-BE1 common - mixed','reference solution']
+plt_nameshort=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','SUNDIALS enth','BE1 common - mixed','reference soln']
 
 if one_plot: plt_name0 = plt_nameshort
 
@@ -74,11 +74,10 @@ if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulat
 
 if more_mean: # extra vars in a balance file
     plt_titl_exVar = ['rain plus melt','top 4m soil temperature','air temperature','snow water equivalent']
-    #plot_vars_exVar = ['balanceCasNrg','balanceSoilNrg','balanceVegNrg','balanceSnowNrg']
+    plot_vars_exVar = ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
     viz_file_exVar = 'exVar_hrly_diff_bals_balance.nc'
-    plt_name0_exVar = 'SUMMA-BE1 temperature thermo. eq..'
+    plt_name0_exVar = 'SUMMA-BE1 temperature thermo. eq.'
     plt_nameshort_exVar = 'BE1 temp' # identify method here
-    plt_titl_exVar = ['rain plus melt','root zone temperature','air temperature','snow water equivalent']
     leg_titl_exVar = ['$mm~y^{-1}$','$K$','$K$','$kg~m^{-2}$']
     maxes_exVar = [3000,290,290,100]
     if one_plot: plt_name0_exVar = plt_nameshort_exVar
@@ -397,6 +396,7 @@ def run_loop(j,var,the_max):
                 else:
                     # will be wonky with m=='diff' choice
                     cbr = fig.colorbar(sm, ax=axs_list,aspect=27/3*nrow)
+                    if m=='diff': cbr2 = fig.colorbar(sm2, ax=axs_list,aspect=27/3*nrow)
                 if stat == 'kgem': 
                     cbr.ax.set_ylabel(stat_word0)
                 else:
@@ -478,7 +478,7 @@ if one_plot:
 else:
     use_vars = [0,1,2,3,4,5]
     use_vars = [1,5]
-    use_meth = [0,1,2,3]
+    use_meth = [0,1,2,3,4,6]
     use_vars_exVar = [3,0,2,1]
 if more_mean: 
     use_vars = ['exVar'] + use_vars # 'exVar' is the extra variables in a balance file, all same method
@@ -520,11 +520,11 @@ if one_plot:
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 else:
-    #size hardwired to 2x2 for now
+    #size hardwired to 3x2 for now
     ncol = 2
-    nrow = 2
-    if len(method_name)>4:
-        print('Too many methods for 2x2 plot')
+    nrow = 3
+    if len(method_name)>6:
+        print('Too many methods for 3x2 plot')
         sys.exit()
 
     base_row = 0

@@ -23,15 +23,14 @@ from matplotlib.colors import LogNorm
 from matplotlib.colors import ListedColormap
 
 do_rel = False # true is plot relative to the benchmark simulation
-do_heat = True # true is plot heatmaps instead of scatterplots
+do_heat = False # true is plot heatmaps instead of scatterplots
 run_local = True # true is run on local machine, false is run on cluster
 inferno_col= True # Set to True if want to match geographic plots, False if want rainbow colormap (does not matter if do_heat is False)
 fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
 
-
 # which statistics to plot, can do both
-do_vars = True
-do_balance = False
+do_vars = False
+do_balance = True
 
 if run_local: 
     stat = 'mnnz'
@@ -46,8 +45,8 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6']
 method_name=['be1','be16','be32','sundials_1en6']
 plt_name=['BE1','BE16','BE32','SUNDIALS']
-method_name=['be1','be1cm','be1en','sundials_1en6cm'] 
-plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp']
+method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en'] 
+plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','SUNDIALS enth']
 method_name2=method_name+['sundials_1en8cm']
 plt_name2=plt_name+['reference solution']
 
@@ -323,10 +322,10 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
     method_name2 = np.copy(method_name20)
     plt_name2 = np.copy(plt_name20)
 
-    if stat == 'rmse' or stat == 'kgem': 
+    if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
         stat0 = 'mean'
         wordx = ' mean'
-    if stat == 'rmnz':
+    if stat == 'rmnz' or stat == 'mnnz':
         stat0 = 'mean'
         wordx = ' mean' # no 0s'
     if stat == 'maxe': 
@@ -545,7 +544,7 @@ if do_balance:
         logy = np.ones(len(use_vars)) # log scale y axis
     else:
         use_vars = [0,1,2,3]
-        use_meth = [0,1,2,3,4]
+        use_meth = [0,1,2,3,4,5]
         logx = np.zeros(len(use_vars)) # no log scale x axis
         logx = np.ones(len(use_vars)) # log scale x axis
         logy = np.ones(len(use_vars)) # log scale y axis
@@ -563,7 +562,6 @@ if do_balance:
     leg_titl = ['$W~m^{-3}$'] * 4 + ['$s$']
     leg_titl0 =['$kg~m^{-2}~s^{-1}$'] * 4 + ['$num$']
     if fixed_Mass_units: leg_titl0 = ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$num$']
-
 
     plot_vars = [plot_vars[i] for i in use_vars]
     comp_vars = [comp_vars[i] for i in use_vars]

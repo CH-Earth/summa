@@ -45,8 +45,8 @@ else:
     viz_dir = Path('/home/avanb/scratch/statistics')
 
 
-method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en8cm']  #maybe make this an argument
-plt_name0=['SUMMA-BE1 common thermo. eq..','SUMMA-BE1 temperature thermo. eq..','SUMMA-BE1 mixed thermo. eq..','SUMMA-SUNDIALS temperature thermo. eq..','reference solution']
+method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en','sundials_1en8cm']  #maybe make this an argument
+plt_name0=['SUMMA-BE1 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','reference solution']
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -259,7 +259,7 @@ if one_plot:
 else:
     use_vars = [0,1,2,3,4,5,6,7]
     use_vars = [3]
-    use_meth = [0,1,2,3]
+    use_meth = [0,1,2,3,4,5]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
 leg_titl = [leg_titl[i] for i in use_vars]
@@ -285,9 +285,9 @@ if one_plot:
 else:
     #size hardwired to 2x2 for now
     ncol = 2
-    nrow = 2
-    if len(method_name)>4:
-        print('Too many methods for 2x2 plot')
+    nrow = 3
+    if len(method_name)>6:
+        print('Too many methods for 3x2 plot')
         sys.exit()
 
     base_row = 0

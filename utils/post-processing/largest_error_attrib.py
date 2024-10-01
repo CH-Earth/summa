@@ -7,14 +7,15 @@ import xarray as xr
 from pathlib import Path
 
 nBig = 10
-do_rel = True # plot relative to the benchmark simulation
+do_rel = True # stat relative to the benchmark simulation
+do_var = False # do vars, if False do bals
 
-run_local = False
+run_local = True
 if run_local:
     top_fold = '/Users/amedin/Research/USask/test_py/'
     attr_fold = '/Users/amedin/Research/USask/test_py/settings/'
-    method_name= 'be1'
-    stat = 'rmnz'
+    method_name= 'sundials_1en6cm'
+    stat = 'mean'
 else:
     import sys
     top_fold    = '/home/avanb/scratch/'
@@ -22,36 +23,51 @@ else:
     method_name = sys.argv[1]
     stat = sys.argv[2]
 
-des_dir =  top_fold + 'statistics'
+des_dir =  top_fold + 'statistics_en'
 des_dir = Path(des_dir)
 
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
-viz_fil = method_name + '_hrly_diff_stats_{}.nc'
-viz_fil = viz_fil.format(','.join(settings))
-src_file =  des_dir / viz_fil
-plot_vars = settings.copy()
-short_name= ['SWE     ',
-             'soilWat ',
-             'ET      ',
-             'canWat  ',
-             'runoff  ']
+if do_var:
+    settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+    viz_fil = method_name + '_hrly_diff_stats_{}.nc'
+    viz_fil = viz_fil.format(','.join(settings))
+    src_file =  des_dir / viz_fil
+    plot_vars = settings.copy()
+    short_name= ['SWE     ',
+                 'soilWat ',
+                 'ET      ',
+                 'canWat  ',
+                 'runoff  ']
+else:
+    do_rel = False
+    settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
+    viz_fil = method_name + '_hrly_diff_bals_balance.nc'
+    src_file =  des_dir / viz_fil
+    plot_vars = settings.copy()
+    short_name= ['casNrg  ',
+                 'vegNrg  ',
+                 'snowNrg ',
+                 'soilNrg ',
+                 'vegMass ',
+                 'snowMass',
+                 'soilMass',
+                 'aqMass  ']
 
 attr_fil = Path(attr_fold) / 'attributes.nc'
 
 # Open the netCDF file with RMSE data
 summa = xr.open_dataset(src_file)
-if stat == 'rmse' or stat == 'kgem': statr = 'mean_ben'
-if stat == 'rmnz': statr = 'mnnz_ben'
-if stat == 'maxe': statr = 'amax_ben'
+if stat == 'rmse' or stat == 'kgem' or stat == 'mean': statr = 'mean_ben'
+if stat == 'rmnz' or stat == 'mnnz': statr = 'mnnz_ben'
+if stat == 'maxe' or stat == 'amax': statr = 'amax_ben'
 
 for var in plot_vars:
 
     # Get the variable from the netCDF file
     stat0 = stat
     if var == 'wallClockTime': 
-        if stat == 'rmse' or stat == 'kgem': stat0 = 'mean'
-        if stat == 'rmnz': stat0 = 'mnnz'
-        if stat == 'maxe': stat0 = 'amax'
+        if stat == 'rmse' or stat == 'kgem' or stat == 'mean': stat0 = 'mean'
+        if stat == 'rmnz' or stat == 'mnnz': stat0 = 'mnnz'
+        if stat == 'maxe' or stat == 'amax': stat0 = 'amax'
     s = summa[var].sel(stat=stat0)
     if do_rel: 
         s_rel = summa[var].sel(stat=statr)
@@ -83,9 +99,9 @@ for var in plot_vars:
     for i,var0 in enumerate(plot_vars[:-1]):
         print(f"{short_name[i]}: [{' '.join(f'{val:8.1e}' for val in raw_vals[var0].values)}]")
     var0 = 'wallClockTime'
-    if stat == 'rmse' or stat == 'kgem': stat00 = 'mean'
-    if stat == 'rmnz': stat00 = 'mnnz'
-    if stat == 'maxe': stat00 = 'amax'
+    if stat == 'rmse' or stat == 'kgem' or stat == 'mean': stat00 = 'mean'
+    if stat == 'rmnz' or stat == 'mnnz': stat00 = 'mnnz'
+    if stat == 'maxe' or stat == 'amax': stat00 = 'amax'
     raw_vals = summa.sel(stat=stat00, hru=hru_big)
     print("wall"f"{stat00}: [{' '.join(f'{val:8.1e}' for val in raw_vals[var0].values)}]")
 
@@ -108,7 +124,6 @@ for var in plot_vars:
     lon_big = attr['longitude'][mask].values[h_ind]
 
     # Print the attributes of the largest nBig values
-    print(" hryhhh : [", " ".join([f"{val:8d}"  for val in  h]), "]", sep="")
     print("HRU vals: [", " ".join([f"{val:8d}"  for val in hru_big]), "]", sep="")
     print("vegType : [", " ".join([f"{val:8d}"  for val in vegType_big]), "]", sep="")
     print("latitude: [", " ".join([f"{val:8.2f}"  for val in lat_big]), "]", sep="")
