@@ -35,7 +35,7 @@ from matplotlib.ticker import ScalarFormatter
 
 do_rel = True # true is plot relative to the benchmark simulation
 one_plot = False # true is one plot, false is multiple plots (one per variable)
-run_local = True # true is run on local machine (only does testing), false is run on cluster
+run_local = False # true is run on local machine (only does testing), false is run on cluster
 more_mean = False # true is plot mean/amax extra variables in a balance file
 
 if run_local: 
@@ -366,11 +366,16 @@ def run_loop(j,var,the_max):
                 bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap2, norm=norm2,zorder=0)
                 stat_word0 = stat_word+' difference'
                 stat_word2 = stat_word
+                plt_nm = plt_name[i]
+            elif m=='ref' and var != 'wallClockTime':
+                # only plot wallClockTime for the reference solution
+                plt_nm =''
             else:
                 bas_albers.plot(ax=axs[r,c], column=var+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
                 stat_word0 = stat_word
+                plt_nm = plt_name[i]
             print(f"{'all HRU mean for '}{var+m:<35}{np.nanmean(bas_albers[var+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m].values):<10.5f}")
-            axs[r,c].set_title(plt_name[i])
+            axs[r,c].set_title(plt_nm)
             axs[r,c].axis('off')
             axs[r,c].set_xlim(xmin, xmax)
             axs[r,c].set_ylim(ymin, ymax)
