@@ -35,7 +35,7 @@ from matplotlib.ticker import ScalarFormatter
 
 do_rel = True # true is plot relative to the benchmark simulation
 one_plot = False # true is one plot, false is multiple plots (one per variable)
-run_local = False # true is run on local machine (only does testing), false is run on cluster
+run_local = True # true is run on local machine (only does testing), false is run on cluster
 more_mean = False # true is plot mean/amax extra variables in a balance file
 
 if run_local: 
@@ -229,9 +229,6 @@ for i,plot_var in enumerate(plot_vars):
     if do_rel: s_rel = np.fabs(summa[method_name[0]][plot_var].sel(stat=statr))
     
     if calc[i]:
-        if stat != 'mean' and stat != 'mnnz': 
-            print('Only mean and mnnz are supported for calculated variables')
-            sys.exit()
         if do_rel: s_rel = s_rel.where(summa[method_name[0]][plot_var].sel(stat='mnnz_ben') > melt_thresh*summa[method_name[0]][plot_var].sel(stat='mean_ben'))
 
 
@@ -520,9 +517,9 @@ if one_plot:
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 else:
-    #size hardwired to 3x2 for now
-    ncol = 2
-    nrow = 3
+    #size hardwired to 2x3 for now
+    ncol = 3
+    nrow = 2
     if len(method_name)>6:
         print('Too many methods for 3x2 plot')
         sys.exit()

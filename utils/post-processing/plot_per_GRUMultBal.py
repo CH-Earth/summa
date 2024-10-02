@@ -283,9 +283,9 @@ if one_plot:
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 else:
-    #size hardwired to 2x2 for now
-    ncol = 2
-    nrow = 3
+    #size hardwired to 2x3 for now
+    ncol = 3
+    nrow = 4
     if len(method_name)>6:
         print('Too many methods for 3x2 plot')
         sys.exit()
