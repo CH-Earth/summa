@@ -420,7 +420,11 @@ def run_loop(j,var,the_max):
                     cbr.ax.yaxis.set_major_formatter(ScalarFormatter())
 
             # lakes
-            if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
+            if m=='ref' and var != 'wallClockTime':
+                # only plot wallClockTime for the reference solution
+                plt_nm =''
+            else:
+                if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
 
     else: # extra mean/amax variables
         for i,v in enumerate(plot_vars_exVar):
