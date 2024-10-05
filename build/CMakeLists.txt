@@ -105,8 +105,9 @@ else()
 	# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
 
 	# LAPACK
-    find_package(LAPACK REQUIRED)
-    list(APPEND EXT_TARGETS LAPACK::LAPACK)
+	set(LIBRARY_LINKS $ENV{LIBRARY_LINKS}) # added for compatibility of PC builds
+	find_package(LAPACK REQUIRED)
+    	list(APPEND EXT_TARGETS LAPACK::LAPACK)
 endif()
 
 # Set compiler flags
