@@ -365,8 +365,8 @@ function dPsi_dTheta(volFracLiq,alpha,theta_res,theta_sat,n,m)
   real(rkind)            :: y1,d1       ! 1st function and derivative
   real(rkind)            :: y2,d2       ! 2nd function and derivative
   real(rkind)            :: theta_e     ! effective soil moisture
-  real(rkind),parameter  :: theta_e_min=0.001_rkind ! minimum effective soil moisture
-  real(rkind),parameter  :: y1_min=1.e-15_rkind     ! minimum y1 value (to avoid division by zero and complex values)
+  real(rkind),parameter  :: theta_e_min=0.001_rkind            ! minimum effective soil moisture
+  real(rkind),parameter  :: y1_min=10._rkind*epsilon(1._rkind) ! minimum y1 value (to avoid division by zero and complex values)
 
   ! check if less than saturation
   if(volFracLiq < theta_sat)then
