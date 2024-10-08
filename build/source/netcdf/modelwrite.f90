@@ -34,7 +34,7 @@ USE globalData,only: integerMissing, realMissing
 USE globalData,only:gru_struc                             ! gru->hru mapping structure
 
 ! netcdf deflate level
-USE globalData,only: outputCompressionLevel   
+USE globalData,only: outputCompressionLevel
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -65,7 +65,7 @@ USE data_types,only:&
 ! vector lengths
 USE var_lookup, only: maxvarFreq ! number of output frequencies
 USE var_lookup, only: maxvarStat ! number of statistics
-   
+
 
 implicit none
 private
@@ -439,7 +439,7 @@ contains
  end subroutine writeTime
 
  ! *********************************************************************************************************
- ! public subroutine printRestartFile: print a re-start file
+ ! public subroutine writeRestart: write a re-start file
  ! *********************************************************************************************************
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
                          nGRU,             & ! intent(in): number of GRUs
@@ -467,7 +467,7 @@ contains
  USE netcdf_util_module,only:nc_file_close  ! close netcdf file
  USE netcdf_util_module,only:nc_file_open   ! open netcdf file
  USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
- 
+
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input
@@ -533,6 +533,10 @@ contains
  integer(i4b)                       :: iVar          ! variable index
  logical(lgt)                       :: okLength      ! flag to check if the vector length is OK
  character(len=256)                 :: cmessage      ! downstream error message
+
+ ! Declare NetCDF variable ID for hru_id
+ integer(i4b)                       :: ncHruIdID     ! NetCDF variable ID for hru_id
+ integer(i4b), allocatable          :: hruIds(:)     ! Array to store hru_ids as integer(4)
  ! --------------------------------------------------------------------------------------------------------
 
  ! initialize error control
@@ -566,6 +570,18 @@ contains
  if (maxSnow>0) err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnow+1  ,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
  ! re-initialize error control
  err=0; message='writeRestart/'
+
+ ! Define hruId variable
+ err = nf90_def_var(ncid, 'hruId', nf90_int, (/hruDimID/), ncHruIdID)
+ message = 'writeRestart/defining hruId variable'
+ call netcdf_err(err, message)
+ if (err /= 0) return
+
+ ! Add attributes to hruId variable
+ err = nf90_put_att(ncid, ncHruIdID, 'long_name', 'Hydrologic Response Unit ID')
+ call netcdf_err(err, message)
+ err = nf90_put_att(ncid, ncHruIdID, 'units', '1')
+ call netcdf_err(err, message)
 
  ! define prognostic variables
  do iVar = 1,nProgVars
@@ -616,6 +632,24 @@ contains
 
  ! end definition phase
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
+
+ ! Allocate and fill hruIds array
+ allocate(hruIds(nHRU))
+ do iGRU = 1, nGRU
+     do iHRU = 1, gru_struc(iGRU)%hruCount
+         cHRU = gru_struc(iGRU)%hruInfo(iHRU)%hru_ix
+         hruIds(cHRU) = int(gru_struc(iGRU)%hruInfo(iHRU)%hru_id, kind=i4b)
+     end do
+ end do
+
+ ! Write hruId data
+ err = nf90_put_var(ncid, ncHruIdID, hruIds)
+ message = 'writeRestart/writing hruId data'
+ call netcdf_err(err, message)
+ if (err /= 0) return
+
+ ! Deallocate hruIds array
+ deallocate(hruIds)
 
  ! write variables
  do iGRU = 1,nGRU
@@ -677,10 +711,10 @@ contains
    err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat/),start=(/cHRU/),count=(/1/))
 
   end do ! iHRU loop
-  
+
   ! write selected basin variables
   err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/),  start=(/iGRU/),count=(/1,nTimeDelay/))
-  
+
  end do  ! iGRU loop
 
  ! close file
