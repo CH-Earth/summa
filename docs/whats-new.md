@@ -7,6 +7,7 @@ This page provides simple, high-level documentation about what has changed in ea
 
 ### Minor changes
 - Updated SWE balance check in coupled_em for cases where all snow melts in one of the substeps
+- Added writing of hruId to restart files
 
 ## Version 3.2.0
 ### Major changes
