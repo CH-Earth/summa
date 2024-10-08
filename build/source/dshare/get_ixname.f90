@@ -95,6 +95,7 @@ contains
   case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! choice of method for sub-grid routing
   case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! choice of method for new snow density
   case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
+  case('prPotholes'      ); get_ixdecisions=iLookDECISIONS%prPotholes  ! choice of parameterization for prairie potholes
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -403,6 +404,9 @@ contains
   case('zmaxLayer2_upper'         ); get_ixparam = iLookPARAM%zmaxLayer2_upper       ! maximum layer depth for the 2nd layer when > 2 layers (m)
   case('zmaxLayer3_upper'         ); get_ixparam = iLookPARAM%zmaxLayer3_upper       ! maximum layer depth for the 3rd layer when > 3 layers (m)
   case('zmaxLayer4_upper'         ); get_ixparam = iLookPARAM%zmaxLayer4_upper       ! maximum layer depth for the 4th layer when > 4 layers (m)
+  ! Oudin et al. (2005) PET parameters (for HDS)
+  case('oudinPETScaleK1'         ); get_ixparam = iLookPARAM%oudinPETScaleK1         ! Oudin PET formula scaling factor (deg C)
+  case('oudinPETTempThrK2'       ); get_ixparam = iLookPARAM%oudinPETTempThrK2       ! Oudin PET formula temperature threshold (deg C)
   ! get to here if cannot find the variable
   case default
    get_ixparam = integerMissing
@@ -861,6 +865,12 @@ contains
   ! sub-grid routing
   case('routingGammaShape'        ); get_ixbpar = iLookBPAR%routingGammaShape         ! shape parameter in Gamma distribution used for sub-grid routing (-)
   case('routingGammaScale'        ); get_ixbpar = iLookBPAR%routingGammaScale         ! scale parameter in Gamma distribution used for sub-grid routing (s)
+  ! parameters for HDS pothole storage
+  case('depressionDepth'        ); get_ixbpar = iLookBPAR%depressionDepth             ! average depth of depressional storage (depressionVol/depressionArea) (m)
+  case('depressionAreaFrac'     ); get_ixbpar = iLookBPAR%depressionAreaFrac          ! fractional depressional area (depressionArea/basinArea) (-)
+  case('depressionCatchAreaFrac'); get_ixbpar = iLookBPAR%depressionCatchAreaFrac     ! fractional area (of the landArea= basinArea - depressionArea) that drains to the depressions (-)
+  case('depression_p'           ); get_ixbpar = iLookBPAR%depression_p                ! shape of the slope profile (-)
+  case('depression_b'           ); get_ixbpar = iLookBPAR%depression_b                ! shape of contributing fraction curve (-)
   ! get to here if cannot find the variable
   case default
    get_ixbpar = integerMissing
@@ -895,6 +905,15 @@ contains
   case('routingFractionFuture'         ); get_ixbvar = iLookBVAR%routingFractionFuture           ! fraction of runoff in future time steps (-)
   case('averageInstantRunoff'          ); get_ixbvar = iLookBVAR%averageInstantRunoff            ! instantaneous runoff (m s-1)
   case('averageRoutedRunoff'           ); get_ixbvar = iLookBVAR%averageRoutedRunoff             ! routed runoff (m s-1)
+  ! variables for pothole storage (HDS)
+  case('vMin'                          ); get_ixbvar = iLookBVAR%vMin                            ! volume of water in the meta depression at the start of a fill period (m3)
+  case('depConAreaFrac'                ); get_ixbvar = iLookBVAR%depConAreaFrac                  ! contributing area fraction of pothole dominated areas [-]
+  case('basinConAreaFrac'              ); get_ixbvar = iLookBVAR%basinConAreaFrac                ! contributing area fraction per the entire subbasin from pothole and non-pothole areas [-]
+  case('pondVolFrac'                   ); get_ixbvar = iLookBVAR%pondVolFrac                     ! fractional pond volume = pondVol/depressionVol (-)
+  case('pondVol'                       ); get_ixbvar = iLookBVAR%pondVol                         ! pond volume at the end of time step (m3)
+  case('pondArea'                      ); get_ixbvar = iLookBVAR%pondArea                        ! pond area at the end of the time step (m2)
+  case('pondOutflow'                   ); get_ixbvar = iLookBVAR%pondOutflow                     ! pond outflow (m3)
+  case('pondEvap'                      ); get_ixbvar = iLookBVAR%pondEvap                        ! pond evaporation (kg m-2 s-1)
   ! get to here if cannot find the variable
   case default
    get_ixbvar = integerMissing

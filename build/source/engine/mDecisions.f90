@@ -146,6 +146,9 @@ integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wi
 ! look-up values for the choice of snow unloading from the canopy
 integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
 integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
+! look-up values for the choice of prairie pothole parameterization
+integer(i4b),parameter,public :: noPotholes           = 331    ! no explicit pothole parameterization
+integer(i4b),parameter,public :: HDSmodel             = 332    ! Hysteretic Depressional Storage model implementation
 ! -----------------------------------------------------------------------------------------------------------
 
 contains
@@ -623,9 +626,18 @@ contains
  ! choice of snow unloading from canopy
  select case(trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision))
   case('meltDripUnload','notPopulatedYet'); model_decisions(iLookDECISIONS%snowUnload)%iDecision = meltDripUnload  ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
-  case('windUnload');                       model_decisions(iLookDECISIONS%snowUnload)%iDecision = windUnload          ! Roesch et al 2001, formulate unloading based on wind and temperature
+  case('windUnload');                       model_decisions(iLookDECISIONS%snowUnload)%iDecision = windUnload      ! Roesch et al 2001, formulate unloading based on wind and temperature
   case default
    err=10; message=trim(message)//"unknown option for snow unloading [option="//trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision)//"]"; return
+ end select
+
+ ! choice of prairie potholes
+ ! NOTE: use noPotholes as the default, where prairie pothole method is undefined (not populated yet)
+ select case(trim(model_decisions(iLookDECISIONS%prPotholes)%cDecision))
+  case('noPotholes','notPopulatedYet');   model_decisions(iLookDECISIONS%prPotholes)%iDecision = noPotholes        ! No representation of prairie potholes
+  case('HDSmodel');                       model_decisions(iLookDECISIONS%prPotholes)%iDecision = HDSmodel          ! Hysteretic Depressional Storage model implementation
+  case default
+   err=10; message=trim(message)//"unknown option for prairie potholes [option="//trim(model_decisions(iLookDECISIONS%prPotholes)%cDecision)//"]"; return
  end select
 
 

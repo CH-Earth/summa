@@ -216,6 +216,7 @@ SUMMA_SOLVER= \
 		opSplittin.f90 \
 		coupled_em.f90 \
 		run_oneHRU.f90 \
+		HDS.f90 \
 		run_oneGRU.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 

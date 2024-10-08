@@ -33,10 +33,12 @@ USE data_types,only:&
                     ! no spatial dimension
                     var_ilength,     & ! x%var(:)%dat        (i4b)
                     var_dlength,     & ! x%var(:)%dat        (dp)
+                    var_d,           & ! var(:)              ! for GRU parameters
                     ! hru dimension
                     hru_int,         & ! x%hru(:)%var(:)     (i4b)
                     hru_int8,        & ! x%hru(:)%var(:)     integer(8)
                     hru_double,      & ! x%hru(:)%var(:)     (dp)
+                !     gru_double,      & ! x%gru(:)%var(:)     (dp)
                     hru_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
                     hru_doubleVec      ! x%hru(:)%var(:)%dat (dp)
 
@@ -47,6 +49,9 @@ USE var_lookup,only:iLookATTR          ! look-up values for local attributes
 USE var_lookup,only:iLookINDEX         ! look-up values for local column index variables
 USE var_lookup,only:iLookFLUX          ! look-up values for local column model fluxes
 USE var_lookup,only:iLookBVAR          ! look-up values for basin-average model variables
+USE var_lookup,only:iLookBPAR          ! look-up values for basin-average model parameters (for HDS)
+USE var_lookup,only:iLookPARAM         ! look-up values for HRU model parameters (for HDS PET calculations)
+USE var_lookup, only:iLookFORCE        ! look-up values for HRU forcing - used to estimate basin average forcing for HDS
 
 ! provide access to model decisions
 USE globalData,only:model_decisions    ! model decision structure
@@ -56,7 +61,8 @@ USE var_lookup,only:iLookDECISIONS     ! look-up values for model decisions
 USE mDecisions_module,only:&           ! look-up values for the choice of method for the spatial representation of groundwater
  localColumn, &                        ! separate groundwater representation in each local soil column
  singleBasin, &                        ! single groundwater store over the entire basin
- bigBucket                             ! a big bucket (lumped aquifer model)
+ bigBucket,   &                        ! a big bucket (lumped aquifer model)
+ HDSmodel                              ! Hysteretic Depressional Storage model implementation for prairie potholes
 
 ! -----------------------------------------------------------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------------------------------------------------------
@@ -82,6 +88,7 @@ contains
                        typeHRU,            & ! intent(in):    local classification of soil veg etc. for each HRU
                        idHRU,              & ! intent(in):    local classification of hru and gru IDs
                        attrHRU,            & ! intent(in):    local attributes for each HRU
+                       bparGRU,            & ! intent(in):    local attributes for the GRU for HDS calculations
                        ! data structures (input-output)
                        mparHRU,            & ! intent(inout):    local model parameters
                        indxHRU,            & ! intent(inout): model indices
@@ -97,6 +104,8 @@ contains
 
  USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
+ USE HDS,only:runDepression                                  ! module to run HDS pothole storage dynamics
+ USE derivforce_module,only:calcPotentialEvap_Oudin2005      ! function to calculate potential evaporation based on Oudin et al. (2005)'s formula
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
 
@@ -104,13 +113,14 @@ contains
 
  ! model control
  type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
- real(rkind)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
+ real(rkind)            , intent(inout) :: dt_init(:)        ! used to initialize the length of the sub-step for each HRU
  integer(i4b)        , intent(inout) :: ixComputeVegFlux(:)  ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  ! data structures (input)
  integer(i4b)        , intent(in)    :: timeVec(:)           ! integer vector      -- model time data
  type(hru_int)       , intent(in)    :: typeHRU              ! x%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
  type(hru_int8)      , intent(in)    :: idHRU                ! x%hru(:)%var(:)     -- local classification of hru and gru IDs
  type(hru_double)    , intent(in)    :: attrHRU              ! x%hru(:)%var(:)     -- local attributes for each HRU
+ type(var_d)         , intent(in)    :: bparGRU              ! x%gru(:)%var(:)     -- basin-average parameters
  ! data structures (input-output)
  type(hru_doubleVec) , intent(inout) :: mparHRU              ! x%hru(:)%var(:)%dat -- local (HRU) model parameters
  type(hru_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%var(:)%dat -- model indices
@@ -132,8 +142,11 @@ contains
  integer(i4b)                            :: nSnow                  ! number of snow layers
  integer(i4b)                            :: nSoil                  ! number of soil layers
  integer(i4b)                            :: nLayers                ! total number of layers
- real(rkind)                                :: fracHRU                ! fractional area of a given HRU (-)
+ real(rkind)                             :: fracHRU                ! fractional area of a given HRU (-)
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ ! basin average fluxes for HDS -- local variables
+ real(rkind)                             :: basinPrecip            ! average basin precipitation amount (kg m-2 s-1 = mm s-1)
+ real(rkind)                             :: basinPotentialEvap     ! average basin potential evaporation amount (mm s-1)
 
  ! initialize error control
  err=0; write(message, '(A24,I0,A2)' ) 'run_oneGRU (gru index = ',gruInfo%gru_nc,')/'
@@ -150,6 +163,10 @@ contains
  bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = 0._rkind ! recharge to the aquifer (m s-1)
  bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._rkind ! baseflow from the aquifer (m s-1)
  bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._rkind ! transpiration loss from the aquifer (m s-1)
+
+ ! initialize basin average forcing
+ basinPrecip = 0._rkind     ! precipitation rate averaged over the basin
+ basinPotentialEvap = 0._rkind
 
  ! initialize total inflow for each layer in a soil column
  do iHRU=1,gruInfo%hruCount
@@ -248,19 +265,39 @@ contains
 
    bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
    bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
-   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  =  bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  &
-           +  fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)  * fracHRU
   end if
 
   ! averaging more fluxes (and/or states) can be added to this section as desired
+  ! averagin fluxes if HDS is active
+  if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
+
+   associate(pptrate     =>   forcHRU%hru(iHRU)%var(iLookFORCE%pptrate) , &
+             SWRadAtm    =>   forcHRU%hru(iHRU)%var(iLookFORCE%SWRadAtm), &
+             airtemp     =>   forcHRU%hru(iHRU)%var(iLookFORCE%airtemp) , &
+             ! parameters of Oudin PET formula
+             scaleK1     =>   mparHRU%hru(iHRU)%var(iLookPARAM%oudinPETScaleK1)%dat(1), &
+             tempThrK2   =>   mparHRU%hru(iHRU)%var(iLookPARAM%oudinPETTempThrK2)%dat(1))
+
+   basinPrecip = basinPrecip + pptrate * fracHRU
+   ! calculate potential evaporation using Oudin (2005)'s formula
+   ! check the parameters of Oudin PET formula
+   if(scaleK1 < 0._rkind .or. tempThrK2 < 0._rkind)then
+    write(message(len_trim(message) + 1:), '(A7,I0,A75)') 'hruId=',gruInfo%hruInfo(iHRU)%hru_id, '/oudinPETFormula/missing or negative values for ScaleK1 or TempThrK2'
+    err=20; return
+   endif
+   basinPotentialEvap = basinPotentialEvap + calcPotentialEvap_Oudin2005(SWRadAtm, airtemp, scaleK1, tempThrK2) * fracHRU
+   end associate
+  end if ! HDS control flag
 
  end do  ! (looping through HRUs)
 
  ! ***********************************************************************************************************************
  ! ********** END LOOP THROUGH HRUS **************************************************************************************
  ! ***********************************************************************************************************************
- ! perform the routing
- associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
+ ! perform the pothole storage and routing
+ associate(totalArea               =>  bvarData%var(iLookBVAR%basin__totalArea)%dat(1) , &
+           basinTotalRunoff        =>  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1))    ! basin total runoff (m s-1)
 
  ! compute water balance for the basin aquifer
  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
@@ -271,16 +308,23 @@ contains
  ! calculate total runoff depending on whether aquifer is connected
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
   ! aquifer
-  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)
+  basinTotalRunoff = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)
  else
   ! no aquifer
-  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
+  basinTotalRunoff = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
  endif
 
+ ! ***********************************************************************************************************************
+ ! ********** PRAIRIE POTHOLE IMPLEMENTATION (HDS)************************************************************************
+ ! ***********************************************************************************************************************
+ ! run the actual HDS depressional storage model for this GRU
+ if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel) call runDepression(bvarData, bparGRU, basinPrecip, basinPotentialEvap)
+ ! ***********************************************************************************************************************                                               
+                                                
  call qOverland(&
                 ! input
                 model_decisions(iLookDECISIONS%subRouting)%iDecision,          &  ! intent(in): index for routing method
-                bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1),             &  ! intent(in): total runoff to the channel from all active components (m s-1)
+                basinTotalRunoff,                                              &  ! intent(in): total runoff to the channel from all active components (m s-1)
                 bvarData%var(iLookBVAR%routingFractionFuture)%dat,             &  ! intent(in): fraction of runoff in future time steps (m s-1)
                 bvarData%var(iLookBVAR%routingRunoffFuture)%dat,               &  ! intent(in): runoff in future time steps (m s-1)
                 ! output

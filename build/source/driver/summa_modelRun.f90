@@ -250,6 +250,7 @@ contains
                   typeStruct%gru(iGRU),         & ! intent(in):    local classification of soil veg etc. for each HRU
                   idStruct%gru(iGRU),           & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrStruct%gru(iGRU),         & ! intent(in):    local attributes for each HRU
+                  bparStruct%gru(iGRU),         & ! intent(in):    basin-average parameters for HDS 
                   ! data structures (input-output)
                   mparStruct%gru(iGRU),         & ! intent(inout): local model parameters
                   indxStruct%gru(iGRU),         & ! intent(inout): model indices

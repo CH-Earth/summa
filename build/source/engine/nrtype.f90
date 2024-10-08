@@ -26,4 +26,10 @@ MODULE nrtype
  real(rkind),     parameter :: nr_quadMissing=-9999._qp   ! missing quadruple precision number
  real(rkind),     parameter :: nr_realMissing=-9999._rkind   ! missing double precision number
  integer(i4b), parameter :: nr_integerMissing=-9999    ! missing integer
+ ! data types for HDS pothole storage
+ ! useful shortcuts
+ real(rkind),  parameter  :: zero      = 0.0_rkind
+ real(rkind),  parameter  :: half      = 0.5_rkind
+ real(rkind),  parameter  :: one       = 1.0_rkind
+ real(rkind),  parameter  :: two       = 2.0_rkind
 END MODULE nrtype

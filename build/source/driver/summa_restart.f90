@@ -30,6 +30,7 @@ USE var_lookup,only:iLookPROG                               ! look-up values for
 USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
+USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters used by HDS
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 
 ! safety: set private unless specified otherwise
@@ -67,7 +68,9 @@ contains
  ! model decisions
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
   localColumn, & ! separate groundwater representation in each local soil column
-  singleBasin    ! single groundwater store over the entire basin
+  singleBasin, & ! single groundwater store over the entire basin
+  HDSmodel       ! Hysteretic Depressional Storage model implementation for prairie potholes
+ USE HDS,only:init_summa_HDS                                 ! initialize HDS variables at the GRU level
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -227,6 +230,12 @@ contains
    dt_init%gru(iGRU)%hru(iHRU) = progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
   end do
 
+  ! *****************************************************************************
+  ! *** initialize HDS variables at the GRU level
+  ! *****************************************************************************
+  if(model_decisions(iLookDECISIONS%prPotholes)%iDecision == HDSmodel)then
+   call init_summa_HDS(bvarStruct%gru(iGRU), bparStruct%gru(iGRU))
+  endif
  end do  ! end looping through GRUs
 
  ! *****************************************************************************
