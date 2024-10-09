@@ -92,20 +92,25 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXEC_DIR})
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
-if(APPLE)
-	# Get most optimized lapack
-	set(LIBRARY_LINKS $ENV{LIBRARY_LINKS})
-
+# Find LAPACK with user-specified links or automatic detection 
+option(SPECIFY_LAPACK_LINKS "Use specified LAPACK links" OFF)
+if(SPECIFY_LAPACK_LINKS)
+	message("Using LAPACK links from LIBRARY_LINKS environment variable")
+	if(DEFINED ENV{LIBRARY_LINKS})
+		set(LIBRARY_LINKS $ENV{LIBRARY_LINKS})
+	else()
+		message(FATAL_ERROR "LIBRARY_LINKS environment variable not found. Set this variable or try -DSPECIFY_LAPACK_LINKS=OFF in build file.")
+	endif()
 else()
+	message("Automatically detect LAPACK links")
 	# OpenBLAS (MAY HAVE OpenMP enabled which slows execution)
 	# USE LAPACK INSTEAD TO AVOID THIS ISSUE
-    # message("\nRun export OPENBLAS_NUM_THREADS=1, to ward off bad behavior assuming not using multithreading")
+	# message("\nRun export OPENBLAS_NUM_THREADS=1, to ward off bad behavior assuming not using multithreading")
 	# set(BLA_VENDOR OpenBLAS) # MKL
 	# find_package(OpenBLAS REQUIRED)
 	# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
 
 	# LAPACK
-	set(LIBRARY_LINKS $ENV{LIBRARY_LINKS}) # added for compatibility of PC builds
 	find_package(LAPACK REQUIRED)
     	list(APPEND EXT_TARGETS LAPACK::LAPACK)
 endif()
@@ -115,13 +120,13 @@ set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environm
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message("\nSetting SUMMA Debug Options")
     add_compile_definitions(DEBUG)
-    set(FLAGS_NOAH -g -Og -fbacktrace -fcheck=all,no-array-temps -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
-    set(FLAGS_ALL -g -Og -fbacktrace -fcheck=all,no-array-temps -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
-    set(FLAGS_CXX -g -Og -fcheck=all,no-array-temps -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+    set(FLAGS_NOAH -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -ffree-line-length-none -fmax-errors=0 -fPIC -ffree-form ${FLAGS_OPT})
+    set(FLAGS_ALL  -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -ffree-line-length-none -fmax-errors=0 -fPIC -cpp        ${FLAGS_OPT})
+    set(FLAGS_CXX  -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
     message("\nSetting SUMMA Release Options")
-    set(FLAGS_NOAH -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
-    set(FLAGS_ALL  -O3 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
+    set(FLAGS_NOAH -O3 -Wfatal-errors -ffree-line-length-none -fmax-errors=0 -fPIC -ffree-form ${FLAGS_OPT})
+    set(FLAGS_ALL  -O3 -Wfatal-errors -ffree-line-length-none -fmax-errors=0 -fPIC -cpp        ${FLAGS_OPT})
     set(FLAGS_CXX  -O3 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 endif()
 
