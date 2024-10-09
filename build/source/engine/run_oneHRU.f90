@@ -118,7 +118,7 @@ contains
 
  ! model control
  integer(i4b)      , intent(in)    :: hru_nc              ! hru index in netcdf
- integer(8)        , intent(in)    :: hruId               ! hruId
+ integer(i8b)      , intent(in)    :: hruId               ! hruId
  real(rkind)       , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
  logical(lgt)      , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  integer(i4b)      , intent(inout) :: nSnow,nSoil,nLayers ! number of snow and soil layers
@@ -146,7 +146,7 @@ contains
  real(rkind)          , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
 
  ! initialize error control
- err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc -1 ,', hruId = ',hruId,')/' !netcdf index starts with 0 if want to subset
+ err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc ,', hruId = ',hruId,')/'
 
  ! ----- hru initialization ---------------------------------------------------------------------------------------------
 

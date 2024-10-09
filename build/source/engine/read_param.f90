@@ -89,8 +89,8 @@ contains
  integer(i4b)                          :: idim_list(2)     ! list of dimension ids
  ! data in the netcdf file
  integer(i4b)                          :: parLength        ! length of the parameter data
- integer(8),allocatable                :: hruId(:)         ! HRU identifier in the file
- real(rkind),allocatable                  :: parVector(:)     ! model parameter vector
+ integer(i8b),allocatable              :: hruId(:)         ! HRU identifier in the file
+ real(rkind),allocatable               :: parVector(:)     ! model parameter vector
  logical                               :: fexist           ! inquire whether the parmTrial file exists
  integer(i4b)                          :: fHRU             ! index of HRU in input file
 

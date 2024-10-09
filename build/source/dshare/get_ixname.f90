@@ -215,6 +215,8 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   case('hruId'          ); get_ixId = iLookID%hruId              ! id defining HRU index
+  case('gruId'          ); get_ixId = iLookID%gruId              ! id defining GRU index
+  case('hru2gruId'      ); get_ixId = iLookID%hru2gruId          ! id defining the GRU to which the HRU belongs
   ! get to here if cannot find the variable
   case default
    get_ixId = integerMissing
