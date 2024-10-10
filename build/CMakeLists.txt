@@ -111,23 +111,24 @@ else()
 
 	# OpenBLAS
 	set(BLA_VENDOR OpenBLAS)
-	find_package(OpenBLAS REQUIRED)
+	#find_package(OpenBLAS REQUIRED)
+	find_package(OpenBLAS REQUIRED COMPONENTS serial)
 	list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
 endif()
 
 # Set compiler flags
 set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-    message("\nSetting SUMMA Debug Options")
-    add_compile_definitions(DEBUG)
-    set(FLAGS_NOAH -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -ffree-line-length-none -fmax-errors=0 -fPIC -ffree-form ${FLAGS_OPT})
-    set(FLAGS_ALL  -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -ffree-line-length-none -fmax-errors=0 -fPIC -cpp        ${FLAGS_OPT})
-    set(FLAGS_CXX  -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+	message("\nSetting SUMMA Debug Options")
+	add_compile_definitions(DEBUG)
+	set(FLAGS_NOAH -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -ffree-line-length-none -fPIC -ffree-form ${FLAGS_OPT})
+	set(FLAGS_ALL  -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -ffree-line-length-none -fPIC -cpp        ${FLAGS_OPT})
+	set(FLAGS_CXX  -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
 	message("\nSetting SUMMA Release Options")
 	if (CMAKE_Fortran_COMPILER MATCHES gfortran)
-		set(FLAGS_NOAH -O3 -Wfatal-errors -ffree-line-length-none -fmax-errors=0 -fPIC -ffree-form ${FLAGS_OPT})
-		set(FLAGS_ALL  -O3 -Wfatal-errors -ffree-line-length-none -fmax-errors=0 -fPIC -cpp        ${FLAGS_OPT})
+		set(FLAGS_NOAH -O3 -Wfatal-errors -ffree-line-length-none -fPIC -ffree-form ${FLAGS_OPT})
+		set(FLAGS_ALL  -O3 -Wfatal-errors -ffree-line-length-none -fPIC -cpp        ${FLAGS_OPT})
 		set(FLAGS_CXX  -O3 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 	else(CMAKE_Fortran_COMPILER MATCHES ifx) # ifx does not currently compile SUMMA -- derived type modifications needed in source code 
 		set(FLAGS_NOAH -O3 -fPIC -free   ${FLAGS_OPT})
