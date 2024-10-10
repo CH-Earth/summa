@@ -1458,8 +1458,7 @@ contains
 
  subroutine fullyCoupled_stateMask
   ! *** Get fully coupled stateMask ***
-  !stateMask(:) = .true. ! use all state variables
-  stateMask = .true. ! use all state variables
+  stateMask(:) = .true. ! use all state variables
  end subroutine fullyCoupled_stateMask
 
  subroutine stateTypeSplit_stateMask
