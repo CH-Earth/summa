@@ -11,7 +11,7 @@ export C_INCLUDE_PATH=/opt/local/include
 export CPLUS_INCLUDE_PATH=/opt/local/include
 export SUNDIALS_DIR=../../../sundials/instdir/
 
-cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON
+cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON -DSPECIFY_LAPACK_LINKS=ON
 cmake --build extern/summa/cmake_build --target all -j
 
 cmake -B cmake_build -S . -DBoost_INCLUDE_DIR=/opt/local/libexec/boost/1.81/include -DNGEN_WITH_BMI_FORTRAN=ON -DPython_NumPy_INCLUDE_DIR=/opt/local/bin/python -DNGEN_WITH_MPI:BOOL=OFF -DNGEN_WITH_PYTHON:BOOL=OFF -DNGEN_WITH_BMI_C:BOOL=ON -DNGEN_WITH_BMI_FORTRAN:BOOL=ON -DNGEN_WITH_NETCDF:BOOL=OFF

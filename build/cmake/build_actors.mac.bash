@@ -10,5 +10,5 @@ export FC=/opt/local/bin/gfortran                             # Fortran compiler
 
 export SUNDIALS_DIR=../../../sundials/instdir/
 
-cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_ACTORS=ON
+cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_ACTORS=ON -DSPECIFY_LAPACK_LINKS=ON
 cmake --build ../cmake_build --target all -j

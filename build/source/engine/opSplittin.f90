@@ -1394,9 +1394,10 @@ subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,me
   iStateSplit       => split_select % iStateSplit        )
   call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
  end associate
- associate(stateMask => split_select % stateMask)
-  call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
- end associate
+ !associate(stateMask => split_select % stateMask)
+ ! call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
+ !end associate
+ call stateFilter(in_stateFilter,indx_data,split_select % stateMask,out_stateFilter)
  associate(nSubset => split_select % nSubset)
   call out_stateFilter % finalize(nSubset,err,cmessage)
  end associate
@@ -1415,7 +1416,8 @@ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
  type(in_type_stateFilter),intent(in)   :: in_stateFilter            ! indices
  type(var_ilength),intent(in)           :: indx_data                 ! indices for a local HRU
  ! output
- logical(lgt),intent(out)               :: stateMask(:)              ! mask defining desired state variables
+ !logical(lgt),intent(out)               :: stateMask(:)              ! mask defining desired state variables
+ logical(lgt),allocatable,intent(inout) :: stateMask(:)              ! mask defining desired state variables
  type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
  ! local
  integer(i4b),allocatable               :: ixSubset(:)               ! list of indices in the state subset

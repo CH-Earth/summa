@@ -92,24 +92,49 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXEC_DIR})
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
-# OpenBLAS
-set(BLA_VENDOR OpenBLAS)
-find_package(OpenBLAS REQUIRED)
-list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+# Find LAPACK with user-specified links or automatic detection 
+option(SPECIFY_LAPACK_LINKS "Use specified LAPACK links" OFF)
+if(SPECIFY_LAPACK_LINKS)
+	message("Using LAPACK links from LIBRARY_LINKS environment variable")
+	if(DEFINED ENV{LIBRARY_LINKS})
+		set(LIBRARY_LINKS $ENV{LIBRARY_LINKS})
+	else()
+		message(FATAL_ERROR "LIBRARY_LINKS environment variable not found. Set this variable or try -DSPECIFY_LAPACK_LINKS=OFF in build file.")
+	endif()
+else()
+	message("Automatically detect LAPACK links")
+	set(LIBRARY_LINKS "")
+
+	## LAPACK
+	#find_package(LAPACK REQUIRED)
+    	#list(APPEND EXT_TARGETS LAPACK::LAPACK)
+
+	# OpenBLAS
+	set(BLA_VENDOR OpenBLAS)
+	#find_package(OpenBLAS REQUIRED)
+	find_package(OpenBLAS REQUIRED COMPONENTS serial)
+	list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
+endif()
 
 # Set compiler flags
 set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-    message("\nSetting SUMMA Debug Options")
-    add_compile_definitions(DEBUG)
-    set(FLAGS_NOAH -g -O0 -fbacktrace -fbounds-check -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
-    set(FLAGS_ALL -g -O0 -fbacktrace -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
-    set(FLAGS_CXX -g -O0 -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+	message("\nSetting SUMMA Debug Options")
+	add_compile_definitions(DEBUG)
+	set(FLAGS_NOAH -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -ffree-line-length-none -fPIC -ffree-form ${FLAGS_OPT})
+	set(FLAGS_ALL  -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -ffree-line-length-none -fPIC -cpp        ${FLAGS_OPT})
+	set(FLAGS_CXX  -g -Og -fbacktrace -fcheck=all,no-array-temps -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
-    message("\nSetting SUMMA Release Options")
-    set(FLAGS_NOAH -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
-    set(FLAGS_ALL  -O3 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
-    set(FLAGS_CXX  -O3 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+	message("\nSetting SUMMA Release Options")
+	if (CMAKE_Fortran_COMPILER MATCHES gfortran)
+		set(FLAGS_NOAH -O3 -Wfatal-errors -ffree-line-length-none -fPIC -ffree-form ${FLAGS_OPT})
+		set(FLAGS_ALL  -O3 -Wfatal-errors -ffree-line-length-none -fPIC -cpp        ${FLAGS_OPT})
+		set(FLAGS_CXX  -O3 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+	else(CMAKE_Fortran_COMPILER MATCHES ifx) # ifx does not currently compile SUMMA -- derived type modifications needed in source code 
+		set(FLAGS_NOAH -O3 -fPIC -free   ${FLAGS_OPT})
+		set(FLAGS_ALL  -O3 -fPIC -cxxlib ${FLAGS_OPT})
+		set(FLAGS_CXX  -O3 -std=c++17    ${FLAGS_OPT})
+	endif()
 endif()
 
 #=========================================================================================
@@ -184,34 +209,32 @@ target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
-target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS})
+target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS} ${LIBRARY_LINKS})
 
 # For NextGen, build SUMMA Shared Library and add the outside BMI libraries
 if(USE_NEXTGEN)
-    if(WIN32)
-        add_library(summabmi ${SUMMA_ALL})
-    else()
-        add_library(summabmi SHARED ${SUMMA_ALL})
-    endif()
-    target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
+	if(WIN32)
+		add_library(summabmi ${SUMMA_ALL})
+	else()
+		add_library(summabmi SHARED ${SUMMA_ALL})
+	endif()
+	target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
 	target_link_libraries(summabmi PUBLIC ${EXT_TARGETS} iso_c_bmi SUMMA_NOAHMP SUMMA_COMM)
 
-    set_target_properties(summabmi PROPERTIES VERSION ${PROJECT_VERSION})
-    include(GNUInstallDirs)
+	set_target_properties(summabmi PROPERTIES VERSION ${PROJECT_VERSION})
+	include(GNUInstallDirs)
 
-    install(TARGETS summabmi
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    configure_file(summabmi.pc.in summabmi.pc @ONLY)
-    install(FILES ${CMAKE_BINARY_DIR}/summabmi.pc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
-
+	install(TARGETS summabmi
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+	configure_file(summabmi.pc.in summabmi.pc @ONLY)
+	install(FILES ${CMAKE_BINARY_DIR}/summabmi.pc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 else()
 	add_library(summa SHARED ${SUMMA_ALL})
 	target_compile_options(summa PRIVATE ${FLAGS_ALL})
-	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM )
-    add_executable(${EXEC_NAME} ${MAIN_SUMMA})
-    target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
-    set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS})
-
+	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+	add_executable(${EXEC_NAME} ${MAIN_SUMMA})
+	target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
+	set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
+	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS} ${LIBRARY_LINKS})
 endif()
