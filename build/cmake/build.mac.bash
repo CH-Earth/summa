@@ -9,7 +9,6 @@ export FC=/opt/local/bin/gfortran                             # Fortran compiler
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
 
 export SUNDIALS_DIR=../../../sundials/instdir/
-export LIBRARY_LINKS='-llapack'                               # list of library links
 
 cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build ../cmake_build --target all -j
