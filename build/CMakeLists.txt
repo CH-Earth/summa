@@ -103,16 +103,15 @@ if(SPECIFY_LAPACK_LINKS)
 	endif()
 else()
 	message("Automatically detect LAPACK links")
-	# OpenBLAS (MAY HAVE OpenMP enabled which slows execution)
-	# USE LAPACK INSTEAD TO AVOID THIS ISSUE
-	# message("\nRun export OPENBLAS_NUM_THREADS=1, to ward off bad behavior assuming not using multithreading")
-	# set(BLA_VENDOR OpenBLAS) # MKL
-	# find_package(OpenBLAS REQUIRED)
-	# list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
 
-	# LAPACK
-	find_package(LAPACK REQUIRED)
-    	list(APPEND EXT_TARGETS LAPACK::LAPACK)
+	## LAPACK
+	#find_package(LAPACK REQUIRED)
+    	#list(APPEND EXT_TARGETS LAPACK::LAPACK)
+
+	# OpenBLAS
+	set(BLA_VENDOR OpenBLAS)
+	find_package(OpenBLAS REQUIRED)
+	list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
 endif()
 
 # Set compiler flags
@@ -208,11 +207,7 @@ target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
-if(LIBRARY_LINKS)
-	target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS} ${LIBRARY_LINKS})
-else()
-	target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS})
-endif()
+target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS})
 
 # For NextGen, build SUMMA Shared Library and add the outside BMI libraries
 if(USE_NEXTGEN)
@@ -236,17 +231,10 @@ if(USE_NEXTGEN)
 else()
 	add_library(summa SHARED ${SUMMA_ALL})
 	target_compile_options(summa PRIVATE ${FLAGS_ALL})
-	if(LIBRARY_LINKS)
-		target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
-	else()
-		target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM )
-	endif()
+	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM )
     add_executable(${EXEC_NAME} ${MAIN_SUMMA})
     target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-	if(LIBRARY_LINKS)
-    	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS} ${LIBRARY_LINKS})
-	else()
-    	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS})
-	endif()
+    target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS})
+
 endif()

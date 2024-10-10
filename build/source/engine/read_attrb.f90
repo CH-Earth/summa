@@ -53,8 +53,8 @@ contains
  integer(i4b)                         :: sGRU               ! starting GRU
  integer(i4b)                         :: iHRU               ! HRU couinting index
  integer(i4b)                         :: iGRU               ! GRU loop index
- integer(8),allocatable               :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
- integer(8),allocatable               :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
+ integer(i8b),allocatable             :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
+ integer(i8b),allocatable             :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
  integer(i4b),allocatable             :: hru_ix(:)          ! hru index for search
 
  ! define variables for NetCDF file operation
@@ -201,7 +201,7 @@ end subroutine read_dimension
  USE netcdf_util_module,only:netcdf_err                     ! netcdf error handling function
  ! provide access to derived data types
  USE data_types,only:gru_hru_int                            ! x%gru(:)%hru(:)%var(:)     (i4b)
- USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     integer(8)
+ USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     (i8b)
  USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (rkind)
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru-hru mapping structure
@@ -240,8 +240,8 @@ end subroutine read_dimension
  integer(i4b),parameter               :: numerical=102      ! named variable to denote numerical data
  integer(i4b),parameter               :: idrelated=103      ! named variable to denote ID related data
  integer(i4b)                         :: categorical_var(1) ! temporary categorical variable from local attributes netcdf file
- real(rkind)                             :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
- integer(8)                           :: idrelated_var(1)   ! temporary ID related variable from local attributes netcdf file
+ real(rkind)                          :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
+ integer(i8b)                         :: idrelated_var(1)   ! temporary ID related variable from local attributes netcdf file
 
  ! define mapping variables
 
@@ -341,8 +341,12 @@ end subroutine read_dimension
      end do
     end do
 
-   ! for mapping varibles, do nothing (information read above)
-   case('hru2gruId','gruId'); cycle
+   ! for mapping varibles, do nothing (information read above in read_dimension)
+   case('hru2gruId','gruId')
+    ! get the index of the variable
+    varType = idrelated
+    varIndx = get_ixId(varName)
+    checkId(varIndx) = .true.
 
    ! check that variables are what we expect
    case default; message=trim(message)//'unknown variable ['//trim(varName)//'] in local attributes file'; err=20; return

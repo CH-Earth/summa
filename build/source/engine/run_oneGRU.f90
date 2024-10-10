@@ -35,7 +35,7 @@ USE data_types,only:&
                     var_dlength,     & ! x%var(:)%dat        (rkind)
                     ! hru dimension
                     hru_int,         & ! x%hru(:)%var(:)     (i4b)
-                    hru_int8,        & ! x%hru(:)%var(:)     integer(8)
+                    hru_int8,        & ! x%hru(:)%var(:)     (i8b)
                     hru_double,      & ! x%hru(:)%var(:)     (rkind)
                     hru_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
                     hru_doubleVec,   & ! x%hru(:)%var(:)%dat (rkind)
@@ -131,7 +131,7 @@ contains
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 
  ! initialize error control
- err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc -1,', gruId = ',gruInfo%gru_id,')/' !netcdf index starts with 0 if want to subset
+ err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc,', gruId = ',gruInfo%gru_id,')/'
 
  ! ----- basin initialization --------------------------------------------------------------------------------------------
 

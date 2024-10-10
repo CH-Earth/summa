@@ -173,6 +173,8 @@ contains
   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'
  end select
 
+ call openblas_set_num_threads(1) ! set the number of threads to 1
+
  ! form the rhs matrix
  ! NOTE: copy the vector here to ensure that the residual vector is not overwritten
  rhs(:,1) = rVec(:)

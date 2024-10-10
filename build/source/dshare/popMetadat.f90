@@ -94,6 +94,8 @@ subroutine popMetadat(err,message)
   ! * hru and gru ID data...
   ! ---------------------
   id_meta(iLookID%hruId)                              = var_info('hruId'                           , 'ID defining the hydrologic response unit'                         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  id_meta(iLookID%gruId)                              = var_info('gruId'                           , 'ID defining the grouped response unit'                            , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  id_meta(iLookID%hru2gruId)                          = var_info('hru2gruId'                       , 'ID defining the GRU to which the HRU belongs'                     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * site characteristics...
   ! -------------------------

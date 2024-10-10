@@ -109,14 +109,14 @@ MODULE data_types
  type, public :: hru_info
   integer(i4b)                           :: hru_nc                        ! index of the hru in the netcdf file
   integer(i4b)                           :: hru_ix                        ! index of the hru in the run domain
-  integer(8)                             :: hru_id                        ! id (non-sequential number) of the hru
+  integer(i8b)                           :: hru_id                        ! id (non-sequential number) of the hru
   integer(i4b)                           :: nSnow                         ! number of snow layers
   integer(i4b)                           :: nSoil                         ! number of soil layers
  endtype hru_info
 
  ! define mapping from GRUs to the HRUs
  type, public :: gru2hru_map
-  integer(8)                             :: gru_id                        ! id of the gru
+  integer(i8b)                           :: gru_id                        ! id of the gru
   integer(i4b)                           :: hruCount                      ! total number of hrus in the gru
   type(hru_info), allocatable            :: hruInfo(:)                    ! basic information of HRUs within the gru
   integer(i4b)                           :: gru_nc                        ! index of gru in the netcdf file
@@ -164,7 +164,7 @@ MODULE data_types
  endtype ilength
  ! ** integer type (8 byte)
  type, public :: i8length
-  integer(8),allocatable                 :: dat(:)                        ! dat(:)
+  integer(i8b),allocatable               :: dat(:)                        ! dat(:)
  endtype i8length
  ! ** logical type
  type, public :: flagVec
@@ -201,7 +201,7 @@ MODULE data_types
  endtype var_i
  ! ** integer type of fixed length (8 byte)
  type, public :: var_i8
-  integer(8),allocatable                 :: var(:)                        ! var(:)
+  integer(i8b),allocatable               :: var(:)                        ! var(:)
  endtype var_i8
 
  ! ** double precision type of fixed length
@@ -214,7 +214,7 @@ MODULE data_types
  endtype hru_i
  ! ** integer type of fixed length (8 byte)
  type, public :: hru_i8
-  integer(8),allocatable                 :: hru(:)                        ! hru(:)
+  integer(i8b),allocatable               :: hru(:)                        ! hru(:)
  endtype hru_i8
 
  ! define derived types to hold JUST the HRU dimension
