@@ -179,7 +179,7 @@ contains
     err=20; return
    else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
     ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
-	 write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'Warning: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
+    write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'Warning: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
    end if
    scalarTheta = scalarCanopyIce + scalarCanopyLiq
 
