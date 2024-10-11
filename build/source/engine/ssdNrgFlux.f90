@@ -102,7 +102,7 @@ subroutine ssdNrgFlux(&
   type(out_type_ssdNrgFlux),intent(inout) :: out_ssdNrgFlux         ! output ssdNrgFlux arguments
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  character(LEN=256)                  :: cmessage                   ! error message of downwind routine
+  !character(LEN=256)                  :: cmessage                   ! error message of downwind routine
   integer(i4b)                        :: nLayers                    ! number of model layers
   integer(i4b)                        :: iLayer                     ! index of model layers
   integer(i4b)                        :: ixLayerDesired(1)          ! layer desired (scalar solution)

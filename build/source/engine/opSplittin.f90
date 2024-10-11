@@ -275,7 +275,6 @@ subroutine opSplittin(&
   integer(i4b)                    :: iOffset                        ! offset to account for different indices in the soil domain
   integer(i4b)                    :: iMin(1),iMax(1)                ! bounds of a given vector
   integer(i4b)                    :: iLayer,jLayer                  ! index of model layer
-  integer(i4b)                    :: iSoil                          ! index of soil layer
   integer(i4b)                    :: iVar                           ! index of variables in data structures
   logical(lgt)                    :: firstSuccess                   ! flag to define the first success
   logical(lgt)                    :: firstFluxCall                  ! flag to define the first flux call
@@ -335,9 +334,9 @@ subroutine opSplittin(&
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
   ! splitting method control variables
   logical(lgt)                    :: exit_split_select,cycle_split_select ! control for split_select loop
-  logical(lgt)                    :: exit_coupling,exit_stateTypeSplitting,exit_stateThenDomain,exit_domainSplit,exit_solution,exit_stateSplit
-  logical(lgt)                    :: cycle_coupling,cycle_stateTypeSplitting,cycle_stateThenDomain,cycle_domainSplit,cycle_solution,cycle_stateSplit
-  integer(i4b)                    :: iSplit,nSplit
+  logical(lgt)                    :: exit_coupling,exit_stateThenDomain,exit_solution
+  logical(lgt)                    :: cycle_coupling,cycle_stateThenDomain,cycle_domainSplit,cycle_solution
+  integer(i4b)                    :: iSplit
   integer(i4b),parameter          :: maxSplit=500       ! >= max number of splitting methods (controls upper limit of split_select loop)               
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
@@ -1384,6 +1383,7 @@ subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,me
  type(in_type_stateFilter)              :: in_stateFilter            ! indices
  type(out_type_stateFilter)             :: out_stateFilter           ! number of selected state variables for a given split and error control
 
+ err=0 ! SJT TEST
  return_flag=.false. ! initialize flag
  associate(&
   ixCoupling        => split_select % ixCoupling        ,& 
@@ -1397,11 +1397,15 @@ subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,me
  !associate(stateMask => split_select % stateMask)
  ! call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
  !end associate
+ !print *, "SJT 0",err
  call stateFilter(in_stateFilter,indx_data,split_select % stateMask,out_stateFilter)
+ print *, "SJT 4.1",out_stateFilter%err
  associate(nSubset => split_select % nSubset)
   call out_stateFilter % finalize(nSubset,err,cmessage)
  end associate
+ print *, "SJT 5",err
  if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! error control
+ print *, "SJT 6"
 end subroutine split_select_compute_stateMask
 
 
@@ -1417,7 +1421,8 @@ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
  type(var_ilength),intent(in)           :: indx_data                 ! indices for a local HRU
  ! output
  !logical(lgt),intent(out)               :: stateMask(:)              ! mask defining desired state variables
- logical(lgt),allocatable,intent(inout) :: stateMask(:)              ! mask defining desired state variables
+ !logical(lgt),allocatable,intent(inout) :: stateMask(:)              ! mask defining desired state variables
+ logical(lgt),intent(inout) :: stateMask(:)              ! mask defining desired state variables
  type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
  ! local
  integer(i4b),allocatable               :: ixSubset(:)               ! list of indices in the state subset
@@ -1454,11 +1459,16 @@ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
   nSubset = count(stateMask)
  end associate
 
+ print *, "SJT 4"
+
 contains
 
  subroutine fullyCoupled_stateMask
   ! *** Get fully coupled stateMask ***
+  print *, "SJT1:",stateMask
+  print *, "SJT2:",size(stateMask)
   stateMask(:) = .true. ! use all state variables
+  print *, "SJT3:",stateMask
  end subroutine fullyCoupled_stateMask
 
  subroutine stateTypeSplit_stateMask

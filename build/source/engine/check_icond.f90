@@ -87,20 +87,20 @@ contains
  character(*),intent(out)              :: message               ! returned error message
  ! locals
  character(len=256)                    :: cmessage              ! downstream error message
- integer(i4b)                          :: i,iGRU,iHRU           ! loop index
+ integer(i4b)                          :: iGRU,iHRU           ! loop index
  ! temporary variables for realism checks
  integer(i4b)                          :: iLayer                ! index of model layer
  integer(i4b)                          :: iSoil                 ! index of soil layer
  real(rkind)                           :: fLiq                  ! fraction of liquid water on the vegetation canopy (-)
  real(rkind)                           :: vGn_m                 ! van Genutchen "m" parameter (-)
- real(rkind)                           :: tWat                  ! total water on the vegetation canopy (kg m-2)
+ !real(rkind)                           :: tWat                  ! total water on the vegetation canopy (kg m-2)
  real(rkind)                           :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
  real(rkind)                           :: h1,h2                 ! used to check depth and height are consistent
  real(rkind)                           :: kappa                 ! constant in the freezing curve function (m K-1)
  integer(i4b)                          :: nSoil                 ! number of soil layers
  integer(i4b)                          :: nSnow                 ! number of snow layers
  integer(i4b)                          :: nLayers               ! total number of layers
- integer(i4b)                          :: nState                ! total number of states
+ !integer(i4b)                          :: nState                ! total number of states
  real(rkind),parameter                 :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
  real(rkind),parameter                 :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
  ! --------------------------------------------------------------------------------------------------------
