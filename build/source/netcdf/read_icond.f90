@@ -240,7 +240,7 @@ contains
   if(err/=nf90_noerr)then
    if(prog_meta(iVar)%varName=='scalarCanairEnthalpy'     .or. &
       prog_meta(iVar)%varName=='scalarCanopyEnthalpy'     .or. &  
-      prog_meta(iVar)%varName=='mLayerEnthalpy'                ) err=nf90_noerr; no_icond_enth=.true.; cycle ! skip enthalpy variables if not in file
+      prog_meta(iVar)%varName=='mLayerEnthalpy'                )then; err=nf90_noerr; no_icond_enth=.true.; cycle; endif ! skip enthalpy variables if not in file
    call netcdf_err(err,message)
    message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
    return
