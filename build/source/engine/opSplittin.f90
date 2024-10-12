@@ -295,9 +295,6 @@ subroutine opSplittin(&
   real(rkind),parameter           :: dtmin_scalar=10._rkind         ! minimum time step for the scalar solution (seconds)
   real(rkind)                     :: dt_min                         ! minimum time step (seconds)
   real(rkind)                     :: dtInit                         ! initial time step (seconds)
-  ! explicit error tolerance (depends on state type split, so defined here)
-  real(rkind),parameter           :: errorTolLiqFlux=0.01_rkind     ! error tolerance in the explicit solution (liquid flux)
-  real(rkind),parameter           :: errorTolNrgFlux=10._rkind      ! error tolerance in the explicit solution (energy flux)
   ! number of substeps taken for a given split
   integer(i4b)                    :: nSubsteps                      ! number of substeps taken for a given split
   ! named variables defining the coupling and solution method
@@ -340,7 +337,7 @@ subroutine opSplittin(&
   integer(i4b),parameter          :: maxSplit=500       ! >= max number of splitting methods (controls upper limit of split_select loop)               
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
-  type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
+  !type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -835,13 +832,13 @@ subroutine opSplittin(&
   end subroutine get_nStateSplit
 
   ! **** stateFilter ****
-  subroutine initialize_stateFilter
-   call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
-  end subroutine initialize_stateFilter
-
-  subroutine finalize_stateFilter
-   call out_stateFilter % finalize(nSubset,err,cmessage)
-  end subroutine finalize_stateFilter
+!  subroutine initialize_stateFilter
+!   call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
+!  end subroutine initialize_stateFilter
+!
+!  subroutine finalize_stateFilter
+!   call out_stateFilter % finalize(nSubset,err,cmessage)
+!  end subroutine finalize_stateFilter
 
   ! **** indexSplit ****
   subroutine initialize_indexSplit
