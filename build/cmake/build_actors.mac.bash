@@ -10,5 +10,5 @@ export FC=/opt/local/bin/gfortran                             # Fortran compiler
 export LIBRARY_LINKS='-llapack'                               # list of library links
 export SUNDIALS_DIR=../../../sundials/instdir/
 
-cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_ACTORS=ON -DSPECIFY_LAPACK_LINKS=OFF -DCMAKE_BUILD_TYPE=Release
+cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_ACTORS=ON -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build ../cmake_build --target all -j
