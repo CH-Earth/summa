@@ -14,5 +14,5 @@ module load caf
 export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
 export SUNDIALS_PATH=/globalhome/kck540/HPC/Libraries/sundials/v7.0/instdir
 
-cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_ACTORS=ON
+cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_ACTORS=ON -DSPECIFY_LAPACK_LINKS=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build ../cmake_build --target all -j

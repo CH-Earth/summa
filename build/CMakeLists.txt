@@ -92,7 +92,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXEC_DIR})
 find_package(NetCDF REQUIRED)
 list(APPEND EXT_TARGETS NetCDF::NetCDF)
 
-# Find LAPACK with user-specified links or automatic detection 
+# Find LAPACK with user-specified links or automatic detection
 option(SPECIFY_LAPACK_LINKS "Use specified LAPACK links" OFF)
 if(SPECIFY_LAPACK_LINKS)
 	message("Using LAPACK links from LIBRARY_LINKS environment variable")
@@ -105,13 +105,8 @@ else()
 	message("Automatically detect LAPACK links")
 	set(LIBRARY_LINKS "")
 
-	## LAPACK
-	#find_package(LAPACK REQUIRED)
-    	#list(APPEND EXT_TARGETS LAPACK::LAPACK)
-
 	# OpenBLAS
 	set(BLA_VENDOR OpenBLAS)
-	#find_package(OpenBLAS REQUIRED)
 	find_package(OpenBLAS REQUIRED COMPONENTS serial)
 	list(APPEND EXT_TARGETS OpenBLAS::OpenBLAS)
 endif()
@@ -130,7 +125,7 @@ else()
 		set(FLAGS_NOAH -O3 -Wfatal-errors -ffree-line-length-none -fPIC -ffree-form ${FLAGS_OPT})
 		set(FLAGS_ALL  -O3 -Wfatal-errors -ffree-line-length-none -fPIC -cpp        ${FLAGS_OPT})
 		set(FLAGS_CXX  -O3 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
-	else(CMAKE_Fortran_COMPILER MATCHES ifx) # ifx does not currently compile SUMMA -- derived type modifications needed in source code 
+	else(CMAKE_Fortran_COMPILER MATCHES ifx) # ifx does not currently compile SUMMA -- derived type modifications needed in source code
 		set(FLAGS_NOAH -O3 -fPIC -free   ${FLAGS_OPT})
 		set(FLAGS_ALL  -O3 -fPIC -cxxlib ${FLAGS_OPT})
 		set(FLAGS_CXX  -O3 -std=c++17    ${FLAGS_OPT})
