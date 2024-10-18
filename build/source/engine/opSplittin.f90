@@ -142,6 +142,7 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   integer(i4b)             :: ixSolution
   integer(i4b)             :: iStateSplit
   ! variables for specifying the split
+  integer(i4b)             :: nState                      ! # of state variables
   integer(i4b)             :: nSubset                     ! number of selected state variables for a given split
   type(var_flagVec)        :: fluxMask                    ! integer mask defining model fluxes
   logical(lgt),allocatable :: stateMask(:)                ! mask defining desired state variables
@@ -275,7 +276,6 @@ subroutine opSplittin(&
   integer(i4b)                    :: iOffset                        ! offset to account for different indices in the soil domain
   integer(i4b)                    :: iMin(1),iMax(1)                ! bounds of a given vector
   integer(i4b)                    :: iLayer,jLayer                  ! index of model layer
-  integer(i4b)                    :: iSoil                          ! index of soil layer
   integer(i4b)                    :: iVar                           ! index of variables in data structures
   logical(lgt)                    :: firstSuccess                   ! flag to define the first success
   logical(lgt)                    :: firstFluxCall                  ! flag to define the first flux call
@@ -296,9 +296,6 @@ subroutine opSplittin(&
   real(rkind),parameter           :: dtmin_scalar=10._rkind         ! minimum time step for the scalar solution (seconds)
   real(rkind)                     :: dt_min                         ! minimum time step (seconds)
   real(rkind)                     :: dtInit                         ! initial time step (seconds)
-  ! explicit error tolerance (depends on state type split, so defined here)
-  real(rkind),parameter           :: errorTolLiqFlux=0.01_rkind     ! error tolerance in the explicit solution (liquid flux)
-  real(rkind),parameter           :: errorTolNrgFlux=10._rkind      ! error tolerance in the explicit solution (energy flux)
   ! number of substeps taken for a given split
   integer(i4b)                    :: nSubsteps                      ! number of substeps taken for a given split
   ! named variables defining the coupling and solution method
@@ -335,20 +332,19 @@ subroutine opSplittin(&
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
   ! splitting method control variables
   logical(lgt)                    :: exit_split_select,cycle_split_select ! control for split_select loop
-  logical(lgt)                    :: exit_coupling,exit_stateTypeSplitting,exit_stateThenDomain,exit_domainSplit,exit_solution,exit_stateSplit
-  logical(lgt)                    :: cycle_coupling,cycle_stateTypeSplitting,cycle_stateThenDomain,cycle_domainSplit,cycle_solution,cycle_stateSplit
-  integer(i4b)                    :: iSplit,nSplit
+  logical(lgt)                    :: exit_coupling,exit_stateThenDomain,exit_solution
+  logical(lgt)                    :: cycle_coupling,cycle_stateThenDomain,cycle_domainSplit,cycle_solution
+  integer(i4b)                    :: iSplit
   integer(i4b),parameter          :: maxSplit=500       ! >= max number of splitting methods (controls upper limit of split_select loop)               
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
-  type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
 
   ! *** Initialize Split Selector Object ***
-  call initialize_split_select
+  call initialize_split_select;   if (return_flag) return
   call initialize_split_coupling; if (return_flag) return 
   split_select_loop: do iSplit=1,maxSplit       ! coupling begins
     call initialize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
@@ -403,12 +399,25 @@ subroutine opSplittin(&
 
   subroutine initialize_split_select
    ! *** Initialize split_select class object ***
+   
+   ! initialize # of state variables
+   split_select % nState = nState
 
    ! allocate data components
-   allocate(split_select % stateMask(1:nState)) ! allocate split_select components
+   allocate(split_select % stateMask(1:nState),STAT=err) ! allocate split_select components
 
+   ! check for allocation errors
+   if (err/=0) then
+    message=trim(message)//'allocation error in initialize_split_select routine for split_select % stateMask'
+    return_flag=.true.; return
+   else
+    return_flag=.false.
+   end if
+   
+   ! initialize split_select % stateMask to default initial case
+   split_select % stateMask(1:nState) = .true.
+ 
    ! initialize flags 
-   return_flag=.false.
    exit_split_select=.false.
    cycle_split_select=.false.
    call split_select % initialize_flags ! initialize control flags 
@@ -834,15 +843,6 @@ subroutine opSplittin(&
      return
    end select
   end subroutine get_nStateSplit
-
-  ! **** stateFilter ****
-  subroutine initialize_stateFilter
-   call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
-  end subroutine initialize_stateFilter
-
-  subroutine finalize_stateFilter
-   call out_stateFilter % finalize(nSubset,err,cmessage)
-  end subroutine finalize_stateFilter
 
   ! **** indexSplit ****
   subroutine initialize_indexSplit
@@ -1374,16 +1374,17 @@ end function split_select_logic_finalize_stateTypeSplitting
 
 subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,message,return_flag)
  ! *** Get the mask for the state subset ***
- class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ class(split_select_type),intent(inout) :: split_select              ! class object for operator splitting selector
  type(var_ilength),intent(in)           :: indx_data                 ! indices for a local HRU
- integer(i4b),intent(out)               :: err               ! intent(out): error code
- character(*),intent(out)               :: cmessage          ! intent(out): error message
- character(*),intent(out)               :: message                        ! error message
- logical(lgt),intent(out)               :: return_flag
+ integer(i4b),intent(out)               :: err                       ! intent(out): error code
+ character(*),intent(out)               :: cmessage                  ! intent(out): error message
+ character(*),intent(out)               :: message                   ! error message
+ logical(lgt),intent(out)               :: return_flag               ! return flag
  ! local variables
  type(in_type_stateFilter)              :: in_stateFilter            ! indices
  type(out_type_stateFilter)             :: out_stateFilter           ! number of selected state variables for a given split and error control
 
+ err=0               ! initialize error code 
  return_flag=.false. ! initialize flag
  associate(&
   ixCoupling        => split_select % ixCoupling        ,& 
@@ -1394,9 +1395,6 @@ subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,me
   iStateSplit       => split_select % iStateSplit        )
   call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
  end associate
- !associate(stateMask => split_select % stateMask)
- ! call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
- !end associate
  call stateFilter(in_stateFilter,indx_data,split_select % stateMask,out_stateFilter)
  associate(nSubset => split_select % nSubset)
   call out_stateFilter % finalize(nSubset,err,cmessage)
@@ -1408,16 +1406,15 @@ end subroutine split_select_compute_stateMask
 ! **********************************************************************************************************
 ! private subroutine stateFilter: get a mask for the desired state variables
 ! **********************************************************************************************************
-subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
-
+ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
  USE indexState_module,only:indxSubset                               ! get state indices
  implicit none
  ! input
  type(in_type_stateFilter),intent(in)   :: in_stateFilter            ! indices
  type(var_ilength),intent(in)           :: indx_data                 ! indices for a local HRU
+ ! input-output
+ logical(lgt),intent(inout)             :: stateMask(:)              ! mask defining desired state variables
  ! output
- !logical(lgt),intent(out)               :: stateMask(:)              ! mask defining desired state variables
- logical(lgt),allocatable,intent(inout) :: stateMask(:)              ! mask defining desired state variables
  type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
  ! local
  integer(i4b),allocatable               :: ixSubset(:)               ! list of indices in the state subset
@@ -1439,13 +1436,14 @@ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
    case(stateTypeSplit) ! initial split by state type
     call stateTypeSplit_stateMask; if (return_flag) return ! get stateMask for state split method -- return if error
     ! check
-   case default; err=20; message=trim(message)//'unable to identify coupling method'; return
-  end select  ! selecting solution method
+   case default; err=20; message=trim(message)//'unable to identify coupling method'; return_flag=.true.; return
+  end select  ! selecting solution method 
+
+  ! initialize ixSubset
+  allocate(ixSubset(1_i4b),STAT=err)
+  if (err/=0) then; message=trim(message)//'allocation error in stateFilter for ixSubset'; return_flag=.true.; return; end if
+  ixSubset = 0._rkind
  end associate
- 
- ! initialize ixSubset
- allocate(ixSubset(1_i4b))
- ixSubset = 0._rkind
 
  call identify_scalar_solutions; if (return_flag) return ! identify scalar solutions -- return if error occurs
 
@@ -1517,7 +1515,7 @@ contains
             iStateTypeSplit => in_stateFilter % iStateTypeSplit          ,& ! intent(in): [i4b] index of the state type split
             err             => out_stateFilter % err                     ,& ! intent(out): error code
             message         => out_stateFilter % cmessage                 ) ! intent(out): error message
-   stateMask=.false. ! initialize state mask
+   stateMask(:)=.false. ! initialize state mask
    select case(iStateTypeSplit)
     ! define mask for energy
     case(nrgSplit); call stateTypeSplit_subDomain_nrgSplit_stateMask; if (return_flag) return

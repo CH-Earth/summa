@@ -64,7 +64,7 @@ contains
  integer(i4b)             :: fileHRU                   ! number of HRUs in netcdf file
  integer(i4b)             :: snowID, soilID            ! netcdf variable ids
  integer(i4b)             :: iGRU, iHRU                ! loop indexes
- integer(i4b)             :: iHRU_local                ! index of HRU in the data subset
+ !integer(i4b)             :: iHRU_local                ! index of HRU in the data subset
  integer(i4b)             :: iHRU_global               ! index of HRU in the netcdf file
  integer(i4b),allocatable :: snowData(:)               ! number of snow layers in all HRUs
  integer(i4b),allocatable :: soilData(:)               ! number of soil layers in all HRUs
@@ -202,7 +202,7 @@ contains
  integer(i4b)                           :: nTDH                     ! number of points in time-delay histogram
  integer(i4b)                           :: iLayer,jLayer            ! layer indices
  integer(i4b),parameter                 :: nBand=2                  ! number of spectral bands
- integer(i4b)                           :: nProgVars                ! number of prognostic variables written to state file
+ !integer(i4b)                           :: nProgVars                ! number of prognostic variables written to state file
  character(len=32),parameter            :: scalDimName   ='scalarv' ! dimension name for scalar data
  character(len=32),parameter            :: midSoilDimName='midSoil' ! dimension name for soil-only layers
  character(len=32),parameter            :: midTotoDimName='midToto' ! dimension name for layered varaiables

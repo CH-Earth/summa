@@ -208,9 +208,9 @@ subroutine coupled_em(&
   real(rkind)                          :: dCanopyWetFraction_dT   ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
   real(rkind),parameter                :: varNotUsed1=-9999._rkind ! variables used to calculate derivatives (not needed here)
   real(rkind),parameter                :: varNotUsed2=-9999._rkind ! variables used to calculate derivatives (not needed here)
-  integer(i4b)                         :: iSnow                  ! index of snow layers
+  !integer(i4b)                         :: iSnow                  ! index of snow layers
   integer(i4b)                         :: iLayer                 ! index of model layers
-  real(rkind)                          :: massLiquid             ! mass liquid water (kg m-2)
+  !real(rkind)                          :: massLiquid             ! mass liquid water (kg m-2)
   real(rkind)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
   real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   integer(i4b)                         :: ixSolution             ! solution method used by opSplittin
@@ -312,6 +312,9 @@ subroutine coupled_em(&
 
   ! check if the aquifer is included
   includeAquifer = (model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket)
+
+  ! initialize variables
+  call initialize_coupled_em
 
   ! initialize the numerix tracking variables
   indx_data%var(iLookINDEX%numberFluxCalc       )%dat(1) = 0  ! number of flux calculations                     (-)
@@ -911,6 +914,7 @@ subroutine coupled_em(&
 
         ! save volumetric ice content at the start of the step
         ! NOTE: used for volumetric loss due to melt-freeze
+        if (allocated(mLayerVolFracIceInit)) deallocate(mLayerVolFracIceInit) ! prep for potential size change
         allocate(mLayerVolFracIceInit(nLayers)); mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat
 
         ! make sure have consistent state variables to start, later done in updateVars
@@ -988,8 +992,10 @@ subroutine coupled_em(&
         end do
         innerEffRainfall  = 0._rkind ! mean total effective rainfall over snow
         innerSoilCompress = 0._rkind ! mean total soil compression
-        innerBalance = 0._rkind ! mean total balance
+        innerBalance = 0._rkind ! mean total balance array
+        if (allocated(innerBalanceLayerNrg))  deallocate(innerBalanceLayerNrg)
         allocate(innerBalanceLayerNrg(nLayers)); innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
+        if (allocated(innerBalanceLayerMass)) deallocate(innerBalanceLayerMass)    ! deallocate if already allocated to permit size change
         allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
         sumStepSize= 0._rkind ! initialize the sum of the step sizes
 
@@ -1676,6 +1682,34 @@ subroutine coupled_em(&
 
   ! get the elapsed time
   diag_data%var(iLookDIAG%wallClockTime)%dat(1) = elapsed_time
+
+contains
+
+ subroutine initialize_coupled_em
+  ! *** Initialize steps for coupled_em subroutine ***
+  ! Notes: - created to ensure certain variables are initialized prior to use in calculations
+  !        - based on warnings from the SUMMA debug build (e.g., -Wall flag)
+  !        - additional initial operations may be added here in the future
+
+  ! initialize variables
+  innerEffRainfall=0._rkind       ! inner step average effective rainfall into snow (kg m-2 s-1) 
+  sumCanopySublimation=0._rkind   ! sum of sublimation from the vegetation canopy (kg m-2 s-1) over substep
+  sumLatHeatCanopyEvap=0._rkind   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over substep
+  sumSenHeatCanopy=0._rkind       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2) over substep
+  sumSnowSublimation=0._rkind     ! sum of sublimation from the snow surface (kg m-2 s-1) over substep
+  sumStepSize=0._rkind            ! sum solution step for the data step
+  innerBalance = 0._rkind         ! mean total balance array
+
+  ! get initial value of nLayers
+  nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+  nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
+  nLayers = nSnow + nSoil
+
+  ! allocate and initialize using the initial value of nLayers
+  allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
+  allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
+  allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
+ end subroutine initialize_coupled_em
 
 end subroutine coupled_em
 

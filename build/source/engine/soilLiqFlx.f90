@@ -140,7 +140,7 @@ subroutine soilLiqFlx(&
   integer(i4b)                                    :: ixIce                   ! index of the lowest soil layer that contains ice
   real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
   ! compute fluxes and derivatives at layer interfaces
-  real(rkind)                         :: scalardPsi_dTheta ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
+  !real(rkind)                         :: scalardPsi_dTheta ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
 

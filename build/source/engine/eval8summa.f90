@@ -209,13 +209,13 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial         ! trial vector of temperature component of enthalpy for snow+soil layers (J m-3)
   ! other local variables
   logical(lgt)                    :: checkLWBalance              ! flag to check longwave balance
-  integer(i4b)                    :: iLayer                      ! index of model layer in the snow+soil domain
+  !integer(i4b)                    :: iLayer                      ! index of model layer in the snow+soil domain
   integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
   integer(i4b)                    :: ixBeg,ixEnd                 ! index of indices for the soil compression routine
   real(rkind),dimension(nState)   :: rVecScaled                  ! scaled residual vector
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
-  real(rkind)                     :: scalarCanopyCmTrial         ! trial value of Cm for the canopy
-  real(rkind),dimension(nLayers)  :: mLayerCmTrial               ! trial vector of Cm for snow+soil
+  !real(rkind)                     :: scalarCanopyCmTrial         ! trial value of Cm for the canopy
+  !real(rkind),dimension(nLayers)  :: mLayerCmTrial               ! trial vector of Cm for snow+soil
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: updateFluxCp                ! flag to indicate if we update Cp at each step for RHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: needStateCm                 ! flag to indicate if the energy equation contains LHS Cm = dH_T/dTheta_m,, set with nrgConserv choice and needStateCm_closedForm flag

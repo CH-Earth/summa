@@ -185,6 +185,7 @@ contains
  integer(i4b), dimension(7)             :: absTol_paramIndx = [iLookPARAM%absTolTempCas, iLookPARAM%absTolTempVeg, iLookPARAM%absTolWatVeg, &
                                                                iLookPARAM%absTolTempSoilSnow, iLookPARAM%absTolWatSnow, iLookPARAM%absTolMatric, &
                                                                iLookPARAM%absTolAquifr]
+ err=0 ! initialize error code
  message="set_ida_defaults/"
  
   ! Relative Tolerances
