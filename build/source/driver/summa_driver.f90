@@ -64,35 +64,40 @@ program summa_driver
   integer(i4b)                       :: err=0                      ! error code
   character(len=1024)                :: message=''                 ! error message
 
-  ! *****************************************************************************
-  ! * preliminaries
-  ! *****************************************************************************
+!!! -------------------- Begin Initialize -------------------- !!!
+  call initialize_summa_driver
 
-  ! allocate space for the master summa structure
-  allocate(summa1_struc(n), stat=err)
-  if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+!  ! *****************************************************************************
+!  ! * preliminaries
+!  ! *****************************************************************************
+!
+!  ! allocate space for the master summa structure
+!  allocate(summa1_struc(n), stat=err)
+!  if(err/=0) call stop_program(1, 'problem allocating master summa structure')
 
-  ! *****************************************************************************
-  ! * model setup/initialization
-  ! *****************************************************************************
+!  ! *****************************************************************************
+!  ! * model setup/initialization
+!  ! *****************************************************************************
+!
+!  ! declare and allocate summa data structures and initialize model state to known values
+!  call summa_initialize(summa1_struc(n), err, message)
+!  call handle_err(err, message)
+!
+!  ! initialize parameter data structures (e.g. vegetation and soil parameters)
+!  call summa_paramSetup(summa1_struc(n), err, message)
+!  call handle_err(err, message)
+!
+!  ! read restart data and reset the model state
+!  call summa_readRestart(summa1_struc(n), err, message)
+!  call handle_err(err, message)
 
-  ! declare and allocate summa data structures and initialize model state to known values
-  call summa_initialize(summa1_struc(n), err, message)
-  call handle_err(err, message)
+!#ifdef OPENWQ_ACTIVE
+!  call openwq_init(err)
+!  if (err /= 0) call stop_program(1, 'Problem Initializing OpenWQ')
+!#endif
+!!! -------------------- End Initialize -------------------- !!!
 
-  ! initialize parameter data structures (e.g. vegetation and soil parameters)
-  call summa_paramSetup(summa1_struc(n), err, message)
-  call handle_err(err, message)
-
-  ! read restart data and reset the model state
-  call summa_readRestart(summa1_struc(n), err, message)
-  call handle_err(err, message)
-
-#ifdef OPENWQ_ACTIVE
-  call openwq_init(err)
-  if (err /= 0) call stop_program(1, 'Problem Initializing OpenWQ')
-#endif
-
+!!! -------------------- Begin Update -------------------- !!!
   ! *****************************************************************************
   ! * model simulation
   ! *****************************************************************************
@@ -128,11 +133,65 @@ program summa_driver
 #endif
 
   end do  ! looping through time
+!!! -------------------- End Update -------------------- !!!
 
-  ! successful end
-  call stop_program(0, 'finished simulation successfully.')
+!!! -------------------- Begin Finalize -------------------- !!!
+  call finalize_summa_driver
 
-  ! to prevent exiting before HDF5 has closed
-  call sleep(2)
+!  ! successful end
+!  call stop_program(0, 'finished simulation successfully.')
+!
+!  ! to prevent exiting before HDF5 has closed
+!  call sleep(2)
+!!! -------------------- End Finalize -------------------- !!!
+
+contains
+
+  subroutine initialize_summa_driver
+   ! *** Initial operations for SUMMA driver program ***
+
+   ! *****************************************************************************
+   ! * preliminaries
+   ! *****************************************************************************
+
+   ! allocate space for the master summa structure
+   allocate(summa1_struc(n), stat=err)
+   if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+
+   ! *****************************************************************************
+   ! * model setup/initialization
+   ! *****************************************************************************
+
+   ! declare and allocate summa data structures and initialize model state to known values
+   call summa_initialize(summa1_struc(n), err, message)
+   call handle_err(err, message)
+
+   ! initialize parameter data structures (e.g. vegetation and soil parameters)
+   call summa_paramSetup(summa1_struc(n), err, message)
+   call handle_err(err, message)
+
+   ! read restart data and reset the model state
+   call summa_readRestart(summa1_struc(n), err, message)
+   call handle_err(err, message)
+
+#ifdef OPENWQ_ACTIVE
+   call openwq_init(err)
+   if (err /= 0) call stop_program(1, 'Problem Initializing OpenWQ')
+#endif
+  end subroutine initialize_summa_driver
+
+  subroutine update_summa_driver
+   ! *** Update operations for SUMMA driver program ***
+
+  end subroutine update_summa_driver
+
+  subroutine finalize_summa_driver
+   ! *** Final operations for SUMMA driver program ***
+   ! successful end
+   call stop_program(0, 'finished simulation successfully.')
+
+   ! to prevent exiting before HDF5 has closed
+   call sleep(2)
+  end subroutine finalize_summa_driver
 
 end program summa_driver
