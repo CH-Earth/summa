@@ -208,9 +208,7 @@ subroutine coupled_em(&
   real(rkind)                          :: dCanopyWetFraction_dT   ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
   real(rkind),parameter                :: varNotUsed1=-9999._rkind ! variables used to calculate derivatives (not needed here)
   real(rkind),parameter                :: varNotUsed2=-9999._rkind ! variables used to calculate derivatives (not needed here)
-  !integer(i4b)                         :: iSnow                  ! index of snow layers
   integer(i4b)                         :: iLayer                 ! index of model layers
-  !real(rkind)                          :: massLiquid             ! mass liquid water (kg m-2)
   real(rkind)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
   real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   integer(i4b)                         :: ixSolution             ! solution method used by opSplittin

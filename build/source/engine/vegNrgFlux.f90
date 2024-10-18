@@ -179,7 +179,6 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: dSVPGround_dGroundTemp          ! derivative in ground saturated vapor pressure w.r.t. ground temperature (Pa/K)
   ! wetted canopy area
   real(rkind)                        :: fracLiquidCanopy                ! fraction of liquid water in the canopy (-)
-  !real(rkind)                        :: canopyWetFraction               ! trial value of the canopy wetted fraction (-)
   real(rkind)                        :: dCanopyWetFraction_dWat         ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
   real(rkind)                        :: dCanopyWetFraction_dT           ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
   ! longwave radiation
