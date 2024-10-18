@@ -33,6 +33,7 @@ int CLASSWQ_openwq::decl(
     int nYdirec_2openwq){     // num of layers in y-dir (set to 1 because not used in summa)
 
     this->num_HRU = num_HRU;
+    std::string msg_string;                 // interactive message to print
 
     if (OpenWQ_hostModelconfig_ref->get_num_HydroComp()==0) {
 
@@ -61,13 +62,43 @@ int CLASSWQ_openwq::decl(
         OpenWQ_hostModelconfig_ref->add_HydroDepend(2,"Tsoil_K",   num_HRU,nYdirec_2openwq, nSnow_2openwq + nSoil_2openwq);
 
         // Master Json
-        std::string master_json = std::getenv("master_json") ? std::getenv("master_json") : "";
-        if (!std::filesystem::exists(master_json)) {
-            std::cerr << "\nERROR: Path to OpenWQ_master.json does not exist !!\n"
-                      << "Please set the environment variable 'master_json' "
-                      << "to the path of the OpenWQ_master.json file.\n";
+        // read location from file: openwq_mainJSONFile_fullPath.txt
+        std::string master_json; //string
+        std::fstream fileStream; //file stream object
+        fileStream.open("openwq_mainJSONFile_fullPath.txt"); //open your word list
+
+        // check if openwq_mainJSONFile_fullPath.txt exists
+        if (!fileStream) {
+
+            // Create Error Message
+            msg_string = 
+                "<OpenWQ> ERROR: The 'openwq_mainJSONFile_fullPath.txt' has not been found. This file needs to exist in the directory where the openWQ executable is located, and it needs to contain the full path to the main/entry input file for OpenWQ. The simulation aborted has been!";
+
+            // Print it (Console and/or Log file)
+            std::cout << msg_string << std::endl;
+
             exit(EXIT_FAILURE);
+
+        // if yes, get the master file fullpath and check if it also exists
+        }else{
+            // read openwq master file location
+            std::getline(fileStream, master_json); 
+
+            // Check if master file exists
+            if (!std::filesystem::exists(master_json)) {
+            
+                // Create Error Message
+                msg_string = 
+                "<OpenWQ> ERROR: The full path to the main/entry input file for OpenWQ that is provided in 'openwq_mainJSONFile_fullPath.txt' has not been found. The simulation aborted has been!";
+
+                // Print it (Console and/or Log file)
+                std::cout << msg_string << std::endl;
+
+                exit(EXIT_FAILURE);
+            }
+
         }
+
         OpenWQ_wqconfig_ref->set_OpenWQ_masterjson(master_json);
 
         OpenWQ_couplercalls_ref->InitialConfig(
