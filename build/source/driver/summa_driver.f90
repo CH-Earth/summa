@@ -64,103 +64,23 @@ program summa_driver
   integer(i4b)                       :: err=0                      ! error code
   character(len=1024)                :: message=''                 ! error message
 
-!!! -------------------- Begin Initialize -------------------- !!!
+  ! Initialize
   call initialize_summa_driver
 
-!  ! *****************************************************************************
-!  ! * preliminaries
-!  ! *****************************************************************************
-!
-!  ! allocate space for the master summa structure
-!  allocate(summa1_struc(n), stat=err)
-!  if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+  ! Update
+  call update_summa_driver
 
-!  ! *****************************************************************************
-!  ! * model setup/initialization
-!  ! *****************************************************************************
-!
-!  ! declare and allocate summa data structures and initialize model state to known values
-!  call summa_initialize(summa1_struc(n), err, message)
-!  call handle_err(err, message)
-!
-!  ! initialize parameter data structures (e.g. vegetation and soil parameters)
-!  call summa_paramSetup(summa1_struc(n), err, message)
-!  call handle_err(err, message)
-!
-!  ! read restart data and reset the model state
-!  call summa_readRestart(summa1_struc(n), err, message)
-!  call handle_err(err, message)
-
-!#ifdef OPENWQ_ACTIVE
-!  call openwq_init(err)
-!  if (err /= 0) call stop_program(1, 'Problem Initializing OpenWQ')
-!#endif
-!!! -------------------- End Initialize -------------------- !!!
-
-!!! -------------------- Begin Update -------------------- !!!
-  ! *****************************************************************************
-  ! * model simulation
-  ! *****************************************************************************
-  ! loop through time
-  do modelTimeStep=1,numtim
-
-    ! read model forcing data
-    call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
-    call handle_err(err, message)
-
-#ifdef OPENWQ_ACTIVE
-    call openwq_run_time_start(summa1_struc(n)) ! Passing state volumes to openWQ
-#endif
-
-    if (mod(modelTimeStep, print_step_freq) == 0)then
-      print *, 'step ---> ', modelTimeStep
-    endif
-
-    ! run the summa physics for one time step
-    call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
-    call handle_err(err, message)
-
-#ifdef OPENWQ_ACTIVE
-    call openwq_run_space_step(summa1_struc(n)) ! Passing fluxes to openWQ
-#endif
-
-    ! write the model output
-    call summa_writeOutputFiles(modelTimeStep, summa1_struc(n), err, message)
-    call handle_err(err, message)
-
-#ifdef OPENWQ_ACTIVE
-    call openwq_run_time_end(summa1_struc(n))
-#endif
-
-  end do  ! looping through time
-!!! -------------------- End Update -------------------- !!!
-
-!!! -------------------- Begin Finalize -------------------- !!!
+  ! Finalize
   call finalize_summa_driver
-
-!  ! successful end
-!  call stop_program(0, 'finished simulation successfully.')
-!
-!  ! to prevent exiting before HDF5 has closed
-!  call sleep(2)
-!!! -------------------- End Finalize -------------------- !!!
 
 contains
 
   subroutine initialize_summa_driver
    ! *** Initial operations for SUMMA driver program ***
 
-   ! *****************************************************************************
-   ! * preliminaries
-   ! *****************************************************************************
-
    ! allocate space for the master summa structure
    allocate(summa1_struc(n), stat=err)
    if(err/=0) call stop_program(1, 'problem allocating master summa structure')
-
-   ! *****************************************************************************
-   ! * model setup/initialization
-   ! *****************************************************************************
 
    ! declare and allocate summa data structures and initialize model state to known values
    call summa_initialize(summa1_struc(n), err, message)
@@ -183,6 +103,38 @@ contains
   subroutine update_summa_driver
    ! *** Update operations for SUMMA driver program ***
 
+   ! loop through time
+   do modelTimeStep=1,numtim
+ 
+     ! read model forcing data
+     call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
+     call handle_err(err, message)
+ 
+#ifdef OPENWQ_ACTIVE
+     call openwq_run_time_start(summa1_struc(n)) ! Passing state volumes to openWQ
+#endif
+ 
+     if (mod(modelTimeStep, print_step_freq) == 0)then
+       print *, 'step ---> ', modelTimeStep
+     endif
+ 
+     ! run the summa physics for one time step
+     call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
+     call handle_err(err, message)
+ 
+#ifdef OPENWQ_ACTIVE
+     call openwq_run_space_step(summa1_struc(n)) ! Passing fluxes to openWQ
+#endif
+ 
+     ! write the model output
+     call summa_writeOutputFiles(modelTimeStep, summa1_struc(n), err, message)
+     call handle_err(err, message)
+ 
+#ifdef OPENWQ_ACTIVE
+     call openwq_run_time_end(summa1_struc(n))
+#endif
+ 
+   end do  ! looping through time
   end subroutine update_summa_driver
 
   subroutine finalize_summa_driver
