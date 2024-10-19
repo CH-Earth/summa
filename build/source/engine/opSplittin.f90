@@ -965,6 +965,7 @@ subroutine opSplittin(&
    cycle_domainSplit=.false.
    cycle_solution=.false.
    return_flag=.false.
+   nSubset = split_select % nSubset
 
    ! check that state variables exist
    if (nSubset==0) then

@@ -206,7 +206,6 @@ subroutine eval8summaWithPrime(&
   real(rkind)                     :: scalarCanopyNrgPrime        ! prime value for energy of the vegetation canopy
   real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each snow and soil layer
   ! other local variables
-  !integer(i4b)                    :: iLayer                      ! index of model layer in the snow+soil domain
   integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
   integer(i4b)                    :: ixBeg,ixEnd                 ! index of indices for the soil compression routine
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
