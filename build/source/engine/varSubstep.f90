@@ -847,8 +847,6 @@ USE getVectorz_module,only:varExtract                              ! extract var
     call varExtract(&
                     ! input
                     stateVecTrial,             & ! intent(in):    model state vector (mixed units)
-                    diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                    prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                 & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
                     scalarCanairNrgTrial,      & ! intent(inout): trial value of energy of the canopy air space, temperature (K) or enthalpy (J m-3)
@@ -906,8 +904,6 @@ USE getVectorz_module,only:varExtract                              ! extract var
         call varExtract(&
                   ! input
                   stateVecPrime,             & ! intent(in):    derivative of model state vector (mixed units)
-                  diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                  prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                   indx_data,                 & ! intent(in):    indices defining model states and layers
                   ! output: variables for the vegetation canopy
                   scalarCanairNrgPrime,      & ! intent(inout): derivative of energy of the canopy air space, temperature (K s-1) or enthalpy (W m-3)

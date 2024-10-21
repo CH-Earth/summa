@@ -111,7 +111,6 @@ subroutine computJacobWithPrime(&
                       ixRichards,                 & ! intent(in):    choice of option for Richards' equation
                       enthalpyStateVec,           & ! intent(in):    flag if enthalpy is state variable
                       ! input: data structures
-                      model_decisions,            & ! intent(in):    model decisions
                       indx_data,                  & ! intent(in):    index data
                       prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
@@ -144,7 +143,6 @@ subroutine computJacobWithPrime(&
   integer(i4b),intent(in)              :: ixRichards                 ! choice of option for Richards' equation
   logical(lgt),intent(in)              :: enthalpyStateVec           ! flag if enthalpy is state variable
   ! input: data structures
-  type(model_options),intent(in)       :: model_decisions(:)         ! model decisions
   type(var_ilength),intent(in)         :: indx_data                  ! indices defining model states and layers
   type(var_dlength),intent(in)         :: prog_data                  ! prognostic variables for a local HRU
   type(var_dlength),intent(in)         :: diag_data                  ! diagnostic variables for a local HRU
@@ -1206,7 +1204,6 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 eqns_data%model_decisions(iLookDECISIONS%f_Richards)%iDecision,                & ! intent(in): choice of option for Richards' equation
                 eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm,  & ! intent(in): flag if enthalpy is state variable
                 ! input: data structures
-                eqns_data%model_decisions,                & ! intent(in):    model decisions
                 eqns_data%indx_data,                      & ! intent(in):    index data
                 eqns_data%prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
                 eqns_data%diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
