@@ -72,12 +72,8 @@ contains
 ! **********************************************************************************************************
 subroutine computThermConduct(&
                     ! input: control variables
-                    computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
                     nLayers,                 & ! intent(in):    total number of layers
-                    canopyDepth,             & ! intent(in):    canopy depth (m)
                     ! input: state variables
-                    scalarCanopyIce,         & ! intent(in):    canopy ice content (kg m-2)
-                    scalarCanopyLiquid,      & ! intent(in):    canopy liquid water content (kg m-2)
                     mLayerTemp,              & ! intent(in):    temperature at the current iteration (K)
                     mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)
                     mLayerVolFracIce,        & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)
@@ -107,12 +103,8 @@ subroutine computThermConduct(&
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  logical(lgt),intent(in)              :: computeVegFlux           ! logical flag to denote if computing the vegetation flux
   integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the snow+soil domain
-  real(rkind),intent(in)               :: canopyDepth              ! depth of the vegetation canopy (m)
   ! input: trial model state variables
-  real(rkind),intent(in)               :: scalarCanopyIce          ! trial value of canopy ice content (kg m-2)
-  real(rkind),intent(in)               :: scalarCanopyLiquid
   real(rkind),intent(in)               :: mLayerTemp(:)            ! temperature in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the current iteration (-)
@@ -184,8 +176,6 @@ subroutine computThermConduct(&
     mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the mid-point of each layer (m)
     iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the interface of each layer (m)
     ! input: heat capacity and thermal conductivity
-    specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),          & ! intent(in):  [dp]    specific heat of vegetation (J kg-1 K-1)
-    maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in):  [dp]    maximum mass of vegetation (kg m-2)
     fixedThermalCond_snow   => mpar_data%var(iLookPARAM%fixedThermalCond_snow)%dat(1),    & ! intent(in):  [dp]    temporally constant thermal conductivity of snow (W m-1 K-1)
     ! input: depth varying soil parameters
     iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in):  [dp(:)] intrinsic density of soil (kg m-3)

@@ -356,8 +356,6 @@ subroutine eval8summa(&
     call varExtract(&
                     ! input
                     stateVec,                  & ! intent(in):    model state vector (mixed units)
-                    diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                    prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                 & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
                     scalarCanairTempTrial,     & ! intent(inout): trial value of canopy air temperature (K)
@@ -465,12 +463,8 @@ subroutine eval8summa(&
       ! update thermal conductivity
       call computThermConduct(&
                           ! input: control variables
-                          computeVegFlux,        & ! intent(in):    flag to denote if computing the vegetation flux
                           nLayers,               & ! intent(in):    total number of layers
-                          canopyDepth,           & ! intent(in):    canopy depth (m)
                           ! input: state variables
-                          scalarCanopyIceTrial,  & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
-                          scalarCanopyLiqTrial,  & ! intent(in):    trial value of canopy liquid water (kg m-2)
                           mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
                           mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)
                           mLayerVolFracIceTrial, & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)

@@ -56,7 +56,6 @@ subroutine eval8summaWithPrime(&
                       nSnow,                         & ! intent(in):    number of snow layers
                       nSoil,                         & ! intent(in):    number of soil layers
                       nLayers,                       & ! intent(in):    total number of layers
-                      nState,                        & ! intent(in):    total number of state variables
                       insideSUN,                     & ! intent(in):    flag to indicate if we are inside Sundials solver
                       firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
                       firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
@@ -123,7 +122,6 @@ subroutine eval8summaWithPrime(&
   integer(i4b),intent(in)         :: nSnow                       ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                       ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                     ! total number of layers
-  integer,intent(in)              :: nState                      ! total number of state variables
   logical(lgt),intent(in)         :: insideSUN                   ! flag to indicate if we are inside Sundials solver
   logical(lgt),intent(in)         :: firstSubStep                ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(inout)      :: firstFluxCall               ! flag to indicate if we are processing the first flux call
@@ -337,8 +335,6 @@ subroutine eval8summaWithPrime(&
     call varExtract(&
                     ! input
                     stateVec,                  & ! intent(in):    model state vector (mixed units)
-                    diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                    prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                 & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
                     scalarCanairNrgTrial,      & ! intent(inout): trial value of energy of the canopy air space, temperature (K) or enthalpy (J m-3)
@@ -374,8 +370,6 @@ subroutine eval8summaWithPrime(&
     call varExtract(&
                   ! input
                   stateVecPrime,             & ! intent(in):    derivative of model state vector (mixed units)
-                  diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                  prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                   indx_data,                 & ! intent(in):    indices defining model states and layers
                   ! output: variables for the vegetation canopy
                   scalarCanairNrgPrime,      & ! intent(inout): derivative of energy of the canopy air space, temperature (K s-1) or enthalpy (W m-3)
@@ -523,12 +517,8 @@ subroutine eval8summaWithPrime(&
       ! update thermal conductivity
       call computThermConduct(&
                           ! input: control variables
-                          computeVegFlux,        & ! intent(in):    flag to denote if computing the vegetation flux
                           nLayers,               & ! intent(in):    total number of layers
-                          canopyDepth,           & ! intent(in):    canopy depth (m)
                           ! input: state variables
-                          scalarCanopyIceTrial,  & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
-                          scalarCanopyLiqTrial,  & ! intent(in):    trial value of canopy liquid water (kg m-2)
                           mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
                           mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)
                           mLayerVolFracIceTrial, & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)
@@ -755,7 +745,6 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%nSnow,                         & ! intent(in):    number of snow layers
                 eqns_data%nSoil,                         & ! intent(in):    number of soil layers
                 eqns_data%nLayers,                       & ! intent(in):    number of layers
-                eqns_data%nState,                        & ! intent(in):    number of state variables in the current subset
                 .true.,                                  & ! intent(in):    inside SUNDIALS solver
                 eqns_data%firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
                 eqns_data%firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
