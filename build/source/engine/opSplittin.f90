@@ -135,6 +135,7 @@ real(rkind),parameter   :: dx = 1.e-8_rkind              ! finite difference inc
 
 type, public :: split_select_type  ! class for selecting operator splitting methods
   ! opSplittin indices (in order)
+  integer(i4b)             :: iSplit                      ! iteration counter for split_select_loop
   integer(i4b)             :: ixCoupling
   integer(i4b)             :: iStateTypeSplit
   integer(i4b)             :: ixStateThenDomain           ! 1=state type split; 2=domain split within a given state type 
@@ -159,6 +160,7 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
 
   procedure :: get_stateMask                => split_select_compute_stateMask            ! compute stateMask and nSubset and load into class object
 
+  procedure :: advance_iSplit               => split_select_advance_iSplit               ! advance coupling iterator
   procedure :: advance_ixCoupling           => split_select_advance_ixCoupling           ! advance coupling iterator
   procedure :: advance_iStateTypeSplit      => split_select_advance_iStateTypeSplit      ! advance stateTypeSplitting iterator
   procedure :: advance_ixStateThenDomain    => split_select_advance_ixStateThenDomain    ! advance stateThenDomain iterator
@@ -334,7 +336,6 @@ subroutine opSplittin(&
   logical(lgt)                    :: exit_split_select,cycle_split_select ! control for split_select loop
   logical(lgt)                    :: exit_coupling,exit_stateThenDomain,exit_solution
   logical(lgt)                    :: cycle_coupling,cycle_stateThenDomain,cycle_domainSplit,cycle_solution
-  integer(i4b)                    :: iSplit
   integer(i4b),parameter          :: maxSplit=500       ! >= max number of splitting methods (controls upper limit of split_select loop)               
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
@@ -346,7 +347,7 @@ subroutine opSplittin(&
   ! *** Initialize Split Selector Object ***
   call initialize_split_select;   if (return_flag) return
   call initialize_split_coupling; if (return_flag) return 
-  split_select_loop: do iSplit=1,maxSplit       ! coupling begins
+  split_select_loop: do                         ! coupling begins
     call initialize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
     if (split_select % stateTypeSplitting) then ! stateTypeSplitting begins
       call initialize_split_stateThenDomain
@@ -390,7 +391,7 @@ subroutine opSplittin(&
       end if ! stateThenDomain ends
       call finalize_split_stateThenDomain; if (return_flag) return
     end if ! stateTypeSplitting ends
-    call finalize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop
+    call finalize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
   end do split_select_loop ! coupling ends
   call finalize_split_coupling; if (return_flag) return
 
@@ -400,6 +401,9 @@ subroutine opSplittin(&
   subroutine initialize_split_select
    ! *** Initialize split_select class object ***
    
+   ! initizlaize iteration counter for split_select_loop
+   split_select % iSplit = 1 
+ 
    ! initialize # of state variables
    split_select % nState = nState
 
@@ -549,13 +553,14 @@ subroutine opSplittin(&
     end if
     call split_select % advance_ixCoupling
    end if
+   call split_select % advance_iSplit ! advance iteration counter for split_select_loop
+   if (split_select % iSplit.ge.maxSplit) then ! check for errors
+    err=20; message=trim(message)//'split_select loop exceeded max number of iterations'; return_flag=.true.; return 
+   end if
   end subroutine finalize_split_stateTypeSplitting
 
   subroutine finalize_split_coupling
    ! *** Finalize steps for coupling split method ***
-   if (iSplit.gt.maxSplit) then ! check for errors
-    err=20; message=trim(message)//'split_select loop exceeded max number of iterations'; return_flag=.true.; return 
-   end if
    call finalize_coupling; if (return_flag) return ! check variables and fluxes, and apply step halving if needed
   end subroutine finalize_split_coupling
 
@@ -1199,6 +1204,12 @@ subroutine split_select_initialize_flags(split_select)
  split_select % solution=.false.
  split_select % stateSplit=.false.
 end subroutine split_select_initialize_flags
+
+subroutine split_select_advance_iSplit(split_select)
+ ! *** Advance index for coupling split method ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % iSplit = split_select % iSplit + 1
+end subroutine split_select_advance_iSplit
 
 subroutine split_select_advance_ixCoupling(split_select)
  ! *** Advance index for coupling split method ***
