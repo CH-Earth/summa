@@ -65,7 +65,7 @@ module allocspace_progStuct_module
   ! privacy
   implicit none
   private
-  public::allocGlobal_porgStruct
+  public::allocGlobal_progStruct
 
   
   ! -----------------------------------------------------------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ module allocspace_progStuct_module
  ! Modified copy of the subroutine allocGlobal() from allocspace.f90 specificly for allocating
  ! the array progStruct_timestep_start 
  ! ************************************************************************************************
-  subroutine allocGlobal_porgStruct(metaStruct,dataStruct,nSnow,err,message)
+  subroutine allocGlobal_progStruct(metaStruct,dataStruct,nSnow,err,message)
     ! NOTE: safety -- ensure only used in allocGlobal
     USE globalData,only: gru_struc     ! gru-hru mapping structures
     USE allocspace_module, only:allocLocal
@@ -95,7 +95,7 @@ module allocspace_progStuct_module
     logical(lgt)                    :: spatial        ! spatial flag
     character(len=256)              :: cmessage       ! error message of the downwind routine
     ! initialize error control
-    err=0; message='allocGlobal_porgStruct/'
+    err=0; message='allocGlobal_progStruct/'
     ! initialize allocation check
     check=.false.
    
@@ -198,7 +198,7 @@ module allocspace_progStuct_module
     ! error check
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
    
-  end subroutine allocGlobal_porgStruct
+  end subroutine allocGlobal_progStruct
   
 end module allocspace_progStuct_module
   
