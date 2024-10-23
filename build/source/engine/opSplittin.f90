@@ -344,59 +344,81 @@ subroutine opSplittin(&
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
 
-  ! *** Initialize Split Selector Object ***
-  call initialize_split_select;   if (return_flag) return
-  call initialize_split_coupling; if (return_flag) return 
-  split_select_loop: do                         ! coupling begins
-    call initialize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
-    if (split_select % stateTypeSplitting) then ! stateTypeSplitting begins
-      call initialize_split_stateThenDomain
-      if (split_select % stateThenDomain) then  ! stateThenDomain begins
-        call initialize_split_domainSplit; if (return_flag) return
-        if (split_select % domainSplit) then    ! domainSplit begins
-          call initialize_split_solution
-          if (split_select % solution) then     ! solution begins
-            call initialize_split_stateSplit; if (return_flag) return 
-            if (split_select % stateSplit) then ! stateSplit begins
-              call update_stateMask; if (return_flag) return         ! get the mask for the state subset - return for a non-zero error code
-              call validate_split                                    ! verify that the split is valid
-              if (cycle_domainSplit) cycle split_select_loop         ! if needed, proceed to next iteration of domainSplit method 
-              if (cycle_solution)    cycle split_select_loop         ! if needed, proceed to next iteration of solution method 
-              if (return_flag)       return                          ! return for a non-zero error code
-              
-              call save_recover                                      ! save/recover copies of variables and fluxes
+  call initialize_opSplittin; if (return_flag) return
 
-              call get_split_indices; if (return_flag) return        ! get indices for a given split - return for a non-zero error code
-              call update_fluxMask;   if (return_flag) return        ! define the mask for the fluxes used - return for a non-zero error code
+  call update_opSplittin;     if (return_flag) return
 
-              call solve_subset;      if (return_flag) return        ! solve variable subset for one time step - return for a positive error code
-              call assess_solution;   if (return_flag) return        ! is solution a success or failure? - return for a recovering solution
-
-              call try_other_solution_methods                        ! if solution failed to converge, try other splitting methods 
-              if (cycle_coupling)        cycle split_select_loop     ! if needed, proceed to next iteration of coupling method
-              if (cycle_stateThenDomain) cycle split_select_loop     ! if needed, proceed to next iteration of stateThenDomain method
-              if (cycle_solution)        cycle split_select_loop     ! if needed, proceed to next iteration of solution method 
-
-              call confirm_variable_updates; if (return_flag) return ! check that state variables are updated - return if error 
-
-              call success_check                                     ! check for success
-              call check_exit_stateThenDomain                        ! check exit criterion for stateThenDomain split
-              call check_exit_solution; if (return_flag) return      ! check exit criterion for solution split - return if error 
-            end if ! stateSplit ends
-            call finalize_split_stateSplit
-          end if ! solution ends
-          call finalize_split_solution
-        end if ! domainSplit ends
-        call finalize_split_domainSplit
-      end if ! stateThenDomain ends
-      call finalize_split_stateThenDomain; if (return_flag) return
-    end if ! stateTypeSplitting ends
-    call finalize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
-  end do split_select_loop ! coupling ends
-  call finalize_split_coupling; if (return_flag) return
+  call finalize_opSplittin;   if (return_flag) return
 
  contains
 
+  subroutine initialize_opSplittin
+   ! *** Initial operations for opSplittin ***
+   call initialize_split_select;   if (return_flag) return ! initialize split selector object (split_select)
+   call initialize_split_coupling; if (return_flag) return ! prep for first iteration of update_opSplittin 
+  end subroutine initialize_opSplittin
+
+  subroutine update_opSplittin
+   ! *** Update operations for opSplittin ***
+   split_select_loop: do                         ! coupling begins
+     call initialize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
+     if (split_select % stateTypeSplitting) then ! stateTypeSplitting begins
+       call initialize_split_stateThenDomain
+       if (split_select % stateThenDomain) then  ! stateThenDomain begins
+         call initialize_split_domainSplit; if (return_flag) return
+         if (split_select % domainSplit) then    ! domainSplit begins
+           call initialize_split_solution
+           if (split_select % solution) then     ! solution begins
+             call initialize_split_stateSplit; if (return_flag) return 
+             if (split_select % stateSplit) then ! stateSplit begins
+               !! create split
+               call update_stateMask; if (return_flag) return         ! get the mask for the state subset - return for a non-zero error code
+               call validate_split                                    ! verify that the split is valid
+               if (cycle_domainSplit) cycle split_select_loop         ! if needed, proceed to next iteration of domainSplit method 
+               if (cycle_solution)    cycle split_select_loop         ! if needed, proceed to next iteration of solution method 
+               if (return_flag)       return                          ! return for a non-zero error code
+               
+               call save_recover                                      ! save/recover copies of variables and fluxes
+
+               call get_split_indices; if (return_flag) return        ! get indices for a given split - return for a non-zero error code
+               call update_fluxMask;   if (return_flag) return        ! define the mask for the fluxes used - return for a non-zero error code
+               !! end create split
+
+               !! solve subset
+               call solve_subset;      if (return_flag) return        ! solve variable subset for one time step - return for a positive error code
+               !! end solve subset
+
+               !! validate solution
+               call assess_solution;   if (return_flag) return        ! is solution a success or failure? - return for a recovering solution
+
+               call try_other_solution_methods                        ! if solution failed to converge, try other splitting methods 
+               if (cycle_coupling)        cycle split_select_loop     ! if needed, proceed to next iteration of coupling method
+               if (cycle_stateThenDomain) cycle split_select_loop     ! if needed, proceed to next iteration of stateThenDomain method
+               if (cycle_solution)        cycle split_select_loop     ! if needed, proceed to next iteration of solution method 
+
+               call confirm_variable_updates; if (return_flag) return ! check that state variables are updated - return if error 
+
+               call success_check                                     ! check for success
+               call check_exit_stateThenDomain                        ! check exit criterion for stateThenDomain split
+               call check_exit_solution; if (return_flag) return      ! check exit criterion for solution split - return if error 
+               !! end validate solution
+             end if ! stateSplit ends
+             call finalize_split_stateSplit
+           end if ! solution ends
+           call finalize_split_solution
+         end if ! domainSplit ends
+         call finalize_split_domainSplit
+       end if ! stateThenDomain ends
+       call finalize_split_stateThenDomain; if (return_flag) return
+     end if ! stateTypeSplitting ends
+     call finalize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
+   end do split_select_loop ! coupling ends
+  end subroutine update_opSplittin
+
+  subroutine finalize_opSplittin
+   ! *** Final operations for opSplittin ***
+   call finalize_split_coupling; if (return_flag) return
+  end subroutine finalize_opSplittin
 
   subroutine initialize_split_select
    ! *** Initialize split_select class object ***
