@@ -314,13 +314,6 @@ subroutine coupled_em(&
   ! initialize variables
   call initialize_coupled_em
 
-  ! initialize the numerix tracking variables
-  indx_data%var(iLookINDEX%numberFluxCalc       )%dat(1) = 0  ! number of flux calculations                     (-)
-  indx_data%var(iLookINDEX%numberStateSplit     )%dat(1) = 0  ! number of state splitting solutions             (-)
-  indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1) = 0  ! number of domain splitting solutions for energy (-)
-  indx_data%var(iLookINDEX%numberDomainSplitMass)%dat(1) = 0  ! number of domain splitting solutions for mass   (-)
-  indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1) = 0  ! number of scalar solutions                      (-)
-
   ! link canopy depth to the information in the data structure
   canopy: associate(&
     snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)    ,& ! scaling parameter for the snow freezing curve (K-1)
@@ -344,15 +337,6 @@ subroutine coupled_em(&
     firstSubStep = .true.
     firstInnerStep = .true.
     lastInnerStep = .false.
-
-    ! count the number of snow and soil layers
-    ! NOTE: need to recompute the number of snow and soil layers at the start of each sub-step because the number of layers may change
-    !         (nSnow and nSoil are shared in the data structure)
-    nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
-    nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
-
-    ! compute the total number of snow and soil layers
-    nLayers = nSnow + nSoil
 
     ! create temporary data structures for prognostic variables
     call resizeData(prog_meta(:),prog_data,prog_temp,err=err,message=cmessage)
@@ -380,22 +364,7 @@ subroutine coupled_em(&
     do iVar=1,size(averageFlux_meta)
       flux_mean%var(iVar)%dat(:) = 0._rkind
     end do
-    meanCanopySublimation = 0._rkind ! mean canopy sublimation
-    meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy
-    meanSenHeatCanopy     = 0._rkind ! mean sensible heat flux from the canopy
-    effRainfall           = 0._rkind ! mean total effective rainfall over snow
-
-    diag_data%var(iLookDIAG%meanStepSize)%dat(1) = 0._rkind ! mean step size over data_step
-
-    ! Need mean soil compression for balance checks but it is not in flux structure so handle differently 
-    !  This will be a problem if nSoil changes (currently not possible)-- then might need to not keep the average
-    allocate(meanSoilCompress(nSoil))
-    allocate(innerSoilCompress(nSoil))
-    meanSoilCompress = 0._rkind ! mean total soil compression
-
-    ! initialize the balance checks
-    meanBalance = 0._rkind
-
+  
     ! associate local variables with information in the data structures
     associate(&
     ! model decisions
@@ -1707,6 +1676,34 @@ contains
   allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
   allocate(innerBalanceLayerNrg(nLayers));  innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
   allocate(mLayerVolFracIceInit(nLayers));  mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat ! volume fraction of water ice
+
+   ! initialize the numerix tracking variables
+  indx_data%var(iLookINDEX%numberFluxCalc       )%dat(1) = 0  ! number of flux calculations                     (-)
+  indx_data%var(iLookINDEX%numberStateSplit     )%dat(1) = 0  ! number of state splitting solutions             (-)
+  indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1) = 0  ! number of domain splitting solutions for energy (-)
+  indx_data%var(iLookINDEX%numberDomainSplitMass)%dat(1) = 0  ! number of domain splitting solutions for mass   (-)
+  indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1) = 0  ! number of scalar solutions                      (-)
+
+  ! initialize surface melt pond
+  sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
+
+  ! initialize average over data_step (averaged over substep in varSubStep)
+  meanCanopySublimation = 0._rkind ! mean canopy sublimation
+  meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy
+  meanSenHeatCanopy     = 0._rkind ! mean sensible heat flux from the canopy
+  effRainfall           = 0._rkind ! mean total effective rainfall over snow
+
+  diag_data%var(iLookDIAG%meanStepSize)%dat(1) = 0._rkind ! mean step size over data_step
+
+  ! Need mean soil compression for balance checks but it is not in flux structure so handle differently 
+  !  This will be a problem if nSoil changes (currently not possible)-- then might need to not keep the average
+  allocate(meanSoilCompress(nSoil))
+  allocate(innerSoilCompress(nSoil))
+  meanSoilCompress = 0._rkind ! mean total soil compression
+
+  ! initialize the balance checks
+  meanBalance = 0._rkind
+
  end subroutine initialize_coupled_em
 
 end subroutine coupled_em
