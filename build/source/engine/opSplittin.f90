@@ -372,13 +372,11 @@ subroutine opSplittin(&
              call initialize_split_stateSplit; if (return_flag) return 
              if (split_select % stateSplit) then ! stateSplit begins
 
-               call initialize_split; if (return_flag) return
-               if (any([cycle_domainSplit,cycle_solution]))                    cycle split_select_loop
+               call initialize_split; if (return_flag) return; if (cycle_initialize_split()) cycle split_select_loop
 
                call update_split;     if (return_flag) return
 
-               call finalize_split;   if (return_flag) return
-               if (any([cycle_coupling,cycle_stateThenDomain,cycle_solution])) cycle split_select_loop ! if needed, proceed to next split
+               call finalize_split;   if (return_flag) return; if (cycle_finalize_split())   cycle split_select_loop
 
              end if ! stateSplit ends
              call finalize_split_stateSplit
@@ -400,15 +398,14 @@ subroutine opSplittin(&
 
   subroutine initialize_split
    ! *** Initialize logical masks for selected splitting method ***
-   call update_stateMask; if (return_flag)      return    ! get the mask for the state subset - return for a non-zero error code
-   call validate_split                                    ! verify that the split is valid
-   if (any([cycle_domainSplit,cycle_solution])) return    ! if needed, proceed to next iteration of domainSplit method
-   if (return_flag)                             return    ! return for a non-zero error code
+   call update_stateMask;  if (return_flag)              return ! get the mask for the state subset - return for a non-zero error code
+   call validate_split;    if (return_flag)              return ! verify that the split is valid
+                           if (cycle_initialize_split()) return ! if needed, proceed to next split
    
-   call save_recover                                      ! save/recover copies of variables and fluxes
+   call save_recover                                            ! save/recover copies of variables and fluxes
 
-   call get_split_indices; if (return_flag) return        ! get indices for a given split - return for a non-zero error code
-   call update_fluxMask;   if (return_flag) return        ! define the mask for the fluxes used - return for a non-zero error code
+   call get_split_indices; if (return_flag)              return ! get indices for a given split - return for a non-zero error code
+   call update_fluxMask;   if (return_flag)              return ! define the mask for the fluxes used - return for a non-zero error code
   end subroutine initialize_split
 
   subroutine update_split
@@ -418,17 +415,28 @@ subroutine opSplittin(&
 
   subroutine finalize_split
    ! *** Finalize solution for selected splitting method ***
-   call assess_solution;   if (return_flag) return        ! is solution a success or failure? - return for a recovering solution
+   call assess_solution;            if (return_flag)            return ! is solution a success or failure? - return for a recovering solution
 
-   call try_other_solution_methods                        ! if solution failed to converge, try other splitting methods 
-   if (any([cycle_coupling,cycle_stateThenDomain,cycle_solution])) return ! if needed, proceed to next split
+   call try_other_solution_methods; if (cycle_finalize_split()) return ! if solution failed to converge, try other splitting methods 
 
-   call confirm_variable_updates; if (return_flag) return ! check that state variables are updated - return if error 
+   call confirm_variable_updates;   if (return_flag)            return ! check that state variables are updated - return if error 
 
-   call success_check                                     ! check for success
-   call check_exit_stateThenDomain                        ! check exit criterion for stateThenDomain split
-   call check_exit_solution;      if (return_flag) return ! check exit criterion for solution split - return if error 
+   call success_check                                                  ! check for success
+   call check_exit_stateThenDomain                                     ! check exit criterion for stateThenDomain split
+   call check_exit_solution;        if (return_flag)            return ! check exit criterion for solution split - return if error 
   end subroutine finalize_split
+
+  function cycle_initialize_split() result(cycle_flag)
+   ! *** Compute loop cycle flag for initialize_split ***
+   logical(lgt) :: cycle_flag
+   cycle_flag=any([cycle_domainSplit,cycle_solution])
+  end function cycle_initialize_split
+
+  function cycle_finalize_split() result(cycle_flag)
+   ! *** Compute loop cycle flag for finalize_split ***
+   logical(lgt) :: cycle_flag
+   cycle_flag=any([cycle_coupling,cycle_stateThenDomain,cycle_solution]) 
+  end function cycle_finalize_split
 
   subroutine initialize_split_select
    ! *** Initialize split_select class object ***
