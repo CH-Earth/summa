@@ -358,7 +358,7 @@ subroutine opSplittin(&
    call initialize_split_coupling; if (return_flag) return ! prep for first iteration of update_opSplittin 
   end subroutine initialize_opSplittin
 
-  subroutine update_opSplittin
+  subroutine update_opSplittin_OG ! -------------------------------------------------- SJT: Take out 
    ! *** Update operations for opSplittin ***
    split_select_loop: do                         ! coupling begins
      call initialize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
@@ -389,12 +389,95 @@ subroutine opSplittin(&
      end if ! stateTypeSplitting ends
      call finalize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
    end do split_select_loop ! coupling ends
+  end subroutine update_opSplittin_OG
+
+  subroutine update_opSplittin
+   ! *** Update operations for opSplittin ***
+   split_select_loop: do                         ! coupling begins
+
+     call initialize_split_solve; if (exit_split_select) exit split_select_loop; if (return_flag) return
+
+     call update_split_solve;     if (return_flag) return; if (cycle_split_select) cycle split_select_loop
+
+     call finalize_split_solve;   if (exit_split_select) exit split_select_loop; if (return_flag) return
+
+     !call initialize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
+
+     !if (split_select % stateTypeSplitting) then ! stateTypeSplitting begins
+     !  call initialize_split_stateThenDomain
+     !  if (split_select % stateThenDomain) then  ! stateThenDomain begins
+     !    call initialize_split_domainSplit; if (return_flag) return
+     !    if (split_select % domainSplit) then    ! domainSplit begins
+     !      call initialize_split_solution
+     !      if (split_select % solution) then     ! solution begins
+     !        call initialize_split_stateSplit; if (return_flag) return 
+     !        if (split_select % stateSplit) then ! stateSplit begins
+
+     !          call initialize_split; if (return_flag) return; if (cycle_initialize_split()) cycle split_select_loop
+
+     !          call update_split;     if (return_flag) return
+
+     !          call finalize_split;   if (return_flag) return; if (cycle_finalize_split())   cycle split_select_loop
+
+     !        end if ! stateSplit ends
+     !        call finalize_split_stateSplit
+     !      end if ! solution ends
+     !      call finalize_split_solution
+     !    end if ! domainSplit ends
+     !    call finalize_split_domainSplit
+     !  end if ! stateThenDomain ends
+     !  call finalize_split_stateThenDomain;  if (return_flag) return
+     !end if ! stateTypeSplitting ends
+
+     !call finalize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop; if (return_flag) return
+
+   end do split_select_loop ! coupling ends
   end subroutine update_opSplittin
 
   subroutine finalize_opSplittin
    ! *** Final operations for opSplittin ***
    call finalize_split_coupling; if (return_flag) return
   end subroutine finalize_opSplittin
+
+  subroutine initialize_split_solve
+   ! *** Initial operations for solving the selected split ***
+   call initialize_split_stateTypeSplitting; if (exit_split_select.or.return_flag) return
+   cycle_split_select=.false. ! initialize flag for cycle control of split_select_loop
+  end subroutine initialize_split_solve
+
+  subroutine update_split_solve
+   ! *** Update operations for solving the selected split ***
+   if (split_select % stateTypeSplitting) then ! stateTypeSplitting begins
+     call initialize_split_stateThenDomain
+     if (split_select % stateThenDomain) then  ! stateThenDomain begins
+       call initialize_split_domainSplit; if (return_flag) return
+       if (split_select % domainSplit) then    ! domainSplit begins
+         call initialize_split_solution
+         if (split_select % solution) then     ! solution begins
+           call initialize_split_stateSplit; if (return_flag) return 
+           if (split_select % stateSplit) then ! stateSplit begins
+
+             call initialize_split; if (return_flag) return; if (cycle_initialize_split()) then; cycle_split_select=.true.; return; end if
+
+             call update_split;     if (return_flag) return
+
+             call finalize_split;   if (return_flag) return; if (cycle_finalize_split())   then; cycle_split_select=.true.; return; end if
+
+           end if ! stateSplit ends
+           call finalize_split_stateSplit
+         end if ! solution ends
+         call finalize_split_solution
+       end if ! domainSplit ends
+       call finalize_split_domainSplit
+     end if ! stateThenDomain ends
+     call finalize_split_stateThenDomain;  if (return_flag) return
+   end if ! stateTypeSplitting ends
+  end subroutine update_split_solve
+
+  subroutine finalize_split_solve
+   ! *** Final operations for solving the selected split ***
+   call finalize_split_stateTypeSplitting; if (exit_split_select.or.return_flag) return
+  end subroutine finalize_split_solve
 
   subroutine initialize_split
    ! *** Initialize logical masks for selected splitting method ***
