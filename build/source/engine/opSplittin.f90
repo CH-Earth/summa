@@ -249,6 +249,7 @@ subroutine opSplittin(&
   real(rkind),intent(in)          :: dt                             ! time step (seconds)
   real(rkind),intent(in)          :: whole_step                     ! length of whole step for surface drainage and average flux
   logical(lgt),intent(in)         :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
+  logical(lgt),intent(in)         :: firstInnerStep                 ! flag to denote if the first time step in maxstep subStep
   logical(lgt),intent(in)         :: computeVegFlux                 ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   ! input/output: data structures
   type(var_i),intent(in)          :: type_data                      ! type of vegetation and soil
@@ -327,15 +328,13 @@ subroutine opSplittin(&
   logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
   integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
   integer(i4b)                    :: nCoupling
-  logical(lgt)                    :: firstInnerStep                 ! flag to denote if the first time step in maxstep subStep
   ! mean steps 
   real(rkind)                     :: mean_step_state                ! mean step over the state (with or without domain splits)
   real(rkind)                     :: mean_step_solution             ! mean step for a solution (scalar or vector)
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
   ! splitting method control variables
-  logical(lgt)                    :: exit_split_select,cycle_split_select ! control for split_select loop
-  logical(lgt)                    :: exit_coupling,exit_stateThenDomain,exit_solution
-  logical(lgt)                    :: cycle_coupling,cycle_stateThenDomain,cycle_domainSplit,cycle_solution
+  logical(lgt)                    :: exit_split_select,exit_coupling,exit_stateThenDomain,exit_solution
+  logical(lgt)                    :: cycle_split_select,cycle_coupling,cycle_stateThenDomain,cycle_domainSplit,cycle_solution
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
