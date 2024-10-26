@@ -336,7 +336,6 @@ subroutine opSplittin(&
   logical(lgt)                    :: exit_split_select,cycle_split_select ! control for split_select loop
   logical(lgt)                    :: exit_coupling,exit_stateThenDomain,exit_solution
   logical(lgt)                    :: cycle_coupling,cycle_stateThenDomain,cycle_domainSplit,cycle_solution
-  integer(i4b),parameter          :: maxSplit=500       ! >= max number of splitting methods (controls upper limit of split_select loop)               
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
@@ -416,7 +415,11 @@ subroutine opSplittin(&
 
   subroutine finalize_split_solve
    ! *** Final operations for solving the selected split ***
+   integer(i4b),parameter          :: maxSplit=500       ! >= max number of splitting methods (controls upper limit of split_select loop)               
    call finalize_split_stateTypeSplitting; if (exit_split_select.or.return_flag) return
+   if (split_select % iSplit.ge.maxSplit) then ! check for errors - execute fail-safe if needed
+    err=20; message=trim(message)//'split_select loop exceeded max number of iterations'; return_flag=.true.; return 
+   end if
   end subroutine finalize_split_solve
 
   subroutine initialize_split
@@ -617,9 +620,6 @@ subroutine opSplittin(&
     call split_select % advance_ixCoupling
    end if
    call split_select % advance_iSplit ! advance iteration counter for split_select_loop
-   if (split_select % iSplit.ge.maxSplit) then ! check for errors
-    err=20; message=trim(message)//'split_select loop exceeded max number of iterations'; return_flag=.true.; return 
-   end if
   end subroutine finalize_split_stateTypeSplitting
 
   subroutine finalize_split_coupling
