@@ -28,14 +28,6 @@ USE globalData,only:globalPrintFlag
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
-USE globalData,only:realMissing      ! missing double precision number
-USE globalData,only:quadMissing      ! missing quadruple precision number
-
-! domain types
-USE globalData,only:iname_cas        ! named variables for the canopy air space
-USE globalData,only:iname_veg        ! named variables for vegetation
-USE globalData,only:iname_snow       ! named variables for snow
-USE globalData,only:iname_soil       ! named variables for soil
 
 ! state variable type
 USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
@@ -50,21 +42,15 @@ USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
 
 ! global metadata
-USE globalData,only:flux_meta                        ! metadata on the model fluxes
-USE globalData,only:diag_meta                        ! metadata on the model diagnostic variables
-USE globalData,only:prog_meta                        ! metadata on the model prognostic variables
-USE globalData,only:deriv_meta                       ! metadata on the model derivatives
-USE globalData,only:flux2state_orig                  ! metadata on flux-to-state mapping (original state variables)
-USE globalData,only:flux2state_liq                   ! metadata on flux-to-state mapping (liquid water state variables)
+USE globalData,only:flux_meta        ! metadata on the model fluxes
+USE globalData,only:diag_meta        ! metadata on the model diagnostic variables
+USE globalData,only:prog_meta        ! metadata on the model prognostic variables
+USE globalData,only:deriv_meta       ! metadata on the model derivatives
+USE globalData,only:flux2state_orig  ! metadata on flux-to-state mapping (original state variables)
+USE globalData,only:flux2state_liq   ! metadata on flux-to-state mapping (liquid water state variables)
   
 ! provide access to indices that define elements of the data structures
-USE var_lookup,only:iLookATTR        ! named variables for structure elements
-USE var_lookup,only:iLookTYPE        ! named variables for structure elements
-USE var_lookup,only:iLookPROG        ! named variables for structure elements
-USE var_lookup,only:iLookDIAG        ! named variables for structure elements
 USE var_lookup,only:iLookFLUX        ! named variables for structure elements
-USE var_lookup,only:iLookFORCE       ! named variables for structure elements
-USE var_lookup,only:iLookPARAM       ! named variables for structure elements
 USE var_lookup,only:iLookINDEX       ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
 
@@ -125,12 +111,6 @@ integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, s
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
 integer(i4b),parameter  :: nDomains=4                 ! number of domains (vegetation, snow, soil, and aquifer)
 
-! control parameters
-real(rkind),parameter   :: valueMissing=-9999._rkind     ! missing value
-real(rkind),parameter   :: verySmall=1.e-12_rkind        ! a very small number (used to check consistency)
-real(rkind),parameter   :: veryBig=1.e+20_rkind          ! a very big number
-real(rkind),parameter   :: dx = 1.e-8_rkind              ! finite difference increment
-
 ! class definitions
 
 type, public :: split_select_type  ! class for selecting operator splitting methods
@@ -189,7 +169,6 @@ end type split_select_type
 
 contains
 
-
 ! **********************************************************************************************************
 ! public subroutine opSplittin: run the coupled energy-mass model for one timestep
 !
@@ -235,8 +214,6 @@ subroutine opSplittin(&
   ! population/extraction of state vectors
   USE indexState_module,only:indexSplit                ! get state indices
   USE varSubstep_module,only:varSubstep                ! complete substeps for a given split
-  ! identify name of variable type (for error message)
-  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
   implicit none
   ! ---------------------------------------------------------------------------------------
   ! * dummy variables
