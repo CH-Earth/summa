@@ -19,10 +19,9 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 program summa_driver
-  ! driver program for summa simulations
-  ! *****************************************************************************
-  ! * use desired modules
-  ! *****************************************************************************
+  ! **** Driver program for SUMMA simulations ****
+
+  ! * module access *
   ! data types
   USE nrtype                                                  ! variable types, etc.
   USE summa_type, only: summa1_type_dec                       ! master summa data type
@@ -41,7 +40,7 @@ program summa_driver
   USE globalData, only: numtim                                ! number of model time steps
   USE globalData, only: print_step_freq
 
-!   ! OpenWQ coupling
+  ! OpenWQ coupling
 #ifdef OPENWQ_ACTIVE
   USE summa_openwq,only:openwq_init
   USE summa_openwq,only:openwq_run_time_start
@@ -51,9 +50,7 @@ program summa_driver
 
   implicit none
 
-  ! *****************************************************************************
-  ! * variable definitions
-  ! *****************************************************************************
+  ! * driver variables *
   ! define the master summa data structure
   type(summa1_type_dec), allocatable :: summa1_struc(:)
   ! define parameters for the model simulation
@@ -80,7 +77,7 @@ contains
 
    ! allocate space for the master summa structure
    allocate(summa1_struc(n), stat=err)
-   if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+   if (err/=0) call stop_program(1, 'problem allocating master summa structure')
 
    ! declare and allocate summa data structures and initialize model state to known values
    call summa_initialize(summa1_struc(n), err, message)
@@ -114,9 +111,9 @@ contains
      call openwq_run_time_start(summa1_struc(n)) ! Passing state volumes to openWQ
 #endif
  
-     if (mod(modelTimeStep, print_step_freq) == 0)then
+     if (mod(modelTimeStep, print_step_freq) == 0) then
        print *, 'step ---> ', modelTimeStep
-     endif
+     end if
  
      ! run the summa physics for one time step
      call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
@@ -134,7 +131,7 @@ contains
      call openwq_run_time_end(summa1_struc(n))
 #endif
  
-   end do  ! looping through time
+   end do  ! end looping through time
   end subroutine update_summa_driver
 
   subroutine finalize_summa_driver
