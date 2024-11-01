@@ -579,17 +579,6 @@ MODULE data_types
  ! Define classes used to simplify calls to the subrotuines in opSplittin
  ! ***********************************************************************************************************
  ! ** stateFilter
- type, public :: in_type_stateFilter  ! class for intent(in) arguments in stateFilter call
-   integer(i4b)             :: ixCoupling                  ! intent(in): index of coupling method (1,2)
-   integer(i4b)             :: ixSolution                  ! intent(in): index of solution method (1,2)
-   integer(i4b)             :: ixStateThenDomain           ! intent(in): switch between full domain and sub domains
-   integer(i4b)             :: iStateTypeSplit             ! intent(in): index of the state type split
-   integer(i4b)             :: iDomainSplit                ! intent(in): index of the domain split
-   integer(i4b)             :: iStateSplit                 ! intent(in): index of the layer split
-  contains
-   procedure :: initialize => initialize_in_stateFilter
- end type in_type_stateFilter
-
  type, public :: out_type_stateFilter ! class for intent(out) arguments in stateFilter call
    integer(i4b)             :: err                         ! intent(out): error code
    character(len=len_msg)   :: cmessage                    ! intent(out): error message
@@ -1374,22 +1363,6 @@ contains
  ! **** end bigAquifer ****
 
  ! **** stateFilter ****
- subroutine initialize_in_stateFilter(in_stateFilter,ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
-  class(in_type_stateFilter),intent(out) :: in_stateFilter    ! class object for intent(in) stateFilter arguments
-  integer(i4b),intent(in)                :: ixCoupling        ! intent(in): index of coupling method (1,2)
-  integer(i4b),intent(in)                :: ixSolution        ! intent(in): index of solution method (1,2)
-  integer(i4b),intent(in)                :: ixStateThenDomain ! intent(in): switch between full domain and sub domains
-  integer(i4b),intent(in)                :: iStateTypeSplit   ! intent(in): index of the state type split
-  integer(i4b),intent(in)                :: iDomainSplit      ! intent(in): index of the domain split
-  integer(i4b),intent(in)                :: iStateSplit       ! intent(in): index of the layer split
-  in_stateFilter % ixCoupling        = ixCoupling             ! intent(in): index of coupling method (1,2)
-  in_stateFilter % ixSolution        = ixSolution             ! intent(in): index of solution method (1,2)
-  in_stateFilter % ixStateThenDomain = ixStateThenDomain      ! intent(in): switch between full domain and sub domains
-  in_stateFilter % iStateTypeSplit   = iStateTypeSplit        ! intent(in): index of the state type split
-  in_stateFilter % iDomainSplit      = iDomainSplit           ! intent(in): index of the domain split
-  in_stateFilter % iStateSplit       = iStateSplit            ! intent(in): index of the layer split
- end subroutine initialize_in_stateFilter
-
  subroutine finalize_out_stateFilter(out_stateFilter,err,cmessage)
   class(out_type_stateFilter),intent(in) :: out_stateFilter   ! class object for intent(out) stateFilter arguments
   integer(i4b),intent(out)               :: err               ! intent(out): error code
