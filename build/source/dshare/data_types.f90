@@ -591,7 +591,6 @@ MODULE data_types
  end type in_type_stateFilter
 
  type, public :: out_type_stateFilter ! class for intent(out) arguments in stateFilter call
-   integer(i4b)             :: nSubset                     ! intent(out): number of selected state variables for a given split
    integer(i4b)             :: err                         ! intent(out): error code
    character(len=len_msg)   :: cmessage                    ! intent(out): error message
   contains
@@ -1391,12 +1390,10 @@ contains
   in_stateFilter % iStateSplit       = iStateSplit            ! intent(in): index of the layer split
  end subroutine initialize_in_stateFilter
 
- subroutine finalize_out_stateFilter(out_stateFilter,nSubset,err,cmessage)
+ subroutine finalize_out_stateFilter(out_stateFilter,err,cmessage)
   class(out_type_stateFilter),intent(in) :: out_stateFilter   ! class object for intent(out) stateFilter arguments
-  integer(i4b),intent(out)               :: nSubset           ! intent(out): number of selected state variables for a given split
   integer(i4b),intent(out)               :: err               ! intent(out): error code
   character(*),intent(out)               :: cmessage          ! intent(out): error message
-  nSubset  = out_stateFilter % nSubset                        ! intent(out): number of selected state variables for a given split 
   err      = out_stateFilter % err                            ! intent(out): error code
   cmessage = out_stateFilter % cmessage                       ! intent(out): error message
  end subroutine finalize_out_stateFilter

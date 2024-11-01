@@ -1447,9 +1447,7 @@ subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,me
   call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
  end associate
  call stateFilter(in_stateFilter,indx_data,split_select,out_stateFilter)
- associate(nSubset => split_select % nSubset)
-  call out_stateFilter % finalize(nSubset,err,cmessage)
- end associate
+ call out_stateFilter % finalize(err,cmessage)
  if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! error control
 end subroutine split_select_compute_stateMask
 
@@ -1499,9 +1497,7 @@ end subroutine split_select_compute_stateMask
  call identify_scalar_solutions; if (return_flag) return ! identify scalar solutions -- return if error occurs
 
  ! get the number of selected state variables
- associate(nSubset => out_stateFilter % nSubset) ! intent(out): number of selected state variables for a given split
-  nSubset = count(split_select % stateMask)
- end associate
+ split_select % nSubset = count(split_select % stateMask)
 
 contains
 
