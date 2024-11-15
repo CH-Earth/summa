@@ -215,17 +215,12 @@ contains
 
  ! ***** Compute the Newton Step *****
 
- call initialize_summaSolve4homegrown; if (return_flag) return ! initial setup -- return if error
-
- call update_Jacobian;                 if (return_flag) return ! compute Jacobian for Newton step -- return if error
-
- call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
-
- call refine_Newton_step;              if (return_flag) return ! refine Newton step if needed -- return if error
-
- associate(err => out_SS4HG % err,message   => out_SS4HG % message)
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
- end associate
+ ! initial setup including computing the Jacobian -- return if error
+ call initialize_summaSolve4homegrown; if (return_flag) return 
+ ! compute the Newton step -- return if error
+ call update_summaSolve4homegrown;     if (return_flag) return 
+ ! final check for errors
+ call finalize_summaSolve4homegrown;   if (return_flag) return
 
  contains
 
@@ -258,7 +253,24 @@ contains
   
    ! initialize the global print flag
    globalPrintFlagInit=globalPrintFlag
+
+   ! compute the Jacobian
+   call update_Jacobian; if (return_flag) return ! compute Jacobian for Newton step -- return if error
   end subroutine initialize_summaSolve4homegrown
+
+  subroutine update_summaSolve4homegrown
+   ! *** Update steps for the summaSolve4homegrown algorithm (computing the Newton step) ***
+   call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
+  
+   call refine_Newton_step;              if (return_flag) return ! refine Newton step if needed -- return if error
+  end subroutine update_summaSolve4homegrown
+
+  subroutine finalize_summaSolve4homegrown
+   ! *** Final steps for the summaSolve4homegrown algorithm (computing the Newton step) ***
+   associate(err => out_SS4HG % err,message => out_SS4HG % message)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+   end associate
+  end subroutine finalize_summaSolve4homegrown
 
   subroutine update_Jacobian
    ! *** Update Jacobian used for Newton step ***
