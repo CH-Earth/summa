@@ -181,7 +181,6 @@ subroutine updateVars(&
   real(rkind)                        :: scalarVolFracIce                ! volumetric fraction of ice (-)
   real(rkind)                        :: Tcrit                           ! critical soil temperature below which ice exists (K)
   real(rkind)                        :: xTemp                           ! temporary temperature (K)
-  real(rkind)                        :: fLiq                            ! fraction of liquid water (-)
   real(rkind)                        :: effSat                          ! effective saturation (-)
   real(rkind)                        :: avPore                          ! available pore space (-)
   character(len=256)                 :: cMessage                        ! error message of downwind routine

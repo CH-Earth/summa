@@ -139,8 +139,6 @@ subroutine soilLiqFlx(&
   integer(i4b)                                    :: nRoots                  ! number of soil layers with roots
   integer(i4b)                                    :: ixIce                   ! index of the lowest soil layer that contains ice
   real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
-  ! compute fluxes and derivatives at layer interfaces
-  real(rkind)                         :: scalardPsi_dTheta ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
 
@@ -327,7 +325,6 @@ subroutine soilLiqFlx(&
                       deriv_desired,                   & ! intent(in):  flag indicating if derivatives are desired
                       ixRichards,                      & ! intent(in):  index defining the option for Richards' equation (moisture or mixdform)
                       ! input: state variables
-                      mLayerTempTrial(iSoil),          & ! intent(in):  temperature (K)
                       mLayerMatricHeadLiqTrial(iSoil), & ! intent(in):  liquid  matric head in each layer (m)
                       mLayerVolFracLiqTrial(iSoil),    & ! intent(in):  volumetric liquid water content in each soil layer (-)
                       mLayerVolFracIceTrial(iSoil),    & ! intent(in):  volumetric ice content in each soil layer (-)
@@ -551,7 +548,6 @@ subroutine diagv_node(&
                       deriv_desired,            & ! intent(in):  flag indicating if derivatives are desired
                       ixRichards,               & ! intent(in):  index defining the option for Richards' equation (moisture or mixdform)
                       ! input: state variables
-                      scalarTempTrial,          & ! intent(in):  temperature (K)
                       scalarMatricHeadLiqTrial, & ! intent(in):  liquid matric head in a given layer (m)
                       scalarVolFracLiqTrial,    & ! intent(in):  volumetric liquid water content in a given soil layer (-)
                       scalarVolFracIceTrial,    & ! intent(in):  volumetric ice content in a given soil layer (-)
@@ -602,7 +598,6 @@ subroutine diagv_node(&
   logical(lgt),intent(in)          :: deriv_desired             ! flag indicating if derivatives are desired
   integer(i4b),intent(in)          :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
   ! input: state and diagnostic variables
-  real(rkind),intent(in)           :: scalarTempTrial           ! temperature in each layer (K)
   real(rkind),intent(in)           :: scalarMatricHeadLiqTrial  ! liquid matric head in each layer (m)
   real(rkind),intent(in)           :: scalarVolFracLiqTrial     ! volumetric fraction of liquid water in a given layer (-)
   real(rkind),intent(in)           :: scalarVolFracIceTrial     ! volumetric fraction of ice in a given layer (-)

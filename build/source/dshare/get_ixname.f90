@@ -215,6 +215,8 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   case('hruId'          ); get_ixId = iLookID%hruId              ! id defining HRU index
+  case('gruId'          ); get_ixId = iLookID%gruId              ! id defining GRU index
+  case('hru2gruId'      ); get_ixId = iLookID%hru2gruId          ! id defining the GRU to which the HRU belongs
   ! get to here if cannot find the variable
   case default
    get_ixId = integerMissing
@@ -464,6 +466,10 @@ contains
   case('mLayerVolFracLiq'               ); get_ixProg = iLookPROG%mLayerVolFracLiq                 ! volumetric fraction of liquid water in each layer (-)
   case('mLayerVolFracWat'               ); get_ixProg = iLookPROG%mLayerVolFracWat                 ! volumetric fraction of total water in each layer (-)
   case('mLayerMatricHead'               ); get_ixProg = iLookPROG%mLayerMatricHead                 ! matric head of water in the soil (m)
+  ! enthalpy
+  case('scalarCanairEnthalpy'           ); get_ixProg = iLookPROG%scalarCanairEnthalpy             ! enthalpy of the canopy air space (J m-3)
+  case('scalarCanopyEnthalpy'           ); get_ixProg = iLookPROG%scalarCanopyEnthalpy             ! enthalpy of the vegetation canopy (J m-3)
+  case('mLayerEnthalpy'                 ); get_ixProg = iLookPROG%mLayerEnthalpy                   ! enthalpy of the snow+soil layers (J m-3)
   ! other state variables
   case('scalarAquiferStorage'           ); get_ixProg = iLookPROG%scalarAquiferStorage             ! relative aquifer storage -- above bottom of the soil profile (m)
   case('scalarSurfaceTemp'              ); get_ixProg = iLookPROG%scalarSurfaceTemp                ! surface temperature (K)
@@ -515,11 +521,8 @@ contains
   case('mLayerThermalC'                 ); get_ixDiag = iLookDIAG%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   case('iLayerThermalC'                 ); get_ixDiag = iLookDIAG%iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
-  case('scalarCanairEnthalpy'           ); get_ixDiag = iLookDIAG%scalarCanairEnthalpy             ! enthalpy of the canopy air space (J m-3)
   case('scalarCanopyEnthTemp'           ); get_ixDiag = iLookDIAG%scalarCanopyEnthTemp             ! temperature component of enthalpy of the vegetation canopy (J m-3)
-  case('scalarCanopyEnthalpy'           ); get_ixDiag = iLookDIAG%scalarCanopyEnthalpy             ! enthalpy of the vegetation canopy (J m-3)
   case('mLayerEnthTemp'                 ); get_ixDiag = iLookDIAG%mLayerEnthTemp                   ! temperature component of enthalpy of the snow+soil layers (J m-3)
-  case('mLayerEnthalpy'                 ); get_ixDiag = iLookDIAG%mLayerEnthalpy                   ! enthalpy of the snow+soil layers (J m-3)
   case('scalarTotalSoilEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalSoilEnthalpy          ! total enthalpy of the soil column (J m-3)
   case('scalarTotalSnowEnthalpy'        ); get_ixDiag = iLookDIAG%scalarTotalSnowEnthalpy          ! total enthalpy of the snow column (J m-3)   
   ! forcing

@@ -64,7 +64,6 @@ contains
  integer(i4b)             :: fileHRU                   ! number of HRUs in netcdf file
  integer(i4b)             :: snowID, soilID            ! netcdf variable ids
  integer(i4b)             :: iGRU, iHRU                ! loop indexes
- integer(i4b)             :: iHRU_local                ! index of HRU in the data subset
  integer(i4b)             :: iHRU_global               ! index of HRU in the netcdf file
  integer(i4b),allocatable :: snowData(:)               ! number of snow layers in all HRUs
  integer(i4b),allocatable :: soilData(:)               ! number of soil layers in all HRUs
@@ -142,6 +141,7 @@ contains
                        progData,                      & ! intent(inout): model prognostic variables
                        bvarData,                      & ! intent(inout): model basin (GRU) variables
                        indxData,                      & ! intent(inout): model indices
+                       no_icond_enth,                 & ! intent(out):   flag that enthalpy variables are not in the file
                        err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
@@ -171,41 +171,41 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
- character(*)           ,intent(in)     :: iconFile     ! name of netcdf file containing the initial conditions
- integer(i4b)           ,intent(in)     :: nGRU         ! number of grouped response units in simulation domain
- type(gru_hru_doubleVec),intent(in)     :: mparData     ! model parameters
- type(gru_hru_doubleVec),intent(inout)  :: progData     ! model prognostic variables
- type(gru_doubleVec)    ,intent(inout)  :: bvarData     ! model basin (GRU) variables
- type(gru_hru_intVec)   ,intent(inout)  :: indxData     ! model indices
- integer(i4b)           ,intent(out)    :: err          ! error code
- character(*)           ,intent(out)    :: message      ! returned error message
+ character(*)           ,intent(in)     :: iconFile                 ! name of netcdf file containing the initial conditions
+ integer(i4b)           ,intent(in)     :: nGRU                     ! number of grouped response units in simulation domain
+ type(gru_hru_doubleVec),intent(in)     :: mparData                 ! model parameters
+ type(gru_hru_doubleVec),intent(inout)  :: progData                 ! model prognostic variables
+ type(gru_doubleVec)    ,intent(inout)  :: bvarData                 ! model basin (GRU) variables
+ type(gru_hru_intVec)   ,intent(inout)  :: indxData                 ! model indices
+ logical                ,intent(out)    :: no_icond_enth            ! flag that enthalpy variables are not in the file
+ integer(i4b)           ,intent(out)    :: err                      ! error code
+ character(*)           ,intent(out)    :: message                  ! returned error message
  ! locals
- character(len=256)                     :: cmessage     ! downstream error message
- integer(i4b)                           :: fileHRU      ! number of HRUs in file
- integer(i4b)                           :: fileGRU      ! number of GRUs in file
- integer(i4b)                           :: iVar, i      ! loop indices
- integer(i4b),dimension(1)              :: ndx          ! intermediate array of loop indices
- integer(i4b)                           :: iGRU         ! loop index
- integer(i4b)                           :: iHRU         ! loop index
- integer(i4b)                           :: dimID        ! varible dimension ids
- integer(i4b)                           :: ncVarID      ! variable ID in netcdf file
- character(256)                         :: dimName      ! not used except as a placeholder in call to inq_dim function
- integer(i4b)                           :: dimLen       ! data dimensions
- integer(i4b)                           :: ncID         ! netcdf file ID
- integer(i4b)                           :: ixFile       ! index in file
- integer(i4b)                           :: iHRU_local   ! index of HRU in the data subset
- integer(i4b)                           :: iHRU_global  ! index of HRU in the netcdf file
- real(rkind),allocatable                :: varData(:,:) ! variable data storage
- integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
- integer(i4b)                           :: nTDH          ! number of points in time-delay histogram
- integer(i4b)                           :: iLayer,jLayer ! layer indices
- integer(i4b),parameter                 :: nBand=2       ! number of spectral bands
- integer(i4b)                           :: nProgVars     ! number of prognostic variables written to state file
- character(len=32),parameter            :: scalDimName   ='scalarv'  ! dimension name for scalar data
- character(len=32),parameter            :: midSoilDimName='midSoil'  ! dimension name for soil-only layers
- character(len=32),parameter            :: midTotoDimName='midToto'  ! dimension name for layered varaiables
- character(len=32),parameter            :: ifcTotoDimName='ifcToto'  ! dimension name for layered varaiables
- character(len=32),parameter            :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
+ character(len=256)                     :: cmessage                 ! downstream error message
+ integer(i4b)                           :: fileHRU                  ! number of HRUs in file
+ integer(i4b)                           :: fileGRU                  ! number of GRUs in file
+ integer(i4b)                           :: iVar, i                  ! loop indices
+ integer(i4b),dimension(1)              :: ndx                      ! intermediate array of loop indices
+ integer(i4b)                           :: iGRU                     ! loop index
+ integer(i4b)                           :: iHRU                     ! loop index
+ integer(i4b)                           :: dimID                    ! varible dimension ids
+ integer(i4b)                           :: ncVarID                  ! variable ID in netcdf file
+ character(256)                         :: dimName                  ! not used except as a placeholder in call to inq_dim function
+ integer(i4b)                           :: dimLen                   ! data dimensions
+ integer(i4b)                           :: ncID                     ! netcdf file ID
+ integer(i4b)                           :: ixFile                   ! index in file
+ integer(i4b)                           :: iHRU_local               ! index of HRU in the data subset
+ integer(i4b)                           :: iHRU_global              ! index of HRU in the netcdf file
+ real(rkind),allocatable                :: varData(:,:)             ! variable data storage
+ integer(i4b)                           :: nSoil, nSnow, nToto      ! # layers
+ integer(i4b)                           :: nTDH                     ! number of points in time-delay histogram
+ integer(i4b)                           :: iLayer,jLayer            ! layer indices
+ integer(i4b),parameter                 :: nBand=2                  ! number of spectral bands
+ character(len=32),parameter            :: scalDimName   ='scalarv' ! dimension name for scalar data
+ character(len=32),parameter            :: midSoilDimName='midSoil' ! dimension name for soil-only layers
+ character(len=32),parameter            :: midTotoDimName='midToto' ! dimension name for layered varaiables
+ character(len=32),parameter            :: ifcTotoDimName='ifcToto' ! dimension name for layered varaiables
+ character(len=32),parameter            :: tdhDimName    ='tdh'     ! dimension name for time-delay basin variables
 
  ! --------------------------------------------------------------------------------------------------------
  ! Start procedure here
@@ -223,6 +223,7 @@ contains
  err = nf90_inquire_dimension(ncID,dimID,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! loop through prognostic variables
+ no_icond_enth=.false.
  do iVar = 1,size(prog_meta)
 
   ! skip variables that are computed later
@@ -233,8 +234,12 @@ contains
      prog_meta(iVar)%varName=='mLayerHeight'                   ) cycle
 
   ! get variable id
-  err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
-  if(err/=0)then
+  err = nf90_inq_varid(ncID,trim(prog_meta(iVar)%varName),ncVarID)
+  if(err/=nf90_noerr)then
+   if(prog_meta(iVar)%varName=='scalarCanairEnthalpy'     .or. &
+      prog_meta(iVar)%varName=='scalarCanopyEnthalpy'     .or. &  
+      prog_meta(iVar)%varName=='mLayerEnthalpy'                )then; err=nf90_noerr; no_icond_enth=.true.; cycle; endif ! skip enthalpy variables if not in file
+   call netcdf_err(err,message)
    message=trim(message)//': problem with getting variable id, var='//trim(prog_meta(iVar)%varName)
    return
   endif

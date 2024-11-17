@@ -11,5 +11,5 @@ module load netcdf-fortran/4.6.1
 export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
 export SUNDIALS_PATH=../../../sundials/instdir/
 
-cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DCMAKE_BUILD_TYPE=Release
+cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DCMAKE_BUILD_TYPE=Release -DSPECIFY_LAPACK_LINKS=OFF
 cmake --build ../cmake_build --target all -j

@@ -19,10 +19,9 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 program summa_driver
-  ! driver program for summa simulations
-  ! *****************************************************************************
-  ! * use desired modules
-  ! *****************************************************************************
+  ! **** Driver program for SUMMA simulations ****
+
+  ! * module access *
   ! data types
   USE nrtype                                                  ! variable types, etc.
   USE summa_type, only: summa1_type_dec                       ! master summa data type
@@ -41,7 +40,7 @@ program summa_driver
   USE globalData, only: numtim                                ! number of model time steps
   USE globalData, only: print_step_freq
 
-!   ! OpenWQ coupling
+  ! OpenWQ coupling
 #ifdef OPENWQ_ACTIVE
   USE summa_openwq,only:openwq_init
   USE summa_openwq,only:openwq_run_time_start
@@ -51,9 +50,7 @@ program summa_driver
 
   implicit none
 
-  ! *****************************************************************************
-  ! * variable definitions
-  ! *****************************************************************************
+  ! * driver variables *
   ! define the master summa data structure
   type(summa1_type_dec), allocatable :: summa1_struc(:)
   ! define parameters for the model simulation
@@ -64,75 +61,86 @@ program summa_driver
   integer(i4b)                       :: err=0                      ! error code
   character(len=1024)                :: message=''                 ! error message
 
-  ! *****************************************************************************
-  ! * preliminaries
-  ! *****************************************************************************
+  ! Initialize
+  call initialize_summa_driver
 
-  ! allocate space for the master summa structure
-  allocate(summa1_struc(n), stat=err)
-  if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+  ! Update
+  call update_summa_driver
 
-  ! *****************************************************************************
-  ! * model setup/initialization
-  ! *****************************************************************************
+  ! Finalize
+  call finalize_summa_driver
 
-  ! declare and allocate summa data structures and initialize model state to known values
-  call summa_initialize(summa1_struc(n), err, message)
-  call handle_err(err, message)
+contains
 
-  ! initialize parameter data structures (e.g. vegetation and soil parameters)
-  call summa_paramSetup(summa1_struc(n), err, message)
-  call handle_err(err, message)
+  subroutine initialize_summa_driver
+   ! *** Initial operations for SUMMA driver program ***
 
-  ! read restart data and reset the model state
-  call summa_readRestart(summa1_struc(n), err, message)
-  call handle_err(err, message)
+   ! allocate space for the master summa structure
+   allocate(summa1_struc(n), stat=err)
+   if (err/=0) call stop_program(1, 'problem allocating master summa structure')
 
-#ifdef OPENWQ_ACTIVE
-  call openwq_init(err)
-  if (err /= 0) call stop_program(1, 'Problem Initializing OpenWQ')
-#endif
+   ! declare and allocate summa data structures and initialize model state to known values
+   call summa_initialize(summa1_struc(n), err, message)
+   call handle_err(err, message)
 
-  ! *****************************************************************************
-  ! * model simulation
-  ! *****************************************************************************
-  ! loop through time
-  do modelTimeStep=1,numtim
+   ! initialize parameter data structures (e.g. vegetation and soil parameters)
+   call summa_paramSetup(summa1_struc(n), err, message)
+   call handle_err(err, message)
 
-    ! read model forcing data
-    call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
-    call handle_err(err, message)
+   ! read restart data and reset the model state
+   call summa_readRestart(summa1_struc(n), err, message)
+   call handle_err(err, message)
 
 #ifdef OPENWQ_ACTIVE
-    call openwq_run_time_start(summa1_struc(n)) ! Passing state volumes to openWQ
+   call openwq_init(err)
+   if (err /= 0) call stop_program(1, 'Problem Initializing OpenWQ')
 #endif
+  end subroutine initialize_summa_driver
 
-    if (mod(modelTimeStep, print_step_freq) == 0)then
-      print *, 'step ---> ', modelTimeStep
-    endif
+  subroutine update_summa_driver
+   ! *** Update operations for SUMMA driver program ***
 
-    ! run the summa physics for one time step
-    call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
-    call handle_err(err, message)
-
+   ! loop through time
+   do modelTimeStep=1,numtim
+ 
+     ! read model forcing data
+     call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
+     call handle_err(err, message)
+ 
 #ifdef OPENWQ_ACTIVE
-    call openwq_run_space_step(summa1_struc(n)) ! Passing fluxes to openWQ
+     call openwq_run_time_start(summa1_struc(n)) ! Passing state volumes to openWQ
 #endif
-
-    ! write the model output
-    call summa_writeOutputFiles(modelTimeStep, summa1_struc(n), err, message)
-    call handle_err(err, message)
-
+ 
+     if (mod(modelTimeStep, print_step_freq) == 0) then
+       print *, 'step ---> ', modelTimeStep
+     end if
+ 
+     ! run the summa physics for one time step
+     call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
+     call handle_err(err, message)
+ 
 #ifdef OPENWQ_ACTIVE
-    call openwq_run_time_end(summa1_struc(n))
+     call openwq_run_space_step(summa1_struc(n)) ! Passing fluxes to openWQ
 #endif
+ 
+     ! write the model output
+     call summa_writeOutputFiles(modelTimeStep, summa1_struc(n), err, message)
+     call handle_err(err, message)
+ 
+#ifdef OPENWQ_ACTIVE
+     call openwq_run_time_end(summa1_struc(n))
+#endif
+ 
+   end do  ! end looping through time
+  end subroutine update_summa_driver
 
-  end do  ! looping through time
+  subroutine finalize_summa_driver
+   ! *** Final operations for SUMMA driver program ***
+   ! successful end
+   call stop_program(0, 'finished simulation successfully.')
 
-  ! successful end
-  call stop_program(0, 'finished simulation successfully.')
-
-  ! to prevent exiting before HDF5 has closed
-  call sleep(2)
+   ! to prevent exiting before HDF5 has closed
+   call sleep(2)
+  end subroutine finalize_summa_driver
 
 end program summa_driver

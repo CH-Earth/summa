@@ -421,7 +421,7 @@ contains
      ! set flag and error codes for too much melt
      if (-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur) then
        tooMuchMelt = .true.
-       message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
+       !message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
        err=-20; return ! negative error code to denote a warning
      end if
    end if
@@ -489,7 +489,7 @@ contains
   associate(&
    nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)                  , & ! intent(in):    [i4b]   number of snow layers
    nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)                  , & ! intent(in):    [i4b]   number of soil layers
-   scalarCanopyEnthalpy => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1), & ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-2)
+   scalarCanopyEnthalpy => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1), & ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-2)
    scalarCanopyTemp => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)        , & ! intent(inout): [dp]    temperature of the vegetation canopy (K)
    scalarCanopyWat  => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)         , & ! intent(inout): [dp]    total water content of the vegetation canopy (kg m-2)
    mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat                 , & ! intent(inout): [dp(:)] temperature of each snow/soil layer (K)
@@ -503,7 +503,6 @@ contains
                     nSnow,                   & ! intent(in):    number of snow layers
                     nSoil,                   & ! intent(in):    number of soil layers
                     nLayers,                 & ! intent(in):    total number of layers
-                    nState,                  & ! intent(in):    total number of state variables in the current subset
                     .false.,                 & ! intent(in):    not inside Sundials solver                    
                     firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                     firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call

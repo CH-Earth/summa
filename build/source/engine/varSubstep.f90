@@ -788,10 +788,10 @@ USE getVectorz_module,only:varExtract                              ! extract var
     mLayerMatricHead          => prog_data%var(iLookPROG%mLayerMatricHead)%dat              ,& ! intent(inout): [dp(:)]  matric head (m)
     mLayerMatricHeadLiq       => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat           ,& ! intent(inout): [dp(:)]  matric potential of liquid water (m)
     ! enthalpy
-    scalarCanairEnthalpy      => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the canopy air space (J m-3)
-    scalarCanopyEnthalpy      => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the vegetation canopy (J m-3)
+    scalarCanairEnthalpy      => prog_data%var(iLookPROG%scalarCanairEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the canopy air space (J m-3)
+    scalarCanopyEnthalpy      => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the vegetation canopy (J m-3)
     scalarCanopyEnthTemp      => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature component of enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthalpy            => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat                ,& ! intent(inout): [dp(:)]  enthalpy of the snow+soil layers (J m-3)
+    mLayerEnthalpy            => prog_data%var(iLookPROG%mLayerEnthalpy)%dat                ,& ! intent(inout): [dp(:)]  enthalpy of the snow+soil layers (J m-3)
     mLayerEnthTemp            => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat                ,& ! intent(inout): [dp(:)]  temperature component of enthalpy of the snow+soil layers (J m-3)
     ! model state variables (aquifer)
     scalarAquiferStorage      => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)       ,& ! intent(inout): [dp(:)]  storage of water in the aquifer (m)
@@ -847,8 +847,6 @@ USE getVectorz_module,only:varExtract                              ! extract var
     call varExtract(&
                     ! input
                     stateVecTrial,             & ! intent(in):    model state vector (mixed units)
-                    diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                    prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                 & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
                     scalarCanairNrgTrial,      & ! intent(inout): trial value of energy of the canopy air space, temperature (K) or enthalpy (J m-3)
@@ -906,8 +904,6 @@ USE getVectorz_module,only:varExtract                              ! extract var
         call varExtract(&
                   ! input
                   stateVecPrime,             & ! intent(in):    derivative of model state vector (mixed units)
-                  diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                  prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                   indx_data,                 & ! intent(in):    indices defining model states and layers
                   ! output: variables for the vegetation canopy
                   scalarCanairNrgPrime,      & ! intent(inout): derivative of energy of the canopy air space, temperature (K s-1) or enthalpy (W m-3)

@@ -135,14 +135,14 @@ subroutine popStateVec(&
   fixedLength: associate(&
     ! model states for the vegetation canopy
     scalarCanairTemp     => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)     ,& ! intent(in) : [dp]     temperature of the canopy air space (K)
-    scalarCanairEnthalpy => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1) ,& ! intent(in) : [dp]     enthalpy of the canopy air space (J m-3)
+    scalarCanairEnthalpy => prog_data%var(iLookPROG%scalarCanairEnthalpy)%dat(1) ,& ! intent(in) : [dp]     enthalpy of the canopy air space (J m-3)
     scalarCanopyTemp     => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)     ,& ! intent(in) : [dp]     temperature of the vegetation canopy (K)
-    scalarCanopyEnthalpy => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1) ,& ! intent(in) : [dp]     enthalpy of the vegetation canopy (J m-3)
+    scalarCanopyEnthalpy => prog_data%var(iLookPROG%scalarCanopyEnthalpy)%dat(1) ,& ! intent(in) : [dp]     enthalpy of the vegetation canopy (J m-3)
     scalarCanopyWat      => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)      ,& ! intent(in) : [dp]     mass of total water on the vegetation canopy (kg m-2)
     scalarCanopyLiq      => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)      ,& ! intent(in) : [dp]     mass of liquid water on the vegetation canopy (kg m-2)
     ! model state variable vectors for the snow-soil layers
     mLayerTemp           => prog_data%var(iLookPROG%mLayerTemp)%dat              ,& ! intent(in) : [dp(:)]  temperature of each snow/soil layer (K)
-    mLayerEnthalpy       => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat          ,& ! intent(in) : [dp(:)]  enthalpy of each snow+soil layer (J m-3)
+    mLayerEnthalpy       => prog_data%var(iLookPROG%mLayerEnthalpy)%dat          ,& ! intent(in) : [dp(:)]  enthalpy of each snow+soil layer (J m-3)
     mLayerVolFracWat     => prog_data%var(iLookPROG%mLayerVolFracWat)%dat        ,& ! intent(in) : [dp(:)]  volumetric fraction of total water (-)
     mLayerVolFracLiq     => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! intent(in) : [dp(:)]  volumetric fraction of liquid water (-)
     mLayerMatricHead     => prog_data%var(iLookPROG%mLayerMatricHead)%dat        ,& ! intent(in) : [dp(:)]  matric head (m)
@@ -552,8 +552,6 @@ end subroutine checkFeas
 subroutine varExtract(&
                        ! input
                        stateVec,                                  & ! intent(in):    model state vector (mixed units)
-                       diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
-                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        ! output: variables for the vegetation canopy
                        scalarCanairNrgTrial,                      & ! intent(inout):   trial value of canopy air energy, temperature (K) or enthalpy (J m-3)
@@ -575,8 +573,6 @@ subroutine varExtract(&
   implicit none
   ! input
   real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
-  type(var_dlength),intent(in)       :: diag_data                       ! diagnostic variables for a local HRU
-  type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   ! output: variables for the vegetation canopy
   real(rkind),intent(inout)          :: scalarCanairNrgTrial            ! trial value of canopy air energy, temperature (K) or enthalpy (J m-3)

@@ -349,7 +349,7 @@ end function dTheta_dPsi
 
 
 ! ******************************************************************************************************************************
-! public function dPsi_dTheta: compute the derivative of the soil water characteristic (m-1)
+! public function dPsi_dTheta: compute the derivative of the soil water characteristic (m)
 ! ******************************************************************************************************************************
 function dPsi_dTheta(volFracLiq,alpha,theta_res,theta_sat,n,m)
   implicit none
@@ -365,20 +365,26 @@ function dPsi_dTheta(volFracLiq,alpha,theta_res,theta_sat,n,m)
   real(rkind)            :: y1,d1       ! 1st function and derivative
   real(rkind)            :: y2,d2       ! 2nd function and derivative
   real(rkind)            :: theta_e     ! effective soil moisture
+  real(rkind),parameter  :: theta_e_min=0.001_rkind            ! minimum effective soil moisture
+  real(rkind),parameter  :: y1_min=10._rkind*epsilon(1._rkind) ! minimum y1 value (to avoid division by zero and complex values)
+
   ! check if less than saturation
   if(volFracLiq < theta_sat)then
-  ! compute effective water content
-  theta_e = max(0.001,(volFracLiq - theta_res) / (theta_sat - theta_res))
-  ! compute the 1st function and derivative
-  y1 = theta_e**(-1._rkind/m) - 1._rkind
-  d1 = (-1._rkind/m)*theta_e**(-1._rkind/m - 1._rkind) / (theta_sat - theta_res)
-  ! compute the 2nd function and derivative
-  y2 = y1**(1._rkind/n)
-  d2 = (1._rkind/n)*y1**(1._rkind/n - 1._rkind)
-  ! compute the final function value
-  dPsi_dTheta = d1*d2/alpha
+   ! compute effective water content
+   theta_e = max(theta_e_min,(volFracLiq - theta_res) / (theta_sat - theta_res))
+   ! compute the 1st function and derivative
+   y1 = theta_e**(-1._rkind/m) - 1._rkind
+   d1 = (-1._rkind/m)*theta_e**(-1._rkind/m - 1._rkind) / (theta_sat - theta_res)
+   ! compute the 2nd function and derivative
+   ! note: impose a minimum value for y1 to avoid divison by zero and complex values
+   !y2 = y1**(1._rkind/n)                         ! original expression
+   !d2 = (1._rkind/n)*y1**(1._rkind/n - 1._rkind) ! original expression
+   y2 = max(y1_min,y1)**(1._rkind/n)
+   d2 = (1._rkind/n)*max(y1_min,y1)**(1._rkind/n - 1._rkind) ! impose a minimum value for y1 to avoid divison by zero and complex values
+   ! compute the final function value
+   dPsi_dTheta = d1*d2/alpha
   else
-  dPsi_dTheta = 0._rkind
+   dPsi_dTheta = 0._rkind
   end if
 end function dPsi_dTheta
 

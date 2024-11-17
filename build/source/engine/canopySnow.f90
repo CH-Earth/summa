@@ -159,6 +159,7 @@ contains
 
  ! get a trial value for canopy storage
  scalarCanopyIceIter = scalarCanopyIce
+ unloadingDeriv=0._rkind ! initialize value
  do iter=1,maxiter
    ! ** compute unloading
    if(ixSnowUnload==meltDripUnload)then

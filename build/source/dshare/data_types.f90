@@ -109,14 +109,14 @@ MODULE data_types
  type, public :: hru_info
   integer(i4b)                           :: hru_nc                        ! index of the hru in the netcdf file
   integer(i4b)                           :: hru_ix                        ! index of the hru in the run domain
-  integer(8)                             :: hru_id                        ! id (non-sequential number) of the hru
+  integer(i8b)                           :: hru_id                        ! id (non-sequential number) of the hru
   integer(i4b)                           :: nSnow                         ! number of snow layers
   integer(i4b)                           :: nSoil                         ! number of soil layers
  endtype hru_info
 
  ! define mapping from GRUs to the HRUs
  type, public :: gru2hru_map
-  integer(8)                             :: gru_id                        ! id of the gru
+  integer(i8b)                           :: gru_id                        ! id of the gru
   integer(i4b)                           :: hruCount                      ! total number of hrus in the gru
   type(hru_info), allocatable            :: hruInfo(:)                    ! basic information of HRUs within the gru
   integer(i4b)                           :: gru_nc                        ! index of gru in the netcdf file
@@ -164,7 +164,7 @@ MODULE data_types
  endtype ilength
  ! ** integer type (8 byte)
  type, public :: i8length
-  integer(8),allocatable                 :: dat(:)                        ! dat(:)
+  integer(i8b),allocatable               :: dat(:)                        ! dat(:)
  endtype i8length
  ! ** logical type
  type, public :: flagVec
@@ -201,7 +201,7 @@ MODULE data_types
  endtype var_i
  ! ** integer type of fixed length (8 byte)
  type, public :: var_i8
-  integer(8),allocatable                 :: var(:)                        ! var(:)
+  integer(i8b),allocatable               :: var(:)                        ! var(:)
  endtype var_i8
 
  ! ** double precision type of fixed length
@@ -214,7 +214,7 @@ MODULE data_types
  endtype hru_i
  ! ** integer type of fixed length (8 byte)
  type, public :: hru_i8
-  integer(8),allocatable                 :: hru(:)                        ! hru(:)
+  integer(i8b),allocatable               :: hru(:)                        ! hru(:)
  endtype hru_i8
 
  ! define derived types to hold JUST the HRU dimension
@@ -579,19 +579,7 @@ MODULE data_types
  ! Define classes used to simplify calls to the subrotuines in opSplittin
  ! ***********************************************************************************************************
  ! ** stateFilter
- type, public :: in_type_stateFilter  ! class for intent(in) arguments in stateFilter call
-   integer(i4b)             :: ixCoupling                  ! intent(in): index of coupling method (1,2)
-   integer(i4b)             :: ixSolution                  ! intent(in): index of solution method (1,2)
-   integer(i4b)             :: ixStateThenDomain           ! intent(in): switch between full domain and sub domains
-   integer(i4b)             :: iStateTypeSplit             ! intent(in): index of the state type split
-   integer(i4b)             :: iDomainSplit                ! intent(in): index of the domain split
-   integer(i4b)             :: iStateSplit                 ! intent(in): index of the layer split
-  contains
-   procedure :: initialize => initialize_in_stateFilter
- end type in_type_stateFilter
-
  type, public :: out_type_stateFilter ! class for intent(out) arguments in stateFilter call
-   integer(i4b)             :: nSubset                     ! intent(out): number of selected state variables for a given split
    integer(i4b)             :: err                         ! intent(out): error code
    character(len=len_msg)   :: cmessage                    ! intent(out): error message
   contains
@@ -1375,28 +1363,10 @@ contains
  ! **** end bigAquifer ****
 
  ! **** stateFilter ****
- subroutine initialize_in_stateFilter(in_stateFilter,ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
-  class(in_type_stateFilter),intent(out) :: in_stateFilter    ! class object for intent(in) stateFilter arguments
-  integer(i4b),intent(in)                :: ixCoupling        ! intent(in): index of coupling method (1,2)
-  integer(i4b),intent(in)                :: ixSolution        ! intent(in): index of solution method (1,2)
-  integer(i4b),intent(in)                :: ixStateThenDomain ! intent(in): switch between full domain and sub domains
-  integer(i4b),intent(in)                :: iStateTypeSplit   ! intent(in): index of the state type split
-  integer(i4b),intent(in)                :: iDomainSplit      ! intent(in): index of the domain split
-  integer(i4b),intent(in)                :: iStateSplit       ! intent(in): index of the layer split
-  in_stateFilter % ixCoupling        = ixCoupling             ! intent(in): index of coupling method (1,2)
-  in_stateFilter % ixSolution        = ixSolution             ! intent(in): index of solution method (1,2)
-  in_stateFilter % ixStateThenDomain = ixStateThenDomain      ! intent(in): switch between full domain and sub domains
-  in_stateFilter % iStateTypeSplit   = iStateTypeSplit        ! intent(in): index of the state type split
-  in_stateFilter % iDomainSplit      = iDomainSplit           ! intent(in): index of the domain split
-  in_stateFilter % iStateSplit       = iStateSplit            ! intent(in): index of the layer split
- end subroutine initialize_in_stateFilter
-
- subroutine finalize_out_stateFilter(out_stateFilter,nSubset,err,cmessage)
+ subroutine finalize_out_stateFilter(out_stateFilter,err,cmessage)
   class(out_type_stateFilter),intent(in) :: out_stateFilter   ! class object for intent(out) stateFilter arguments
-  integer(i4b),intent(out)               :: nSubset           ! intent(out): number of selected state variables for a given split
   integer(i4b),intent(out)               :: err               ! intent(out): error code
   character(*),intent(out)               :: cmessage          ! intent(out): error message
-  nSubset  = out_stateFilter % nSubset                        ! intent(out): number of selected state variables for a given split 
   err      = out_stateFilter % err                            ! intent(out): error code
   cmessage = out_stateFilter % cmessage                       ! intent(out): error message
  end subroutine finalize_out_stateFilter

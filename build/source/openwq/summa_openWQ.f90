@@ -23,7 +23,7 @@ subroutine openwq_init(err)
   USE globalData,only:gru_struc                               ! gru-hru mapping structures
   USE globalData,only:prog_meta
   USE globalData,only:maxLayers,maxSnowLayers
-  USE allocspace_progStuct_module,only:allocGlobal_porgStruct ! module to allocate space for global data structures
+  USE allocspace_progStuct_module,only:allocGlobal_progStruct ! module to allocate space for global data structures
   implicit none
 
   ! Dummy Varialbes
@@ -62,7 +62,7 @@ subroutine openwq_init(err)
   
   ! Create copy of state information, needed for passing to openWQ with fluxes that require
   ! the previous time_steps volume
-  call allocGlobal_porgStruct(prog_meta,progStruct_timestep_start,maxSnowLayers,err,message) 
+  call allocGlobal_progStruct(prog_meta,progStruct_timestep_start,maxSnowLayers,err,message) 
 
 end subroutine openwq_init
   

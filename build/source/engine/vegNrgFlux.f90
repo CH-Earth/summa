@@ -179,7 +179,6 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: dSVPGround_dGroundTemp          ! derivative in ground saturated vapor pressure w.r.t. ground temperature (Pa/K)
   ! wetted canopy area
   real(rkind)                        :: fracLiquidCanopy                ! fraction of liquid water in the canopy (-)
-  real(rkind)                        :: canopyWetFraction               ! trial value of the canopy wetted fraction (-)
   real(rkind)                        :: dCanopyWetFraction_dWat         ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
   real(rkind)                        :: dCanopyWetFraction_dT           ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
   ! longwave radiation
@@ -808,7 +807,12 @@ subroutine vegNrgFlux(&
           !scalarSoilResistance = scalarGroundSnowFraction*0._rkind + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 6.0_rkind*soilEvapFactor)    ! Niu adjustment to decrease resitance for wet soil
           ! relative humidity in the soil pores [0-1]
           if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
-            soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
+            if (groundTempTrial < 0._rkind) then
+              soilRelHumidity_noSnow = exp( (mLayerMatricHead(1)*gravity) / (groundTempTrial*R_wv) )
+              if (soilRelHumidity_noSnow > 1._rkind) then; soilRelHumidity_noSnow = 1._rkind; end if
+            else
+              soilRelHumidity_noSnow = 1._rkind
+            end if ! end if ground temperature is positive
           else
             soilRelHumidity_noSnow = 0._rkind
           end if ! end if matric head is very low
@@ -1791,25 +1795,25 @@ subroutine soilResist(&
                       aquiferTranspireLimitFac, & ! intent(out): transpiration limiting factor for the aquifer (-)
                       err,message)                ! intent(out): error control
   ! -----------------------------------------------------------------------------------------------------------------------------------------
-  USE mDecisions_module, only: NoahType,CLM_Type,SiB_Type      ! options for the choice of function for the soil moisture control on stomatal resistance
-  USE mDecisions_module, only: bigBucket                       ! named variable that defines the "bigBucket" groundwater parameterization
+  USE mDecisions_module, only: NoahType,CLM_Type,SiB_Type         ! options for the choice of function for the soil moisture control on stomatal resistance
+  USE mDecisions_module, only: bigBucket                          ! named variable that defines the "bigBucket" groundwater parameterization
   implicit none
   ! input (model decisions)
-  integer(i4b),intent(in)          :: ixSoilResist             ! choice of function for the soil moisture control on stomatal resistance
-  integer(i4b),intent(in)          :: ixGroundwater            ! choice of groundwater representation
+  integer(i4b),intent(in)          :: ixSoilResist                ! choice of function for the soil moisture control on stomatal resistance
+  integer(i4b),intent(in)          :: ixGroundwater               ! choice of groundwater representation
   ! input (variables)
-  real(rkind),intent(in)           :: mLayerMatricHead(:)      ! matric head in each layer (m)
-  real(rkind),intent(in)           :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid water in each layer (-)
-  real(rkind),intent(in)           :: scalarAquiferStorage     ! aquifer storage (m)
+  real(rkind),intent(in)           :: mLayerMatricHead(:)         ! matric head in each layer (m)
+  real(rkind),intent(in)           :: mLayerVolFracLiq(:)         ! volumetric fraction of liquid water in each layer (-)
+  real(rkind),intent(in)           :: scalarAquiferStorage        ! aquifer storage (m)
   ! input (diagnostic variables)
-  real(rkind),intent(in)           :: mLayerRootDensity(:)     ! root density in each layer (-)
-  real(rkind),intent(in)           :: scalarAquiferRootFrac    ! fraction of roots below the lowest unsaturated layer (-)
+  real(rkind),intent(in)           :: mLayerRootDensity(:)        ! root density in each layer (-)
+  real(rkind),intent(in)           :: scalarAquiferRootFrac       ! fraction of roots below the lowest unsaturated layer (-)
   ! input (parameters)
-  real(rkind),intent(in)           :: plantWiltPsi             ! matric head at wilting point (m)
-  real(rkind),intent(in)           :: soilStressParam          ! parameter in the exponential soil stress function (-)
-  real(rkind),intent(in)           :: critSoilWilting          ! critical vol. liq. water content when plants are wilting (-)
-  real(rkind),intent(in)           :: critSoilTranspire        ! critical vol. liq. water content when transpiration is limited (-)
-  real(rkind),intent(in)           :: critAquiferTranspire     ! critical aquifer storage value when transpiration is limited (m)
+  real(rkind),intent(in)           :: plantWiltPsi                ! matric head at wilting point (m)
+  real(rkind),intent(in)           :: soilStressParam             ! parameter in the exponential soil stress function (-)
+  real(rkind),intent(in)           :: critSoilWilting             ! critical vol. liq. water content when plants are wilting (-)
+  real(rkind),intent(in)           :: critSoilTranspire           ! critical vol. liq. water content when transpiration is limited (-)
+  real(rkind),intent(in)           :: critAquiferTranspire        ! critical aquifer storage value when transpiration is limited (m)
   ! output
   real(rkind),intent(out)          :: wAvgTranspireLimitFac       ! intent(out): weighted average of the transpiration limiting factor (-)
   real(rkind),intent(out)          :: mLayerTranspireLimitFac(:)  ! intent(out): transpiration limiting factor in each layer (-)

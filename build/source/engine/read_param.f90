@@ -89,8 +89,8 @@ contains
  integer(i4b)                          :: idim_list(2)     ! list of dimension ids
  ! data in the netcdf file
  integer(i4b)                          :: parLength        ! length of the parameter data
- integer(8),allocatable                :: hruId(:)         ! HRU identifier in the file
- real(rkind),allocatable                  :: parVector(:)     ! model parameter vector
+ integer(i8b),allocatable              :: hruId(:)         ! HRU identifier in the file
+ real(rkind),allocatable               :: parVector(:)     ! model parameter vector
  logical                               :: fexist           ! inquire whether the parmTrial file exists
  integer(i4b)                          :: fHRU             ! index of HRU in input file
 
@@ -206,7 +206,7 @@ contains
     iGRU=index_map(1)%gru_ix
     localHRU_ix=index_map(1)%localHRU_ix
     if(hruId(checkHRU)/=idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId))then
-     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(iHRU), ')'
+     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(checkHRU), ')'
      err=20; return
     endif
 

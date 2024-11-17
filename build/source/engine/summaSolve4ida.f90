@@ -213,10 +213,10 @@ subroutine summaSolve4ida(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   type(N_Vector),           pointer :: sunvec_y                               ! sundials solution vector
   type(N_Vector),           pointer :: sunvec_yp                              ! sundials derivative vector
-  type(N_Vector),           pointer :: sunvec_av                              ! sundials tolerance vector
+  !type(N_Vector),           pointer :: sunvec_av                              ! sundials tolerance vector
   type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
-  type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
+  !type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                          ! sundials nonlinear solver
   type(c_ptr)                       :: ida_mem                                ! IDA memory
   type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
   type(data4ida),           target  :: eqns_data                              ! IDA type

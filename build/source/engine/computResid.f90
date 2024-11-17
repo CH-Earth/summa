@@ -175,7 +175,7 @@ subroutine computResid(&
     mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of liquid water (-)
     mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of total water (-)
     ! enthalpy terms
-    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,& ! intent(in): [dp]     enthalpy of the canopy air space (J m-3)
+    scalarCanairEnthalpy    => prog_data%var(iLookPROG%scalarCanairEnthalpy)%dat(1)   ,& ! intent(in): [dp]     enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthTemp    => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)   ,& ! intent(in): [dp]     temperature component of enthalpy of the vegetation canopy (J m-3)
     mLayerEnthTemp          => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat            ,& ! intent(in): [dp(:)]  temperature component of enthalpy of the snow+soil layers (J m-3)
     ! model state variables (aquifer)

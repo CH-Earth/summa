@@ -58,7 +58,6 @@ real(rkind),intent(in)   :: p        ! pressure (Pa)
 real(rkind)              :: vapPress ! vapor pressure (Pa)
 ! local
 real(rkind)              :: w        ! mixing ratio
-!real(rkind),parameter    :: w_ratio = 0.622_rkind ! molecular weight ratio of water to dry air (-)
 w = q / (1._rkind - q)                ! mixing ratio (-)
 vapPress = (w/(w + w_ratio))*p     ! vapor pressure (Pa)
 end function vapPress
@@ -257,7 +256,6 @@ real(rkind)                     :: SPHM2RELHM ! Dewpoint Temp (K)
 
 real(rkind)                     :: VPSAT     ! vapour pressure at T  (Pa)
 real(rkind)                     :: TDCEL     ! Dewpt in celcius      (C)
-!real(rkind)                     :: DUM       ! Intermediate
 
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)
@@ -288,7 +286,6 @@ real(rkind)                     :: RELHM2SPHM ! Specific Humidity (g/g)
 
 real(rkind)                     :: PVP       ! Partial vapour pressure at T  (Pa)
 real(rkind)                     :: TDCEL     ! Dewpt in celcius      (C)
-!real(rkind)                     :: DUM       ! Intermediate
 
 ! Units note :              Pa = N m-2 = kg m-1 s-2
 ! SATVPFRZ=     610.8       ! Saturation water vapour pressure at 273.16K (Pa)

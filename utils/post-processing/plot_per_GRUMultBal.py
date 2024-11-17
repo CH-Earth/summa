@@ -45,8 +45,8 @@ else:
     viz_dir = Path('/home/avanb/scratch/statistics')
 
 
-method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en8cm']  #maybe make this an argument
-plt_name0=['SUMMA-BE1 common thermo. eq..','SUMMA-BE1 temperature thermo. eq..','SUMMA-BE1 mixed thermo. eq..','SUMMA-SUNDIALS temperature thermo. eq..','reference solution']
+method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en','sundials_1en8cm']  #maybe make this an argument
+plt_name0=['SUMMA-BE1 common thermo. eq.','SUMMA-BE1 temperature thermo. eq.','SUMMA-BE1 mixed thermo. eq.','SUMMA-SUNDIALS temperature thermo. eq.','SUMMA-SUNDIALS enthalpy thermo. eq.','reference solution']
 
 # Simulation statistics file locations
 settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
@@ -59,7 +59,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables in files
 plt_titl = ['canopy air space enthalpy balance','vegetation enthalpy balance','snow enthalpy balance','soil enthalpy balance','vegetation mass balance','snow mass balance','soil mass balance','aquifer mass balance', 'wall clock time']
-leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-2}~s^{-1}$'] * 4 + ['$s$']
+leg_titl = ['$W~m^{-3}$'] * 4 + ['$kg~m^{-3}~s^{-1}$'] * 4 + ['$s$']
 if fixed_Mass_units: leg_titl = ['$W~m^{-3}$'] * 4 + ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$s$']
 
 fig_fil= '_hrly_balance_{}_compressed.png'
@@ -259,7 +259,7 @@ if one_plot:
 else:
     use_vars = [0,1,2,3,4,5,6,7]
     use_vars = [3]
-    use_meth = [0,1,2,3]
+    use_meth = [0,1,2,3,4,5]
 plot_vars = [plot_vars[i] for i in use_vars]
 plt_titl = [plt_titl[i] for i in use_vars]
 leg_titl = [leg_titl[i] for i in use_vars]
@@ -283,11 +283,11 @@ if one_plot:
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 else:
-    #size hardwired to 2x2 for now
-    ncol = 2
-    nrow = 2
-    if len(method_name)>4:
-        print('Too many methods for 2x2 plot')
+    #size hardwired to 2x3 for now
+    ncol = 3
+    nrow = 4
+    if len(method_name)>6:
+        print('Too many methods for 3x2 plot')
         sys.exit()
 
     base_row = 0

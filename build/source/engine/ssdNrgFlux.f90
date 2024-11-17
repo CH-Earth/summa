@@ -102,7 +102,7 @@ subroutine ssdNrgFlux(&
   type(out_type_ssdNrgFlux),intent(inout) :: out_ssdNrgFlux         ! output ssdNrgFlux arguments
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  character(LEN=256)                  :: cmessage                   ! error message of downwind routine
+  !character(LEN=256)                  :: cmessage                   ! error message of downwind routine
   integer(i4b)                        :: nLayers                    ! number of model layers
   integer(i4b)                        :: iLayer                     ! index of model layers
   integer(i4b)                        :: ixLayerDesired(1)          ! layer desired (scalar solution)
@@ -234,29 +234,29 @@ subroutine ssdNrgFlux(&
     dFlux_dWatBelow(nLayers) = -huge(lowerBoundTemp)  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
     ! ***** the upper boundary, always do
-  	select case(ix_bcUpprTdyn)
+    select case(ix_bcUpprTdyn)
 
-  	  ! * prescribed temperature at the upper boundary
-  	  case(prescribedTemp)
-  		dz = mLayerHeight(1)*0.5_rkind
-  		dFlux_dWatBelow(0)  = -dThermalC_dWatBelow(0) * ( mLayerTempTrial(1) - upperBoundTemp )/dz
-   		dFlux_dTempBelow(0) = -dThermalC_dTempBelow(0) * ( mLayerTempTrial(1) - upperBoundTemp )/dz - iLayerThermalC(0)/dz
+      ! * prescribed temperature at the upper boundary
+      case(prescribedTemp)
+        dz = mLayerHeight(1)*0.5_rkind
+        dFlux_dWatBelow(0)  = -dThermalC_dWatBelow(0) * ( mLayerTempTrial(1) - upperBoundTemp )/dz
+        dFlux_dTempBelow(0) = -dThermalC_dTempBelow(0) * ( mLayerTempTrial(1) - upperBoundTemp )/dz - iLayerThermalC(0)/dz
 
-  	  ! * zero flux at the upper boundary
-  	  case(zeroFlux)
-  		dFlux_dWatBelow(0) = 0._rkind
-  		dFlux_dTempBelow(0) = 0._rkind
+      ! * zero flux at the upper boundary
+      case(zeroFlux)
+        dFlux_dWatBelow(0) = 0._rkind
+        dFlux_dTempBelow(0) = 0._rkind
 
-  	  ! * compute flux inside vegetation energy flux routine, use here
-  	  case(energyFlux)
-  		dFlux_dWatBelow(0) = 0._rkind !dGroundNetFlux_dGroundWat, does not exist in vegNrgFlux
-  		dFlux_dTempBelow(0) = dGroundNetFlux_dGroundTemp
+      ! * compute flux inside vegetation energy flux routine, use here
+      case(energyFlux)
+        dFlux_dWatBelow(0) = 0._rkind !dGroundNetFlux_dGroundWat, does not exist in vegNrgFlux
+        dFlux_dTempBelow(0) = dGroundNetFlux_dGroundTemp
 
-  	  case default; err=20; message=trim(message)//'unable to identify upper boundary condition for thermodynamics'; return
+      case default; err=20; message=trim(message)//'unable to identify upper boundary condition for thermodynamics'; return
 
-  	end select  ! end identifying the upper boundary condition for thermodynamics
-  	!dGroundNetFlux_dGroundWat  = dFlux_dWatBelow(0) ! this is true, but since not used in vegNrgFlux do not define
-  	dGroundNetFlux_dGroundTemp = dFlux_dTempBelow(0) ! need this in vegNrgFlux
+    end select  ! end identifying the upper boundary condition for thermodynamics
+    !dGroundNetFlux_dGroundWat  = dFlux_dWatBelow(0) ! this is true, but since not used in vegNrgFlux do not define
+    dGroundNetFlux_dGroundTemp = dFlux_dTempBelow(0) ! need this in vegNrgFlux
 
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
