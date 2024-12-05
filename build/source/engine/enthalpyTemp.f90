@@ -372,10 +372,11 @@ subroutine enthalpy2T_snwWat(Hy,BulkDenWater,fc_param,Tk,err,message)
     ! compute derivative of dT
     dh  = (f1 - f0)/dT
     ! compute change in T
-    dT  = -f1/dh
+    dT  = -f1/dh ! could be infinite if dh=0 (i.e., f1 and f0 are within machine precision)
     ! exit if converged
-    if(abs(dT)<atol)then
+    if(abs(dT)<atol .or. dh==0._rkind)then
       Tk = Tg1+dT
+      if(dh==0._rkind) Tk = Tg1
       return
     end if
     ! get ready for next iteration -- save old function evaluation and temperature
