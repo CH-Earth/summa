@@ -11,7 +11,7 @@ MODULE module_sf_noahlsm
 ! VEGETATION PARAMETERS
         INTEGER :: LUCATS , BARE
         INTEGER :: NATURAL
-        integer, PARAMETER :: NLUS=50
+        integer, PARAMETER :: NLUS=200
         CHARACTER(LEN=256) LUTYPE
         INTEGER, DIMENSION(1:NLUS) :: NROTBL
         real, dimension(1:NLUS) ::  SNUPTBL, RSTBL, RGLTBL, HSTBL,                &

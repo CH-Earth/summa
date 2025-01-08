@@ -469,7 +469,7 @@ contains
        SIZE(ALBEDOMAXTBL) < LUCATS .OR. &
        SIZE(EMISSMINTBL ) < LUCATS .OR. &
        SIZE(EMISSMAXTBL ) < LUCATS ) THEN
-     CALL wrf_error_fatal('Table sizes too small for value of LUCATS in module_sf_noahdrv.F')
+     CALL wrf_error_fatal('Table sizes too small for value of LUCATS in module_sf_noahdrv.F, expand NLUS and MVT parameters to size of vegetation table and recompile')
   ENDIF
 
   IF(LUTYPE.EQ.MMINLU)THEN
