@@ -889,43 +889,44 @@ subroutine surfaceFlx(&
   real(rkind)                      :: fpart1,fpart2                       ! different parts of a function
   real(rkind)                      :: dpart1(1:nSoil),dpart2(1:nSoil)     ! derivatives for different parts of a function
   real(rkind)                      :: dfracCap(1:nSoil),dfInfRaw(1:nSoil) ! derivatives for different parts of a function
+  real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
   ! head boundary condition
-  real(rkind)                      :: cFlux                      ! capillary flux (m s-1)
-  real(rkind)                      :: dNum                       ! numerical derivative
+  real(rkind)                      :: cFlux                               ! capillary flux (m s-1)
+  real(rkind)                      :: dNum                                ! numerical derivative
   ! simplified Green-Ampt infiltration
-  real(rkind)                      :: rootZoneLiq                ! depth of liquid water in the root zone (m)
-  real(rkind)                      :: rootZoneIce                ! depth of ice in the root zone (m)
-  real(rkind)                      :: availCapacity              ! available storage capacity in the root zone (m)
-  real(rkind)                      :: depthWettingFront          ! depth to the wetting front (m)
-  real(rkind)                      :: hydCondWettingFront        ! hydraulic conductivity at the wetting front (m s-1)
+  real(rkind)                      :: rootZoneLiq                         ! depth of liquid water in the root zone (m)
+  real(rkind)                      :: rootZoneIce                         ! depth of ice in the root zone (m)
+  real(rkind)                      :: availCapacity                       ! available storage capacity in the root zone (m)
+  real(rkind)                      :: depthWettingFront                   ! depth to the wetting front (m)
+  real(rkind)                      :: hydCondWettingFront                 ! hydraulic conductivity at the wetting front (m s-1)
   ! saturated area associated with variable storage capacity
-  real(rkind)                      :: fracCap                    ! fraction of pore space filled with liquid water and ice (-)
-  real(rkind)                      :: fInfRaw                    ! infiltrating area before imposing solution constraints (-)
-  real(rkind),parameter            :: maxFracCap=0.995_rkind     ! maximum fraction capacity -- used to avoid numerical problems associated with an enormous derivative
-  real(rkind),parameter            :: scaleFactor=0.000001_rkind ! scale factor for the smoothing function (-)
-  real(rkind),parameter            :: qSurfScaleMax=1000._rkind  ! maximum surface runoff scaling factor (-)
+  real(rkind)                      :: fracCap                             ! fraction of pore space filled with liquid water and ice (-)
+  real(rkind)                      :: fInfRaw                             ! infiltrating area before imposing solution constraints (-)
+  real(rkind),parameter            :: maxFracCap=0.995_rkind              ! maximum fraction capacity -- used to avoid numerical problems associated with an enormous derivative
+  real(rkind),parameter            :: scaleFactor=0.000001_rkind          ! scale factor for the smoothing function (-)
+  real(rkind),parameter            :: qSurfScaleMax=1000._rkind           ! maximum surface runoff scaling factor (-)
   ! fraction of impermeable area associated with frozen ground
-  real(rkind)                      :: alpha                      ! shape parameter in the Gamma distribution
-  real(rkind)                      :: xLimg                      ! upper limit of the integral
+  real(rkind)                      :: alpha                               ! shape parameter in the Gamma distribution
+  real(rkind)                      :: xLimg                               ! upper limit of the integral
   ! derivatives
-  real(rkind)                      :: dVolFracLiq_dWat(1:nSoil)        ! derivative in vol fraction of liquid w.r.t. water state variable in root layers
-  real(rkind)                      :: dVolFracIce_dWat(1:nSoil)        ! derivative in vol fraction of ice w.r.t. water state variable in root layers
-  real(rkind)                      :: dVolFracLiq_dTk(1:nSoil)         ! derivative in vol fraction of liquid w.r.t. temperature in root layers
-  real(rkind)                      :: dVolFracIce_dTk(1:nSoil)         ! derivative in vol fraction of ice w.r.t. temperature in root layers
-  real(rkind)                      :: dRootZoneLiq_dWat(1:nSoil)       ! derivative in vol fraction of scalar root zone liquid w.r.t. water state variable in root layers
-  real(rkind)                      :: dRootZoneIce_dWat(1:nSoil)       ! derivative in vol fraction of scalar root zone ice w.r.t. water state variable in root layers
-  real(rkind)                      :: dRootZoneLiq_dTk(1:nSoil)        ! derivative in vol fraction of scalar root zone liquid w.r.t. temperature in root layers
-  real(rkind)                      :: dRootZoneIce_dTk(1:nSoil)        ! derivative in vol fraction of scalar root zone ice w.r.t. temperature in root layers
-  real(rkind)                      :: dDepthWettingFront_dWat(1:nSoil) ! derivative in scalar depth of wetting front w.r.t. water state variable in root layers
-  real(rkind)                      :: dDepthWettingFront_dTk(1:nSoil)  ! derivative in scalar depth of wetting front w.r.t. temperature in root layers
-  real(rkind)                      :: dxMaxInfilRate_dWat(1:nSoil)     ! derivative in scalar max infiltration rate w.r.t. water state variable in root layers
-  real(rkind)                      :: dxMaxInfilRate_dTk(1:nSoil)      ! derivative in scalar max infiltration rate w.r.t. temperature in root layers
-  real(rkind)                      :: dInfilArea_dWat(0:nSoil)         ! derivative in scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
-  real(rkind)                      :: dInfilArea_dTk(0:nSoil)          ! derivative in scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
-  real(rkind)                      :: dFrozenArea_dWat(0:nSoil)        ! derivative in scalar frozen area w.r.t. water state variable in canopy or snow and root layers
-  real(rkind)                      :: dFrozenArea_dTk(0:nSoil)         ! derivative in scalar frozen area w.r.t. temperature in canopy or snow and root layers
-  real(rkind)                      :: dInfilRate_dWat(0:nSoil)         ! derivative in scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
-  real(rkind)                      :: dInfilRate_dTk(0:nSoil)          ! derivative in scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
+  real(rkind)                      :: dVolFracLiq_dWat(1:nSoil)           ! derivative in vol fraction of liquid w.r.t. water state variable in root layers
+  real(rkind)                      :: dVolFracIce_dWat(1:nSoil)           ! derivative in vol fraction of ice w.r.t. water state variable in root layers
+  real(rkind)                      :: dVolFracLiq_dTk(1:nSoil)            ! derivative in vol fraction of liquid w.r.t. temperature in root layers
+  real(rkind)                      :: dVolFracIce_dTk(1:nSoil)            ! derivative in vol fraction of ice w.r.t. temperature in root layers
+  real(rkind)                      :: dRootZoneLiq_dWat(1:nSoil)          ! derivative in vol fraction of scalar root zone liquid w.r.t. water state variable in root layers
+  real(rkind)                      :: dRootZoneIce_dWat(1:nSoil)          ! derivative in vol fraction of scalar root zone ice w.r.t. water state variable in root layers
+  real(rkind)                      :: dRootZoneLiq_dTk(1:nSoil)           ! derivative in vol fraction of scalar root zone liquid w.r.t. temperature in root layers
+  real(rkind)                      :: dRootZoneIce_dTk(1:nSoil)           ! derivative in vol fraction of scalar root zone ice w.r.t. temperature in root layers
+  real(rkind)                      :: dDepthWettingFront_dWat(1:nSoil)    ! derivative in scalar depth of wetting front w.r.t. water state variable in root layers
+  real(rkind)                      :: dDepthWettingFront_dTk(1:nSoil)     ! derivative in scalar depth of wetting front w.r.t. temperature in root layers
+  real(rkind)                      :: dxMaxInfilRate_dWat(1:nSoil)        ! derivative in scalar max infiltration rate w.r.t. water state variable in root layers
+  real(rkind)                      :: dxMaxInfilRate_dTk(1:nSoil)         ! derivative in scalar max infiltration rate w.r.t. temperature in root layers
+  real(rkind)                      :: dInfilArea_dWat(0:nSoil)            ! derivative in scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
+  real(rkind)                      :: dInfilArea_dTk(0:nSoil)             ! derivative in scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
+  real(rkind)                      :: dFrozenArea_dWat(0:nSoil)           ! derivative in scalar frozen area w.r.t. water state variable in canopy or snow and root layers
+  real(rkind)                      :: dFrozenArea_dTk(0:nSoil)            ! derivative in scalar frozen area w.r.t. temperature in canopy or snow and root layers
+  real(rkind)                      :: dInfilRate_dWat(0:nSoil)            ! derivative in scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
+  real(rkind)                      :: dInfilRate_dTk(0:nSoil)             ! derivative in scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
 
   ! initialize error control
   err=0; message="surfaceFlx/"
@@ -1041,21 +1042,22 @@ subroutine surfaceFlx(&
         end if
 
         ! define the depth to the wetting front (m) and derivatives
-        depthWettingFront = (rootZoneLiq/availCapacity)*rootingDepth
-        dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*rootingDepth + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
-        dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:)*rootingDepth  + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
+        total_soil_depth = sum(mLayerDepth)
+        depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth, total_soil_depth)
+        dDepthWettingFront_dWat(:)=( dRootZoneLiq_dWat(:)*min(rootingDepth, total_soil_depth) + dRootZoneIce_dWat(:)*depthWettingFront )/availCapacity
+        dDepthWettingFront_dTk(:) =( dRootZoneLiq_dTk(:) *min(rootingDepth, total_soil_depth) + dRootZoneIce_dTk(:)*depthWettingFront  )/availCapacity
 
         ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
-        hydCondWettingFront =  surfaceSatHydCond * ( (1._rkind - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 1._rkind) )
+        hydCondWettingFront =  surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
 
         ! define the maximum infiltration rate (m s-1) and derivatives
         xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
         fPart1    = hydCondWettingFront
         fPart2    = (wettingFrontSuction + depthWettingFront)/depthWettingFront
-        dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/sum(mLayerDepth)
+        dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/total_soil_depth
         dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
         dxMaxInfilRate_dWat(:) = fPart1*dpart2(:) + fPart2*dPart1(:)
-        dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/sum(mLayerDepth)
+        dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/total_soil_depth
         dPart2(:) = -dDepthWettingFront_dTk(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
         dxMaxInfilRate_dTk(:)  = fPart1*dpart2(:) + fPart2*dPart1(:)
 
@@ -1104,7 +1106,6 @@ subroutine surfaceFlx(&
         end if
         dFrozenArea_dWat(0) = 0._rkind
         dFrozenArea_dTk(0)  = 0._rkind
-
 
         if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
           dInfilRate_dWat(0) = 0._rkind

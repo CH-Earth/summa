@@ -22,8 +22,8 @@ module check_icond_module
 USE nrtype
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:integerMissing   ! missing integer
+USE globalData,only:realMissing      ! missing double precision number
 
 implicit none
 private
@@ -331,6 +331,11 @@ contains
     
    ! end association to variables in the data structures
    end associate
+   
+   ! check rooting depth, a depth that is greater than the total soil depth is meaningless
+   if (mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%rootingDepth)%dat(1)>sum(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers))) then
+    write(message,'(a,1x,i0)') trim(message)//'Warning: rooting depth > total soil depth, so rooting depth will be set to total soil depth'
+   end if
 
    ! if snow layers exist, compute snow depth and SWE
    if(nSnow > 0)then
