@@ -72,10 +72,6 @@ USE var_lookup,only:iLookDERIV            ! named variables for structure elemen
 USE var_lookup,only:iLookPARAM            ! named variables for structure elements
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
-! provide access to routines to update states
-USE updatState_module,only:updateSnow     ! update snow states
-USE updatState_module,only:updateSoil     ! update soil states
-
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
 USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
