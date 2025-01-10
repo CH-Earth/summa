@@ -95,6 +95,7 @@ contains
  real(rkind)                           :: vGn_m                 ! van Genutchen "m" parameter (-)
  real(rkind)                           :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
  real(rkind)                           :: h1,h2                 ! used to check depth and height are consistent
+ real(rkind)                           :: d1,d2                 ! used to check rooting depth is reasonable
  real(rkind)                           :: kappa                 ! constant in the freezing curve function (m K-1)
  integer(i4b)                          :: nSoil                 ! number of soil layers
  integer(i4b)                          :: nSnow                 ! number of snow layers
@@ -331,10 +332,12 @@ contains
     
    ! end association to variables in the data structures
    end associate
-   
+
    ! check rooting depth, a depth that is greater than the total soil depth is meaningless
-   if (mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%rootingDepth)%dat(1)>sum(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers))) then
-    write(message,'(a,1x,i0)') trim(message)//'Warning: rooting depth > total soil depth, so rooting depth will be set to total soil depth'
+   d1 = sum(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers))
+   d2 = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%rootingDepth)%dat(1)
+   if (d2>d1) then
+    write(*,'(a,f5.3,a,f5.3,a)') 'Warning: rooting depth ', d2,' > total soil depth ',d1,', so rooting depth will be set to total soil depth'
    end if
 
    ! if snow layers exist, compute snow depth and SWE
