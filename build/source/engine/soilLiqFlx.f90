@@ -140,15 +140,12 @@ subroutine soilLiqFlx(&
   integer(i4b)                                    :: ixIce                   ! index of the lowest soil layer that contains ice
   real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
-  nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
 
-  ! get indices for the data structures
-  ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + 1
-  iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
 
-  ! get a copy of iLayerHeight
-  ! NOTE: performance hit, though cannot define the shape (0:) with the associate construct
-  iLayerHeight(0:nSoil) = prog_data%var(iLookPROG%iLayerHeight)%dat(ibeg-1:iend)  ! height of the layer interfaces (m)
+  !!!! SJT: initialize
+  ! 1) assign variables used in main associate block
+  ! 2) initialize error control
+  call initialize_soilLiqFlx 
 
   ! make association between local variables and the information in the data structures
   associate(&
@@ -248,7 +245,6 @@ subroutine soilLiqFlx(&
     err                   => out_soilLiqFlx % err,                  & ! intent(out): error code
     message               => out_soilLiqFlx % cmessage              & ! intent(out): error message
     )  ! end associating local variables with the information in the data structures
-    err=0; message='soilLiqFlx/' ! initialize error control
 
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
     ! preliminaries
@@ -537,6 +533,32 @@ subroutine soilLiqFlx(&
     end if  ! if computing drainage
 
   end associate
+
+contains
+
+ subroutine initialize_soilLiqFlx
+  ! **** Initial operations for soilLiqFlx module subroutine ****
+
+  ! ** assign variables used in main associate block **
+  nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
+
+  ! get indices for the data structures
+  ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + 1
+  iend = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
+
+  ! get a copy of iLayerHeight
+  ! NOTE: performance hit, though cannot define the shape (0:) with the associate construct
+  iLayerHeight(0:nSoil) = prog_data%var(iLookPROG%iLayerHeight)%dat(ibeg-1:iend)  ! height of the layer interfaces (m)
+
+  ! ** initialize error control **
+  associate(&
+    err                   => out_soilLiqFlx % err,                  & ! intent(out): error code
+    message               => out_soilLiqFlx % cmessage              & ! intent(out): error message
+  )
+   err=0; message='soilLiqFlx/' ! initialize error control
+  end associate
+
+ end subroutine initialize_soilLiqFlx
 
 end subroutine soilLiqFlx
 
