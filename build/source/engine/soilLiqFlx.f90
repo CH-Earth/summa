@@ -142,9 +142,7 @@ subroutine soilLiqFlx(&
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-  !!!! SJT: initialize
-  ! 1) assign variables used in main associate block
-  ! 2) initialize error control
+  ! ** initialize indices, error control, and get layer information ** 
   call initialize_soilLiqFlx 
 
   ! make association between local variables and the information in the data structures
@@ -246,33 +244,10 @@ subroutine soilLiqFlx(&
     message               => out_soilLiqFlx % cmessage              & ! intent(out): error message
     )  ! end associating local variables with the information in the data structures
 
-    ! -------------------------------------------------------------------------------------------------------------------------------------------------
-    ! preliminaries
-    ! -------------------------------------------------------------------------------------------------------------------------------------------------
-
-    ! get the indices for the soil layers
-    if (scalarSolution) then
-      ixLayerDesired = pack(ixMatricHead, ixSoilOnlyHyd/=integerMissing)
-      ixTop = ixLayerDesired(1)
-      ixBot = ixLayerDesired(1)
-    else
-      ixTop = 1
-      ixBot = nSoil
-    end if
-
-    ! identify the number of layers that contain roots
-    nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
-    if (nRoots==0) then
-      message=trim(message)//'no layers with roots'
-      err=20; return
-    end if
-
-    ! identify lowest soil layer with ice
-    ! NOTE: cannot use count because there may be an unfrozen wedge
-    ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
-    do iLayer=1,nSoil ! (loop through soil layers)
-      if (mLayerVolFracIceTrial(iLayer) > verySmall) ixIce = iLayer
-    end do
+    !!!! SJT: Update
+    ! 1) compute the transpiration sink term
+    ! 2) ...
+    call update_soilLiqFlx 
 
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
     ! compute the transpiration sink term
@@ -534,6 +509,10 @@ subroutine soilLiqFlx(&
 
   end associate
 
+  !!!! SJT: Finalize
+  ! 1) ...
+  call finalize_soilLiqFlx
+ 
 contains
 
  subroutine initialize_soilLiqFlx
@@ -558,7 +537,56 @@ contains
    err=0; message='soilLiqFlx/' ! initialize error control
   end associate
 
+  ! ** get the indices for the soil layers **
+  associate(&
+   scalarSolution => in_soilLiqFlx % scalarSolution,             & ! intent(in): flag to denote if implementing the scalar solution
+   ixMatricHead   => indx_data%var(iLookINDEX%ixMatricHead)%dat, & ! intent(in): indices of soil layers where matric head is the state variable
+   ixSoilOnlyHyd  => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat & ! intent(in): index in the state subset for hydrology state variables in the soil domain
+  )
+   if (scalarSolution) then
+     ixLayerDesired = pack(ixMatricHead, ixSoilOnlyHyd/=integerMissing)
+     ixTop = ixLayerDesired(1)
+     ixBot = ixLayerDesired(1)
+   else
+     ixTop = 1
+     ixBot = nSoil
+   end if
+  end associate
+
+  ! ** identify the number of layers that contain roots **
+  associate(&
+   rootingDepth => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),& ! intent(in): rooting depth (m)
+   err          => out_soilLiqFlx % err,                         & ! intent(out): error code
+   message      => out_soilLiqFlx % cmessage                     & ! intent(out): error message
+  ) 
+   nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
+   if (nRoots==0) then
+     message=trim(message)//'no layers with roots'
+     err=20; return
+   end if
+  end associate
+
+  ! ** identify lowest soil layer with ice **
+  ! NOTE: cannot use count because there may be an unfrozen wedge
+  associate(&
+    mLayerVolFracIceTrial => in_soilLiqFlx % mLayerVolFracIceTrial & ! intent(in): volumetric fraction of ice at the current iteration (-)
+  )
+   ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
+   do iLayer=1,nSoil ! (loop through soil layers)
+     if (mLayerVolFracIceTrial(iLayer) > verySmall) ixIce = iLayer
+   end do
+  end associate
  end subroutine initialize_soilLiqFlx
+
+ subroutine update_soilLiqFlx
+  ! **** Main computations for soilLiqFlx module subroutine ****
+
+ end subroutine update_soilLiqFlx
+
+ subroutine finalize_soilLiqFlx
+  ! **** Final operations for soilLiqFlx module subroutine ****
+
+ end subroutine finalize_soilLiqFlx
 
 end subroutine soilLiqFlx
 
