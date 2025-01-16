@@ -250,44 +250,6 @@ subroutine soilLiqFlx(&
     call update_soilLiqFlx 
 
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
-    ! compute the transpiration sink term
-    ! -------------------------------------------------------------------------------------------------------------------------------------------------
-
-    if ( .not. (scalarSolution .and. ixTop>1) ) then ! check the need to compute transpiration (NOTE: intent=inout)
-      
-      ! compute the fraction of transpiration loss from each soil layer
-      if (scalarTranspireLim > tiny(scalarTranspireLim)) then ! (transpiration may be non-zero even if the soil moisture limiting factor is zero)
-        mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
-      else ! (possible for there to be non-zero conductance and therefore transpiration in this case)
-        mLayerTranspireFrac(:) = mLayerRootDensity(:) / sum(mLayerRootDensity)
-      end if
-      ! check fractions sum to one
-      if (abs(sum(mLayerTranspireFrac) - 1._rkind) > verySmall) then
-        message=trim(message)//'fraction transpiration in soil layers does not sum to one'
-        err=20; return
-      end if
-
-      ! compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1)
-      mLayerTranspire(:) = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
-      ! derivatives in transpiration w.r.t. canopy state variables
-      mLayerdTrans_dCanWat(:)  = mLayerTranspireFrac(:)*dCanopyTrans_dCanWat /iden_water
-      mLayerdTrans_dTCanair(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanair/iden_water
-      mLayerdTrans_dTCanopy(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanopy/iden_water
-      mLayerdTrans_dTGround(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTGround/iden_water
-
-      ! special case of prescribed head -- no transpiration
-      if (ixBcUpperSoilHydrology==prescribedHead) then
-        mLayerTranspire(:)      = 0._rkind
-        ! derivatives in transpiration w.r.t. canopy state variables
-        mLayerdTrans_dCanWat(:) = 0._rkind
-        mLayerdTrans_dTCanair(:)= 0._rkind
-        mLayerdTrans_dTCanopy(:)= 0._rkind
-        mLayerdTrans_dTGround(:)= 0._rkind
-      end if
-
-    end if  ! if need to compute transpiration
-
-    ! -------------------------------------------------------------------------------------------------------------------------------------------------
     ! compute diagnostic variables at the nodes throughout the soil profile
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
     do iSoil=ixTop,min(ixBot+1,nSoil) ! (loop through soil layers)
@@ -533,7 +495,7 @@ contains
   associate(&
     err                   => out_soilLiqFlx % err,                  & ! intent(out): error code
     message               => out_soilLiqFlx % cmessage              & ! intent(out): error message
-  )
+  &)
    err=0; message='soilLiqFlx/' ! initialize error control
   end associate
 
@@ -542,7 +504,7 @@ contains
    scalarSolution => in_soilLiqFlx % scalarSolution,             & ! intent(in): flag to denote if implementing the scalar solution
    ixMatricHead   => indx_data%var(iLookINDEX%ixMatricHead)%dat, & ! intent(in): indices of soil layers where matric head is the state variable
    ixSoilOnlyHyd  => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat & ! intent(in): index in the state subset for hydrology state variables in the soil domain
-  )
+  &)
    if (scalarSolution) then
      ixLayerDesired = pack(ixMatricHead, ixSoilOnlyHyd/=integerMissing)
      ixTop = ixLayerDesired(1)
@@ -558,7 +520,7 @@ contains
    rootingDepth => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),& ! intent(in): rooting depth (m)
    err          => out_soilLiqFlx % err,                         & ! intent(out): error code
    message      => out_soilLiqFlx % cmessage                     & ! intent(out): error message
-  ) 
+  &) 
    nRoots = count(iLayerHeight(0:nSoil-1) < rootingDepth-verySmall)
    if (nRoots==0) then
      message=trim(message)//'no layers with roots'
@@ -570,7 +532,7 @@ contains
   ! NOTE: cannot use count because there may be an unfrozen wedge
   associate(&
     mLayerVolFracIceTrial => in_soilLiqFlx % mLayerVolFracIceTrial & ! intent(in): volumetric fraction of ice at the current iteration (-)
-  )
+  &)
    ixIce = 0  ! initialize the index of the ice layer (0 means no ice in the soil profile)
    do iLayer=1,nSoil ! (loop through soil layers)
      if (mLayerVolFracIceTrial(iLayer) > verySmall) ixIce = iLayer
@@ -581,12 +543,76 @@ contains
  subroutine update_soilLiqFlx
   ! **** Main computations for soilLiqFlx module subroutine ****
 
+  ! ** compute the transpiration sink term **
+  if ( .not. (in_soilLiqFlx % scalarSolution .and. ixTop>1) ) then ! check the need to compute transpiration
+   call compute_transpiration_sink
+  end if  
+
  end subroutine update_soilLiqFlx
 
  subroutine finalize_soilLiqFlx
   ! **** Final operations for soilLiqFlx module subroutine ****
 
  end subroutine finalize_soilLiqFlx
+
+ subroutine compute_transpiration_sink
+  ! **** Compute the transpiration sink term ****
+  ! * compute the fraction of transpiration loss from each soil layer *
+  associate(&
+   scalarTranspireLim => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1), & ! intent(in): weighted average of the transpiration limiting factor (-)
+   mLayerRootDensity  => diag_data%var(iLookDIAG%mLayerRootDensity)%dat,     & ! intent(in): root density in each layer (-)
+   mLayerTranspireLim => diag_data%var(iLookDIAG%mLayerTranspireLim)%dat,    & ! intent(in): transpiration limiting factor in each layer (-)
+   err          => out_soilLiqFlx % err,                         & ! intent(out): error code
+   message      => out_soilLiqFlx % cmessage                     & ! intent(out): error message
+  &)
+    ! transpiration may be non-zero even if the soil moisture limiting factor is zero
+    if (scalarTranspireLim > tiny(scalarTranspireLim)) then 
+     mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
+    else ! possibility of non-zero conductance and therefore transpiration in this case
+     mLayerTranspireFrac(:) = mLayerRootDensity(:) / sum(mLayerRootDensity)
+    end if
+    ! check fractions sum to one
+    if (abs(sum(mLayerTranspireFrac) - 1._rkind) > verySmall) then
+     message=trim(message)//'fraction transpiration in soil layers does not sum to one'
+     err=20; return
+    end if
+  end associate
+
+  ! * compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1) *
+  associate(&
+   mLayerTranspire           => io_soilLiqFlx % mLayerTranspire,    & ! intent(inout): transpiration loss from each soil layer (m s-1)
+   scalarCanopyTranspiration => in_soilLiqFlx % scalarCanopyTranspiration, & ! intent(in): canopy transpiration (kg m-2 s-1)
+   ! intent(inout): derivatives in the soil layer transpiration flux ...
+   mLayerdTrans_dCanWat  => io_soilLiqFlx % mLayerdTrans_dCanWat,  & ! ... w.r.t. canopy total water
+   mLayerdTrans_dTCanair => io_soilLiqFlx % mLayerdTrans_dTCanair, & ! ... w.r.t. canopy air temperature
+   mLayerdTrans_dTCanopy => io_soilLiqFlx % mLayerdTrans_dTCanopy, & ! ... w.r.t. canopy temperature
+   mLayerdTrans_dTGround => io_soilLiqFlx % mLayerdTrans_dTGround, & ! ... w.r.t. ground temperature
+   ! intent(in): derivative in canopy transpiration ...
+   dCanopyTrans_dCanWat  => in_soilLiqFlx % dCanopyTrans_dCanWat,  & ! ... w.r.t. canopy total water content (s-1)
+   dCanopyTrans_dTCanair => in_soilLiqFlx % dCanopyTrans_dTCanair, & ! ... w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTCanopy => in_soilLiqFlx % dCanopyTrans_dTCanopy, & ! ... w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTGround => in_soilLiqFlx % dCanopyTrans_dTGround, & ! ... w.r.t. ground temperature (kg m-2 s-1 K-1)
+   ! intent(in): index of the upper boundary conditions for soil hydrology
+   ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision & 
+  &)
+    mLayerTranspire(:) = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
+    ! * derivatives in transpiration w.r.t. canopy state variables *
+    mLayerdTrans_dCanWat(:)  = mLayerTranspireFrac(:)*dCanopyTrans_dCanWat /iden_water
+    mLayerdTrans_dTCanair(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanair/iden_water
+    mLayerdTrans_dTCanopy(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanopy/iden_water
+    mLayerdTrans_dTGround(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTGround/iden_water
+
+    ! * special case of prescribed head -- no transpiration *
+    if (ixBcUpperSoilHydrology==prescribedHead) then
+     mLayerTranspire(:)      = 0._rkind
+     ! derivatives in transpiration w.r.t. canopy state variables
+     mLayerdTrans_dCanWat(:) = 0._rkind
+     mLayerdTrans_dTCanair(:)= 0._rkind
+     mLayerdTrans_dTCanopy(:)= 0._rkind
+     mLayerdTrans_dTGround(:)= 0._rkind
+    end if
+  end associate
+ end subroutine compute_transpiration_sink
 
 end subroutine soilLiqFlx
 
