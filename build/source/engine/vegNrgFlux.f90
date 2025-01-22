@@ -569,7 +569,7 @@ subroutine vegNrgFlux(&
         end if  ! end if the first flux call
 
         ! compute the roughness length of the ground (ground below the canopy or non-vegetated surface)
-        z0Ground = z0soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
+        z0Ground = z0Soil*(1._rkind - scalarGroundSnowFraction) + z0Snow*scalarGroundSnowFraction     ! roughness length (m)
 
         ! compute the total vegetation area index (leaf plus stem)
         VAI        = scalarLAI + scalarSAI  ! vegetation area index
@@ -1642,6 +1642,12 @@ subroutine aeroResist(&
       tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTopAboveSnow)
       tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
       groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
+      ! check that (tmp1 - tmp2) is positive
+      if ((z0Ground > z0Canopy + zeroPlaneDisplacement)) then
+        write(*,'(a,3(f9.5,a))') 'z0Ground > z0Canopy + zeroPlaneDisplacement   (', z0Ground,' >',z0Canopy,' +',zeroPlaneDisplacement,' )'
+        message=trim(message)//'ground roughness is greater than canopy roughness plus zero plane displacement'
+        err=20; return
+      end if
     ! case 2: logarithmic profile from snow depth plus roughness height to bottom of the canopy
     ! NOTE: heightCanopyBottomAboveSnow>z0Ground+xTolerance
     else
