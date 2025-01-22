@@ -281,6 +281,7 @@ subroutine coupled_em(&
   real(rkind)                          :: mean_step_dt_sub       ! mean solution step for the sub-step
   real(rkind)                          :: sumStepSize            ! sum solution step for the data step
   ! outer loop control
+  integer(i4b)                         :: be_steps               ! number of substeps for a BE solver
   logical(lgt)                         :: firstInnerStep         ! flag to denote if the first time step in maxstep subStep
   logical(lgt)                         :: lastInnerStep          ! flag to denote if the last time step in maxstep subStep
   logical(lgt)                         :: do_outer               ! flag to denote if doing the outer steps surrounding the call to opSplittin
@@ -289,7 +290,6 @@ subroutine coupled_em(&
   logical(lgt)                         :: computeEnthalpy        ! flag to compute enthalpy regardless of the model decision
   logical(lgt)                         :: enthalpyStateVec       ! flag if enthalpy is a state variable (IDA)
   logical(lgt)                         :: use_lookup             ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
-
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="coupled_em/"
@@ -391,6 +391,14 @@ subroutine coupled_em(&
         case default; err=20;    message=trim(message)//'expect num_method to be ida, kinsol, or homegrown (or itertive, which is homegrown)'; return
       end select
 
+      ! set the number of substeps for a BE solver
+      be_steps = NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1)) ! number of substeps for a BE solver
+      if (be_steps < 1) then
+        message=trim(message)//'expect be_steps to be greater than 0'
+        err=20; return
+      end if
+      if (ixNumericalMethod == ida) be_steps = 1_i4b ! IDA does not use substeps
+
       ! set the flag to compute enthalpy, may want to have this true always if want to output enthalpy
       computeEnthalpy  = .false.
       enthalpyStateVec = .false.
@@ -435,9 +443,9 @@ subroutine coupled_em(&
     ! NOTE - temporary assignment of minstep to foce something reasonable
     ! changing the maxstep parameter will make the outer and inner loop computations here in coupled_em happen more frequently
     ! changing the be_steps parameter will make the inner loop computations in opSplittin happen more frequently (e.g. be_steps = 32.0 give BE32)
-    minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
+    minstep = mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
-    maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))  ! maximum time step (s) to run opSplittin over
+    maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)/be_steps  ! maximum time step (s) to run opSplittin over
 
     ! compute the number of layers with roots
     nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
