@@ -251,63 +251,6 @@ subroutine soilLiqFlx(&
     ! 2) ...
     call update_soilLiqFlx; if (return_flag) return
 
-    ! -------------------------------------------------------------------------------------------------------------------------------------------------
-    ! * compute drainage flux from the bottom of the soil profile, and its derivative
-    ! -------------------------------------------------------------------------------------------------------------------------------------------------
-
-    if ( .not. (scalarSolution .and. ixTop<nSoil) ) then ! define the need to compute drainage
-      ! compute drainage flux and its derivative...
-      call qDrainFlux(&
-                      ! input: model control
-                      deriv_desired,                   & ! intent(in):  flag indicating if derivatives are desired
-                      ixRichards,                      & ! intent(in):  index defining the form of Richards' equation (moisture or mixdform)
-                      ixBcLowerSoilHydrology,          & ! intent(in):  index defining the type of boundary conditions
-                      ! input: state variables
-                      mLayerMatricHeadLiqTrial(nSoil), & ! intent(in):  liquid matric head in the lowest unsaturated node (m)
-                      mLayerVolFracLiqTrial(nSoil),    & ! intent(in):  volumetric liquid water content the lowest unsaturated node (-)
-                      ! input: model coordinate variables
-                      mLayerDepth(nSoil),              & ! intent(in):  depth of the lowest unsaturated soil layer (m)
-                      mLayerHeight(nSoil),             & ! intent(in):  height of the lowest unsaturated soil node (m)
-                      ! input: boundary conditions
-                      lowerBoundHead,                  & ! intent(in):  lower boundary condition (m)
-                      lowerBoundTheta,                 & ! intent(in):  lower boundary condition (-)
-                      ! input: derivative in the soil water characteristic
-                      mLayerdPsi_dTheta(nSoil),        & ! intent(in):  derivative in the soil water characteristic
-                      ! input: transmittance
-                      iLayerSatHydCond(0),             & ! intent(in):  saturated hydraulic conductivity at the surface (m s-1)
-                      iLayerSatHydCond(nSoil),         & ! intent(in):  saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
-                      mLayerHydCond(nSoil),            & ! intent(in):  hydraulic conductivity at the node itself (m s-1)
-                      iceImpedeFac(nSoil),             & ! intent(in):  ice impedence factor in the lower-most soil layer (-)
-                      ! input: transmittance derivatives
-                      dHydCond_dVolLiq(nSoil),         & ! intent(in):  derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
-                      dHydCond_dMatric(nSoil),         & ! intent(in):  derivative in hydraulic conductivity w.r.t. matric head (s-1)
-                      dHydCond_dTemp(nSoil),           & ! intent(in):  derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-                      ! input: soil parameters
-                      vGn_alpha(nSoil),                & ! intent(in):  van Genutchen "alpha" parameter (m-1)
-                      vGn_n(nSoil),                    & ! intent(in):  van Genutchen "n" parameter (-)
-                      vGn_m(nSoil),                    & ! intent(in):  van Genutchen "m" parameter (-)
-                      theta_sat(nSoil),                & ! intent(in):  soil porosity (-)
-                      theta_res(nSoil),                & ! intent(in):  soil residual volumetric water content (-)
-                      kAnisotropic,                    & ! intent(in):  anisotropy factor for lateral hydraulic conductivity (-)
-                      zScale_TOPMODEL,                 & ! intent(in):  TOPMODEL scaling factor (m)
-                      ! output: hydraulic conductivity and diffusivity at the surface
-                      iLayerHydCond(nSoil),            & ! intent(out): hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
-                      iLayerDiffuse(nSoil),            & ! intent(out): hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
-                      ! output: drainage flux
-                      iLayerLiqFluxSoil(nSoil),        & ! intent(out): drainage flux (m s-1)
-                      ! output: derivatives in drainage flux
-                      dq_dHydStateAbove(nSoil),        & ! intent(out): change in drainage flux w.r.t. change in hydrology state in lowest unsaturated node (m s-1 or s-1)
-                      dq_dNrgStateAbove(nSoil),        & ! intent(out): change in drainage flux w.r.t. change in energy state in lowest unsaturated node (m s-1 or s-1)
-                      ! output: error control
-                      err,cmessage)                      ! intent(out): error control
-      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-      ! no dependence on the aquifer for drainage
-      dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
-      dq_dNrgStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
-
-    end if  ! if computing drainage
-
   end associate
 
   !!!! SJT: Finalize
@@ -393,6 +336,10 @@ contains
   call compute_surface_infiltration; if (return_flag) return
 
   call compute_interface_fluxes_derivatives; if (return_flag) return
+
+  if ( .not. (in_soilLiqFlx % scalarSolution .and. ixTop<nSoil) ) then ! define the need to compute drainage
+   call compute_drainage_flux; if (return_flag) return
+  end if
  end subroutine update_soilLiqFlx
 
  subroutine finalize_soilLiqFlx
@@ -748,6 +695,105 @@ contains
    end associate
   end do  ! end looping through soil layers
  end subroutine compute_interface_fluxes_derivatives
+
+ subroutine compute_drainage_flux
+  ! **** Compute the drainage flux from the bottom of the soil profile and its derivative ***
+
+  associate(&
+   ! intent(in): model control
+   deriv_desired          => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
+   ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
+   ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,& ! index of the lower boundary conditions for soil hydrology
+   ! intent(in): state variables
+   mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
+   mLayerVolFracLiqTrial    => in_soilLiqFlx % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
+   ! intent(in): model coordinate variables
+   mLayerDepth  => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend), & ! depth of the layer (m)
+   mLayerHeight => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend),& ! height of the layer mid-point (m)
+   ! intent(in): boundary conditions
+   lowerBoundHead  => mpar_data%var(iLookPARAM%lowerBoundHead)%dat(1), & ! lower boundary condition for matric head (m)
+   lowerBoundTheta => mpar_data%var(iLookPARAM%lowerBoundTheta)%dat(1),& ! lower boundary condition for volumetric liquid water content (-)
+   ! intent(in): derivative in the soil water characteristic
+   mLayerdPsi_dTheta => io_soilLiqFlx % mLayerdPsi_dTheta,     & ! derivative in the soil water characteristic w.r.t. theta (m)
+   ! intent(in): transmittance
+   iLayerSatHydCond => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,& ! saturated hydraulic conductivity at the interface of each layer (m s-1)
+   mLayerHydCond    => io_soilLiqFlx % mLayerHydCond,                & ! hydraulic conductivity in each soil layer (m s-1)
+   ! intent(in): transmittance derivatives
+   dHydCond_dMatric => io_soilLiqFlx % dHydCond_dMatric,& ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+   ! intent(in): soil parameters
+   vGn_alpha       => mpar_data%var(iLookPARAM%vGn_alpha)%dat,         & ! "alpha" parameter (m-1)
+   vGn_n           => mpar_data%var(iLookPARAM%vGn_n)%dat,             & ! "n" parameter (-)
+   vGn_m           => diag_data%var(iLookDIAG%scalarVGn_m)%dat,        & ! "m" parameter (-)
+   theta_sat       => mpar_data%var(iLookPARAM%theta_sat)%dat,         & ! soil porosity (-)
+   theta_res       => mpar_data%var(iLookPARAM%theta_res)%dat,         & ! soil residual volumetric water content (-)
+   kAnisotropic    => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),   & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
+   zScale_TOPMODEL => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),& ! TOPMODEL scaling factor (m)
+   ! intent(out): drainage flux
+   iLayerLiqFluxSoil => io_soilLiqFlx % iLayerLiqFluxSoil,& ! liquid flux at soil layer interfaces (m s-1)
+   ! intent(out): derivatives in drainage flux w.r.t. ...
+   dq_dHydStateAbove => io_soilLiqFlx % dq_dHydStateAbove,& ! ... state variables in the layer above
+   dq_dNrgStateAbove => io_soilLiqFlx % dq_dNrgStateAbove,& ! ... temperature in the layer above (m s-1 K-1)
+   ! intent(out): error control
+   err     => out_soilLiqFlx % err,                       & ! error code
+   message => out_soilLiqFlx % cmessage                   & ! error message
+  &)
+   call qDrainFlux(&
+                   ! intent(in): model control
+                   deriv_desired,                   & ! flag indicating if derivatives are desired
+                   ixRichards,                      & ! index defining the form of Richards' equation (moisture or mixdform)
+                   ixBcLowerSoilHydrology,          & ! index defining the type of boundary conditions
+                   ! intent(in): state variables
+                   mLayerMatricHeadLiqTrial(nSoil), & ! liquid matric head in the lowest unsaturated node (m)
+                   mLayerVolFracLiqTrial(nSoil),    & ! volumetric liquid water content the lowest unsaturated node (-)
+                   ! intent(in): model coordinate variables
+                   mLayerDepth(nSoil),              & ! depth of the lowest unsaturated soil layer (m)
+                   mLayerHeight(nSoil),             & ! height of the lowest unsaturated soil node (m)
+                   ! intent(in): boundary conditions
+                   lowerBoundHead,                  & ! lower boundary condition (m)
+                   lowerBoundTheta,                 & ! lower boundary condition (-)
+                   ! intent(in): derivative in the soil water characteristic
+                   mLayerdPsi_dTheta(nSoil),        & ! derivative in the soil water characteristic
+                   ! intent(in): transmittance
+                   iLayerSatHydCond(0),             & ! saturated hydraulic conductivity at the surface (m s-1)
+                   iLayerSatHydCond(nSoil),         & ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+                   mLayerHydCond(nSoil),            & ! hydraulic conductivity at the node itself (m s-1)
+                   iceImpedeFac(nSoil),             & ! ice impedence factor in the lower-most soil layer (-)
+                   ! intent(in): derivitaives in hydraulic conductivity w.r.t. ...
+                   dHydCond_dVolLiq(nSoil),         & ! ... volumetric liquid water content (m s-1)
+                   dHydCond_dMatric(nSoil),         & ! ... matric head (s-1)
+                   dHydCond_dTemp(nSoil),           & ! ... temperature (m s-1 K-1)
+                   ! intent(in): soil parameters
+                   vGn_alpha(nSoil),                & ! van Genutchen "alpha" parameter (m-1)
+                   vGn_n(nSoil),                    & ! van Genutchen "n" parameter (-)
+                   vGn_m(nSoil),                    & ! van Genutchen "m" parameter (-)
+                   theta_sat(nSoil),                & ! soil porosity (-)
+                   theta_res(nSoil),                & ! soil residual volumetric water content (-)
+                   kAnisotropic,                    & ! anisotropy factor for lateral hydraulic conductivity (-)
+                   zScale_TOPMODEL,                 & ! TOPMODEL scaling factor (m)
+                   ! intent(out): hydraulic conductivity and diffusivity at the surface
+                   iLayerHydCond(nSoil),            & ! hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
+                   iLayerDiffuse(nSoil),            & ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+                   ! intent(out): drainage flux
+                   iLayerLiqFluxSoil(nSoil),        & ! drainage flux (m s-1)
+                   ! intent(out): derivatives in drainage flux w.r.t. ...
+                   dq_dHydStateAbove(nSoil),        & ! ... change in hydrology state in lowest unsaturated node (m s-1 or s-1)
+                   dq_dNrgStateAbove(nSoil),        & ! ... change in energy state in lowest unsaturated node (m s-1 or s-1)
+                   ! intent(out): error control
+                   err,cmessage)                      ! error control
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+  end associate
+
+  ! no dependence on the aquifer for drainage
+  associate(&
+   dq_dHydStateBelow => io_soilLiqFlx % dq_dHydStateBelow,& ! ... state variables in the layer below
+   dq_dNrgStateBelow => io_soilLiqFlx % dq_dNrgStateBelow & ! ... temperature in the layer below (m s-1 K-1)
+  &)
+   dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
+   dq_dNrgStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
+  end associate
+
+ end subroutine compute_drainage_flux
+
 end subroutine soilLiqFlx
 
 ! ***************************************************************************************************************
