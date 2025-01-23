@@ -527,7 +527,7 @@ subroutine varSubstep(&
       endif
 
       ! print progress
-      if(globalPrintFlag)&
+      !if(globalPrintFlag)&
       write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
      ! increment fluxes
@@ -539,7 +539,12 @@ subroutine varSubstep(&
           if(count(ixLayerActive/=integerMissing)==nLayers)then
             flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
             fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
-
+            if (iVar==iLookFLUX%scalarSoilDrainage) then
+              print*, 'no Split scalarSoilDrainage = ', flux_temp%var(iVar)%dat(1)*iden_water*1800._rkind, flux_mean%var(iVar)%dat(1)*iden_water*1800._rkind
+            endif
+            if (iVar== iLookFLUX%iLayerLiqFluxSoil) then
+              print*, 'no Split iLayerLiqFluxSoil = ', flux_temp%var(iVar)%dat(nSoil)*iden_water*1800._rkind, flux_mean%var(iVar)%dat(nSoil)*iden_water*1800._rkind
+            endif
           ! ** domain splitting
           else
             ixMin=lbound(flux_data%var(iVar)%dat)
@@ -556,6 +561,12 @@ subroutine varSubstep(&
                 fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
               endif
             end do
+            if (iVar==iLookFLUX%scalarSoilDrainage) then
+              print*, 'scalarSoilDrainage = ', fluxMask%var(iVar)%dat(1),flux_temp%var(iVar)%dat(1)*iden_water*1800._rkind, flux_mean%var(iVar)%dat(1)*iden_water*1800._rkind
+            endif
+            if (iVar== iLookFLUX%iLayerLiqFluxSoil) then
+              print*, 'iLayerLiqFluxSoil = ', fluxMask%var(iVar)%dat(nSoil),flux_temp%var(iVar)%dat(nSoil)*iden_water*1800._rkind, flux_mean%var(iVar)%dat(nSoil)*iden_water*1800._rkind,ixMin(1),ixMax(1),nSoil
+            endif
           endif  ! (domain splitting)
 
         endif   ! (if the flux is desired)

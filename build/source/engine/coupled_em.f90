@@ -271,7 +271,7 @@ subroutine coupled_em(&
   real(rkind),allocatable              :: innerBalanceLayerMass(:) ! inner step balances for domain with multiple layers
   real(rkind),allocatable              :: innerBalanceLayerNrg(:)  ! inner step balances for domain with multiple layers
   ! test balance checks
-  logical(lgt),parameter               :: printBalance=.false.   ! flag to print the balance checks
+  logical(lgt),parameter               :: printBalance=.true.   ! flag to print the balance checks
   real(rkind),allocatable              :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
   real(rkind),allocatable              :: liqSoilInit(:)         ! soil moisture at the start of the time step
   ! timing information
