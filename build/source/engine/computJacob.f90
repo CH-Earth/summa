@@ -235,6 +235,7 @@ subroutine computJacob(&
     dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
     dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy     )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. temperature
     ! derivative in Cm w.r.t. relevant state variables
+    dCm_dPsi0                    => deriv_data%var(iLookDERIV%dCm_dPsi0                   )%dat     ,& ! intent(in): [dp(:)]  derivative in heat capacity w.r.t. matric potential (J kg-1)
     dCm_dTk                      => deriv_data%var(iLookDERIV%dCm_dTk                     )%dat     ,& ! intent(in): [dp(:)]  derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
     dCm_dTkCanopy                => deriv_data%var(iLookDERIV%dCm_dTkCanopy               )%dat(1)  ,& ! intent(in): [dp   ]  derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
     ! derivatives in time
@@ -614,8 +615,9 @@ subroutine computJacob(&
               endif
 
               ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-              aJac(ixOffDiag(nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) + mLayerCm(iLayer) * dVolTot_dPsi0(iLayer) &
-                                                        + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
+              aJac(ixOffDiag(nrgState,watState),watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
+                                                           + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) &
+                                                           + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
               if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
                 aJac(ixOffDiag(nrgState,watState),watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water + aJac(ixOffDiag(nrgState,watState),watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
               endif
@@ -944,7 +946,8 @@ subroutine computJacob(&
               endif
 
               ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-              aJac(nrgState,watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer)  + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) &
+              aJac(nrgState,watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerdTemp_dt(jLayer) &
+                                       + mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) + dCm_dPsi0(iLayer) * mLayerdWat_dt(jLayer) &
                                        + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
               if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
                 aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water + aJac(nrgState,watState)   ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content

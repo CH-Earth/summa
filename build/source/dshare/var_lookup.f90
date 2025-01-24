@@ -659,6 +659,7 @@ MODULE var_lookup
   integer(i4b)    :: dThermalC_dWatAbove             = integerMissing ! derivative in the thermal conductivity w.r.t. water state in the layer above
   integer(i4b)    :: dThermalC_dWatBelow             = integerMissing ! derivative in the thermal conductivity w.r.t. water state in the layer above
   ! energy derivatives that might be treated as constant if Cm not updated
+  integer(i4b)    :: dCm_dPsi0                       = integerMissing ! derivative in heat capacity w.r.t. matric potential (J kg-1)
   integer(i4b)    :: dCm_dTk                         = integerMissing ! derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
   integer(i4b)    :: dCm_dTkCanopy                   = integerMissing ! derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
@@ -958,7 +959,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81)
+                                                                         81, 82)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

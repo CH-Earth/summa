@@ -626,6 +626,7 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dThermalC_dWatAbove)           = var_info('dThermalC_dWatAbove'          , 'derivative in the thermal conductivity w.r.t. water in the layer above', 'unknown'       , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dThermalC_dWatBelow)           = var_info('dThermalC_dWatBelow'          , 'derivative in the thermal conductivity w.r.t. water in the layer above', 'unknown'       , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   ! energy derivatives that might be treated as constant if Cm not updated
+  deriv_meta(iLookDERIV%dCm_dPsi0)                     = var_info('dCm_dPsi0'                    , 'derivative in Cm w.r.t. matric potential'                            , 'J kg K-1'        , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dCm_dTk)                       = var_info('dCm_dTk'                      , 'derivative in Cm w.r.t. temperature'                                 , 'J kg K-2'        , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dCm_dTkCanopy)                 = var_info('dCm_dTkCanopy'                , 'derivative in Cm w.r.t. canopy temperature'                          , 'J kg K-2'        , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below

@@ -206,6 +206,8 @@ subroutine eval8summaWithPrime(&
   ! other local variables
   integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
   integer(i4b)                    :: ixBeg,ixEnd                 ! index of indices for the soil compression routine
+  real(rkind)                     :: scalarCanopyCm_noLHTrial    ! trial value of Cm for the canopy without latent heat part
+  real(rkind),dimension(nLayers)  :: mLayerCm_noLHTrial          ! trial vector of Cm for snow+soil without latent heat part
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: updateFluxCp                ! flag to indicate if we update Cp at each step for RHS, set with nrgConserv choice and updateCp_closedForm flag
@@ -249,6 +251,7 @@ subroutine eval8summaWithPrime(&
     dThermalC_dWatBelow       => deriv_data%var(iLookDERIV%dThermalC_dWatBelow)%dat        ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dTempAbove      => deriv_data%var(iLookDERIV%dThermalC_dTempAbove)%dat       ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. energy state in the layer above
     dThermalC_dTempBelow      => deriv_data%var(iLookDERIV%dThermalC_dTempBelow)%dat       ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. energy state in the layer above
+    dCm_dPsi0                 => deriv_data%var(iLookDERIV%dCm_dPsi0)%dat                  ,& ! intent(out): [dp(:)]  derivative in heat capacity w.r.t. matric potential (J kg-1 K-1)
     dCm_dTk                   => deriv_data%var(iLookDERIV%dCm_dTk)%dat                    ,& ! intent(out): [dp(:)]  derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
     dCm_dTkCanopy             => deriv_data%var(iLookDERIV%dCm_dTkCanopy)%dat(1)           ,& ! intent(out): [dp   ]  derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
     ! mapping
@@ -258,9 +261,9 @@ subroutine eval8summaWithPrime(&
     heatCapVegTrial           => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)   ,& ! intent(out): [dp]     volumetric heat capacity of vegetation canopy
     mLayerHeatCapTrial        => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat           ,& ! intent(out): [dp(:)]  heat capacity for snow and soil
     ! Cm
-    canopyCmTrial             => diag_data%var(iLookDIAG%scalarCanopyCm)%dat(1)            ,& ! intent(out): [dp]     Cm of the canopy
-    mLayerCmTrial             => diag_data%var(iLookDIAG%mLayerCm)%dat                      & ! intent(out): [dp(:)]  Cm of snow and soil
-    ) ! association to variables in the data structures
+    scalarCanopyCmTrial       => diag_data%var(iLookDIAG%scalarCanopyCm)%dat(1)            ,& ! intent(out): [dp]    Cm of the canopy
+    mLayerCmTrial             => diag_data%var(iLookDIAG%mLayerCm)%dat                      & ! intent(out): [dp(:)] Cm of snow and soil
+  ) ! association to variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
     err=0; message="eval8summaWithPrime/"
@@ -551,24 +554,32 @@ subroutine eval8summaWithPrime(&
     if(needStateCm)then
       ! compute C_m
       call computCm(&
+                 .false. ,                  & ! intent(in):    flag to denote not BE solver, do not include latent heat part in Jacobian Cm
                  ! input: state variables
-                 scalarCanopyTempTrial, & ! intent(in):    trial value of canopy temperature (K)
-                 mLayerTempTrial,       & ! intent(in):    trial value of layer temperature (K)
-                 mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (-)
+                 canopyDepth,               & ! intent(in):    canopy depth (m)
+                 scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)
+                 mLayerTempTrial,           & ! intent(in):    trial value of layer temperature (K)
+                 mLayerMatricHeadTrial,     & ! intent(in):    trial value for total water matric potential (-)
                  ! input data structures
-                 mpar_data,             & ! intent(in):    model parameters
-                 indx_data,             & ! intent(in):    model layer indices
+                 mpar_data,                 & ! intent(in):    model parameters
+                 indx_data,                 & ! intent(in):    model layer indices
                  ! output
-                 canopyCmTrial,         & ! intent(inout): Cm for vegetation (J kg K-1)
-                 mLayerCmTrial,         & ! intent(inout): Cm for soil and snow (J kg K-1)
-                 dCm_dTk,               & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
-                 dCm_dTkCanopy,         & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
-                 err,cmessage)            ! intent(inout): error control
+                 scalarCanopyCmTrial,       & ! intent(inout): Cm for vegetation (J kg K-1)
+                 scalarCanopyCm_noLHTrial,  & ! intent(inout): Cm without latent heat part for vegetation (J kg K-1)
+                 mLayerCmTrial,             & ! intent(inout): Cm for soil and snow (J kg K-1)
+                 mLayerCm_noLHTrial,        & ! intent(inout): Cm without latent heat part for soil and snow (J kg K-1)
+                 dCm_dPsi0,                 & ! intent(inout): derivative in Cm w.r.t. matric potential (J kg)
+                 dCm_dTk,                   & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
+                 dCm_dTkCanopy,             & ! intent(inout): derivative in Cm w.r.t. temperature (J kg K-2)
+                 err,cmessage)                ! intent(inout): error control
     else
-      canopyCmTrial = 0._qp
-      mLayerCmTrial = 0._qp
-      dCm_dTk       = 0._rkind
-      dCm_dTkCanopy = 0._rkind
+      scalarCanopyCmTrial      = 0._rkind
+      scalarCanopyCm_noLHTrial = 0._rkind
+      mLayerCmTrial            = 0._rkind
+      mLayerCm_noLHTrial       = 0._rkind
+      dCm_dPsi0                = 0._rkind
+      dCm_dTk                  = 0._rkind
+      dCm_dTkCanopy            = 0._rkind
     endif ! needStateCm
 
     ! save the number of flux calls per time step
@@ -669,8 +680,8 @@ subroutine eval8summaWithPrime(&
                       mLayerVolFracWatPrime,      & ! intent(in):  prime vector of the volumetric water in each snow and soil layer (s-1)
                       mLayerVolFracLiqPrime,      & ! intent(in):  prime vector of the volumetric liq in each snow and soil layer (s-1)
                       ! input: enthalpy terms
-                      canopyCmTrial,              & ! intent(in):  Cm of vegetation canopy (-)
-                      mLayerCmTrial,              & ! intent(in):  Cm of each snow and soil layer (-)
+                      scalarCanopyCm_noLHTrial,   & ! intent(in):  Cm without latent heat part for vegetation canopy (-)
+                      mLayerCm_noLHTrial,         & ! intent(in):  Cm without latent heat part for each snow and soil layer (-)
                       scalarCanairEnthalpyPrime,  & ! intent(in):  prime value for the enthalpy of the canopy air space (W m-3)
                       scalarCanopyEnthalpyPrime,  & ! intent(in):  prime value for the of enthalpy of the vegetation canopy (W m-3)
                       mLayerEnthalpyPrime,        & ! intent(in):  prime vector of the of enthalpy of each snow and soil layer (W m-3)
