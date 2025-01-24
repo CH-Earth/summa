@@ -23,10 +23,13 @@ MODULE data_types
  USE nrtype, integerMissing=>nr_integerMissing
  USE var_lookup,only:maxvarFreq
  USE var_lookup,only:maxvarStat
+ USE var_lookup,only:maxvarDecisions  ! maximum number of decisions
+ USE var_lookup,only:iLookPARAM       ! lookup indices for model parameters
  USE var_lookup,only:iLookFLUX        ! lookup indices for flux data
  USE var_lookup,only:iLookDERIV       ! lookup indices for derivative data
  USE var_lookup,only:iLookFORCE       ! lookup indices for forcing data 
  USE var_lookup,only:iLookDIAG        ! lookup indices for diagnostic variable data
+ USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
  implicit none
  ! constants necessary for variable defs
  private
@@ -574,6 +577,60 @@ MODULE data_types
    procedure :: finalize   => finalize_out_bigAquifer
  end type out_type_bigAquifer
  ! ** end bigAquifer
+
+ ! ***********************************************************************************************************
+ ! Define classes used to simplify calls to the subrotuines in soilLiqFlx
+ ! ***********************************************************************************************************
+
+ ! ** diagv_node
+ type, public :: in_type_diagv_node ! intent(in) data
+   ! input: model control
+   logical(lgt)           :: deriv_desired             ! flag indicating if derivatives are desired
+   integer(i4b)           :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   real(rkind)            :: scalarMatricHeadLiqTrial  ! liquid matric head in each layer (m)
+   real(rkind)            :: scalarVolFracLiqTrial     ! volumetric fraction of liquid water in a given layer (-)
+   real(rkind)            :: scalarVolFracIceTrial     ! volumetric fraction of ice in a given layer (-)
+   ! input: pre-computed deriavatives
+   real(rkind)            :: dTheta_dTk                ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   real(rkind)            :: dPsiLiq_dTemp             ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   ! input: soil parameters
+   real(rkind)            :: vGn_alpha                 ! van Genutchen "alpha" parameter (m-1)
+   real(rkind)            :: vGn_n                     ! van Genutchen "n" parameter (-)
+   real(rkind)            :: vGn_m                     ! van Genutchen "m" parameter (-)
+   real(rkind)            :: mpExp                     ! empirical exponent in macropore flow equation (-)
+   real(rkind)            :: theta_sat                 ! soil porosity (-)
+   real(rkind)            :: theta_res                 ! soil residual volumetric water content (-)
+   real(rkind)            :: theta_mp                  ! volumetric liquid water content when macropore flow begins (-)
+   real(rkind)            :: f_impede                  ! ice impedence factor (-)
+   ! input: saturated hydraulic conductivity
+   real(rkind)            :: scalarSatHydCond          ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
+   real(rkind)            :: scalarSatHydCondMP        ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
+  contains
+   procedure :: initialize => initialize_in_diagv_node
+ end type in_type_diagv_node
+
+ type, public :: out_type_diagv_node ! intent(out) data
+   ! output: derivative in the soil water characteristic
+   real(rkind)            :: scalardPsi_dTheta         ! derivative in the soil water characteristic
+   real(rkind)            :: scalardTheta_dPsi         ! derivative in the soil water characteristic
+   ! output: transmittance
+   real(rkind)            :: scalarHydCond             ! hydraulic conductivity at layer mid-points (m s-1)
+   real(rkind)            :: scalarDiffuse             ! diffusivity at layer mid-points (m2 s-1)
+   real(rkind)            :: iceImpedeFac              ! ice impedence factor in each layer (-)
+   ! output: transmittance derivatives
+   real(rkind)            :: dHydCond_dVolLiq          ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   real(rkind)            :: dDiffuse_dVolLiq          ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   real(rkind)            :: dHydCond_dMatric          ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+   real(rkind)            :: dHydCond_dTemp            ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! output: error control
+   integer(i4b)           :: err                       ! error code
+   character(len=len_msg) :: message                   ! error message
+  contains
+   procedure :: finalize   => finalize_out_diagv_node
+ end type out_type_diagv_node
+ ! ** end diagv_node
+
 
  ! ***********************************************************************************************************
  ! Define classes used to simplify calls to the subrotuines in opSplittin
@@ -1361,6 +1418,80 @@ contains
   end associate
  end subroutine finalize_out_bigAquifer
  ! **** end bigAquifer ****
+
+ ! **** diagv_node ****
+ subroutine initialize_in_diagv_node(in_diagv_node,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
+  class(in_type_diagv_node),intent(out) :: in_diagv_node                    ! class object for intent(in) diagv_node arguments
+  type(in_type_soilLiqFlx),intent(in)   :: in_soilLiqFlx                    ! input data for soilLiqFlx
+  type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
+  type(var_dlength),intent(in)          :: diag_data                        ! diagnostic variables for a local HRU
+  type(var_dlength),intent(in)          :: mpar_data                        ! model parameters
+  type(var_dlength),intent(in)          :: flux_data                        ! model fluxes for a local HRU
+
+  associate(&
+   ! intent(in): model control
+   deriv_desired => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
+   ixRichards    => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
+   ! intent(in): state variables
+   mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
+   mLayerVolFracLiqTrial    => in_soilLiqFlx % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
+   mLayerVolFracIceTrial    => in_soilLiqFlx % mLayerVolFracIceTrial,    & ! volumetric fraction of ice at the current iteration (-)
+   mLayerdTheta_dTk         => in_soilLiqFlx % mLayerdTheta_dTk,         & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   dPsiLiq_dTemp            => in_soilLiqFlx % dPsiLiq_dTemp,            & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   ! intent(in): van Genutchen and other soil parameters..
+   vGn_alpha          => mpar_data%var(iLookPARAM%vGn_alpha)%dat,        & ! "alpha" parameter (m-1)
+   vGn_n              => mpar_data%var(iLookPARAM%vGn_n)%dat,            & ! "n" parameter (-)
+   vGn_m              => diag_data%var(iLookDIAG%scalarVGn_m)%dat,       & ! "m" parameter (-)
+   mpExp              => mpar_data%var(iLookPARAM%mpExp)%dat(1),         & ! empirical exponent in macropore flow equation (-)
+   theta_sat          => mpar_data%var(iLookPARAM%theta_sat)%dat,        & ! soil porosity (-)
+   theta_res          => mpar_data%var(iLookPARAM%theta_res)%dat,        & ! soil residual volumetric water content (-)
+   theta_mp           => mpar_data%var(iLookPARAM%theta_mp)%dat(1),      & ! volumetric liquid water content when macropore flow begins (-)
+   f_impede           => mpar_data%var(iLookPARAM%f_impede)%dat(1),      & ! ice impedence factor (-)
+   mLayerSatHydCond   => flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,  & ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
+   mLayerSatHydCondMP => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat & ! saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
+  &)
+   ! SJT: add interface operations here -- example from bigAquifer in comments below
+  end associate
+
+!  associate(&
+!   scalarCanopyTranspiration    => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1), &  ! intent(out): [dp]    canopy transpiration (kg m-2 s-1)
+!   scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1),        &  ! intent(out): [dp]     drainage from the soil profile (m s-1)
+!   dCanopyTrans_dCanWat         => deriv_data%var(iLookDERIV%dCanopyTrans_dCanWat)%dat(1),    &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+!   dCanopyTrans_dTCanair        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanair)%dat(1),   &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+!   dCanopyTrans_dTCanopy        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanopy)%dat(1),   &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+!   dCanopyTrans_dTGround        => deriv_data%var(iLookDERIV%dCanopyTrans_dTGround)%dat(1) )     ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+!   ! intent(in) arguments
+!   in_bigAquifer % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! intent(in): trial value of aquifer storage (m)
+!   in_bigAquifer % scalarCanopyTranspiration = scalarCanopyTranspiration ! intent(in): canopy transpiration (kg m-2 s-1)
+!   in_bigAquifer % scalarSoilDrainage        = scalarSoilDrainage        ! intent(in): soil drainage (m s-1)
+!   in_bigAquifer % dCanopyTrans_dCanWat      = dCanopyTrans_dCanWat      ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+!   in_bigAquifer % dCanopyTrans_dTCanair     = dCanopyTrans_dTCanair     ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+!   in_bigAquifer % dCanopyTrans_dTCanopy     = dCanopyTrans_dTCanopy     ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+!   in_bigAquifer % dCanopyTrans_dTGround     = dCanopyTrans_dTGround     ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+!  end associate
+ end subroutine initialize_in_diagv_node
+
+ subroutine finalize_out_diagv_node(out_diagv_node)!,flux_data,deriv_data,err,cmessage)
+  class(out_type_diagv_node),intent(in) :: out_diagv_node ! class object for intent(out) diagv_node arguments
+!  type(var_dlength),intent(inout)       :: flux_data      ! model fluxes for a local HRU
+!  type(var_dlength),intent(inout)       :: deriv_data     ! derivatives in model fluxes w.r.t. relevant state variables
+!  integer(i4b),intent(out)              :: err            ! error code
+!  character(*),intent(out)              :: cmessage       ! error message from bigAquifer
+!  associate(&
+!   scalarAquiferTranspire       => flux_data%var(iLookFLUX%scalarAquiferTranspire)%dat(1), & ! intent(out): [dp] transpiration loss from the aquifer (m s-1)
+!   scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1),  & ! intent(out): [dp] recharge to the aquifer (m s-1)
+!   scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1),  & ! intent(out): [dp] total baseflow from the aquifer (m s-1)
+!   dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer)%dat(1) )    ! intent(out): [dp(:)] derivative in baseflow flux w.r.t. aquifer storage (s-1)
+!   ! intent(out) arguments
+!   scalarAquiferTranspire = out_bigAquifer % scalarAquiferTranspire      ! intent(out):   transpiration loss from the aquifer (m s-1)
+!   scalarAquiferRecharge  = out_bigAquifer % scalarAquiferRecharge       ! intent(out):   recharge to the aquifer (m s-1)
+!   scalarAquiferBaseflow  = out_bigAquifer % scalarAquiferBaseflow       ! intent(out):   total baseflow from the aquifer (m s-1)
+!   dBaseflow_dAquifer     = out_bigAquifer % dBaseflow_dAquifer          ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
+!   err                    = out_bigAquifer % err                         ! intent(out):   error code
+!   cmessage               = out_bigAquifer % cmessage                    ! intent(out):   error message
+!  end associate
+ end subroutine finalize_out_diagv_node
+ ! **** end diagv_node ****
 
  ! **** stateFilter ****
  subroutine finalize_out_stateFilter(out_stateFilter,err,cmessage)
