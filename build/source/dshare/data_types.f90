@@ -1420,13 +1420,14 @@ contains
  ! **** end bigAquifer ****
 
  ! **** diagv_node ****
- subroutine initialize_in_diagv_node(in_diagv_node,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
+ subroutine initialize_in_diagv_node(in_diagv_node,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data,iSoil)
   class(in_type_diagv_node),intent(out) :: in_diagv_node                    ! class object for intent(in) diagv_node arguments
   type(in_type_soilLiqFlx),intent(in)   :: in_soilLiqFlx                    ! input data for soilLiqFlx
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
   type(var_dlength),intent(in)          :: diag_data                        ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)          :: mpar_data                        ! model parameters
   type(var_dlength),intent(in)          :: flux_data                        ! model fluxes for a local HRU
+  integer(i4b),intent(in)               :: iSoil                            ! index of soil layer
 
   associate(&
    ! intent(in): model control
@@ -1450,25 +1451,27 @@ contains
    mLayerSatHydCond   => flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,  & ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
    mLayerSatHydCondMP => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat & ! saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
   &)
-   ! SJT: add interface operations here -- example from bigAquifer in comments below
+   ! input: model control
+   in_diagv_node % deriv_desired = deriv_desired ! flag indicating if derivatives are desired
+   in_diagv_node % ixRichards    = ixRichards    ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state variables
+   in_diagv_node % scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(isoil) ! liquid matric head in each layer (m)
+   in_diagv_node % scalarVolFracLiqTrial    = mLayerVolFracLiqTrial(isoil)    ! volumetric fraction of liquid water in a given layer (-)
+   in_diagv_node % scalarVolFracIceTrial    = mLayerVolFracIceTrial(isoil)    ! volumetric fraction of ice in a given layer (-)
+   in_diagv_node % dTheta_dTk               = mLayerdTheta_dTk(isoil)         ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   in_diagv_node % dPsiLiq_dTemp            = dPsiLiq_dTemp(isoil)            ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   ! input: soil parameters
+   in_diagv_node % vGn_alpha          = vGn_alpha(isoil)          ! van Genutchen "alpha" parameter (m-1)
+   in_diagv_node % vGn_n              = vGn_n(isoil)              ! van Genutchen "n" parameter (-)
+   in_diagv_node % vGn_m              = vGn_m(isoil)              ! van Genutchen "m" parameter (-)
+   in_diagv_node % mpExp              = mpExp                     ! empirical exponent in macropore flow equation (-)
+   in_diagv_node % theta_sat          = theta_sat(isoil)          ! soil porosity (-)
+   in_diagv_node % theta_res          = theta_res(isoil)          ! soil residual volumetric water content (-)
+   in_diagv_node % theta_mp           = theta_mp                  ! volumetric liquid water content when macropore flow begins (-)
+   in_diagv_node % f_impede           = f_impede                  ! ice impedence factor (-)
+   in_diagv_node % scalarSatHydCond   = mLayerSatHydCond(isoil)   ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
+   in_diagv_node % scalarSatHydCondMP = mLayerSatHydCondMP(isoil) ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
   end associate
-
-!  associate(&
-!   scalarCanopyTranspiration    => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1), &  ! intent(out): [dp]    canopy transpiration (kg m-2 s-1)
-!   scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1),        &  ! intent(out): [dp]     drainage from the soil profile (m s-1)
-!   dCanopyTrans_dCanWat         => deriv_data%var(iLookDERIV%dCanopyTrans_dCanWat)%dat(1),    &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-!   dCanopyTrans_dTCanair        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanair)%dat(1),   &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-!   dCanopyTrans_dTCanopy        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanopy)%dat(1),   &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-!   dCanopyTrans_dTGround        => deriv_data%var(iLookDERIV%dCanopyTrans_dTGround)%dat(1) )     ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-!   ! intent(in) arguments
-!   in_bigAquifer % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! intent(in): trial value of aquifer storage (m)
-!   in_bigAquifer % scalarCanopyTranspiration = scalarCanopyTranspiration ! intent(in): canopy transpiration (kg m-2 s-1)
-!   in_bigAquifer % scalarSoilDrainage        = scalarSoilDrainage        ! intent(in): soil drainage (m s-1)
-!   in_bigAquifer % dCanopyTrans_dCanWat      = dCanopyTrans_dCanWat      ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-!   in_bigAquifer % dCanopyTrans_dTCanair     = dCanopyTrans_dTCanair     ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-!   in_bigAquifer % dCanopyTrans_dTCanopy     = dCanopyTrans_dTCanopy     ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-!   in_bigAquifer % dCanopyTrans_dTGround     = dCanopyTrans_dTGround     ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-!  end associate
  end subroutine initialize_in_diagv_node
 
  subroutine finalize_out_diagv_node(out_diagv_node)!,flux_data,deriv_data,err,cmessage)

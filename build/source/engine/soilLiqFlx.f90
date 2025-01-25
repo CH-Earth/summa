@@ -29,6 +29,7 @@ USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
 USE data_types,only:in_type_soilLiqFlx     ! derived type for intent(in) arguments
 USE data_types,only:io_type_soilLiqFlx     ! derived type for intent(inout) arguments
 USE data_types,only:out_type_soilLiqFlx    ! derived type for intent(out) arguments
+USE data_types,only:in_type_diagv_node     ! derived type for intent(in) arguments 
 
 ! missing values
 USE globalData,only:integerMissing         ! missing integer
@@ -309,7 +310,10 @@ contains
 
  subroutine compute_diagnostic_variables
   ! **** compute diagnostic variables at the nodes throughout the soil profile ****
-  do iSoil=ixTop,min(ixBot+1,nSoil) ! (loop through soil layers)
+  type(in_type_diagv_node) :: in_diagv_node
+
+  do iSoil=ixTop,min(ixBot+1,nSoil) ! loop through soil layers
+   call in_diagv_node % initialize(in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data,iSoil)
    associate(&
     ! intent(in): model control
     deriv_desired => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
@@ -751,6 +755,8 @@ subroutine diagv_node(&
   USE soil_utils_module,only:dIceImpede_dTemp     ! compute the derivative in the ice impedance factor w.r.t. temperature (K-1)
   ! compute hydraulic transmittance and derivatives for all layers
   implicit none
+  ! input: model control, variables, derivatives, and parameters
+  type(in_type_diagv_node) :: in_diagv_node
   ! input: model control
   logical(lgt),intent(in)          :: deriv_desired             ! flag indicating if derivatives are desired
   integer(i4b),intent(in)          :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
