@@ -164,7 +164,7 @@ subroutine groundwatr(&
         else; exit; end if                                                        ! only consider saturated layer at the bottom of the soil profile
       end do  ! end looping through soil layers
     end if
-    ixSaturation = 8
+
     ! check for an early return (no layers are "active")
     if (ixSaturation > nSoil) then
       scalarExfiltration     = 0._rkind   ! exfiltration from the soil profile (m s-1)
@@ -336,7 +336,7 @@ subroutine computeBaseflow(&
     end if
 
     ! compute the outflow from each layer (m3 s-1)
-    mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength + 0.001
+    mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
 
     ! compute total column inflow and total column outflow (m s-1)
     totalColumnInflow  = sum(mLayerColumnInflow(1:nSoil))/HRUarea
