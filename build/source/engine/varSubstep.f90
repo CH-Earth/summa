@@ -519,7 +519,7 @@ subroutine varSubstep(&
         ! scalar compression
         if(.not.scalarSolution .or. iStateSplit==nSoil)&
         sumSoilCompress = sumSoilCompress + dtSubstep*diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
-        ! vector compression
+         ! vector compression
         do iSoil=1,nSoil
           if(ixSoilOnlyHyd(iSoil)/=integerMissing)&
           sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + dtSubstep*diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
