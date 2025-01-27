@@ -122,6 +122,7 @@ contains
  flux2state_orig(iLookFLUX%scalarCanopyTranspiration)       = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarCanopyEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarGroundEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_orig(iLookFLUX%scalarAquiferTranspire)          = flux2state(state1=iname_watCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerTranspire)                 = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! liquid and solid water fluxes through the canopy
@@ -160,8 +161,9 @@ contains
  flux2state_orig(iLookFLUX%scalarSoilBaseflow)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSoilDrainage)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarAquiferRecharge)           = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarAquiferTranspire)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarAquiferBaseflow)           = flux2state(state1=iname_matLayer,  state2=integerMissing)
+
+ ! liquid water fluxes for the aquifer domain
+ flux2state_orig(iLookFLUX%scalarAquiferBaseflow)           = flux2state(state1=iname_watAquifer,  state2=integerMissing)
 
  ! derived variables
  flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
