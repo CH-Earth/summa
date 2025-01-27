@@ -271,7 +271,7 @@ subroutine coupled_em(&
   real(rkind),allocatable              :: innerBalanceLayerMass(:) ! inner step balances for domain with multiple layers
   real(rkind),allocatable              :: innerBalanceLayerNrg(:)  ! inner step balances for domain with multiple layers
   ! test balance checks
-  logical(lgt),parameter               :: printBalance=.true.   ! flag to print the balance checks
+  logical(lgt),parameter               :: printBalance=.false.   ! flag to print the balance checks
   real(rkind),allocatable              :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
   real(rkind),allocatable              :: liqSoilInit(:)         ! soil moisture at the start of the time step
   ! timing information
@@ -1565,7 +1565,7 @@ subroutine coupled_em(&
 
       ! check the soil water balance
       scalarSoilWatBalError  = scalarTotalSoilWat - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilCompress) )
-      !if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+      if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
         write(*,*)               'solution method       = ', ixSolution
         write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
         write(*,'(a,1x,f20.10)') 'balanceSoilCompress   = ', balanceSoilCompress
@@ -1578,7 +1578,6 @@ subroutine coupled_em(&
         write(*,'(a,1x,f20.10)') 'balanceSoilDrainage   = ', balanceSoilDrainage
         write(*,'(a,1x,f20.10)') 'balanceSoilET         = ', balanceSoilET
         write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError = ', scalarSoilWatBalError
-      if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
         message=trim(message)//'soil hydrology does not balance'
         err=20; return
       end if

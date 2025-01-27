@@ -613,7 +613,7 @@ contains
 
  ! **** soilLiqFlx ****
  subroutine initialize_soilLiqFlx
-  call in_soilLiqFlx%initialize(nSnow,nSoil,nlayers,firstSplitOper,scalarSolution,firstFluxCall,&
+  call in_soilLiqFlx%initialize(nsnow,nSoil,nlayers,firstSplitOper,scalarSolution,firstFluxCall,&
                                 mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                 above_soilLiqFluxDeriv,above_soildLiq_dTk,above_soilFracLiq,flux_data,deriv_data)
   call io_soilLiqFlx%initialize(nsoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
@@ -627,14 +627,14 @@ contains
 
   associate(&
    mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat,     & ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
-   iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (m s-1)
-   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,           & ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+   iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,           & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
    scalarMaxInfilRate           => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1), & ! intent(out): [dp] maximum infiltration rate (m s-1)
    scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1), & ! intent(out): [dp] rain plus melt (m s-1)
    scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl )%dat(1), & ! intent(out): [dp] soil control on infiltration, zero or one
    scalarInfilArea              => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1), & ! intent(out): [dp] fraction of unfrozen area where water can infiltrate (-)
    scalarFrozenArea             => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1), & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
-   scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)  ) ! intent(out): [dp] drainage from the soil profile (m s-1)
+   scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)  ) ! intent(out): [dp]     drainage from the soil profile (m s-1)
 
    ! calculate net liquid water fluxes for each soil layer (s-1)
    do iLayer=1,nSoil
