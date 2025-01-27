@@ -218,7 +218,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: tooMuchSublim          ! flag to denote that there was too much sublimation in a given time step
   logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
   logical(lgt)                         :: pauseFlag              ! flag to pause execution
-  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches
+  logical(lgt),parameter               :: backwardsCompatibility=.false.  ! flag to denote a desire to ensure backwards compatibility with previous branches for end of time step flux only 
   logical(lgt)                         :: checkMassBalance_ds    ! flag to check the mass balance over the data step
   type(var_ilength)                    :: indx_temp              ! temporary model index variables saved only on outer loop
   type(var_ilength)                    :: indx_temp0             ! temporary model index variables saved every time
