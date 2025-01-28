@@ -680,7 +680,7 @@ subroutine mDecisions(err,message)
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
       if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
-        message=trim(message)//'power-law transmissivity profile must be selected when using topmodel baseflow option'
+        message=trim(message)//'power-law hydraulic conductivity profile must be selected when using topmodel baseflow option'
         err=20; return
       end if
   end select

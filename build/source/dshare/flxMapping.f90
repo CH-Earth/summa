@@ -7,24 +7,25 @@ contains
  subroutine flxMapping(err,message)
  USE nrtype
  ! data types
- USE data_types, only: var_info        ! data type for metadata structure
- USE data_types, only: flux2state      ! data type for extended metadata structure, for flux-to-state mapping
+ USE data_types, only: var_info         ! data type for metadata structure
+ USE data_types, only: flux2state       ! data type for extended metadata structure, for flux-to-state mapping
  ! structures of named variables
- USE var_lookup, only: iLookFLUX       ! named variables for local flux variables
+ USE var_lookup, only: iLookFLUX        ! named variables for local flux variables
  ! metadata structures
- USE globalData, only: flux_meta       ! data structure for model fluxes
- USE globalData, only: flux2state_orig ! data structure for flux-to-state mapping (original state variables)
- USE globalData, only: flux2state_liq  ! data structure for flux-to-state mapping (liquid water state variables)
+ USE globalData, only: flux_meta        ! data structure for model fluxes
+ USE globalData, only: flux2state_orig  ! data structure for flux-to-state mapping (original state variables)
+ USE globalData, only: flux2state_liq   ! data structure for flux-to-state mapping (liquid water state variables)
  ! named variables to describe the state variable type
- USE globalData, only: iname_nrgCanair ! named variable defining the energy of the canopy air space
- USE globalData, only: iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
- USE globalData, only: iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
- USE globalData, only: iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
- USE globalData, only: iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
- USE globalData, only: iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
- USE globalData, only: iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
- USE globalData, only: iname_matLayer  ! named variable defining the matric head state variable for soil layers
- USE globalData, only: iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
+ USE globalData, only: iname_nrgCanair  ! named variable defining the energy of the canopy air space
+ USE globalData, only: iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
+ USE globalData, only: iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
+ USE globalData, only: iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
+ USE globalData, only: iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
+ USE globalData, only: iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
+ USE globalData, only: iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
+ USE globalData, only: iname_matLayer   ! named variable defining the matric head state variable for soil layers
+ USE globalData, only: iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
+ USE globalData, only: iname_watAquifer ! named variable defining the total water in the aquifer
  ! access missing values
  USE globalData,only:integerMissing    ! missing integer
  implicit none
@@ -122,6 +123,7 @@ contains
  flux2state_orig(iLookFLUX%scalarCanopyTranspiration)       = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarCanopyEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarGroundEvaporation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_orig(iLookFLUX%scalarAquiferTranspire)          = flux2state(state1=iname_watCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerTranspire)                 = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! liquid and solid water fluxes through the canopy
@@ -160,8 +162,9 @@ contains
  flux2state_orig(iLookFLUX%scalarSoilBaseflow)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSoilDrainage)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarAquiferRecharge)           = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarAquiferTranspire)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarAquiferBaseflow)           = flux2state(state1=iname_matLayer,  state2=integerMissing)
+
+ ! liquid water fluxes for the aquifer domain
+ flux2state_orig(iLookFLUX%scalarAquiferBaseflow)           = flux2state(state1=iname_watAquifer,  state2=integerMissing)
 
  ! derived variables
  flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)

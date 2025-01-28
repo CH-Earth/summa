@@ -97,8 +97,8 @@ subroutine computResid(&
                       mLayerVolFracWatTrial,     & ! intent(in):  trial value for the volumetric water in each snow and soil layer (-)
                       mLayerVolFracLiqTrial,     & ! intent(in):  trial value for the volumetric liq in each snow and soil layer (-)
                       ! input: enthalpy terms
-                      scalarCanopyCmTrial,       & ! intent(in):  Cm of vegetation canopy (J kg K-1)
-                      mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (J kg K-1)
+                      scalarCanopyCm_noLHTrial,  & ! intent(in):  Cm without latent heat part for vegetation canopy (J kg K-1)
+                      mLayerCm_noLHTrial,        & ! intent(in):  Cm without latent heat part for each snow and soil layer (J kg K-1)
                       scalarCanairEnthalpyTrial, & ! intent(in):  trial value for  enthalpy of the canopy air space (J m-3)
                       scalarCanopyEnthTempTrial, & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
                       mLayerEnthTempTrial,       & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
@@ -135,8 +135,8 @@ subroutine computResid(&
   real(rkind),intent(in)             :: mLayerVolFracWatTrial(:)  ! trial value for the volumetric water in each snow and soil layer (-)
   real(rkind),intent(in)             :: mLayerVolFracLiqTrial(:)  ! trial value for the volumetric water in each snow and soil layer (-)
   ! input: enthalpy terms
-  real(qp),intent(in)                :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
-  real(qp),intent(in)                :: mLayerCmTrial(:)          ! Cm of each snow and soil layer (-)
+  real(rkind),intent(in)             :: scalarCanopyCm_noLHTrial  ! Cm without latent heat part for vegetation canopy (-)
+  real(rkind),intent(in)             :: mLayerCm_noLHTrial(:)     ! Cm without latent heat part for each snow and soil layer (-)
   real(rkind),intent(in)             :: scalarCanairEnthalpyTrial ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind),intent(in)             :: scalarCanopyEnthTempTrial ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
   real(rkind),intent(in)             :: mLayerEnthTempTrial(:)    ! trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
@@ -252,7 +252,7 @@ subroutine computResid(&
       if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = ( scalarCanopyEnthTempTrial - scalarCanopyEnthTemp ) - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     else
       if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*( scalarCanairTempTrial - scalarCanairTemp ) - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
-      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*( scalarCanopyTempTrial - scalarCanopyTemp ) + scalarCanopyCmTrial*( scalarCanopyWatTrial - scalarCanopyWat )/canopyDepth &
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*( scalarCanopyTempTrial - scalarCanopyTemp ) + scalarCanopyCm_noLHTrial*( scalarCanopyWatTrial - scalarCanopyWat )/canopyDepth &
                                                    - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     endif
     ! --> mass balance
@@ -268,7 +268,7 @@ subroutine computResid(&
         if(mixdformNrg)then
           rVec( ixSnowSoilNrg(iLayer) ) = ( mLayerEnthTempTrial(iLayer) - mLayerEnthTemp(iLayer) ) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
         else
-          rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) )*( mLayerTempTrial(iLayer) - mLayerTemp(iLayer) ) + mLayerCmTrial(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer) ) &
+          rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) )*( mLayerTempTrial(iLayer) - mLayerTemp(iLayer) ) + mLayerCm_noLHTrial(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer) ) &
                                          - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
         endif
       end do  ! looping through non-missing energy state variables in the snow+soil domain

@@ -194,7 +194,7 @@ MODULE var_lookup
   ! turbulent heat fluxes
   integer(i4b)    :: z0Snow                = integerMissing    ! roughness length of snow (m)
   integer(i4b)    :: z0Soil                = integerMissing    ! roughness length of bare soil below the canopy (m)
-  integer(i4b)    :: z0Canopy              = integerMissing    ! roughness length of the canopy (m)
+  integer(i4b)    :: z0Canopy              = integerMissing    ! roughness length of the canopy (m), only used if decision veg_traits==vegTypeTable
   integer(i4b)    :: zpdFraction           = integerMissing    ! zero plane displacement / canopy height (-)
   integer(i4b)    :: critRichNumber        = integerMissing    ! critical value for the bulk Richardson number (-)
   integer(i4b)    :: Louis79_bparam        = integerMissing    ! parameter in Louis (1979) stability function (-)
@@ -286,32 +286,32 @@ MODULE var_lookup
   ! algorithmic control parameters
   integer(i4b)    :: minwind               = integerMissing    ! minimum wind speed (m s-1)
   integer(i4b)    :: minstep               = integerMissing    ! minimum length of the time step
-  integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step
-  integer(i4b)    :: be_steps              = integerMissing    ! minimum number of substeps to take in a maxstep homegrown
+  integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step (data window)
+  integer(i4b)    :: be_steps              = integerMissing    ! number of equal substeps to dividing the data window for BE
   integer(i4b)    :: wimplicit             = integerMissing    ! weight assigned to the start-of-step fluxes
   integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iterations homegrown and kinsol
-  integer(i4b)    :: relConvTol_liquid     = integerMissing    ! relative convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: absConvTol_liquid     = integerMissing    ! absolute convergence tolerance for vol frac liq water (-)
-  integer(i4b)    :: relConvTol_matric     = integerMissing    ! relative convergence tolerance for matric head (-)
-  integer(i4b)    :: absConvTol_matric     = integerMissing    ! absolute convergence tolerance for matric head (m)
-  integer(i4b)    :: relConvTol_energy     = integerMissing    ! relative convergence tolerance for energy (-)
-  integer(i4b)    :: absConvTol_energy     = integerMissing    ! absolute convergence tolerance for energy (J m-3)
-  integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! relative convergence tolerance for aquifer storage (-)
-  integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: relTolTempCas         = integerMissing    ! relative error tolerance for canopy temperature state variable
-  integer(i4b)    :: absTolTempCas         = integerMissing    ! absolute error tolerance for canopy temperature state variable
-  integer(i4b)    :: relTolTempVeg         = integerMissing    ! relative error tolerance for vegitation temp state var
-  integer(i4b)    :: absTolTempVeg         = integerMissing    ! absolute error tolerance for vegitation temp state var
-  integer(i4b)    :: relTolWatVeg          = integerMissing    ! relative error tolerance for vegitation hydrology
-  integer(i4b)    :: absTolWatVeg          = integerMissing    ! absolute error tolerance for vegitation hydrology
-  integer(i4b)    :: relTolTempSoilSnow    = integerMissing    ! relative error tolerance for snow+soil energy
-  integer(i4b)    :: absTolTempSoilSnow    = integerMissing    ! absolute error tolerance for snow+soil energy
-  integer(i4b)    :: relTolWatSnow         = integerMissing    ! relative error tolerance for snow hydrology
-  integer(i4b)    :: absTolWatSnow         = integerMissing    ! absolute error tolerance for snow hydrology
-  integer(i4b)    :: relTolMatric          = integerMissing    ! relative error tolerance for matric head
-  integer(i4b)    :: absTolMatric          = integerMissing    ! absolute error tolerance for matric head
-  integer(i4b)    :: relTolAquifr          = integerMissing    ! relative error tolerance for aquifer hydrology
-  integer(i4b)    :: absTolAquifr          = integerMissing    ! absolute error tolerance for aquifer hydrology
+  integer(i4b)    :: relConvTol_liquid     = integerMissing    ! BE relative convergence tolerance for vol frac liq water homegrown (-)
+  integer(i4b)    :: absConvTol_liquid     = integerMissing    ! BE absolute convergence tolerance for vol frac liq water homegrown (-)
+  integer(i4b)    :: relConvTol_matric     = integerMissing    ! BE relative convergence tolerance for matric head homegrown (-)
+  integer(i4b)    :: absConvTol_matric     = integerMissing    ! BE absolute convergence tolerance for matric head homegrown (m)
+  integer(i4b)    :: relConvTol_energy     = integerMissing    ! BE relative convergence tolerance for energy homegrown (-)
+  integer(i4b)    :: absConvTol_energy     = integerMissing    ! BE absolute convergence tolerance for energy homegrown (J m-3)
+  integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! BE relative convergence tolerance for aquifer storage homegrown (-)
+  integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! BE absolute convergence tolerance for aquifer storage homegrown (J m-3)
+  integer(i4b)    :: relTolTempCas         = integerMissing    ! IDA relative error tolerance for canopy temperature state variable
+  integer(i4b)    :: absTolTempCas         = integerMissing    ! IDA absolute error tolerance for canopy temperature state variable
+  integer(i4b)    :: relTolTempVeg         = integerMissing    ! IDA relative error tolerance for vegitation temp state var
+  integer(i4b)    :: absTolTempVeg         = integerMissing    ! IDA absolute error tolerance for vegitation temp state var
+  integer(i4b)    :: relTolWatVeg          = integerMissing    ! IDA relative error tolerance for vegitation hydrology
+  integer(i4b)    :: absTolWatVeg          = integerMissing    ! IDA absolute error tolerance for vegitation hydrology
+  integer(i4b)    :: relTolTempSoilSnow    = integerMissing    ! IDA relative error tolerance for snow+soil energy
+  integer(i4b)    :: absTolTempSoilSnow    = integerMissing    ! IDA absolute error tolerance for snow+soil energy
+  integer(i4b)    :: relTolWatSnow         = integerMissing    ! IDA relative error tolerance for snow hydrology
+  integer(i4b)    :: absTolWatSnow         = integerMissing    ! IDA absolute error tolerance for snow hydrology
+  integer(i4b)    :: relTolMatric          = integerMissing    ! IDA relative error tolerance for matric head
+  integer(i4b)    :: absTolMatric          = integerMissing    ! IDA absolute error tolerance for matric head
+  integer(i4b)    :: relTolAquifr          = integerMissing    ! IDA relative error tolerance for aquifer hydrology
+  integer(i4b)    :: absTolAquifr          = integerMissing    ! IDA absolute error tolerance for aquifer hydrology
   integer(i4b)    :: idaMaxOrder           = integerMissing    ! maximum order for IDA
   integer(i4b)    :: idaMaxInternalSteps   = integerMissing    ! maximum number of internal steps for IDA before tout
   integer(i4b)    :: idaInitStepSize       = integerMissing    ! initial step size for IDA
@@ -659,6 +659,7 @@ MODULE var_lookup
   integer(i4b)    :: dThermalC_dWatAbove             = integerMissing ! derivative in the thermal conductivity w.r.t. water state in the layer above
   integer(i4b)    :: dThermalC_dWatBelow             = integerMissing ! derivative in the thermal conductivity w.r.t. water state in the layer above
   ! energy derivatives that might be treated as constant if Cm not updated
+  integer(i4b)    :: dCm_dPsi0                       = integerMissing ! derivative in heat capacity w.r.t. matric potential (J kg-1)
   integer(i4b)    :: dCm_dTk                         = integerMissing ! derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
   integer(i4b)    :: dCm_dTkCanopy                   = integerMissing ! derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
@@ -958,7 +959,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81)
+                                                                         81, 82)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

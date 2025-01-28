@@ -616,7 +616,7 @@ subroutine T2enthTemp_soil(&
   else
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
     ! get the unfrozen water content
-    integral_unf = ( Tcrit - Tfreeze ) * volFracWat
+    integral_unf = diff0 * volFracWat
 
     ! get the frozen water content
     if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
@@ -1147,11 +1147,12 @@ subroutine enthalpy2T_soil(&
   err=0; message="enthalpy2T_soil/"
 
   Tcrit             = crit_soilT(mLayerMatricHead)
+  diff0             = Tcrit - Tfreeze
   volFracWat        = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
   dTcrit_dPsi0      = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead<=0._rkind)
   dvolFracWat_dPsi0 = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
   entCrit           = ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
-                       + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) * (Tcrit - Tfreeze)
+                       + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) * diff0
 
   ! ***** get temperature if unfrozen soil
   if (mLayerEnthalpy>=entCrit )then
@@ -1171,11 +1172,10 @@ subroutine enthalpy2T_soil(&
 
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
     ! get the unfrozen water content of enthalpy
-    integral_unf       = ( Tcrit - Tfreeze ) * volFracWat ! unfrozen water content
-    if(computJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + ( Tcrit - Tfreeze ) * dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    integral_unf = diff0 * volFracWat ! unfrozen water content
+    if(computJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + diff0 * dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
-    ! get the frozen water content of enthalpy, statrt with lower limit of the integral
-    diff0 = Tcrit - Tfreeze
+    ! get the frozen water content of enthalpy, start with lower limit of the integral
     if (diff0<0._rkind)then
 
       if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
