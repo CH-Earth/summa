@@ -53,6 +53,7 @@ USE globalData,only:flux2state_liq   ! metadata on flux-to-state mapping (liquid
 USE var_lookup,only:iLookFLUX        ! named variables for structure elements
 USE var_lookup,only:iLookINDEX       ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
+USE var_lookup,only:iLookPARAM       ! named variables for elements of the parameter structure
 
 ! look up structure for variable types
 USE var_lookup,only:iLookVarType
