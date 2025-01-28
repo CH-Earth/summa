@@ -30,6 +30,7 @@ USE data_types,only:in_type_soilLiqFlx     ! derived type for intent(in) argumen
 USE data_types,only:io_type_soilLiqFlx     ! derived type for intent(inout) arguments
 USE data_types,only:out_type_soilLiqFlx    ! derived type for intent(out) arguments
 USE data_types,only:in_type_diagv_node     ! derived type for intent(in) arguments 
+USE data_types,only:out_type_diagv_node    ! derived type for intent(out) arguments 
 
 ! missing values
 USE globalData,only:integerMissing         ! missing integer
@@ -310,56 +311,18 @@ contains
 
  subroutine compute_diagnostic_variables
   ! **** compute diagnostic variables at the nodes throughout the soil profile ****
-  type(in_type_diagv_node) :: in_diagv_node
+  type(in_type_diagv_node)  :: in_diagv_node
+  type(out_type_diagv_node) :: out_diagv_node
 
   do iSoil=ixTop,min(ixBot+1,nSoil) ! loop through soil layers
-   call in_diagv_node % initialize(in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data,iSoil)
+   call in_diagv_node % initialize(iSoil,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
+   call diagv_node(in_diagv_node,out_diagv_node)
    associate(&
-    ! intent(in): model control
-    deriv_desired => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
-    ixRichards    => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
-    ! intent(in): state variables
-    mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
-    mLayerVolFracLiqTrial    => in_soilLiqFlx % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
-    mLayerVolFracIceTrial    => in_soilLiqFlx % mLayerVolFracIceTrial,    & ! volumetric fraction of ice at the current iteration (-)
-    mLayerdTheta_dTk         => in_soilLiqFlx % mLayerdTheta_dTk,         & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-    dPsiLiq_dTemp            => in_soilLiqFlx % dPsiLiq_dTemp,            & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-    ! intent(in): van Genutchen and other soil parameters..
-    vGn_alpha          => mpar_data%var(iLookPARAM%vGn_alpha)%dat,        & ! "alpha" parameter (m-1)
-    vGn_n              => mpar_data%var(iLookPARAM%vGn_n)%dat,            & ! "n" parameter (-)
-    vGn_m              => diag_data%var(iLookDIAG%scalarVGn_m)%dat,       & ! "m" parameter (-)
-    mpExp              => mpar_data%var(iLookPARAM%mpExp)%dat(1),         & ! empirical exponent in macropore flow equation (-)
-    theta_sat          => mpar_data%var(iLookPARAM%theta_sat)%dat,        & ! soil porosity (-)
-    theta_res          => mpar_data%var(iLookPARAM%theta_res)%dat,        & ! soil residual volumetric water content (-)
-    theta_mp           => mpar_data%var(iLookPARAM%theta_mp)%dat(1),      & ! volumetric liquid water content when macropore flow begins (-)
-    f_impede           => mpar_data%var(iLookPARAM%f_impede)%dat(1),      & ! ice impedence factor (-)
-    mLayerSatHydCond   => flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,  & ! saturated hydraulic conductivity at the mid-point of each layer (m s-1)
-    mLayerSatHydCondMP => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat,& ! saturated hydraulic conductivity of macropores at the mid-point of each layer (m s-1)
-    ! intent(inout): hydraulic conductivity and derivatives
-    mLayerdPsi_dTheta => io_soilLiqFlx % mLayerdPsi_dTheta,     & ! derivative in the soil water characteristic w.r.t. theta (m)
-    mLayerdTheta_dPsi => io_soilLiqFlx % mLayerdTheta_dPsi,     & ! derivative in the soil water characteristic w.r.t. psi (m-1)
-    mLayerHydCond     => io_soilLiqFlx % mLayerHydCond,         & ! hydraulic conductivity in each soil layer (m s-1)
-    dHydCond_dMatric  => io_soilLiqFlx % dHydCond_dMatric,      & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
-    ! intent(out): error control
     err          => out_soilLiqFlx % err,     & ! error code
     message      => out_soilLiqFlx % cmessage & ! error message
    &)
-    call diagv_node(&
-                    in_diagv_node, &
-                    ! output: derivative in the soil water characteristic
-                    mLayerdPsi_dTheta(iSoil),        & ! intent(out): derivative in the soil water characteristic
-                    mLayerdTheta_dPsi(iSoil),        & ! intent(out): derivative in the soil water characteristic
-                    ! output: transmittance
-                    mLayerHydCond(iSoil),            & ! intent(out): hydraulic conductivity at layer mid-points (m s-1)
-                    mLayerDiffuse(iSoil),            & ! intent(out): diffusivity at layer mid-points (m2 s-1)
-                    iceImpedeFac(iSoil),             & ! intent(out): ice impedence factor in each layer (-)
-                    ! output: transmittance derivatives
-                    dHydCond_dVolLiq(iSoil),         & ! intent(out): derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-                    dDiffuse_dVolLiq(iSoil),         & ! intent(out): derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-                    dHydCond_dMatric(iSoil),         & ! intent(out): derivative in hydraulic conductivity w.r.t matric head (m s-1)
-                    dHydCond_dTemp(iSoil),           & ! intent(out): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-                    ! output: error control
-                    err,cmessage)                      ! intent(out): error control
+    call out_diagv_node % finalize(iSoil,nSoil,io_soilLiqFlx,mLayerDiffuse,iceImpedeFac,&
+                                   &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
    end associate
   end do  ! end looping through soil layers
@@ -683,22 +646,7 @@ end subroutine soilLiqFlx
 ! ***************************************************************************************************************
 ! private subroutine diagv_node: compute transmittance and derivatives for model nodes
 ! ***************************************************************************************************************
-subroutine diagv_node(&
-                      in_diagv_node,            & ! intent(in): model control, variables, derivatives, and parameters
-                      ! output: derivative in the soil water characteristic
-                      scalardPsi_dTheta,        & ! intent(out): derivative in the soil water characteristic
-                      scalardTheta_dPsi,        & ! intent(out): derivative in the soil water characteristic
-                      ! output: transmittance
-                      scalarHydCond,            & ! intent(out): hydraulic conductivity at layer mid-points (m s-1)
-                      scalarDiffuse,            & ! intent(out): diffusivity at layer mid-points (m2 s-1)
-                      iceImpedeFac,             & ! intent(out): ice impedence factor in each layer (-)
-                      ! output: transmittance derivatives
-                      dHydCond_dVolLiq,         & ! intent(out): derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-                      dDiffuse_dVolLiq,         & ! intent(out): derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-                      dHydCond_dMatric,         & ! intent(out): derivative in hydraulic conductivity w.r.t matric head (m s-1)
-                      dHydCond_dTemp,           & ! intent(out): derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-                      ! output: error control
-                      err,message)                ! intent(out): error control
+subroutine diagv_node(in_diagv_node,out_diagv_node) 
   USE soil_utils_module,only:iceImpede            ! compute the ice impedence factor
   USE soil_utils_module,only:volFracLiq           ! compute volumetric fraction of liquid water as a function of matric head
   USE soil_utils_module,only:matricHead           ! compute matric head (m)
@@ -714,22 +662,9 @@ subroutine diagv_node(&
   ! compute hydraulic transmittance and derivatives for all layers
   implicit none
   ! input: model control, variables, derivatives, and parameters
-  type(in_type_diagv_node), intent(in) :: in_diagv_node
-  ! output: derivative in the soil water characteristic
-  real(rkind),intent(out)          :: scalardPsi_dTheta         ! derivative in the soil water characteristic
-  real(rkind),intent(out)          :: scalardTheta_dPsi         ! derivative in the soil water characteristic
-  ! output: transmittance
-  real(rkind),intent(out)          :: scalarHydCond             ! hydraulic conductivity at layer mid-points (m s-1)
-  real(rkind),intent(out)          :: scalarDiffuse             ! diffusivity at layer mid-points (m2 s-1)
-  real(rkind),intent(out)          :: iceImpedeFac              ! ice impedence factor in each layer (-)
-  ! output: transmittance derivatives
-  real(rkind),intent(out)          :: dHydCond_dVolLiq          ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  real(rkind),intent(out)          :: dDiffuse_dVolLiq          ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-  real(rkind),intent(out)          :: dHydCond_dMatric          ! derivative in hydraulic conductivity w.r.t matric head (s-1)
-  real(rkind),intent(out)          :: dHydCond_dTemp            ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  ! output: error control
-  integer(i4b),intent(out)         :: err                       ! error code
-  character(*),intent(out)         :: message                   ! error message
+  type(in_type_diagv_node),  intent(in)  :: in_diagv_node
+  ! output: characteristic derivatives, transmittance variables, and error control
+  type(out_type_diagv_node), intent(out) :: out_diagv_node
   ! local variables
   real(rkind)                      :: localVolFracLiq           ! local volumetric fraction of liquid water
   real(rkind)                      :: scalarHydCondMP           ! hydraulic conductivity of macropores at layer mid-points (m s-1)
@@ -746,28 +681,43 @@ subroutine diagv_node(&
   real(rkind)                      :: relSatMP                  ! relative saturation of macropores (-)
 
   associate(&
-  ! input: model control
-  deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
-  ixRichards    => in_diagv_node % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
-  ! input: state and diagnostic variables
-  scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
-  scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
-  scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
-  ! input: pre-computed deriavatives
-  dTheta_dTk    => in_diagv_node % dTheta_dTk   , & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-  dPsiLiq_dTemp => in_diagv_node % dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-  ! input: soil parameters
-  vGn_alpha => in_diagv_node % vGn_alpha, & ! van Genutchen "alpha" parameter (m-1)
-  vGn_n     => in_diagv_node % vGn_n    , & ! van Genutchen "n" parameter (-)
-  vGn_m     => in_diagv_node % vGn_m    , & ! van Genutchen "m" parameter (-)
-  mpExp     => in_diagv_node % mpExp    , & ! empirical exponent in macropore flow equation (-)
-  theta_sat => in_diagv_node % theta_sat, & ! soil porosity (-)
-  theta_res => in_diagv_node % theta_res, & ! soil residual volumetric water content (-)
-  theta_mp  => in_diagv_node % theta_mp , & ! volumetric liquid water content when macropore flow begins (-)
-  f_impede  => in_diagv_node % f_impede , & ! ice impedence factor (-)
-  ! input: saturated hydraulic conductivity
-  scalarSatHydCond   => in_diagv_node % scalarSatHydCond,  & ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
-  scalarSatHydCondMP => in_diagv_node % scalarSatHydCondMP & ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
+   ! input: model control
+   deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
+   ixRichards    => in_diagv_node % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
+   scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
+   scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
+   ! input: pre-computed deriavatives
+   dTheta_dTk    => in_diagv_node % dTheta_dTk   , & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   dPsiLiq_dTemp => in_diagv_node % dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   ! input: soil parameters
+   vGn_alpha => in_diagv_node % vGn_alpha, & ! van Genutchen "alpha" parameter (m-1)
+   vGn_n     => in_diagv_node % vGn_n    , & ! van Genutchen "n" parameter (-)
+   vGn_m     => in_diagv_node % vGn_m    , & ! van Genutchen "m" parameter (-)
+   mpExp     => in_diagv_node % mpExp    , & ! empirical exponent in macropore flow equation (-)
+   theta_sat => in_diagv_node % theta_sat, & ! soil porosity (-)
+   theta_res => in_diagv_node % theta_res, & ! soil residual volumetric water content (-)
+   theta_mp  => in_diagv_node % theta_mp , & ! volumetric liquid water content when macropore flow begins (-)
+   f_impede  => in_diagv_node % f_impede , & ! ice impedence factor (-)
+   ! input: saturated hydraulic conductivity
+   scalarSatHydCond   => in_diagv_node % scalarSatHydCond,  & ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
+   scalarSatHydCondMP => in_diagv_node % scalarSatHydCondMP,& ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
+   ! output: derivative in the soil water characteristic
+   scalardPsi_dTheta => out_diagv_node % scalardPsi_dTheta, & ! derivative in the soil water characteristic
+   scalardTheta_dPsi => out_diagv_node % scalardTheta_dPsi, & ! derivative in the soil water characteristic
+   ! output: transmittance
+   scalarHydCond => out_diagv_node % scalarHydCond, & ! hydraulic conductivity at layer mid-points (m s-1)
+   scalarDiffuse => out_diagv_node % scalarDiffuse, & ! diffusivity at layer mid-points (m2 s-1)
+   iceImpedeFac  => out_diagv_node % iceImpedeFac , & ! ice impedence factor in each layer (-)
+   ! output: transmittance derivatives
+   dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+   dHydCond_dTemp   => out_diagv_node % dHydCond_dTemp  , & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! output: error control
+   err     => out_diagv_node % err    , & ! error code
+   message => out_diagv_node % message  & ! error message
   &)
 
     ! initialize error control

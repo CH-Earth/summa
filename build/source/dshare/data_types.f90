@@ -1420,14 +1420,14 @@ contains
  ! **** end bigAquifer ****
 
  ! **** diagv_node ****
- subroutine initialize_in_diagv_node(in_diagv_node,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data,iSoil)
+ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
   class(in_type_diagv_node),intent(out) :: in_diagv_node                    ! class object for intent(in) diagv_node arguments
+  integer(i4b),intent(in)               :: iSoil                            ! index of soil layer
   type(in_type_soilLiqFlx),intent(in)   :: in_soilLiqFlx                    ! input data for soilLiqFlx
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
   type(var_dlength),intent(in)          :: diag_data                        ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)          :: mpar_data                        ! model parameters
   type(var_dlength),intent(in)          :: flux_data                        ! model fluxes for a local HRU
-  integer(i4b),intent(in)               :: iSoil                            ! index of soil layer
 
   associate(&
    ! intent(in): model control
@@ -1474,25 +1474,42 @@ contains
   end associate
  end subroutine initialize_in_diagv_node
 
- subroutine finalize_out_diagv_node(out_diagv_node)!,flux_data,deriv_data,err,cmessage)
-  class(out_type_diagv_node),intent(in) :: out_diagv_node ! class object for intent(out) diagv_node arguments
-!  type(var_dlength),intent(inout)       :: flux_data      ! model fluxes for a local HRU
-!  type(var_dlength),intent(inout)       :: deriv_data     ! derivatives in model fluxes w.r.t. relevant state variables
-!  integer(i4b),intent(out)              :: err            ! error code
-!  character(*),intent(out)              :: cmessage       ! error message from bigAquifer
-!  associate(&
-!   scalarAquiferTranspire       => flux_data%var(iLookFLUX%scalarAquiferTranspire)%dat(1), & ! intent(out): [dp] transpiration loss from the aquifer (m s-1)
-!   scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1),  & ! intent(out): [dp] recharge to the aquifer (m s-1)
-!   scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1),  & ! intent(out): [dp] total baseflow from the aquifer (m s-1)
-!   dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer)%dat(1) )    ! intent(out): [dp(:)] derivative in baseflow flux w.r.t. aquifer storage (s-1)
-!   ! intent(out) arguments
-!   scalarAquiferTranspire = out_bigAquifer % scalarAquiferTranspire      ! intent(out):   transpiration loss from the aquifer (m s-1)
-!   scalarAquiferRecharge  = out_bigAquifer % scalarAquiferRecharge       ! intent(out):   recharge to the aquifer (m s-1)
-!   scalarAquiferBaseflow  = out_bigAquifer % scalarAquiferBaseflow       ! intent(out):   total baseflow from the aquifer (m s-1)
-!   dBaseflow_dAquifer     = out_bigAquifer % dBaseflow_dAquifer          ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
-!   err                    = out_bigAquifer % err                         ! intent(out):   error code
-!   cmessage               = out_bigAquifer % cmessage                    ! intent(out):   error message
-!  end associate
+ subroutine finalize_out_diagv_node(out_diagv_node,iSoil,nSoil,io_soilLiqFlx,mLayerDiffuse,iceImpedeFac,&
+                                   &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
+  class(out_type_diagv_node),intent(in)  :: out_diagv_node ! class object for intent(out) diagv_node arguments
+  integer(i4b),intent(in)                :: nSoil,iSoil    ! number of soil layers and index
+  type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx  ! input-output class object for soilLiqFlx
+  real(rkind),intent(inout) :: mLayerDiffuse(1:nSoil)      ! diffusivity at layer mid-point (m2 s-1)
+  real(rkind),intent(inout) :: iceImpedeFac(1:nSoil)       ! ice impedence factor at layer mid-points (-)
+  real(rkind),intent(inout) :: dHydCond_dVolLiq(1:nSoil)   ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),intent(inout) :: dDiffuse_dVolLiq(1:nSoil)   ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+  real(rkind),intent(inout) :: dHydCond_dTemp(1:nSoil)     ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  integer(i4b),intent(out)  :: err                         ! error code
+  character(*),intent(out)  :: cmessage                    ! error message from bigAquifer
+
+  associate(&
+   ! hydraulic conductivity and derivatives
+   mLayerdPsi_dTheta => io_soilLiqFlx % mLayerdPsi_dTheta,     & ! derivative in the soil water characteristic w.r.t. theta (m)
+   mLayerdTheta_dPsi => io_soilLiqFlx % mLayerdTheta_dPsi,     & ! derivative in the soil water characteristic w.r.t. psi (m-1)
+   mLayerHydCond     => io_soilLiqFlx % mLayerHydCond,         & ! hydraulic conductivity in each soil layer (m s-1)
+   dHydCond_dMatric  => io_soilLiqFlx % dHydCond_dMatric       & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+  &)
+   ! output: derivative in the soil water characteristic
+   mLayerdPsi_dTheta(iSoil) = out_diagv_node % scalardPsi_dTheta ! derivative in the soil water characteristic
+   mLayerdTheta_dPsi(iSoil) = out_diagv_node % scalardTheta_dPsi ! derivative in the soil water characteristic
+   ! output: transmittance
+   mLayerHydCond(iSoil) = out_diagv_node % scalarHydCond ! hydraulic conductivity at layer mid-points (m s-1)
+   mLayerDiffuse(iSoil) = out_diagv_node % scalarDiffuse ! diffusivity at layer mid-points (m2 s-1)
+   iceImpedeFac(iSoil)  = out_diagv_node % iceImpedeFac  ! ice impedence factor in each layer (-)
+   ! output: transmittance derivatives
+   dHydCond_dVolLiq(iSoil) = out_diagv_node % dHydCond_dVolLiq ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   dDiffuse_dVolLiq(iSoil) = out_diagv_node % dDiffuse_dVolLiq ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   dHydCond_dMatric(iSoil) = out_diagv_node % dHydCond_dMatric ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+   dHydCond_dTemp(iSoil)   = out_diagv_node % dHydCond_dTemp   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! output: error control
+   err      = out_diagv_node % err     ! error code
+   cmessage = out_diagv_node % message ! error message
+  end associate
  end subroutine finalize_out_diagv_node
  ! **** end diagv_node ****
 
