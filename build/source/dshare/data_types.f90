@@ -631,6 +631,49 @@ MODULE data_types
  end type out_type_diagv_node
  ! ** end diagv_node
 
+ ! ** iLayerFlux
+ type, public :: in_type_iLayerFlux ! intent(in) data
+   ! input: model control
+   logical(lgt) :: deriv_desired ! flag indicating if derivatives are desired
+   integer(i4b) :: ixRichards    ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state variables
+   real(rkind),allocatable :: nodeMatricHeadLiqTrial(:) ! liquid matric head at the soil nodes (m)
+   real(rkind),allocatable :: nodeVolFracLiqTrial(:)    ! volumetric fraction of liquid water at the soil nodes (-)
+   ! input: model coordinate variables
+   real(rkind),allocatable :: nodeHeight(:)             ! height at the mid-point of the lower layer (m)
+   ! input: temperature derivatives
+   real(rkind),allocatable :: dPsiLiq_dTemp(:)          ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   real(rkind),allocatable :: dHydCond_dTemp(:)         ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! input: transmittance
+   real(rkind),allocatable :: nodeHydCondTrial(:)       ! hydraulic conductivity at layer mid-points (m s-1)
+   real(rkind),allocatable :: nodeDiffuseTrial(:)       ! diffusivity at layer mid-points (m2 s-1)
+   ! input: transmittance derivatives
+   real(rkind),allocatable :: dHydCond_dVolLiq(:)       ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   real(rkind),allocatable :: dDiffuse_dVolLiq(:)       ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   real(rkind),allocatable :: dHydCond_dMatric(:)       ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+  contains
+   procedure :: initialize => initialize_in_iLayerFlux
+ end type in_type_iLayerFlux
+
+ type, public :: out_type_iLayerFlux ! intent(out) data
+   ! output: tranmsmittance at the layer interface (scalars)
+   real(rkind) :: iLayerHydCond      ! hydraulic conductivity at the interface between layers (m s-1)
+   real(rkind) :: iLayerDiffuse      ! hydraulic diffusivity at the interface between layers (m2 s-1)
+   ! output: vertical flux at the layer interface (scalars)
+   real(rkind) :: iLayerLiqFluxSoil  ! vertical flux of liquid water at the layer interface (m s-1)
+   ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
+   real(rkind) :: dq_dHydStateAbove  ! derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
+   real(rkind) :: dq_dHydStateBelow  ! derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1)
+   ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+   real(rkind) :: dq_dNrgStateAbove  ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+   real(rkind) :: dq_dNrgStateBelow  ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
+   ! output: error control
+   integer(i4b)           :: err     ! error code
+   character(len=len_msg) :: message ! error message
+  contains
+   procedure :: finalize => finalize_out_iLayerFlux
+ end type out_type_iLayerFlux
+ ! ** end iLayerFlux
 
  ! ***********************************************************************************************************
  ! Define classes used to simplify calls to the subrotuines in opSplittin
@@ -1485,7 +1528,7 @@ contains
   real(rkind),intent(inout) :: dDiffuse_dVolLiq(1:nSoil)   ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
   real(rkind),intent(inout) :: dHydCond_dTemp(1:nSoil)     ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
   integer(i4b),intent(out)  :: err                         ! error code
-  character(*),intent(out)  :: cmessage                    ! error message from bigAquifer
+  character(*),intent(out)  :: cmessage                    ! error message
 
   associate(&
    ! hydraulic conductivity and derivatives
@@ -1512,6 +1555,47 @@ contains
   end associate
  end subroutine finalize_out_diagv_node
  ! **** end diagv_node ****
+
+ ! **** iLayerFlux ****
+ subroutine initialize_in_iLayerFlux(in_iLayerFlux)
+  class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux ! class object for intent(in) iLayerFlux arguments
+ end subroutine initialize_in_iLayerFlux
+
+ subroutine finalize_out_iLayerFlux(out_iLayerFlux,iLayer,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
+  class(out_type_iLayerFlux),intent(in)  :: out_iLayerFlux ! class object for intent(out) iLayerFlux arguments
+  integer(i4b),intent(in)                :: nSoil,iLayer   ! number of soil layers and index
+  type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx  ! input-output class object for soilLiqFlx
+  real(rkind),intent(inout) :: iLayerHydCond(0:nSoil) ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),intent(inout) :: iLayerDiffuse(0:nSoil) ! diffusivity at layer interface (m2 s-1)
+  integer(i4b),intent(out)  :: err       ! error code
+  character(*),intent(out)  :: cmessage  ! error message
+
+  associate(&
+   ! intent(out): vertical flux at the layer interface (scalars)
+   iLayerLiqFluxSoil => io_soilLiqFlx % iLayerLiqFluxSoil,& ! liquid flux at soil layer interfaces (m s-1)
+   ! intent(out): derivatives in fluxes in the layer above and layer below w.r.t ...
+   dq_dHydStateAbove => io_soilLiqFlx % dq_dHydStateAbove,& ! ... state variables in the layer above
+   dq_dHydStateBelow => io_soilLiqFlx % dq_dHydStateBelow,& ! ... state variables in the layer below
+   dq_dNrgStateAbove => io_soilLiqFlx % dq_dNrgStateAbove,& ! ... temperature in the layer above (m s-1 K-1)
+   dq_dNrgStateBelow => io_soilLiqFlx % dq_dNrgStateBelow & ! ... temperature in the layer below (m s-1 K-1)
+  &)
+   ! intent(out): tranmsmittance at the layer interface (scalars)
+   iLayerHydCond(iLayer) = out_iLayerFlux % iLayerHydCond         ! hydraulic conductivity at the interface between layers (m s-1)
+   iLayerDiffuse(iLayer) = out_iLayerFlux % iLayerDiffuse         ! hydraulic diffusivity at the interface between layers (m2 s-1)
+   ! intent(out): vertical flux at the layer interface (scalars)
+   iLayerLiqFluxSoil(iLayer) = out_iLayerFlux % iLayerLiqFluxSoil ! vertical flux of liquid water at the layer interface (m s-1)
+   ! intent(out): derivatives in fluxes in the layer above and layer below w.r.t. ... 
+   dq_dHydStateAbove(iLayer) = out_iLayerFlux % dq_dHydStateAbove ! ... matric head or volumetric lquid water in the layer above (m s-1 or s-1)
+   dq_dHydStateBelow(iLayer) = out_iLayerFlux % dq_dHydStateBelow ! ... matric head or volumetric lquid water in the layer below (m s-1 or s-1)
+   dq_dNrgStateAbove(iLayer) = out_iLayerFlux % dq_dNrgStateAbove ! ... temperature in the layer above (m s-1 K-1)
+   dq_dNrgStateBelow(iLayer) = out_iLayerFlux % dq_dNrgStateBelow ! ... temperature in the layer below (m s-1 K-1)
+   ! intent(out): error control
+   err      = out_iLayerFlux % err     ! error code
+   cmessage = out_iLayerFlux % message ! error message
+  end associate
+ end subroutine finalize_out_iLayerFlux
+ ! **** end iLayerFlux ****
+
 
  ! **** stateFilter ****
  subroutine finalize_out_stateFilter(out_stateFilter,err,cmessage)
