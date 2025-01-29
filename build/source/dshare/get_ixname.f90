@@ -804,6 +804,7 @@ contains
   case('dNrgFlux_dTempAbove'            ); get_ixDeriv = iLookDERIV%dNrgFlux_dTempAbove            ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   case('dNrgFlux_dTempBelow'            ); get_ixDeriv = iLookDERIV%dNrgFlux_dTempBelow            ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
   ! energy derivatives that might be treated as constant if Cm not updated
+  case('dCm_dPsi0'                      ); get_ixDeriv = iLookDERIV%dCm_dPsi0                      ! derivative in Cm w.r.t. matric potential (J kg-1)
   case('dCm_dTk'                        ); get_ixDeriv = iLookDERIV%dCm_dTk                        ! derivative in Cm w.r.t. temperature (J kg K-2)
   case('dCm_dTkCanopy'                  ); get_ixDeriv = iLookDERIV%dCm_dTkCanopy                  ! derivative in Cm w.r.t. canopy temperature (J kg K-2)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below

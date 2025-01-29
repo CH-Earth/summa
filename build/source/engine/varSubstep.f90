@@ -967,10 +967,10 @@ USE getVectorz_module,only:varExtract                              ! extract var
                     mLayerVolFracIceTrial,            & ! intent(inout): trial vector of volumetric ice water content (-)
                     mLayerMatricHeadTrial,            & ! intent(inout): trial vector of total water matric potential (m)
                     mLayerMatricHeadLiqTrial,         & ! intent(inout): trial vector of liquid water matric potential (m)
-                    mLayerTempPrime,                  & !
+                    mLayerTempPrime,                  & ! intent(inout): Prime vector of layer temperature (K)
                     mLayerVolFracWatPrime,            & ! intent(inout): Prime vector of volumetric total water content (-)
                     mLayerVolFracLiqPrime,            & ! intent(inout): Prime vector of volumetric liquid water content (-)
-                    mLayerVolFracIcePrime,            & !
+                    mLayerVolFracIcePrime,            & ! intent(inout): Prime vector of volumetric ice water content (-)
                     mLayerMatricHeadPrime,            & ! intent(inout): Prime vector of total water matric potential (m)
                     mLayerMatricHeadLiqPrime,         & ! intent(inout): Prime vector of liquid water matric potential (m)
                     ! output: error control

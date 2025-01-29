@@ -53,6 +53,7 @@ USE globalData,only:flux2state_liq   ! metadata on flux-to-state mapping (liquid
 USE var_lookup,only:iLookFLUX        ! named variables for structure elements
 USE var_lookup,only:iLookINDEX       ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
+USE var_lookup,only:iLookPARAM       ! named variables for elements of the parameter structure
 
 ! look up structure for variable types
 USE var_lookup,only:iLookVarType
@@ -1204,7 +1205,13 @@ subroutine opSplittin(&
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
              select case(iDomainSplit)
               case(snowSplit); if(iLayer==nSnow)   fluxMask%var(iVar)%dat = desiredFlux
-              case(soilSplit); if(iLayer==nSnow+1) fluxMask%var(iVar)%dat = desiredFlux
+              case(soilSplit); 
+                if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge & ! soil drainage, aq recharge changes with the bottom layer
+                   .or. iVar==iLookFLUX%scalarSoilBaseflow) then                                   ! soil baseflow changes with all layers, so compute after bottom layer
+                  if(iLayer==nLayers) fluxMask%var(iVar)%dat = desiredFlux
+                else ! other scalar variables in the soil domain change with the surface layer
+                  if(iLayer==nSnow+1) fluxMask%var(iVar)%dat = desiredFlux
+                end if
              end select
             end if  ! if hydrology split and scalar
 
@@ -1213,7 +1220,7 @@ subroutine opSplittin(&
          end do   ! end looping through layers
 
         case(aquiferSplit) ! fluxes through aquifer
-         fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
+         fluxMask%var(iVar)%dat(:) = desiredFlux
         case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return_flag=.true.; return ! check
        end select  ! domain split
       end if  ! end if flux is desired
