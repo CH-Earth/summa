@@ -31,6 +31,8 @@ USE data_types,only:io_type_soilLiqFlx     ! derived type for intent(inout) argu
 USE data_types,only:out_type_soilLiqFlx    ! derived type for intent(out) arguments
 USE data_types,only:in_type_diagv_node     ! derived type for intent(in) arguments 
 USE data_types,only:out_type_diagv_node    ! derived type for intent(out) arguments 
+USE data_types,only:in_type_iLayerFlux     ! derived type for intent(in) arguments 
+USE data_types,only:out_type_iLayerFlux    ! derived type for intent(out) arguments 
 
 ! missing values
 USE globalData,only:integerMissing         ! missing integer
@@ -478,9 +480,13 @@ contains
 
  subroutine compute_interface_fluxes_derivatives
   ! **** compute fluxes and derivatives at layer interfaces ****
+  type(in_type_iLayerFlux)  :: in_iLayerFlux  ! input data for iLayerFlux
+  type(out_type_iLayerFlux) :: out_iLayerFlux ! output data for iLayerFlux
 
   ! computing flux at the bottom of the layer
   do iLayer=ixTop,min(ixBot,nSoil-1)
+   call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
+                                  &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
    associate(&
     ! intent(in): model control
     deriv_desired            => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired

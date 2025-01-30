@@ -29,7 +29,8 @@ MODULE data_types
  USE var_lookup,only:iLookDERIV       ! lookup indices for derivative data
  USE var_lookup,only:iLookFORCE       ! lookup indices for forcing data 
  USE var_lookup,only:iLookDIAG        ! lookup indices for diagnostic variable data
- USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookDECISIONS   ! lookup indices for elements of the decision structure
+ USE var_lookup,only:iLookPROG        ! lookup indices for prognostic variables
  implicit none
  ! constants necessary for variable defs
  private
@@ -1557,8 +1558,55 @@ contains
  ! **** end diagv_node ****
 
  ! **** iLayerFlux ****
- subroutine initialize_in_iLayerFlux(in_iLayerFlux)
+ subroutine initialize_in_iLayerFlux(in_iLayerFlux,iLayer,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
+                                    &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
   class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux ! class object for intent(in) iLayerFlux arguments
+  integer(i4b),intent(in)               :: nSoil,iLayer  ! number of soil layers and index
+  integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-soil vector
+  type(in_type_soilLiqFlx),intent(in)   :: in_soilLiqFlx ! input class object for soilLiqFlx
+  type(io_type_soilLiqFlx),intent(in)   :: io_soilLiqFlx ! input-output class object for soilLiqFlx
+  type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
+  type(var_dlength),intent(in)          :: prog_data     ! prognostic variables for a local HRU
+  real(rkind),intent(in)                :: mLayerDiffuse(1:nSoil)  ! diffusivity at layer mid-point (m2 s-1)
+  real(rkind),intent(in) :: dHydCond_dTemp(1:nSoil)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  real(rkind),intent(in) :: dHydCond_dVolLiq(1:nSoil) ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),intent(in) :: dDiffuse_dVolLiq(1:nSoil) ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+
+  associate(&
+   ! intent(in): model control
+   deriv_desired => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
+   ixRichards    => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
+   ! intent(in): state variables (adjacent layers)
+   mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
+   mLayerVolFracLiqTrial    => in_soilLiqFlx % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
+   ! intent(in): model coordinate variables (adjacent layers)
+   mLayerHeight => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend), & ! height of the layer mid-point (m)
+   ! intent(in): temperature derivatives
+   dPsiLiq_dTemp => in_soilLiqFlx % dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   ! intent(in): transmittance (adjacent layers)
+   mLayerHydCond => io_soilLiqFlx % mLayerHydCond, & ! hydraulic conductivity in each soil layer (m s-1)
+   ! intent(in): transmittance derivatives (adjacent layers)
+   dHydCond_dMatric => io_soilLiqFlx % dHydCond_dMatric & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+  &)
+   ! intent(in): model control
+   in_iLayerFlux % deriv_desired = deriv_desired ! flag indicating if derivatives are desired
+   in_iLayerFlux % ixRichards    = ixRichards    ! index defining the form of Richards' equation (moisture or mixdform)
+   ! intent(in): state variables (adjacent layers)
+   in_iLayerFlux % nodeMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(iLayer:iLayer+1) ! liquid matric head at the soil nodes (m)
+   in_iLayerFlux % nodeVolFracLiqTrial    = mLayerVolFracLiqTrial(iLayer:iLayer+1)    ! volumetric liquid water content at the soil nodes (-)
+   ! intent(in): model coordinate variables (adjacent layers)
+   in_iLayerFlux % nodeHeight = mLayerHeight(iLayer:iLayer+1) ! height of the soil nodes (m)
+   ! intent(in): temperature derivatives
+   in_iLayerFlux % dPsiLiq_dTemp  = dPsiLiq_dTemp(iLayer:iLayer+1)  ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   in_iLayerFlux % dHydCond_dTemp = dHydCond_dTemp(iLayer:iLayer+1) ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! intent(in): transmittance (adjacent layers)
+   in_iLayerFlux % nodeHydCondTrial = mLayerHydCond(iLayer:iLayer+1) ! hydraulic conductivity at the soil nodes (m s-1)
+   in_iLayerFlux % nodeDiffuseTrial = mLayerDiffuse(iLayer:iLayer+1) ! hydraulic diffusivity at the soil nodes (m2 s-1)
+   ! intent(in): transmittance derivatives (adjacent layers) for hydraulic ...
+   in_iLayerFlux % dHydCond_dVolLiq = dHydCond_dVolLiq(iLayer:iLayer+1) ! ... conductivity w.r.t. change in volumetric liquid water content (m s-1)
+   in_iLayerFlux % dDiffuse_dVolLiq = dDiffuse_dVolLiq(iLayer:iLayer+1) ! ... diffusivity w.r.t. change in volumetric liquid water content (m2 s-1)
+   in_iLayerFlux % dHydCond_dMatric = dHydCond_dMatric(iLayer:iLayer+1) ! ... conductivity w.r.t. change in matric head (s-1)
+  end associate
  end subroutine initialize_in_iLayerFlux
 
  subroutine finalize_out_iLayerFlux(out_iLayerFlux,iLayer,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
