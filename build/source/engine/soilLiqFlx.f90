@@ -313,12 +313,17 @@ contains
 
  subroutine compute_diagnostic_variables
   ! **** compute diagnostic variables at the nodes throughout the soil profile ****
-  type(in_type_diagv_node)  :: in_diagv_node
-  type(out_type_diagv_node) :: out_diagv_node
+  type(in_type_diagv_node)  :: in_diagv_node  ! input data object for diagv_node
+  type(out_type_diagv_node) :: out_diagv_node ! output data object for diagv_node
 
   do iSoil=ixTop,min(ixBot+1,nSoil) ! loop through soil layers
+   ! initialize: interface local name space to input data object for diagv_node
    call in_diagv_node % initialize(iSoil,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
+
+   ! update: compute diagnostic variables
    call diagv_node(in_diagv_node,out_diagv_node)
+
+   ! finalize: interface output data object for diagv_node to local name space
    associate(&
     err          => out_soilLiqFlx % err,     & ! error code
     message      => out_soilLiqFlx % cmessage & ! error message
@@ -480,73 +485,29 @@ contains
 
  subroutine compute_interface_fluxes_derivatives
   ! **** compute fluxes and derivatives at layer interfaces ****
-  type(in_type_iLayerFlux)  :: in_iLayerFlux  ! input data for iLayerFlux
-  type(out_type_iLayerFlux) :: out_iLayerFlux ! output data for iLayerFlux
+  type(in_type_iLayerFlux)  :: in_iLayerFlux  ! input data object for iLayerFlux
+  type(out_type_iLayerFlux) :: out_iLayerFlux ! output data object for iLayerFlux
 
   ! computing flux at the bottom of the layer
   do iLayer=ixTop,min(ixBot,nSoil-1)
+
+   ! initialize: interface local name space to iLayerFlux input object
    call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
                                   &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
+
+   ! update: compute fluxes at layer interface
+   call iLayerFlux(in_iLayerFlux,out_iLayerFlux)
+
+   ! finalize: interface iLayerFlux output object to local name space
    associate(&
-    ! intent(in): model control
-    deriv_desired            => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
-    ixRichards               => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
-    ! intent(in): state variables (adjacent layers)
-    mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
-    mLayerVolFracLiqTrial    => in_soilLiqFlx % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
-    ! intent(in): model coordinate variables (adjacent layers)
-    mLayerHeight      => prog_data%var(iLookPROG%mLayerHeight)%dat(ibeg:iend), & ! height of the layer mid-point (m)
-    ! intent(in): temperature derivatives
-    dPsiLiq_dTemp     => in_soilLiqFlx % dPsiLiq_dTemp,    & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-    ! intent(in): transmittance (adjacent layers)
-    mLayerHydCond     => io_soilLiqFlx % mLayerHydCond,    & ! hydraulic conductivity in each soil layer (m s-1)
-    ! intent(in): transmittance derivatives (adjacent layers)
-    dHydCond_dMatric  => io_soilLiqFlx % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
-    ! intent(out): vertical flux at the layer interface (scalars)
-    iLayerLiqFluxSoil => io_soilLiqFlx % iLayerLiqFluxSoil,& ! liquid flux at soil layer interfaces (m s-1)
-    ! intent(out): derivatives in fluxes in the layer above and layer below w.r.t ...
-    dq_dHydStateAbove => io_soilLiqFlx % dq_dHydStateAbove,& ! ... state variables in the layer above
-    dq_dHydStateBelow => io_soilLiqFlx % dq_dHydStateBelow,& ! ... state variables in the layer below
-    dq_dNrgStateAbove => io_soilLiqFlx % dq_dNrgStateAbove,& ! ... temperature in the layer above (m s-1 K-1)
-    dq_dNrgStateBelow => io_soilLiqFlx % dq_dNrgStateBelow,& ! ... temperature in the layer below (m s-1 K-1)
-    ! intent(out): error control
+    ! error control
     err     => out_soilLiqFlx % err,                       & ! error code
     message => out_soilLiqFlx % cmessage                   & ! error message
    &)
-    call iLayerFlux(&
-                    in_iLayerFlux, &
-                   ! ! intent(in): model control
-                   ! deriv_desired,                             & ! flag indicating if derivatives are desired
-                   ! ixRichards,                                & ! index defining the form of Richards' equation (moisture or mixdform)
-                   ! ! intent(in): state variables (adjacent layers)
-                   ! mLayerMatricHeadLiqTrial(iLayer:iLayer+1), & ! liquid matric head at the soil nodes (m)
-                   ! mLayerVolFracLiqTrial(iLayer:iLayer+1),    & ! volumetric liquid water content at the soil nodes (-)
-                   ! ! intent(in): model coordinate variables (adjacent layers)
-                   ! mLayerHeight(iLayer:iLayer+1),             & ! height of the soil nodes (m)
-                   ! ! intent(in): temperature derivatives
-                   ! dPsiLiq_dTemp(iLayer:iLayer+1),            & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-                   ! dHydCond_dTemp(iLayer:iLayer+1),           & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-                   ! ! intent(in): transmittance (adjacent layers)
-                   ! mLayerHydCond(iLayer:iLayer+1),            & ! hydraulic conductivity at the soil nodes (m s-1)
-                   ! mLayerDiffuse(iLayer:iLayer+1),            & ! hydraulic diffusivity at the soil nodes (m2 s-1)
-                   ! ! intent(in): transmittance derivatives (adjacent layers) for ...
-                   ! dHydCond_dVolLiq(iLayer:iLayer+1),         & ! ... hydraulic conductivity w.r.t. change in volumetric liquid water content (m s-1)
-                   ! dDiffuse_dVolLiq(iLayer:iLayer+1),         & ! ... hydraulic diffusivity w.r.t. change in volumetric liquid water content (m2 s-1)
-                   ! dHydCond_dMatric(iLayer:iLayer+1),         & ! ... hydraulic conductivity w.r.t. change in matric head (s-1)
-                    ! intent(out): tranmsmittance at the layer interface (scalars)
-                    iLayerHydCond(iLayer),                     & ! hydraulic conductivity at the interface between layers (m s-1)
-                    iLayerDiffuse(iLayer),                     & ! hydraulic diffusivity at the interface between layers (m2 s-1)
-                    ! intent(out): vertical flux at the layer interface (scalars)
-                    iLayerLiqFluxSoil(iLayer),                 & ! vertical flux of liquid water at the layer interface (m s-1)
-                    ! intent(out): derivatives in fluxes in the layer above and layer below w.r.t. ... 
-                    dq_dHydStateAbove(iLayer),                 & ! ... matric head or volumetric lquid water in the layer above (m s-1 or s-1)
-                    dq_dHydStateBelow(iLayer),                 & ! ... matric head or volumetric lquid water in the layer below (m s-1 or s-1)
-                    dq_dNrgStateAbove(iLayer),                 & ! ... temperature in the layer above (m s-1 K-1)
-                    dq_dNrgStateBelow(iLayer),                 & ! ... temperature in the layer below (m s-1 K-1)
-                    ! intent(out): error control
-                    err,cmessage)                                ! intent(out): error control
+    call out_iLayerFlux % finalize(iLayer,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
    end associate
+
   end do  ! end looping through soil layers
  end subroutine compute_interface_fluxes_derivatives
 
@@ -1234,74 +1195,12 @@ end subroutine surfaceFlx
 ! ***************************************************************************************************************
 ! private subroutine iLayerFlux: compute the fluxes and derivatives at layer interfaces
 ! ***************************************************************************************************************
-subroutine iLayerFlux(&
-                      in_iLayerFlux, &
-                     ! ! input: model control
-                     ! deriv_desired,             & ! intent(in):  flag indicating if derivatives are desired
-                     ! ixRichards,                & ! intent(in):  index defining the form of Richards' equation (moisture or mixdform)
-                     ! ! input: state variables (adjacent layers)
-                     ! nodeMatricHeadLiqTrial,    & ! intent(in):  liquid matric head at the soil nodes (m)
-                     ! nodeVolFracLiqTrial,       & ! intent(in):  volumetric liquid water content at the soil nodes (-)
-                     ! ! input: model coordinate variables (adjacent layers)
-                     ! nodeHeight,                & ! intent(in):  height of the soil nodes (m)
-                     ! ! input: temperature derivatives
-                     ! dPsiLiq_dTemp,             & ! intent(in):  derivative in liquid water matric potential w.r.t. temperature (m K-1)
-                     ! dHydCond_dTemp,            & ! intent(in):  derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-                     ! ! input: transmittance (adjacent layers)
-                     ! nodeHydCondTrial,          & ! intent(in):  hydraulic conductivity at the soil nodes (m s-1)
-                     ! nodeDiffuseTrial,          & ! intent(in):  hydraulic diffusivity at the soil nodes (m2 s-1)
-                     ! ! input: transmittance derivatives (adjacent layers)
-                     ! dHydCond_dVolLiq,          & ! intent(in):  derivative in hydraulic conductivity w.r.t. change in volumetric liquid water content (m s-1)
-                     ! dDiffuse_dVolLiq,          & ! intent(in):  derivative in hydraulic diffusivity w.r.t. change in volumetric liquid water content (m2 s-1)
-                     ! dHydCond_dMatric,          & ! intent(in):  derivative in hydraulic conductivity w.r.t. change in matric head (s-1)
-                      ! output: tranmsmittance at the layer interface (scalars)
-                      iLayerHydCond,             & ! intent(out): hydraulic conductivity at the interface between layers (m s-1)
-                      iLayerDiffuse,             & ! intent(out): hydraulic diffusivity at the interface between layers (m2 s-1)
-                      ! output: vertical flux at the layer interface (scalars)
-                      iLayerLiqFluxSoil,         & ! intent(out): vertical flux of liquid water at the layer interface (m s-1)
-                      ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
-                      dq_dHydStateAbove,         & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
-                      dq_dHydStateBelow,         & ! intent(out): derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1)
-                      ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
-                      dq_dNrgStateAbove,         & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
-                      dq_dNrgStateBelow,         & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
-                      ! output: error control
-                      err,message)                 ! intent(out): error control
+subroutine iLayerFlux(in_iLayerFlux,out_iLayerFlux)
   ! -----------------------------------------------------------------------------------------------------------------------------------------------------------------
   ! input: model control, state variables, coordinate variables, temperature derivatives, transmittance variables
-  type(in_type_iLayerFlux),intent(in) :: in_iLayerFlux            ! class object for input data
-!  ! input: model control
-!  logical(lgt),intent(in)          :: deriv_desired               ! flag indicating if derivatives are desired
-!  integer(i4b),intent(in)          :: ixRichards                  ! index defining the option for Richards' equation (moisture or mixdform)
-!  ! input: state variables
-!  real(rkind),intent(in)           :: nodeMatricHeadLiqTrial(:)   ! liquid matric head at the soil nodes (m)
-!  real(rkind),intent(in)           :: nodeVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the soil nodes (-)
-!  ! input: model coordinate variables
-!  real(rkind),intent(in)           :: nodeHeight(:)               ! height at the mid-point of the lower layer (m)
-!  ! input: temperature derivatives
-!  real(rkind),intent(in)           :: dPsiLiq_dTemp(:)            ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-!  real(rkind),intent(in)           :: dHydCond_dTemp(:)           ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-!  ! input: transmittance
-!  real(rkind),intent(in)           :: nodeHydCondTrial(:)         ! hydraulic conductivity at layer mid-points (m s-1)
-!  real(rkind),intent(in)           :: nodeDiffuseTrial(:)         ! diffusivity at layer mid-points (m2 s-1)
-!  ! input: transmittance derivatives
-!  real(rkind),intent(in)           :: dHydCond_dVolLiq(:)         ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-!  real(rkind),intent(in)           :: dDiffuse_dVolLiq(:)         ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-!  real(rkind),intent(in)           :: dHydCond_dMatric(:)         ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
-  ! output: tranmsmittance at the layer interface (scalars)
-  real(rkind),intent(out)          :: iLayerHydCond               ! hydraulic conductivity at the interface between layers (m s-1)
-  real(rkind),intent(out)          :: iLayerDiffuse               ! hydraulic diffusivity at the interface between layers (m2 s-1)
-  ! output: vertical flux at the layer interface (scalars)
-  real(rkind),intent(out)          :: iLayerLiqFluxSoil           ! vertical flux of liquid water at the layer interface (m s-1)
-  ! output: derivatives in fluxes w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below (m s-1 or s-1)
-  real(rkind),intent(out)          :: dq_dHydStateAbove           ! derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer above (m s-1 or s-1)
-  real(rkind),intent(out)          :: dq_dHydStateBelow           ! derivatives in the flux w.r.t. matric head or volumetric lquid water in the layer below (m s-1 or s-1)
-  ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
-  real(rkind),intent(out)          :: dq_dNrgStateAbove           ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
-  real(rkind),intent(out)          :: dq_dNrgStateBelow           ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
-  ! output: error control
-  integer(i4b),intent(out)         :: err                         ! error code
-  character(*),intent(out)         :: message                     ! error message
+  type(in_type_iLayerFlux),intent(in)   :: in_iLayerFlux            ! class object for input data
+  ! output: transmittance variables and vertical flux at layer interface, derivatives, and error control
+  type(out_type_iLayerFlux),intent(out) :: out_iLayerFlux           ! class object for output data
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables (named variables to provide index of 2-element vectors)
   integer(i4b),parameter           :: ixUpper=1                   ! index of upper node in the 2-element vectors
@@ -1338,7 +1237,21 @@ subroutine iLayerFlux(&
   ! input: transmittance derivatives
   dHydCond_dVolLiq => in_iLayerFlux % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
   dDiffuse_dVolLiq => in_iLayerFlux % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-  dHydCond_dMatric => in_iLayerFlux % dHydCond_dMatric  & ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+  dHydCond_dMatric => in_iLayerFlux % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+  ! output: tranmsmittance at the layer interface (scalars)
+  iLayerHydCond => out_iLayerFlux % iLayerHydCond, & ! hydraulic conductivity at the interface between layers (m s-1)
+  iLayerDiffuse => out_iLayerFlux % iLayerDiffuse, & ! hydraulic diffusivity at the interface between layers (m2 s-1)
+  ! output: vertical flux at the layer interface (scalars)
+  iLayerLiqFluxSoil => out_iLayerFlux % iLayerLiqFluxSoil, & ! vertical flux of liquid water at the layer interface (m s-1)
+  ! output: derivatives in fluxes w.r.t. ...  
+  dq_dHydStateAbove => out_iLayerFlux % dq_dHydStateAbove, & ! ... matric head or volumetric lquid water in the layer above (m s-1 or s-1)
+  dq_dHydStateBelow => out_iLayerFlux % dq_dHydStateBelow, & ! ... matric head or volumetric lquid water in the layer below (m s-1 or s-1)
+  ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+  dq_dNrgStateAbove => out_iLayerFlux % dq_dNrgStateAbove, & ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+  dq_dNrgStateBelow => out_iLayerFlux % dq_dNrgStateBelow, & ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
+  ! output: error control
+  err     => out_iLayerFlux % err    , & ! error code
+  message => out_iLayerFlux % message  & ! error message
  &)
 
   ! initialize error control
