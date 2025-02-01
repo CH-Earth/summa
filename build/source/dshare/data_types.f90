@@ -677,7 +677,58 @@ MODULE data_types
  ! ** end iLayerFlux
 
  ! ** qDrainFlux
+ type, public :: in_type_qDrainFlux ! intent(in) data
+   ! input: model control
+   logical(lgt) :: deriv_desired             ! flag to indicate if derivatives are desired
+   integer(i4b) :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
+   integer(i4b) :: bc_lower                  ! index defining the type of boundary conditions
+   ! input: state and diagnostic variables
+   real(rkind)  :: nodeMatricHeadLiq         ! liquid matric head in the lowest unsaturated node (m)
+   real(rkind)  :: nodeVolFracLiq            ! volumetric liquid water content in the lowest unsaturated node (-)
+   ! input: model coordinate variables
+   real(rkind)  :: nodeDepth                 ! depth of the lowest unsaturated soil layer (m)
+   real(rkind)  :: nodeHeight                ! height of the lowest unsaturated soil node (m)
+   ! input: diriclet boundary conditions
+   real(rkind)  :: lowerBoundHead            ! lower boundary condition for matric head (m)
+   real(rkind)  :: lowerBoundTheta           ! lower boundary condition for volumetric liquid water content (-)
+   ! input: derivative in soil water characteristic
+   real(rkind)  :: node_dPsi_dTheta          ! derivative of the soil moisture characteristic w.r.t. theta (m)
+   ! input: transmittance
+   real(rkind)  :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
+   real(rkind)  :: bottomSatHydCond          ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+   real(rkind)  :: nodeHydCond               ! hydraulic conductivity at the node itself (m s-1)
+   real(rkind)  :: iceImpedeFac              ! ice impedence factor in the upper-most soil layer (-)
+   ! input: transmittance derivatives
+   real(rkind)  :: dHydCond_dVolLiq          ! derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
+   real(rkind)  :: dHydCond_dMatric          ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
+   real(rkind)  :: dHydCond_dTemp            ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! input: soil parameters
+   real(rkind)  :: vGn_alpha                 ! van Genuchten "alpha" parameter (m-1)
+   real(rkind)  :: vGn_n                     ! van Genuchten "n" parameter (-)
+   real(rkind)  :: vGn_m                     ! van Genuchten "m" parameter (-)
+   real(rkind)  :: theta_sat                 ! soil porosity (-)
+   real(rkind)  :: theta_res                 ! soil residual volumetric water content (-)
+   real(rkind)  :: kAnisotropic              ! anisotropy factor for lateral hydraulic conductivity (-)
+   real(rkind)  :: zScale_TOPMODEL           ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+  contains
+   procedure :: initialize_in_qDrainFlux
+ end type in_type_qDrainFlux
 
+ type, public :: out_type_qDrainFlux ! intent(out) data
+   ! output: hydraulic conductivity at the bottom of the unsaturated zone
+   real(rkind) :: bottomHydCond      ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+   real(rkind) :: bottomDiffuse      ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   ! output: drainage flux from the bottom of the soil profile
+   real(rkind) :: scalarDrainage     ! drainage flux from the bottom of the soil profile (m s-1)
+   ! output: derivatives in drainage flux
+   real(rkind) :: dq_dHydStateUnsat  ! change in drainage flux w.r.t. change in state variable in lowest unsaturated node (m s-1 or s-1)
+   real(rkind) :: dq_dNrgStateUnsat  ! change in drainage flux w.r.t. change in energy state variable in lowest unsaturated node (m s-1 K-1)
+   ! output: error control
+   integer(i4b)           :: err     ! error code
+   character(len=len_msg) :: message ! error message
+  contains
+   procedure :: finalize_out_qDrainFlux
+ end type out_type_qDrainFlux
  ! ** end qDrainFlux
 
  ! ***********************************************************************************************************
@@ -1469,7 +1520,7 @@ contains
 
  ! **** diagv_node ****
  subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
-  class(in_type_diagv_node),intent(out) :: in_diagv_node                    ! class object for intent(in) diagv_node arguments
+  class(in_type_diagv_node),intent(out) :: in_diagv_node                    ! class object for input diagv_node variables
   integer(i4b),intent(in)               :: iSoil                            ! index of soil layer
   type(in_type_soilLiqFlx),intent(in)   :: in_soilLiqFlx                    ! input data for soilLiqFlx
   type(model_options),intent(in)        :: model_decisions(maxvarDecisions) ! the model decision structure
@@ -1524,7 +1575,7 @@ contains
 
  subroutine finalize_out_diagv_node(out_diagv_node,iSoil,nSoil,io_soilLiqFlx,mLayerDiffuse,iceImpedeFac,&
                                    &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
-  class(out_type_diagv_node),intent(in)  :: out_diagv_node ! class object for intent(out) diagv_node arguments
+  class(out_type_diagv_node),intent(in)  :: out_diagv_node ! class object for output diagv_node variables
   integer(i4b),intent(in)                :: nSoil,iSoil    ! number of soil layers and index
   type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx  ! input-output class object for soilLiqFlx
   real(rkind),intent(inout) :: mLayerDiffuse(1:nSoil)      ! diffusivity at layer mid-point (m2 s-1)
@@ -1564,7 +1615,7 @@ contains
  ! **** iLayerFlux ****
  subroutine initialize_in_iLayerFlux(in_iLayerFlux,iLayer,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
                                     &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
-  class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux ! class object for intent(in) iLayerFlux arguments
+  class(in_type_iLayerFlux),intent(out) :: in_iLayerFlux ! class object for input iLayerFlux variables
   integer(i4b),intent(in)               :: nSoil,iLayer  ! number of soil layers and index
   integer(i4b),intent(in)               :: ibeg,iend     ! start and end indices of the soil layers in concatanated snow-soil vector
   type(in_type_soilLiqFlx),intent(in)   :: in_soilLiqFlx ! input class object for soilLiqFlx
@@ -1614,7 +1665,7 @@ contains
  end subroutine initialize_in_iLayerFlux
 
  subroutine finalize_out_iLayerFlux(out_iLayerFlux,iLayer,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
-  class(out_type_iLayerFlux),intent(in)  :: out_iLayerFlux ! class object for intent(out) iLayerFlux arguments
+  class(out_type_iLayerFlux),intent(in)  :: out_iLayerFlux ! class object for output iLayerFlux variables
   integer(i4b),intent(in)                :: nSoil,iLayer   ! number of soil layers and index
   type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx  ! input-output class object for soilLiqFlx
   real(rkind),intent(inout) :: iLayerHydCond(0:nSoil) ! hydraulic conductivity at layer interface (m s-1)
@@ -1648,6 +1699,42 @@ contains
  end subroutine finalize_out_iLayerFlux
  ! **** end iLayerFlux ****
 
+
+ ! **** qDrainFlux ****
+ subroutine initialize_in_qDrainFlux(in_qDrainFlux)
+  class(in_type_qDrainFlux),intent(out) :: in_qDrainFlux  ! class object for input qDrainFlux variables
+ end subroutine initialize_in_qDrainFlux
+
+ subroutine finalize_out_qDrainFlux(out_qDrainFlux,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
+  class(out_type_qDrainFlux),intent(in) :: out_qDrainFlux  ! class object for output qDrainFlux variables
+  integer(i4b),intent(in)   :: nSoil                       ! number of soil layers
+  type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx  ! input-output class object for soilLiqFlx
+  real(rkind),intent(inout) :: iLayerHydCond(0:nSoil)      ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),intent(inout) :: iLayerDiffuse(0:nSoil)      ! diffusivity at layer interface (m2 s-1)
+  integer(i4b),intent(out)  :: err                         ! error code
+  character(*),intent(out)  :: cmessage                    ! error message
+
+  associate(&
+   ! intent(out): drainage flux
+   iLayerLiqFluxSoil => io_soilLiqFlx % iLayerLiqFluxSoil,& ! liquid flux at soil layer interfaces (m s-1)
+   ! intent(out): derivatives in drainage flux w.r.t. ...
+   dq_dHydStateAbove => io_soilLiqFlx % dq_dHydStateAbove,& ! ... state variables in the layer above
+   dq_dNrgStateAbove => io_soilLiqFlx % dq_dNrgStateAbove & ! ... temperature in the layer above (m s-1 K-1)
+  &)
+   ! intent(out): hydraulic conductivity and diffusivity at the surface
+   iLayerHydCond(nSoil) = out_qDrainFlux % bottomHydCond ! hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
+   iLayerDiffuse(nSoil) = out_qDrainFlux % bottomDiffuse ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   ! intent(out): drainage flux
+   iLayerLiqFluxSoil(nSoil) = out_qDrainFlux % scalarDrainage    ! drainage flux (m s-1)
+   ! intent(out): derivatives in drainage flux w.r.t. ...
+   dq_dHydStateAbove(nSoil) = out_qDrainFlux % dq_dHydStateUnsat ! ... change in hydrology state in lowest unsaturated node (m s-1 or s-1)
+   dq_dNrgStateAbove(nSoil) = out_qDrainFlux % dq_dNrgStateUnsat ! ... change in energy state in lowest unsaturated node (m s-1 or s-1)
+  end associate
+  ! intent(out): error control
+  err      = out_qDrainFlux % err     ! error code 
+  cmessage = out_qDrainFlux % message ! error message
+ end subroutine finalize_out_qDrainFlux
+ ! **** end qDrainFlux ****
 
  ! **** stateFilter ****
  subroutine finalize_out_stateFilter(out_stateFilter,err,cmessage)
