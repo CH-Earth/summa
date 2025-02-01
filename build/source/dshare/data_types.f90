@@ -596,9 +596,9 @@ MODULE data_types
    real(rkind)            :: dTheta_dTk                ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    real(rkind)            :: dPsiLiq_dTemp             ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: soil parameters
-   real(rkind)            :: vGn_alpha                 ! van Genutchen "alpha" parameter (m-1)
-   real(rkind)            :: vGn_n                     ! van Genutchen "n" parameter (-)
-   real(rkind)            :: vGn_m                     ! van Genutchen "m" parameter (-)
+   real(rkind)            :: vGn_alpha                 ! van Genuchten "alpha" parameter (m-1)
+   real(rkind)            :: vGn_n                     ! van Genuchten "n" parameter (-)
+   real(rkind)            :: vGn_m                     ! van Genuchten "m" parameter (-)
    real(rkind)            :: mpExp                     ! empirical exponent in macropore flow equation (-)
    real(rkind)            :: theta_sat                 ! soil porosity (-)
    real(rkind)            :: theta_res                 ! soil residual volumetric water content (-)
@@ -675,6 +675,10 @@ MODULE data_types
    procedure :: finalize => finalize_out_iLayerFlux
  end type out_type_iLayerFlux
  ! ** end iLayerFlux
+
+ ! ** qDrainFlux
+
+ ! ** end qDrainFlux
 
  ! ***********************************************************************************************************
  ! Define classes used to simplify calls to the subrotuines in opSplittin
@@ -1483,7 +1487,7 @@ contains
    mLayerVolFracIceTrial    => in_soilLiqFlx % mLayerVolFracIceTrial,    & ! volumetric fraction of ice at the current iteration (-)
    mLayerdTheta_dTk         => in_soilLiqFlx % mLayerdTheta_dTk,         & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    dPsiLiq_dTemp            => in_soilLiqFlx % dPsiLiq_dTemp,            & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-   ! intent(in): van Genutchen and other soil parameters..
+   ! intent(in): van Genuchten and other soil parameters..
    vGn_alpha          => mpar_data%var(iLookPARAM%vGn_alpha)%dat,        & ! "alpha" parameter (m-1)
    vGn_n              => mpar_data%var(iLookPARAM%vGn_n)%dat,            & ! "n" parameter (-)
    vGn_m              => diag_data%var(iLookDIAG%scalarVGn_m)%dat,       & ! "m" parameter (-)
@@ -1505,9 +1509,9 @@ contains
    in_diagv_node % dTheta_dTk               = mLayerdTheta_dTk(isoil)         ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    in_diagv_node % dPsiLiq_dTemp            = dPsiLiq_dTemp(isoil)            ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input: soil parameters
-   in_diagv_node % vGn_alpha          = vGn_alpha(isoil)          ! van Genutchen "alpha" parameter (m-1)
-   in_diagv_node % vGn_n              = vGn_n(isoil)              ! van Genutchen "n" parameter (-)
-   in_diagv_node % vGn_m              = vGn_m(isoil)              ! van Genutchen "m" parameter (-)
+   in_diagv_node % vGn_alpha          = vGn_alpha(isoil)          ! van Genuchten "alpha" parameter (m-1)
+   in_diagv_node % vGn_n              = vGn_n(isoil)              ! van Genuchten "n" parameter (-)
+   in_diagv_node % vGn_m              = vGn_m(isoil)              ! van Genuchten "m" parameter (-)
    in_diagv_node % mpExp              = mpExp                     ! empirical exponent in macropore flow equation (-)
    in_diagv_node % theta_sat          = theta_sat(isoil)          ! soil porosity (-)
    in_diagv_node % theta_res          = theta_res(isoil)          ! soil residual volumetric water content (-)
