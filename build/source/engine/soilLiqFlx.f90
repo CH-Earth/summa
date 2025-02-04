@@ -521,28 +521,14 @@ contains
   call in_qDrainFlux % initialize(nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                  &dHydCond_dVolLiq,dHydCond_dTemp)
+
+  call qDrainFlux(in_qDrainFlux,out_qDrainFlux)
+
   associate(&
-   ! intent(out): drainage flux
-   iLayerLiqFluxSoil => io_soilLiqFlx % iLayerLiqFluxSoil,& ! liquid flux at soil layer interfaces (m s-1)
-   ! intent(out): derivatives in drainage flux w.r.t. ...
-   dq_dHydStateAbove => io_soilLiqFlx % dq_dHydStateAbove,& ! ... state variables in the layer above
-   dq_dNrgStateAbove => io_soilLiqFlx % dq_dNrgStateAbove,& ! ... temperature in the layer above (m s-1 K-1)
-   ! intent(out): error control
    err     => out_soilLiqFlx % err,                       & ! error code
    message => out_soilLiqFlx % cmessage                   & ! error message
   &)
-   call qDrainFlux(&
-                   in_qDrainFlux, &
-                   ! intent(out): hydraulic conductivity and diffusivity at the surface
-                   iLayerHydCond(nSoil),            & ! hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
-                   iLayerDiffuse(nSoil),            & ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
-                   ! intent(out): drainage flux
-                   iLayerLiqFluxSoil(nSoil),        & ! drainage flux (m s-1)
-                   ! intent(out): derivatives in drainage flux w.r.t. ...
-                   dq_dHydStateAbove(nSoil),        & ! ... change in hydrology state in lowest unsaturated node (m s-1 or s-1)
-                   dq_dNrgStateAbove(nSoil),        & ! ... change in energy state in lowest unsaturated node (m s-1 or s-1)
-                   ! intent(out): error control
-                   err,cmessage)                      ! error control
+   call out_qDrainFlux % finalize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end associate
 
@@ -1275,79 +1261,69 @@ end subroutine iLayerFlux
 ! ***************************************************************************************************************
 ! private subroutine qDrainFlux: compute the drainage flux from the bottom of the soil profile and its derivative
 ! ***************************************************************************************************************
-subroutine qDrainFlux(&
-                      in_qDrainFlux,&
-                      ! output: hydraulic conductivity and diffusivity at the surface
-                      bottomHydCond,             & ! intent(out): hydraulic conductivity at the bottom of the unsatuarted zone (m s-1)
-                      bottomDiffuse,             & ! intent(out): hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
-                      ! output: drainage flux from the bottom of the soil profile
-                      scalarDrainage,            & ! intent(out): drainage flux from the bottom of the soil profile (m s-1)
-                      ! output: derivatives in drainage flux
-                      dq_dHydStateUnsat,         & ! intent(out): change in drainage flux w.r.t. change in hydrology state variable in lowest unsaturated node (m s-1 or s-1)
-                      dq_dNrgStateUnsat,         & ! intent(out): change in drainage flux w.r.t. change in energy state variable in lowest unsaturated node (m s-1 K-1)
-                      ! output: error control
-                      err,message)                 ! intent(out): error control
-  USE soil_utils_module,only:volFracLiq            ! compute volumetric fraction of liquid water as a function of matric head (-)
-  USE soil_utils_module,only:matricHead            ! compute matric head as a function of volumetric fraction of liquid water (m)
-  USE soil_utils_module,only:hydCond_psi           ! compute hydraulic conductivity as a function of matric head (m s-1)
-  USE soil_utils_module,only:hydCond_liq           ! compute hydraulic conductivity as a function of volumetric liquid water content (m s-1)
-  USE soil_utils_module,only:dPsi_dTheta           ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
+subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
+  USE soil_utils_module,only:volFracLiq  ! compute volumetric fraction of liquid water as a function of matric head (-)
+  USE soil_utils_module,only:matricHead  ! compute matric head as a function of volumetric fraction of liquid water (m)
+  USE soil_utils_module,only:hydCond_psi ! compute hydraulic conductivity as a function of matric head (m s-1)
+  USE soil_utils_module,only:hydCond_liq ! compute hydraulic conductivity as a function of volumetric liquid water content (m s-1)
+  USE soil_utils_module,only:dPsi_dTheta ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
   ! compute infiltraton at the surface and its derivative w.r.t. mass in the upper soil layer
   implicit none
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! input: model control, variables, boundary conditions, transmittance variables, and soil parameters
-  type(in_type_qDrainFlux),intent(in) :: in_qDrainFlux          ! object for qDrainFlux input data
-  ! -----------------------------------------------------------------------------------------------------------------------------
-  ! output: hydraulic conductivity at the bottom of the unsaturated zone
-  real(rkind),intent(out)          :: bottomHydCond             ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
-  real(rkind),intent(out)          :: bottomDiffuse             ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
-  ! output: drainage flux from the bottom of the soil profile
-  real(rkind),intent(out)          :: scalarDrainage            ! drainage flux from the bottom of the soil profile (m s-1)
-  ! output: derivatives in drainage flux
-  real(rkind),intent(out)          :: dq_dHydStateUnsat         ! change in drainage flux w.r.t. change in state variable in lowest unsaturated node (m s-1 or s-1)
-  real(rkind),intent(out)          :: dq_dNrgStateUnsat         ! change in drainage flux w.r.t. change in energy state variable in lowest unsaturated node (m s-1 K-1)
-  ! output: error control
-  integer(i4b),intent(out)         :: err                       ! error code
-  character(*),intent(out)         :: message                   ! error message
+  type(in_type_qDrainFlux) ,intent(in)  :: in_qDrainFlux      ! object for qDrainFlux input data
+  ! output: hydraulic conductivity and diffusivity, drainage fluxes and derivatives, and error control
+  type(out_type_qDrainFlux),intent(out) :: out_qDrainFlux     ! object for qDrainFlux output data
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  real(rkind)                      :: zWater                    ! effective water table depth (m)
-  real(rkind)                      :: nodePsi                   ! matric head in the lowest unsaturated node (m)
-  real(rkind)                      :: cflux                     ! capillary flux (m s-1)
+  real(rkind)                      :: zWater                  ! effective water table depth (m)
+  real(rkind)                      :: nodePsi                 ! matric head in the lowest unsaturated node (m)
+  real(rkind)                      :: cflux                   ! capillary flux (m s-1)
   ! -----------------------------------------------------------------------------------------------------------------------------
   associate(&
    ! input: model control
-   deriv_desired => in_qDrainFlux % deriv_desired, &           ! flag to indicate if derivatives are desired
-   ixRichards    => in_qDrainFlux % ixRichards   , &           ! index defining the option for Richards' equation (moisture or mixdform)
-   bc_lower      => in_qDrainFlux % bc_lower     , &           ! index defining the type of boundary conditions
+   deriv_desired => in_qDrainFlux % deriv_desired, &          ! flag to indicate if derivatives are desired
+   ixRichards    => in_qDrainFlux % ixRichards   , &          ! index defining the option for Richards' equation (moisture or mixdform)
+   bc_lower      => in_qDrainFlux % bc_lower     , &          ! index defining the type of boundary conditions
    ! input: state and diagnostic variables
-   nodeMatricHeadLiq => in_qDrainFlux % nodeMatricHeadLiq, &       ! liquid matric head in the lowest unsaturated node (m)
-   nodeVolFracLiq    => in_qDrainFlux % nodeVolFracLiq   , &       ! volumetric liquid water content in the lowest unsaturated node (-)
+   nodeMatricHeadLiq => in_qDrainFlux % nodeMatricHeadLiq, &  ! liquid matric head in the lowest unsaturated node (m)
+   nodeVolFracLiq    => in_qDrainFlux % nodeVolFracLiq   , &  ! volumetric liquid water content in the lowest unsaturated node (-)
    ! input: model coordinate variables
-   nodeDepth  => in_qDrainFlux % nodeDepth , &              ! depth of the lowest unsaturated soil layer (m)
-   nodeHeight => in_qDrainFlux % nodeHeight, &              ! height of the lowest unsaturated soil node (m)
+   nodeDepth  => in_qDrainFlux % nodeDepth , &                ! depth of the lowest unsaturated soil layer (m)
+   nodeHeight => in_qDrainFlux % nodeHeight, &                ! height of the lowest unsaturated soil node (m)
    ! input: diriclet boundary conditions
-   lowerBoundHead  => in_qDrainFlux % lowerBoundHead , &         ! lower boundary condition for matric head (m)
-   lowerBoundTheta => in_qDrainFlux % lowerBoundTheta, &         ! lower boundary condition for volumetric liquid water content (-)
+   lowerBoundHead  => in_qDrainFlux % lowerBoundHead , &      ! lower boundary condition for matric head (m)
+   lowerBoundTheta => in_qDrainFlux % lowerBoundTheta, &      ! lower boundary condition for volumetric liquid water content (-)
    ! input: derivative in soil water characteristic
-   node_dPsi_dTheta => in_qDrainFlux % node_dPsi_dTheta, &        ! derivative of the soil moisture characteristic w.r.t. theta (m)
+   node_dPsi_dTheta => in_qDrainFlux % node_dPsi_dTheta, &    ! derivative of the soil moisture characteristic w.r.t. theta (m)
    ! input: transmittance
-   surfaceSatHydCond => in_qDrainFlux % surfaceSatHydCond, &       ! saturated hydraulic conductivity at the surface (m s-1)
-   bottomSatHydCond  => in_qDrainFlux % bottomSatHydCond , &       ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
-   nodeHydCond       => in_qDrainFlux % nodeHydCond      , &       ! hydraulic conductivity at the node itself (m s-1)
-   iceImpedeFac      => in_qDrainFlux % iceImpedeFac     , &       ! ice impedence factor in the upper-most soil layer (-)
+   surfaceSatHydCond => in_qDrainFlux % surfaceSatHydCond, &  ! saturated hydraulic conductivity at the surface (m s-1)
+   bottomSatHydCond  => in_qDrainFlux % bottomSatHydCond , &  ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+   nodeHydCond       => in_qDrainFlux % nodeHydCond      , &  ! hydraulic conductivity at the node itself (m s-1)
+   iceImpedeFac      => in_qDrainFlux % iceImpedeFac     , &  ! ice impedence factor in the upper-most soil layer (-)
    ! input: transmittance derivatives
-   dHydCond_dVolLiq => in_qDrainFlux % dHydCond_dVolLiq, &        ! derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
-   dHydCond_dMatric => in_qDrainFlux % dHydCond_dMatric, &        ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
-   dHydCond_dTemp   => in_qDrainFlux % dHydCond_dTemp  , &        ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   dHydCond_dVolLiq => in_qDrainFlux % dHydCond_dVolLiq, &    ! derivative in hydraulic conductivity w.r.t. volumetric liquid water content (m s-1)
+   dHydCond_dMatric => in_qDrainFlux % dHydCond_dMatric, &    ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
+   dHydCond_dTemp   => in_qDrainFlux % dHydCond_dTemp  , &    ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
    ! input: soil parameters
-   vGn_alpha       => in_qDrainFlux % vGn_alpha      , &        ! van Genuchten "alpha" parameter (m-1)
-   vGn_n           => in_qDrainFlux % vGn_n          , &        ! van Genuchten "n" parameter (-)
-   vGn_m           => in_qDrainFlux % vGn_m          , &        ! van Genuchten "m" parameter (-)
-   theta_sat       => in_qDrainFlux % theta_sat      , &        ! soil porosity (-)
-   theta_res       => in_qDrainFlux % theta_res      , &        ! soil residual volumetric water content (-)
-   kAnisotropic    => in_qDrainFlux % kAnisotropic   , &        ! anisotropy factor for lateral hydraulic conductivity (-)
-   zScale_TOPMODEL => in_qDrainFlux % zScale_TOPMODEL  &        ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+   vGn_alpha       => in_qDrainFlux % vGn_alpha      , &      ! van Genuchten "alpha" parameter (m-1)
+   vGn_n           => in_qDrainFlux % vGn_n          , &      ! van Genuchten "n" parameter (-)
+   vGn_m           => in_qDrainFlux % vGn_m          , &      ! van Genuchten "m" parameter (-)
+   theta_sat       => in_qDrainFlux % theta_sat      , &      ! soil porosity (-)
+   theta_res       => in_qDrainFlux % theta_res      , &      ! soil residual volumetric water content (-)
+   kAnisotropic    => in_qDrainFlux % kAnisotropic   , &      ! anisotropy factor for lateral hydraulic conductivity (-)
+   zScale_TOPMODEL => in_qDrainFlux % zScale_TOPMODEL, &      ! scale factor for TOPMODEL-ish baseflow parameterization (m)
+   ! output: hydraulic conductivity at the bottom of the unsaturated zone
+   bottomHydCond => out_qDrainFlux % bottomHydCond, &         ! hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
+   bottomDiffuse => out_qDrainFlux % bottomDiffuse, &         ! hydraulic diffusivity at the bottom of the unsatuarted zone (m2 s-1)
+   ! output: drainage flux from the bottom of the soil profile
+   scalarDrainage => out_qDrainFlux % scalarDrainage, &       ! drainage flux from the bottom of the soil profile (m s-1)
+   ! output: derivatives in drainage flux w.r.t. ...
+   dq_dHydStateUnsat => out_qDrainFlux % dq_dHydStateUnsat, & ! ... state variable in lowest unsaturated node (m s-1 or s-1)
+   dq_dNrgStateUnsat => out_qDrainFlux % dq_dNrgStateUnsat, & ! ... energy state variable in lowest unsaturated node (m s-1 K-1)
+   ! output: error control
+   err     => out_qDrainFlux % err    , &                     ! error code
+   message => out_qDrainFlux % message  &                     ! error message
   &)
 
    ! initialize error control
