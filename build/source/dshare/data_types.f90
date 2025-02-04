@@ -711,7 +711,7 @@ MODULE data_types
    real(rkind)  :: kAnisotropic              ! anisotropy factor for lateral hydraulic conductivity (-)
    real(rkind)  :: zScale_TOPMODEL           ! scale factor for TOPMODEL-ish baseflow parameterization (m)
   contains
-   procedure :: initialize_in_qDrainFlux
+   procedure :: initialize => initialize_in_qDrainFlux
  end type in_type_qDrainFlux
 
  type, public :: out_type_qDrainFlux ! intent(out) data
@@ -727,7 +727,7 @@ MODULE data_types
    integer(i4b)           :: err     ! error code
    character(len=len_msg) :: message ! error message
   contains
-   procedure :: finalize_out_qDrainFlux
+   procedure :: finalize => finalize_out_qDrainFlux
  end type out_type_qDrainFlux
  ! ** end qDrainFlux
 
@@ -1698,7 +1698,6 @@ contains
   end associate
  end subroutine finalize_out_iLayerFlux
  ! **** end iLayerFlux ****
-
 
  ! **** qDrainFlux ****
  subroutine initialize_in_qDrainFlux(in_qDrainFlux,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
