@@ -1803,16 +1803,76 @@ contains
   end associate
  end subroutine initialize_in_surfaceFlx
 
- subroutine initialize_io_surfaceFlx(io_surfaceFlx)
-  class(io_type_surfaceFlx),intent(out) :: io_surfaceFlx
+ subroutine initialize_io_surfaceFlx(io_surfaceFlx,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse)
+  class(io_type_surfaceFlx),intent(out) :: io_surfaceFlx ! input-output object for surfaceFlx
+  integer(i4b),intent(in)               :: nSoil         ! number of soil layers
+  type(io_type_soilLiqFlx),intent(in)   :: io_soilLiqFlx ! input-output class object for soilLiqFlx
+  real(rkind),intent(in) :: iLayerHydCond(0:nSoil)       ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),intent(in) :: iLayerDiffuse(0:nSoil)       ! diffusivity at layer interface (m2 s-1)
+
+  associate(&
+   ! fluxes at layer interfaces and surface runoff
+   xMaxInfilRate    => io_soilLiqFlx % scalarMaxInfilRate, & ! maximum infiltration rate (m s-1)
+   scalarInfilArea  => io_soilLiqFlx % scalarInfilArea,    & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarFrozenArea => io_soilLiqFlx % scalarFrozenArea    & ! fraction of area that is considered impermeable due to soil ice (-)
+  &)
+   ! intent(inout): hydraulic conductivity and diffusivity at the surface
+   io_surfaceFlx % surfaceHydCond = iLayerHydCond(0)         ! hydraulic conductivity at the surface (m s-1)
+   io_surfaceFlx % surfaceDiffuse = iLayerDiffuse(0)         ! hydraulic diffusivity at the surface (m2 s-1)
+   ! intent(inout): fluxes at layer interfaces and surface runoff
+   io_surfaceFlx % xMaxInfilRate    = xMaxInfilRate          ! maximum infiltration rate (m s-1)
+   io_surfaceFlx % scalarInfilArea  = scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
+   io_surfaceFlx % scalarFrozenArea = scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
+  end associate
  end subroutine initialize_io_surfaceFlx
 
- subroutine finalize_io_surfaceFlx(io_surfaceFlx)
-  class(io_type_surfaceFlx),intent(in)  :: io_surfaceFlx
+ subroutine finalize_io_surfaceFlx(io_surfaceFlx,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse)
+  class(io_type_surfaceFlx),intent(in)   :: io_surfaceFlx ! input-output object for surfaceFlx
+  integer(i4b),intent(in)                :: nSoil         ! number of soil layers
+  type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx ! input-output class object for soilLiqFlx
+  real(rkind),intent(inout) :: iLayerHydCond(0:nSoil)     ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),intent(inout) :: iLayerDiffuse(0:nSoil)     ! diffusivity at layer interface (m2 s-1)
+
+  associate(&
+   ! fluxes at layer interfaces and surface runoff
+   xMaxInfilRate    => io_soilLiqFlx % scalarMaxInfilRate, & ! maximum infiltration rate (m s-1)
+   scalarInfilArea  => io_soilLiqFlx % scalarInfilArea,    & ! fraction of unfrozen area where water can infiltrate (-)
+   scalarFrozenArea => io_soilLiqFlx % scalarFrozenArea    & ! fraction of area that is considered impermeable due to soil ice (-)
+  &)
+   ! intent(inout): hydraulic conductivity and diffusivity at the surface
+   iLayerHydCond(0) = io_surfaceFlx % surfaceHydCond         ! hydraulic conductivity at the surface (m s-1) 
+   iLayerDiffuse(0) = io_surfaceFlx % surfaceDiffuse         ! hydraulic diffusivity at the surface (m2 s-1)
+   ! intent(inout): fluxes at layer interfaces and surface runoff
+   xMaxInfilRate    = io_surfaceFlx % xMaxInfilRate          ! maximum infiltration rate (m s-1)                                   
+   scalarInfilArea  = io_surfaceFlx % scalarInfilArea        ! fraction of unfrozen area where water can infiltrate (-)
+   scalarFrozenArea = io_surfaceFlx % scalarFrozenArea       ! fraction of area that is considered impermeable due to soil ice (-)
+  end associate
  end subroutine finalize_io_surfaceFlx
 
- subroutine finalize_out_surfaceFlx(out_surfaceFlx)
-  class(out_type_surfaceFlx),intent(in) :: out_surfaceFlx
+ subroutine finalize_out_surfaceFlx(out_surfaceFlx,io_soilLiqFlx,err,cmessage)
+  class(out_type_surfaceFlx),intent(in)  :: out_surfaceFlx ! output object for surfaceFlx
+  type(io_type_soilLiqFlx),intent(inout) :: io_soilLiqFlx  ! input-output class object for soilLiqFlx
+  integer(i4b),intent(out)  :: err       ! error code
+  character(*),intent(out)  :: cmessage  ! error message
+
+  associate(&
+   ! intent(out): surface runoff and infiltration
+   scalarSurfaceRunoff       => io_soilLiqFlx % scalarSurfaceRunoff, & ! surface runoff (m s-1)
+   scalarSurfaceInfiltration => io_soilLiqFlx % scalarInfiltration,  & ! surface infiltration rate (m s-1)
+   ! intent(inout): deriavtives in surface infiltration in the upper-most soil layer w.r.t ... 
+   dq_dHydStateLayerSurfVec => io_soilLiqFlx % dq_dHydStateLayerSurfVec, & ! ... hydrology state above soil snow or canopy and every soil layer (m s-1 or s-1)
+   dq_dNrgStateLayerSurfVec => io_soilLiqFlx % dq_dNrgStateLayerSurfVec  & ! ... temperature above soil snow or canopy and every soil layer (m s-1 or s-1)
+  &)
+   ! intent(out): surface runoff and infiltration
+   scalarSurfaceRunoff       = out_surfaceFlx % scalarSurfaceRunoff       ! surface runoff (m s-1)
+   scalarSurfaceInfiltration = out_surfaceFlx % scalarSurfaceInfiltration ! surface infiltration (m s-1)
+   ! intent(inout): deriavtives in surface infiltration in the upper-most soil layer w.r.t. ...
+   dq_dHydStateLayerSurfVec  = out_surfaceFlx % dq_dHydStateVec ! ... hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
+   dq_dNrgStateLayerSurfVec  = out_surfaceFlx % dq_dNrgStateVec ! ... energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
+   ! intent(out): error control
+   err      = out_surfaceFlx % err     ! error code
+   cmessage = out_surfaceFlx % message ! error message
+  end associate
  end subroutine finalize_out_surfaceFlx
  ! **** end surfaceFlx ****
 
