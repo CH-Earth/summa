@@ -1869,10 +1869,10 @@ contains
    ! intent(inout): deriavtives in surface infiltration in the upper-most soil layer w.r.t. ...
    dq_dHydStateLayerSurfVec  = out_surfaceFlx % dq_dHydStateVec ! ... hydrology state in above soil snow or canopy and every soil layer  (m s-1 or s-1)
    dq_dNrgStateLayerSurfVec  = out_surfaceFlx % dq_dNrgStateVec ! ... energy state in above soil snow or canopy and every soil layer (m s-1 K-1)
-   ! intent(out): error control
-   err      = out_surfaceFlx % err     ! error code
-   cmessage = out_surfaceFlx % message ! error message
   end associate
+  ! intent(out): error control
+  err      = out_surfaceFlx % err     ! error code
+  cmessage = out_surfaceFlx % message ! error message
  end subroutine finalize_out_surfaceFlx
  ! **** end surfaceFlx ****
 
