@@ -420,25 +420,43 @@ contains
   ! computing flux at the bottom of the layer
   do iLayer=ixTop,min(ixBot,nSoil-1)
 
-   ! initialize: interface local name space to iLayerFlux input object
-   call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
-                                  &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
+   call initialize_compute_interface_fluxes_derivatives(in_iLayerFlux)
 
-   ! update: compute fluxes at layer interface
-   call iLayerFlux(in_iLayerFlux,out_iLayerFlux)
+   call update_compute_interface_fluxes_derivatives(in_iLayerFlux,out_iLayerFlux)
 
-   ! finalize: interface iLayerFlux output object to local name space
-   associate(&
-    ! error control
-    err     => out_soilLiqFlx % err,                       & ! error code
-    message => out_soilLiqFlx % cmessage                   & ! error message
-   &)
-    call out_iLayerFlux % finalize(iLayer,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
-    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
-   end associate
+   call finalize_compute_interface_fluxes_derivatives(out_iLayerFlux); if (return_flag) return
 
-  end do  ! end looping through soil layers
+  end do 
  end subroutine compute_interface_fluxes_derivatives
+
+ subroutine initialize_compute_interface_fluxes_derivatives(in_iLayerFlux)
+  ! **** Initialize operations for compute_interface_fluxes_derivatives subroutine
+  type(in_type_iLayerFlux),intent(out) :: in_iLayerFlux  ! input data object for iLayerFlux
+  ! interface local name space to iLayerFlux input object
+  call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
+                                 &prog_data,mLayerDiffuse,dHydCond_dTemp,dHydCond_dVolLiq,dDiffuse_dVolLiq)
+ end subroutine initialize_compute_interface_fluxes_derivatives
+
+ subroutine update_compute_interface_fluxes_derivatives(in_iLayerFlux,out_iLayerFlux)
+  ! **** Update operations for compute_interface_fluxes_derivatives subroutine
+  type(in_type_iLayerFlux) ,intent(in)  :: in_iLayerFlux  ! input data object for iLayerFlux
+  type(out_type_iLayerFlux),intent(out) :: out_iLayerFlux ! output data object for iLayerFlux
+  ! compute fluxes at layer interface
+  call iLayerFlux(in_iLayerFlux,out_iLayerFlux)
+ end subroutine update_compute_interface_fluxes_derivatives
+
+ subroutine finalize_compute_interface_fluxes_derivatives(out_iLayerFlux)
+  ! **** Finalize operations for compute_interface_fluxes_derivatives subroutine
+  type(out_type_iLayerFlux),intent(in) :: out_iLayerFlux ! output data object for iLayerFlux
+  ! interface iLayerFlux output object to local name space
+  associate(&
+   err     => out_soilLiqFlx % err,                       & ! error code
+   message => out_soilLiqFlx % cmessage                   & ! error message
+  &)
+   call out_iLayerFlux % finalize(iLayer,nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse,err,cmessage)
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+  end associate
+ end subroutine finalize_compute_interface_fluxes_derivatives
 
  subroutine compute_drainage_flux
   ! **** Compute the drainage flux from the bottom of the soil profile and its derivative ***
