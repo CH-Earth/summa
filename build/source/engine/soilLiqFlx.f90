@@ -322,23 +322,44 @@ contains
   type(out_type_diagv_node) :: out_diagv_node ! output data object for diagv_node
 
   do iSoil=ixTop,min(ixBot+1,nSoil) ! loop through soil layers
-   ! initialize: interface local name space to input data object for diagv_node
-   call in_diagv_node % initialize(iSoil,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
 
-   ! update: compute diagnostic variables
-   call diagv_node(in_diagv_node,out_diagv_node)
+   call initialize_compute_diagnostic_variables(in_diagv_node)
 
-   ! finalize: interface output data object for diagv_node to local name space
-   associate(&
-    err          => out_soilLiqFlx % err,     & ! error code
-    message      => out_soilLiqFlx % cmessage & ! error message
-   &)
-    call out_diagv_node % finalize(iSoil,nSoil,io_soilLiqFlx,mLayerDiffuse,iceImpedeFac,&
-                                   &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
-    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
-   end associate
-  end do  ! end looping through soil layers
+   call update_compute_diagnostic_variables(in_diagv_node,out_diagv_node)
+
+   call finalize_compute_diagnostic_variables(out_diagv_node); if (return_flag) return
+
+  end do 
  end subroutine compute_diagnostic_variables
+
+ subroutine initialize_compute_diagnostic_variables(in_diagv_node)
+  ! **** Initialize operations for the compute_diagnostic_variables subroutine ****
+  type(in_type_diagv_node),intent(out) :: in_diagv_node  ! input data object for diagv_node
+  ! interface local name space to input data object for diagv_node
+  call in_diagv_node % initialize(iSoil,in_soilLiqFlx,model_decisions,diag_data,mpar_data,flux_data)
+ end subroutine initialize_compute_diagnostic_variables
+
+ subroutine update_compute_diagnostic_variables(in_diagv_node,out_diagv_node)
+  ! **** Update operations for the compute_diagnostic_variables subroutine ****
+  type(in_type_diagv_node) ,intent(in)  :: in_diagv_node  ! input data object for diagv_node
+  type(out_type_diagv_node),intent(out) :: out_diagv_node ! output data object for diagv_node
+  ! compute diagnostic variables
+  call diagv_node(in_diagv_node,out_diagv_node)
+ end subroutine update_compute_diagnostic_variables
+
+ subroutine finalize_compute_diagnostic_variables(out_diagv_node)
+  ! **** Finalize operations for the compute_diagnostic_variables subroutine ****
+  type(out_type_diagv_node),intent(in) :: out_diagv_node ! output data object for diagv_node
+  ! interface output data object for diagv_node to local name space
+  associate(&
+   err          => out_soilLiqFlx % err,     & ! error code
+   message      => out_soilLiqFlx % cmessage & ! error message
+  &)
+   call out_diagv_node % finalize(iSoil,nSoil,io_soilLiqFlx,mLayerDiffuse,iceImpedeFac,&
+                                  &dHydCond_dVolLiq,dDiffuse_dVolLiq,dHydCond_dTemp,err,cmessage)
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+  end associate
+ end subroutine finalize_compute_diagnostic_variables
 
  subroutine compute_surface_infiltration
   ! **** compute infiltration at the surface and its derivative w.r.t. mass in the upper soil layer ****
