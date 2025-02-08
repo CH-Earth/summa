@@ -66,13 +66,8 @@ contains
  USE globalData,only:elapsedRestart                          ! elapsed time to read model restart files
  ! model decisions
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
-  localColumn,     & ! separate groundwater representation in each local soil column
-  singleBasin        ! single groundwater store over the entire basin
-! look-up values for the numerical method
-USE mDecisions_module,only:&
-  homegrown,       & ! homegrown backward Euler solution using concepts from numerical recipes
-  kinsol,          & ! SUNDIALS backward Euler solution using Kinsol
-  ida                ! SUNDIALS solution using IDA
+   localColumn,    & ! separate groundwater representation in each local soil column
+   singleBasin       ! single groundwater store over the entire basin
  ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
  USE mDecisions_module,only:&
    closedForm,     & ! use temperature with closed form heat capacity
@@ -102,7 +97,6 @@ USE mDecisions_module,only:&
  ! associate to elements in the data structure
  summaVars: associate(& 
   ! model decisions
-  ixNumericalMethod    => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& !choice of numerical solver
   ixNrgConserv         => model_decisions(iLookDECISIONS%nrgConserv)%iDecision   ,& !choice of variable in either energy backward Euler residual or IDA state variable
   spatial_gw           => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& !choice of method for the spatial representation of groundwater
   aquiferIni           => model_decisions(iLookDECISIONS%aquiferIni)%iDecision   ,& !choice of full or empty aquifer at start
@@ -148,7 +142,7 @@ USE mDecisions_module,only:&
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables
                  indxStruct,                    & ! intent(inout): model indices
-                 no_icond_enth,                 & ! intent(in):    flag that enthalpy not in initial conditions
+                 no_icond_enth,                 & ! intent(out):   flag that enthalpy not in initial conditions
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
