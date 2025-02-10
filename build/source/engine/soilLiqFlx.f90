@@ -499,7 +499,8 @@ contains
 
   ! no dependence on the aquifer for drainage
   associate(&
-   dq_dHydStateBelow => io_soilLiqFlx % dq_dHydStateBelow,& ! ... state variables in the layer below
+   ! derivatives in flux w.r.t. ...
+   dq_dHydStateBelow => io_soilLiqFlx % dq_dHydStateBelow,& ! ... hydrology state variables in the layer below
    dq_dNrgStateBelow => io_soilLiqFlx % dq_dNrgStateBelow & ! ... temperature in the layer below (m s-1 K-1)
   &)
    dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
