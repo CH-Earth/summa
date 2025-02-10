@@ -430,7 +430,7 @@ contains
  end subroutine compute_interface_fluxes_derivatives
 
  subroutine initialize_compute_interface_fluxes_derivatives(in_iLayerFlux)
-  ! **** Initialize operations for compute_interface_fluxes_derivatives subroutine
+  ! **** Initialize operations for compute_interface_fluxes_derivatives subroutine ****
   type(in_type_iLayerFlux),intent(out) :: in_iLayerFlux  ! input data object for iLayerFlux
   ! interface local name space to iLayerFlux input object
   call in_iLayerFlux % initialize(iLayer,nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
@@ -438,7 +438,7 @@ contains
  end subroutine initialize_compute_interface_fluxes_derivatives
 
  subroutine update_compute_interface_fluxes_derivatives(in_iLayerFlux,out_iLayerFlux)
-  ! **** Update operations for compute_interface_fluxes_derivatives subroutine
+  ! **** Update operations for compute_interface_fluxes_derivatives subroutine ****
   type(in_type_iLayerFlux) ,intent(in)  :: in_iLayerFlux  ! input data object for iLayerFlux
   type(out_type_iLayerFlux),intent(out) :: out_iLayerFlux ! output data object for iLayerFlux
   ! compute fluxes at layer interface
@@ -459,16 +459,36 @@ contains
  end subroutine finalize_compute_interface_fluxes_derivatives
 
  subroutine compute_drainage_flux
-  ! **** Compute the drainage flux from the bottom of the soil profile and its derivative ***
+  ! **** Compute the drainage flux from the bottom of the soil profile and its derivative ****
   type(in_type_qDrainFlux)  :: in_qDrainFlux
   type(out_type_qDrainFlux) :: out_qDrainFlux
 
+  call initialize_compute_drainage_flux(in_qDrainFlux)
+
+  call update_compute_drainage_flux(in_qDrainFlux,out_qDrainFlux)
+
+  call finalize_compute_drainage_flux(out_qDrainFlux); if (return_flag) return
+
+ end subroutine compute_drainage_flux
+
+ subroutine initialize_compute_drainage_flux(in_qDrainFlux)
+  ! **** Initialize operations for compute_drainage_flux ****
+  type(in_type_qDrainFlux),intent(out) :: in_qDrainFlux
   call in_qDrainFlux % initialize(nSoil,ibeg,iend,in_soilLiqFlx,io_soilLiqFlx,model_decisions,&
                                  &prog_data,mpar_data,flux_data,diag_data,iceImpedeFac,&
                                  &dHydCond_dVolLiq,dHydCond_dTemp)
-
+ end subroutine initialize_compute_drainage_flux
+ 
+ subroutine update_compute_drainage_flux(in_qDrainFlux,out_qDrainFlux)
+  ! **** Update operations for compute_drainage_flux ****
+  type(in_type_qDrainFlux) ,intent(in)  :: in_qDrainFlux
+  type(out_type_qDrainFlux),intent(out) :: out_qDrainFlux
   call qDrainFlux(in_qDrainFlux,out_qDrainFlux)
+ end subroutine update_compute_drainage_flux
 
+ subroutine finalize_compute_drainage_flux(out_qDrainFlux)
+  ! **** finalize operations for compute_drainage_flux ****
+  type(out_type_qDrainFlux),intent(in) :: out_qDrainFlux
   associate(&
    err     => out_soilLiqFlx % err,                       & ! error code
    message => out_soilLiqFlx % cmessage                   & ! error message
@@ -485,9 +505,7 @@ contains
    dq_dHydStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
    dq_dNrgStateBelow(nSoil) = 0._rkind  ! keep this here in case we want to couple some day....
   end associate
-
- end subroutine compute_drainage_flux
-
+ end subroutine finalize_compute_drainage_flux
 end subroutine soilLiqFlx
 
 ! ***************************************************************************************************************
