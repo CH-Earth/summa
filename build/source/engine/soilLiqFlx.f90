@@ -385,7 +385,7 @@ contains
   call io_surfaceFlx % initialize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse)
 
   ! ** Update **
-  call surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+  call update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
 
   ! ** Finalize **
   call  io_surfaceFlx % finalize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse)
@@ -411,6 +411,14 @@ contains
    dq_dNrgStateBelow(0) = 0._rkind ! contribution will be in dq_dNrgStateLayerSurfVec(1)
   end associate
  end subroutine compute_surface_infiltration
+
+ subroutine update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+  ! **** Update operations for compute_surface_infiltration ****
+  type(in_type_surfaceFlx) ,intent(in)    ::  in_surfaceFlx
+  type(io_type_surfaceFlx) ,intent(inout) ::  io_surfaceFlx
+  type(out_type_surfaceFlx),intent(out)   :: out_surfaceFlx
+  call surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+ end subroutine update_compute_surface_infiltration
 
  subroutine compute_interface_fluxes_derivatives
   ! **** compute fluxes and derivatives at layer interfaces ****
