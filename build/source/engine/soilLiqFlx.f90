@@ -282,7 +282,7 @@ contains
 
   ! * compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1) *
   associate(&
-   mLayerTranspire           => io_soilLiqFlx % mLayerTranspire,    & ! intent(inout): transpiration loss from each soil layer (m s-1)
+   mLayerTranspire           => io_soilLiqFlx % mLayerTranspire,   & ! intent(inout): transpiration loss from each soil layer (m s-1)
    scalarCanopyTranspiration => in_soilLiqFlx % scalarCanopyTranspiration, & ! intent(in): canopy transpiration (kg m-2 s-1)
    ! intent(inout): derivatives in the soil layer transpiration flux ...
    mLayerdTrans_dCanWat  => io_soilLiqFlx % mLayerdTrans_dCanWat,  & ! ... w.r.t. canopy total water
