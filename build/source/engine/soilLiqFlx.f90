@@ -367,7 +367,18 @@ contains
   type(io_type_surfaceFlx)  ::  io_surfaceFlx
   type(out_type_surfaceFlx) :: out_surfaceFlx
 
-  ! ** Initialize **
+  call initialize_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx)
+
+  call update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+
+  call finalize_compute_surface_infiltration(io_surfaceFlx,out_surfaceFlx); if (return_flag) return
+
+ end subroutine compute_surface_infiltration
+
+ subroutine initialize_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx)
+  ! **** Initialize operations for compute_surface_infiltration ****
+  type(in_type_surfaceFlx),intent(out) :: in_surfaceFlx
+  type(io_type_surfaceFlx),intent(out) :: io_surfaceFlx
   ! set derivative w.r.t. state above to zero (does not exist)
   associate(&
    ! intent(inout): flux derivatives ... 
@@ -383,11 +394,22 @@ contains
                                  &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                  &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
   call io_surfaceFlx % initialize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse)
+ end subroutine initialize_compute_surface_infiltration
 
-  ! ** Update **
-  call update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+ subroutine update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+  ! **** Update operations for compute_surface_infiltration ****
+  type(in_type_surfaceFlx) ,intent(in)    ::  in_surfaceFlx
+  type(io_type_surfaceFlx) ,intent(inout) ::  io_surfaceFlx
+  type(out_type_surfaceFlx),intent(out)   :: out_surfaceFlx
+  call surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
+ end subroutine update_compute_surface_infiltration
 
-  ! ** Finalize **
+ subroutine finalize_compute_surface_infiltration(io_surfaceFlx,out_surfaceFlx)
+  ! **** Finalize operations for compute_surface_infiltration ****
+  type(io_type_surfaceFlx) ,intent(in) :: io_surfaceFlx
+  type(out_type_surfaceFlx),intent(in) :: out_surfaceFlx
+
+  ! interface object data components with local name space
   call  io_surfaceFlx % finalize(nSoil,io_soilLiqFlx,iLayerHydCond,iLayerDiffuse)
   associate(&
    err     => out_soilLiqFlx % err,     & ! error code
@@ -410,15 +432,7 @@ contains
    dq_dHydStateBelow(0) = 0._rkind ! contribution will be in dq_dHydStateLayerSurfVec(1)
    dq_dNrgStateBelow(0) = 0._rkind ! contribution will be in dq_dNrgStateLayerSurfVec(1)
   end associate
- end subroutine compute_surface_infiltration
-
- subroutine update_compute_surface_infiltration(in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
-  ! **** Update operations for compute_surface_infiltration ****
-  type(in_type_surfaceFlx) ,intent(in)    ::  in_surfaceFlx
-  type(io_type_surfaceFlx) ,intent(inout) ::  io_surfaceFlx
-  type(out_type_surfaceFlx),intent(out)   :: out_surfaceFlx
-  call surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
- end subroutine update_compute_surface_infiltration
+ end subroutine finalize_compute_surface_infiltration
 
  subroutine compute_interface_fluxes_derivatives
   ! **** compute fluxes and derivatives at layer interfaces ****
