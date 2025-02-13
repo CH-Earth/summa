@@ -1239,7 +1239,33 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
   real(rkind)                      :: zWater                  ! effective water table depth (m)
   real(rkind)                      :: nodePsi                 ! matric head in the lowest unsaturated node (m)
   real(rkind)                      :: cflux                   ! capillary flux (m s-1)
+  ! error control
+  logical(lgt)                     :: return_flag             ! flag for return statements
   ! -----------------------------------------------------------------------------------------------------------------------------
+
+   call initialize_qDrainFlux
+
+   call update_qDrainFlux;   if (return_flag) return
+
+   call finalize_qDrainFlux; if (return_flag) return
+
+contains
+
+ subroutine initialize_qDrainFlux
+  ! ** Initialize operations for qDrainFlux **
+  return_flag=.false. ! initialize return flag
+  associate(&
+   ! output: error control
+   err     => out_qDrainFlux % err    , & ! error code
+   message => out_qDrainFlux % message  & ! error message
+  &)
+   ! initialize error control
+   err=0; message="qDrainFlux/"
+  end associate
+ end subroutine initialize_qDrainFlux
+
+ subroutine update_qDrainFlux
+  ! ** Update operations for qDrainFlux **
   associate(&
    ! input: model control
    deriv_desired => in_qDrainFlux % deriv_desired, &          ! flag to indicate if derivatives are desired
@@ -1286,9 +1312,6 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
    message => out_qDrainFlux % message  &                     ! error message
   &)
 
-   ! initialize error control
-   err=0; message="qDrainFlux/"
-
    ! determine lower boundary condition
    select case(bc_lower)
 
@@ -1307,7 +1330,7 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
            bottomDiffuse = realMissing
            ! compute the capillary flux
            cflux = -bottomHydCond*(lowerBoundHead  - nodeMatricHeadLiq) / (nodeDepth*0.5_rkind)
-         case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
+         case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
        end select  ! end select form of Richards' eqn
        scalarDrainage = cflux + bottomHydCond
 
@@ -1316,7 +1339,7 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
          select case(ixRichards)  ! select form of Richards' equation
            case(moisture); dq_dHydStateUnsat = bottomDiffuse/(nodeDepth/2._rkind)
            case(mixdform); dq_dHydStateUnsat = bottomHydCond/(nodeDepth/2._rkind)
-           case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
+           case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
          end select
          ! energy derivatives
          dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHeadLiq)/(nodeDepth*0.5_rkind) + dHydCond_dTemp/2._rkind
@@ -1339,10 +1362,10 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
          select case(ixRichards)  ! select form of Richards' equation
            case(moisture); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * node_dPsi_dTheta*exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
            case(mixdform); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
-           case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
+           case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
          end select
          ! energy derivatives
-         err=20; message=trim(message)//"not yet implemented energy derivatives"; return
+         err=20; message=trim(message)//"not yet implemented energy derivatives"; return_flag=.true.; return
        else     ! do not desire derivatives
          dq_dHydStateUnsat = realMissing
          dq_dNrgStateUnsat = realMissing
@@ -1356,7 +1379,7 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
          select case(ixRichards)  ! select form of Richards' equation
            case(moisture); dq_dHydStateUnsat = dHydCond_dVolLiq*kAnisotropic
            case(mixdform); dq_dHydStateUnsat = dHydCond_dMatric*kAnisotropic
-           case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
+           case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
          end select
          ! energy derivatives
          dq_dNrgStateUnsat = dHydCond_dTemp*kAnisotropic
@@ -1375,11 +1398,28 @@ subroutine qDrainFlux(in_qDrainFlux,out_qDrainFlux)
          dq_dNrgStateUnsat = realMissing
        end if
 
-     case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return
+     case default; err=20; message=trim(message)//'unknown lower boundary condition for soil hydrology'; return_flag=.true.; return
 
    end select ! end select type of boundary condition
 
   end associate
+ end subroutine update_qDrainFlux
+
+ subroutine finalize_qDrainFlux
+  ! ** Finalize operations for qDrainFlux **
+  associate(&
+   ! output: error control
+   err     => out_qDrainFlux % err    , & ! error code
+   message => out_qDrainFlux % message  & ! error message
+  &)
+   ! final error check
+   if (err /= 0_i4b) then
+    message=trim(message)//'unanticipated error in qDrainFlux'
+    return_flag=.true.; return
+   end if
+  end associate
+ end subroutine finalize_qDrainFlux
+
 end subroutine qDrainFlux
 
 end module soilLiqFlx_module
