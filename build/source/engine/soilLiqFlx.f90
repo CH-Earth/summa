@@ -1085,137 +1085,203 @@ subroutine surfaceFlx(io_soilLiqFlx,in_surfaceFlx,io_surfaceFlx,out_surfaceFlx)
   end associate
 end subroutine surfaceFlx
 
-
 ! ***************************************************************************************************************
 ! private subroutine iLayerFlux: compute the fluxes and derivatives at layer interfaces
 ! ***************************************************************************************************************
 subroutine iLayerFlux(in_iLayerFlux,out_iLayerFlux)
-  ! -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ! ---------------------------------------------------------------------------------------------------------------------------
   ! input: model control, state variables, coordinate variables, temperature derivatives, transmittance variables
-  type(in_type_iLayerFlux),intent(in)   :: in_iLayerFlux            ! class object for input data
+  type(in_type_iLayerFlux),intent(in)   :: in_iLayerFlux   ! class object for input data
   ! output: transmittance variables and vertical flux at layer interface, derivatives, and error control
-  type(out_type_iLayerFlux),intent(out) :: out_iLayerFlux           ! class object for output data
-  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  type(out_type_iLayerFlux),intent(out) :: out_iLayerFlux  ! class object for output data
+  ! ---------------------------------------------------------------------------------------------------------------------------
   ! local variables (named variables to provide index of 2-element vectors)
-  integer(i4b),parameter           :: ixUpper=1                   ! index of upper node in the 2-element vectors
-  integer(i4b),parameter           :: ixLower=2                   ! index of lower node in the 2-element vectors
-  logical(lgt),parameter           :: useGeometric=.false.        ! switch between the arithmetic and geometric mean
+  integer(i4b),parameter           :: ixUpper=1            ! index of upper node in the 2-element vectors
+  integer(i4b),parameter           :: ixLower=2            ! index of lower node in the 2-element vectors
+  logical(lgt),parameter           :: useGeometric=.false. ! switch between the arithmetic and geometric mean
   ! local variables (Darcy flux)
-  real(rkind)                      :: dPsi                        ! spatial difference in matric head (m)
-  real(rkind)                      :: dLiq                        ! spatial difference in volumetric liquid water (-)
-  real(rkind)                      :: dz                          ! spatial difference in layer mid-points (m)
-  real(rkind)                      :: cflux                       ! capillary flux (m s-1)
-  ! local variables (derivative in Darcy's flux)
-  real(rkind)                      :: dHydCondIface_dVolLiqAbove  ! derivative in hydraulic conductivity at layer interface w.r.t. volumetric liquid water content in layer above
-  real(rkind)                      :: dHydCondIface_dVolLiqBelow  ! derivative in hydraulic conductivity at layer interface w.r.t. volumetric liquid water content in layer below
-  real(rkind)                      :: dDiffuseIface_dVolLiqAbove  ! derivative in hydraulic diffusivity at layer interface w.r.t. volumetric liquid water content in layer above
-  real(rkind)                      :: dDiffuseIface_dVolLiqBelow  ! derivative in hydraulic diffusivity at layer interface w.r.t. volumetric liquid water content in layer below
-  real(rkind)                      :: dHydCondIface_dMatricAbove  ! derivative in hydraulic conductivity at layer interface w.r.t. matric head in layer above
-  real(rkind)                      :: dHydCondIface_dMatricBelow  ! derivative in hydraulic conductivity at layer interface w.r.t. matric head in layer below
- ! -----------------------------------------------------------------------------------------------------------------------------------------------------------------
- associate(&
-  ! input: model control
-  deriv_desired => in_iLayerFlux % deriv_desired, & ! flag indicating if derivatives are desired
-  ixRichards    => in_iLayerFlux % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
-  ! input: state variables
-  nodeMatricHeadLiqTrial => in_iLayerFlux % nodeMatricHeadLiqTrial, & ! liquid matric head at the soil nodes (m)
-  nodeVolFracLiqTrial    => in_iLayerFlux % nodeVolFracLiqTrial   , & ! volumetric fraction of liquid water at the soil nodes (-)
-  ! input: model coordinate variables
-  nodeHeight => in_iLayerFlux % nodeHeight, & ! height at the mid-point of the lower layer (m)
-  ! input: temperature derivatives
-  dPsiLiq_dTemp   => in_iLayerFlux % dPsiLiq_dTemp , & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-  dHydCond_dTemp  => in_iLayerFlux % dHydCond_dTemp, & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  ! input: transmittance
-  nodeHydCondTrial => in_iLayerFlux % nodeHydCondTrial, & ! hydraulic conductivity at layer mid-points (m s-1)
-  nodeDiffuseTrial => in_iLayerFlux % nodeDiffuseTrial, & ! diffusivity at layer mid-points (m2 s-1)
-  ! input: transmittance derivatives
-  dHydCond_dVolLiq => in_iLayerFlux % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  dDiffuse_dVolLiq => in_iLayerFlux % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-  dHydCond_dMatric => in_iLayerFlux % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
-  ! output: tranmsmittance at the layer interface (scalars)
-  iLayerHydCond => out_iLayerFlux % iLayerHydCond, & ! hydraulic conductivity at the interface between layers (m s-1)
-  iLayerDiffuse => out_iLayerFlux % iLayerDiffuse, & ! hydraulic diffusivity at the interface between layers (m2 s-1)
-  ! output: vertical flux at the layer interface (scalars)
-  iLayerLiqFluxSoil => out_iLayerFlux % iLayerLiqFluxSoil, & ! vertical flux of liquid water at the layer interface (m s-1)
-  ! output: derivatives in fluxes w.r.t. ...  
-  dq_dHydStateAbove => out_iLayerFlux % dq_dHydStateAbove, & ! ... matric head or volumetric lquid water in the layer above (m s-1 or s-1)
-  dq_dHydStateBelow => out_iLayerFlux % dq_dHydStateBelow, & ! ... matric head or volumetric lquid water in the layer below (m s-1 or s-1)
-  ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
-  dq_dNrgStateAbove => out_iLayerFlux % dq_dNrgStateAbove, & ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
-  dq_dNrgStateBelow => out_iLayerFlux % dq_dNrgStateBelow, & ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
-  ! output: error control
-  err     => out_iLayerFlux % err    , & ! error code
-  message => out_iLayerFlux % message  & ! error message
- &)
+  real(rkind)                      :: dPsi                 ! spatial difference in matric head (m)
+  real(rkind)                      :: dLiq                 ! spatial difference in volumetric liquid water (-)
+  real(rkind)                      :: dz                   ! spatial difference in layer mid-points (m)
+  real(rkind)                      :: cflux                ! capillary flux (m s-1)
+  ! error control
+  logical(lgt)                     :: return_flag          ! flag for return statements
+  ! ---------------------------------------------------------------------------------------------------------------------------
 
-  ! initialize error control
-  err=0; message="iLayerFlux/" ! initialize error control
+  call initialize_iLayerFlux
+
+  call update_iLayerFlux;   if (return_flag) return
  
-  ! *****
-  ! compute the vertical flux of liquid water
-  ! compute the hydraulic conductivity at the interface
-  if (useGeometric) then
-    iLayerHydCond   = sqrt(nodeHydCondTrial(ixLower)   * nodeHydCondTrial(ixUpper))
-  else
-    iLayerHydCond   = (nodeHydCondTrial(ixLower)   + nodeHydCondTrial(ixUpper))*0.5_rkind
-  end if
-  
-  dz = nodeHeight(ixLower) - nodeHeight(ixUpper)
-  ! compute the capillary flux
-  select case(ixRichards)  ! select form of Richards' equation
-    case(moisture)
-    iLayerDiffuse = sqrt(nodeDiffuseTrial(ixLower) * nodeDiffuseTrial(ixUpper))
-    dLiq          = nodeVolFracLiqTrial(ixLower) - nodeVolFracLiqTrial(ixUpper)
-    cflux         = -iLayerDiffuse * dLiq/dz
-    case(mixdform)
-    iLayerDiffuse = realMissing
-    dPsi          = nodeMatricHeadLiqTrial(ixLower) - nodeMatricHeadLiqTrial(ixUpper)
-    cflux         = -iLayerHydCond * dPsi/dz
-    case default; err=10; message=trim(message)//"unable to identify option for Richards' equation"; return
-  end select
-  ! compute the total flux (add gravity flux, positive downwards)
-  iLayerLiqFluxSoil = cflux + iLayerHydCond
+  call finalize_iLayerFlux; if (return_flag) return
+
+contains
+
+ subroutine initialize_iLayerFlux
+  ! **** Initialize operations for iLayerFlux ****
+  return_flag=.false. ! initialize return flag
+  associate(&
+   err     => out_iLayerFlux % err    , & ! error code
+   message => out_iLayerFlux % message  & ! error message
+  &)
+   ! initialize error control
+   err=0; message="iLayerFlux/" ! initialize error control
+  end associate
+ end subroutine initialize_iLayerFlux
  
+ subroutine update_iLayerFlux
+  ! **** Update operations for iLayerFlux ****
+ 
+  ! ** compute the fluxes
+  call update_iLayerFlux_fluxes; if (return_flag) return
+
   ! ** compute the derivatives
-  if (deriv_desired) then
-    select case(ixRichards)  ! select form of Richards' equation
-      case(moisture)
-        ! still need to implement arithmetric mean for the moisture-based form
-        if (.not.useGeometric) then
-          message=trim(message)//'only currently implemented for geometric mean -- change local flag'
-          err=20; return
-        end if
-        ! derivatives in hydraulic conductivity at the layer interface (m s-1)
-        dHydCondIface_dVolLiqAbove = dHydCond_dVolLiq(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_rkind/max(iLayerHydCond,verySmall)
-        dHydCondIface_dVolLiqBelow = dHydCond_dVolLiq(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_rkind/max(iLayerHydCond,verySmall)
-        ! derivatives in hydraulic diffusivity at the layer interface (m2 s-1)
-        dDiffuseIface_dVolLiqAbove = dDiffuse_dVolLiq(ixUpper)*nodeDiffuseTrial(ixLower) * 0.5_rkind/max(iLayerDiffuse,verySmall)
-        dDiffuseIface_dVolLiqBelow = dDiffuse_dVolLiq(ixLower)*nodeDiffuseTrial(ixUpper) * 0.5_rkind/max(iLayerDiffuse,verySmall)
-        ! derivatives in the flux w.r.t. volumetric liquid water content
-        dq_dHydStateAbove = -dDiffuseIface_dVolLiqAbove*dLiq/dz + iLayerDiffuse/dz + dHydCondIface_dVolLiqAbove
-        dq_dHydStateBelow = -dDiffuseIface_dVolLiqBelow*dLiq/dz - iLayerDiffuse/dz + dHydCondIface_dVolLiqBelow
-      case(mixdform)
-        ! derivatives in hydraulic conductivity
-        if (useGeometric) then
-          dHydCondIface_dMatricAbove = dHydCond_dMatric(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_rkind/max(iLayerHydCond,verySmall)
-          dHydCondIface_dMatricBelow = dHydCond_dMatric(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_rkind/max(iLayerHydCond,verySmall)
-        else
-          dHydCondIface_dMatricAbove = dHydCond_dMatric(ixUpper)/2._rkind
-          dHydCondIface_dMatricBelow = dHydCond_dMatric(ixLower)/2._rkind
-        end if
-        ! derivatives in the flux w.r.t. matric head
-        dq_dHydStateAbove = -dHydCondIface_dMatricAbove*dPsi/dz + iLayerHydCond/dz + dHydCondIface_dMatricAbove
-        dq_dHydStateBelow = -dHydCondIface_dMatricBelow*dPsi/dz - iLayerHydCond/dz + dHydCondIface_dMatricBelow
-        ! derivative in the flux w.r.t. temperature
-        dq_dNrgStateAbove = -(dHydCond_dTemp(ixUpper)/2._rkind)*dPsi/dz + iLayerHydCond*dPsiLiq_dTemp(ixUpper)/dz + dHydCond_dTemp(ixUpper)/2._rkind
-        dq_dNrgStateBelow = -(dHydCond_dTemp(ixLower)/2._rkind)*dPsi/dz - iLayerHydCond*dPsiLiq_dTemp(ixLower)/dz + dHydCond_dTemp(ixLower)/2._rkind
-      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
-    end select
+  if (in_iLayerFlux % deriv_desired) then
+    call update_iLayerFlux_derivatives; if (return_flag) return
   else
-    dq_dHydStateAbove = realMissing
-    dq_dHydStateBelow = realMissing
+   ! output: derivatives in fluxes w.r.t. ...  
+   out_iLayerFlux % dq_dHydStateAbove = realMissing ! ... matric head or volumetric lquid water in the layer above (m s-1 or s-1)
+   out_iLayerFlux % dq_dHydStateBelow = realMissing ! ... matric head or volumetric lquid water in the layer below (m s-1 or s-1)
   end if
- end associate
+ end subroutine update_iLayerFlux
+ 
+ subroutine update_iLayerFlux_fluxes
+  ! **** Update operations for iLayerFlux: compute fluxes ****
+  associate(&
+   ! input: model control
+   ixRichards    => in_iLayerFlux % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state variables
+   nodeMatricHeadLiqTrial => in_iLayerFlux % nodeMatricHeadLiqTrial, & ! liquid matric head at the soil nodes (m)
+   nodeVolFracLiqTrial    => in_iLayerFlux % nodeVolFracLiqTrial   , & ! volumetric fraction of liquid water at the soil nodes (-)
+   ! input: model coordinate variables
+   nodeHeight => in_iLayerFlux % nodeHeight, & ! height at the mid-point of the lower layer (m)
+   ! input: transmittance
+   nodeHydCondTrial => in_iLayerFlux % nodeHydCondTrial, & ! hydraulic conductivity at layer mid-points (m s-1)
+   nodeDiffuseTrial => in_iLayerFlux % nodeDiffuseTrial, & ! diffusivity at layer mid-points (m2 s-1)
+   ! output: tranmsmittance at the layer interface (scalars)
+   iLayerHydCond => out_iLayerFlux % iLayerHydCond, & ! hydraulic conductivity at the interface between layers (m s-1)
+   iLayerDiffuse => out_iLayerFlux % iLayerDiffuse, & ! hydraulic diffusivity at the interface between layers (m2 s-1)
+   ! output: vertical flux at the layer interface (scalars)
+   iLayerLiqFluxSoil => out_iLayerFlux % iLayerLiqFluxSoil, & ! vertical flux of liquid water at the layer interface (m s-1)
+   ! output: error control
+   err     => out_iLayerFlux % err    , & ! error code
+   message => out_iLayerFlux % message  & ! error message
+  &)
+
+   ! compute the vertical flux of liquid water
+   ! compute the hydraulic conductivity at the interface
+   if (useGeometric) then
+     iLayerHydCond   = sqrt(nodeHydCondTrial(ixLower)   * nodeHydCondTrial(ixUpper))
+   else
+     iLayerHydCond   = (nodeHydCondTrial(ixLower)   + nodeHydCondTrial(ixUpper))*0.5_rkind
+   end if
+   
+   dz = nodeHeight(ixLower) - nodeHeight(ixUpper)
+   ! compute the capillary flux
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture)
+      iLayerDiffuse = sqrt(nodeDiffuseTrial(ixLower) * nodeDiffuseTrial(ixUpper))
+      dLiq          = nodeVolFracLiqTrial(ixLower) - nodeVolFracLiqTrial(ixUpper)
+      cflux         = -iLayerDiffuse * dLiq/dz
+     case(mixdform)
+      iLayerDiffuse = realMissing
+      dPsi          = nodeMatricHeadLiqTrial(ixLower) - nodeMatricHeadLiqTrial(ixUpper)
+      cflux         = -iLayerHydCond * dPsi/dz
+     case default; err=10; message=trim(message)//"unable to identify option for Richards' equation"; return_flag=.true.; return
+   end select
+   ! compute the total flux (add gravity flux, positive downwards)
+   iLayerLiqFluxSoil = cflux + iLayerHydCond
+
+  end associate
+ end subroutine update_iLayerFlux_fluxes
+
+ subroutine update_iLayerFlux_derivatives
+  ! **** Update operations for iLayerFlux: compute derivatives ****
+  ! * local variables (derivative in Darcy's flux) *
+  ! deriviatives at the layer interface
+  real(rkind) :: dHydCondIface_dVolLiqAbove  ! hydraulic conductivity w.r.t. volumetric liquid water content in layer above
+  real(rkind) :: dHydCondIface_dVolLiqBelow  ! hydraulic conductivity w.r.t. volumetric liquid water content in layer below
+  real(rkind) :: dDiffuseIface_dVolLiqAbove  ! hydraulic diffusivity  w.r.t. volumetric liquid water content in layer above
+  real(rkind) :: dDiffuseIface_dVolLiqBelow  ! hydraulic diffusivity  w.r.t. volumetric liquid water content in layer below
+  real(rkind) :: dHydCondIface_dMatricAbove  ! hydraulic conductivity w.r.t. matric head in layer above
+  real(rkind) :: dHydCondIface_dMatricBelow  ! hydraulic conductivity w.r.t. matric head in layer below
+  associate(&
+   ! input: model control
+   ixRichards    => in_iLayerFlux % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: temperature derivatives
+   dPsiLiq_dTemp   => in_iLayerFlux % dPsiLiq_dTemp , & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   dHydCond_dTemp  => in_iLayerFlux % dHydCond_dTemp, & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! input: transmittance
+   nodeHydCondTrial => in_iLayerFlux % nodeHydCondTrial, & ! hydraulic conductivity at layer mid-points (m s-1)
+   nodeDiffuseTrial => in_iLayerFlux % nodeDiffuseTrial, & ! diffusivity at layer mid-points (m2 s-1)
+   ! input: transmittance derivatives
+   dHydCond_dVolLiq => in_iLayerFlux % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   dDiffuse_dVolLiq => in_iLayerFlux % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   dHydCond_dMatric => in_iLayerFlux % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+   ! output: tranmsmittance at the layer interface (scalars)
+   iLayerHydCond => out_iLayerFlux % iLayerHydCond, & ! hydraulic conductivity at the interface between layers (m s-1)
+   iLayerDiffuse => out_iLayerFlux % iLayerDiffuse, & ! hydraulic diffusivity at the interface between layers (m2 s-1)
+   ! output: derivatives in fluxes w.r.t. ...  
+   dq_dHydStateAbove => out_iLayerFlux % dq_dHydStateAbove, & ! ... matric head or volumetric lquid water in the layer above (m s-1 or s-1)
+   dq_dHydStateBelow => out_iLayerFlux % dq_dHydStateBelow, & ! ... matric head or volumetric lquid water in the layer below (m s-1 or s-1)
+   ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
+   dq_dNrgStateAbove => out_iLayerFlux % dq_dNrgStateAbove, & ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
+   dq_dNrgStateBelow => out_iLayerFlux % dq_dNrgStateBelow, & ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
+   ! output: error control
+   err     => out_iLayerFlux % err    , & ! error code
+   message => out_iLayerFlux % message  & ! error message
+  &)
+
+   select case(ixRichards)  ! select form of Richards' equation
+     case(moisture)
+       ! still need to implement arithmetric mean for the moisture-based form
+       if (.not.useGeometric) then
+         message=trim(message)//'only currently implemented for geometric mean -- change local flag'
+         err=20; return_flag=.true.; return
+       end if
+       ! derivatives in hydraulic conductivity at the layer interface (m s-1)
+       dHydCondIface_dVolLiqAbove = dHydCond_dVolLiq(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_rkind/max(iLayerHydCond,verySmall)
+       dHydCondIface_dVolLiqBelow = dHydCond_dVolLiq(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_rkind/max(iLayerHydCond,verySmall)
+       ! derivatives in hydraulic diffusivity at the layer interface (m2 s-1)
+       dDiffuseIface_dVolLiqAbove = dDiffuse_dVolLiq(ixUpper)*nodeDiffuseTrial(ixLower) * 0.5_rkind/max(iLayerDiffuse,verySmall)
+       dDiffuseIface_dVolLiqBelow = dDiffuse_dVolLiq(ixLower)*nodeDiffuseTrial(ixUpper) * 0.5_rkind/max(iLayerDiffuse,verySmall)
+       ! derivatives in the flux w.r.t. volumetric liquid water content
+       dq_dHydStateAbove = -dDiffuseIface_dVolLiqAbove*dLiq/dz + iLayerDiffuse/dz + dHydCondIface_dVolLiqAbove
+       dq_dHydStateBelow = -dDiffuseIface_dVolLiqBelow*dLiq/dz - iLayerDiffuse/dz + dHydCondIface_dVolLiqBelow
+     case(mixdform)
+       ! derivatives in hydraulic conductivity
+       if (useGeometric) then
+         dHydCondIface_dMatricAbove = dHydCond_dMatric(ixUpper)*nodeHydCondTrial(ixLower) * 0.5_rkind/max(iLayerHydCond,verySmall)
+         dHydCondIface_dMatricBelow = dHydCond_dMatric(ixLower)*nodeHydCondTrial(ixUpper) * 0.5_rkind/max(iLayerHydCond,verySmall)
+       else
+         dHydCondIface_dMatricAbove = dHydCond_dMatric(ixUpper)/2._rkind
+         dHydCondIface_dMatricBelow = dHydCond_dMatric(ixLower)/2._rkind
+       end if
+       ! derivatives in the flux w.r.t. matric head
+       dq_dHydStateAbove = -dHydCondIface_dMatricAbove*dPsi/dz + iLayerHydCond/dz + dHydCondIface_dMatricAbove
+       dq_dHydStateBelow = -dHydCondIface_dMatricBelow*dPsi/dz - iLayerHydCond/dz + dHydCondIface_dMatricBelow
+       ! derivative in the flux w.r.t. temperature
+       dq_dNrgStateAbove = -(dHydCond_dTemp(ixUpper)/2._rkind)*dPsi/dz + iLayerHydCond*dPsiLiq_dTemp(ixUpper)/dz + dHydCond_dTemp(ixUpper)/2._rkind
+       dq_dNrgStateBelow = -(dHydCond_dTemp(ixLower)/2._rkind)*dPsi/dz - iLayerHydCond*dPsiLiq_dTemp(ixLower)/dz + dHydCond_dTemp(ixLower)/2._rkind
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+
+  end associate
+ end subroutine update_iLayerFlux_derivatives
+
+ subroutine finalize_iLayerFlux
+  ! **** Finalize operations for iLayerFlux ****
+  associate(&
+   err     => out_iLayerFlux % err    , & ! error code
+   message => out_iLayerFlux % message  & ! error message
+  &)
+   ! final error check
+   if (err /= 0_i4b) then
+    message=trim(message)//'unanticipated error in iLayerFlux'
+    return_flag=.true.; return
+   end if
+  end associate
+ end subroutine finalize_iLayerFlux
+ 
 end subroutine iLayerFlux
 
 ! ***************************************************************************************************************
