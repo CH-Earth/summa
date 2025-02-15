@@ -583,7 +583,106 @@ subroutine diagv_node(in_diagv_node,out_diagv_node)
   real(rkind)                      :: dK_dLiq__noIce            ! derivative in hydraulic conductivity w.r.t volumetric liquid water content, in the absence of ice (m s-1)
   real(rkind)                      :: dK_dPsi__noIce            ! derivative in hydraulic conductivity w.r.t matric head, in the absence of ice (s-1)
   real(rkind)                      :: relSatMP                  ! relative saturation of macropores (-)
+  logical(lgt)                     :: return_flag               ! flag for return statements
 
+    call initialize_diagv_node
+
+    call update_diagv_node;   if (return_flag) return
+
+    call finalize_diagv_node; if (return_flag) return
+
+contains
+
+ subroutine initialize_diagv_node
+  ! **** Initialize operations for diagv_node ****
+  ! initialize error control
+  return_flag=.false. 
+  associate(&
+   err     => out_diagv_node % err    , & ! error code
+   message => out_diagv_node % message  & ! error message
+  &)
+   err=0; message="diagv_node/"
+  end associate
+ end subroutine initialize_diagv_node
+
+ subroutine update_diagv_node
+  ! **** Update operations for diagv_node ****
+
+   call update_diagv_node_characteristic_derivatives; if (return_flag) return
+
+   call update_diagv_node_hydraulic_conductivity;     if (return_flag) return
+
+ end subroutine update_diagv_node
+
+ subroutine update_diagv_node_characteristic_derivatives
+  ! **** Update operations for diagv_node: compute characteristic derivatives ****
+  ! compute the derivative in the soil water characteristic
+  associate(&
+   ! input: model control
+   ixRichards    => in_diagv_node % ixRichards, & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
+   scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
+   ! input: soil parameters
+   vGn_alpha => in_diagv_node % vGn_alpha, & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n     => in_diagv_node % vGn_n    , & ! van Genuchten "n" parameter (-)
+   vGn_m     => in_diagv_node % vGn_m    , & ! van Genuchten "m" parameter (-)
+   mpExp     => in_diagv_node % mpExp    , & ! empirical exponent in macropore flow equation (-)
+   theta_sat => in_diagv_node % theta_sat, & ! soil porosity (-)
+   theta_res => in_diagv_node % theta_res, & ! soil residual volumetric water content (-)
+   ! output: derivative in the soil water characteristic
+   scalardPsi_dTheta => out_diagv_node % scalardPsi_dTheta, & ! derivative in the soil water characteristic
+   scalardTheta_dPsi => out_diagv_node % scalardTheta_dPsi, & ! derivative in the soil water characteristic
+   ! output: error control
+   err     => out_diagv_node % err    , & ! error code
+   message => out_diagv_node % message  & ! error message
+  &)
+
+   select case(ixRichards)
+     case(moisture)
+       scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+       scalardTheta_dPsi = realMissing  ! deliberately cause problems if this is ever used
+     case(mixdform)
+       scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+       scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select
+
+  end associate
+ end subroutine update_diagv_node_characteristic_derivatives
+
+ subroutine update_diagv_node_hydraulic_conductivity
+  ! **** Update operations for diagv_node: compute hydraulic conductivity and derivatives ****
+  ! compute hydraulic conductivity and its derivative in each soil layer
+  associate(&
+   scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial, & ! volumetric fraction of ice in a given layer (-)
+   f_impede  => in_diagv_node % f_impede,                             & ! ice impedence factor (-)
+   iceImpedeFac  => out_diagv_node % iceImpedeFac                     & ! ice impedence factor in each layer (-)
+  &)
+   ! compute the ice impedence factor and its derivative w.r.t. volumetric liquid water content (-)
+   call iceImpede(scalarVolFracIceTrial,f_impede, &  ! input
+                   iceImpedeFac,dIceImpede_dLiq)     ! output
+  end associate
+
+  associate(&
+   ! input: model control
+   ixRichards    => in_diagv_node % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! output: error control
+   err     => out_diagv_node % err    , & ! error code
+   message => out_diagv_node % message  & ! error message
+  &)
+   select case(ixRichards)
+     case(moisture) ! moisture-based form of Richards' equation
+       call update_diagv_node_hydraulic_conductivity_moisture_form; if (return_flag) return
+     case(mixdform) ! mixed form of Richards' equation -- just compute hydraulic condictivity
+       call update_diagv_node_hydraulic_conductivity_mixed_form;    if (return_flag) return
+     case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return_flag=.true.; return
+   end select 
+  end associate
+ end subroutine update_diagv_node_hydraulic_conductivity
+
+ subroutine update_diagv_node_hydraulic_conductivity_moisture_form ! SJT: work in progress -- reduce associate statements
+  ! **** Update operations for diagv_node: compute hydraulic conductivity and derivatives for moisture form of Richards' equation ****
   associate(&
    ! input: model control
    deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
@@ -624,105 +723,144 @@ subroutine diagv_node(in_diagv_node,out_diagv_node)
    message => out_diagv_node % message  & ! error message
   &)
 
-    ! initialize error control
-    err=0; message="diagv_node/"
-
-    ! *****
-    ! compute the derivative in the soil water characteristic
-    select case(ixRichards)
-      case(moisture)
-        scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-        scalardTheta_dPsi = realMissing  ! deliberately cause problems if this is ever used
-      case(mixdform)
-        scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-        scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
-    end select
-
-    ! *****
-    ! compute hydraulic conductivity and its derivative in each soil layer
-
-    ! compute the ice impedence factor and its derivative w.r.t. volumetric liquid water content (-)
-    call iceImpede(scalarVolFracIceTrial,f_impede, &  ! input
-                    iceImpedeFac,dIceImpede_dLiq)     ! output
-
-    select case(ixRichards)
-      ! ***** moisture-based form of Richards' equation
-      case(moisture)
-        ! haven't included macropores yet
-        err=20; message=trim(message)//'still need to include macropores for the moisture-based form of Richards eqn'; return
-        ! compute the hydraulic conductivity (m s-1) and diffusivity (m2 s-1) for a given layer
-        hydCond_noIce = hydCond_liq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m)
-        scalarHydCond = hydCond_noIce*iceImpedeFac
-        scalarDiffuse = scalardPsi_dTheta * scalarHydCond
-        ! compute derivative in hydraulic conductivity (m s-1) and hydraulic diffusivity (m2 s-1)
-        if (deriv_desired) then
-          if (scalarVolFracIceTrial > epsilon(iceImpedeFac)) then
-            dK_dLiq__noIce   = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)  ! [.true. = analytical]
-            dHydCond_dVolLiq = hydCond_noIce*dIceImpede_dLiq + dK_dLiq__noIce*iceImpedeFac
-          else
-            dHydCond_dVolLiq = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)
-          end if
-            dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m,.true.)   ! [.true. = analytical] compute derivative in dPsi_dTheta (m)
-            dDiffuse_dVolLiq = dHydCond_dVolLiq*scalardPsi_dTheta + scalarHydCond*dPsi_dTheta2a
-            dHydCond_dMatric = realMissing ! not used, so cause problems
-        end if
-
-      ! ***** mixed form of Richards' equation -- just compute hydraulic condictivity
-      case(mixdform)
-        ! compute the hydraulic conductivity (m s-1) and diffusivity (m2 s-1) for a given layer
-        hydCond_noIce = hydCond_psi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
-        scalarDiffuse = realMissing ! not used, so cause problems
-        ! compute the hydraulic conductivity of macropores (m s-1)
-        localVolFracLiq = volFracLiq(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-        scalarHydCondMP = hydCondMP_liq(localVolFracLiq,theta_sat,theta_mp,mpExp,scalarSatHydCondMP,scalarSatHydCond)
-        scalarHydCond   = hydCond_noIce*iceImpedeFac + scalarHydCondMP
-
-        ! compute derivative in hydraulic conductivity (m s-1)
-        if (deriv_desired) then 
-          ! compute derivative for macropores
-          if (localVolFracLiq > theta_mp) then
-            relSatMP              = (localVolFracLiq - theta_mp)/(theta_sat - theta_mp)
-            dHydCondMacro_dVolLiq = ((scalarSatHydCondMP - scalarSatHydCond)/(theta_sat - theta_mp))*mpExp*(relSatMP**(mpExp - 1._rkind))
-            dHydCondMacro_dMatric = scalardTheta_dPsi*dHydCondMacro_dVolLiq
-          else
-            dHydCondMacro_dVolLiq = 0._rkind
-            dHydCondMacro_dMatric = 0._rkind
-          end if
-          ! compute derivatives for micropores
-          if (scalarVolFracIceTrial > verySmall) then
-            dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)  ! analytical
-            dHydCondMicro_dTemp   = dPsiLiq_dTemp*dK_dPsi__noIce  ! m s-1 K-1
-            dHydCondMicro_dMatric = hydCond_noIce*dIceImpede_dLiq*scalardTheta_dPsi + dK_dPsi__noIce*iceImpedeFac
-          else
-            dHydCondMicro_dTemp   = 0._rkind
-            dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)
-          end if
-          ! combine derivatives
-          dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
-
-          ! compute analytical derivative for change in ice impedance factor w.r.t. temperature
-          call dIceImpede_dTemp(scalarVolFracIceTrial, & ! intent(in):  trial value of volumetric ice content (-)
-                                dTheta_dTk,            & ! intent(in):  derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                                f_impede,              & ! intent(in):  ice impedance parameter (-)
-                                dIceImpede_dT          ) ! intent(out): derivative in ice impedance factor w.r.t. temperature (K-1)
-          ! compute derivative in hydraulic conductivity w.r.t. temperature
-          dHydCond_dTemp = hydCond_noIce*dIceImpede_dT + dHydCondMicro_dTemp*iceImpedeFac
-          ! set values that are not used to missing
-          dHydCond_dVolLiq = realMissing ! not used, so cause problems
-          dDiffuse_dVolLiq = realMissing ! not used, so cause problems
-        end if
-      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
-    end select ! end select form of Richards' equation
-
-    ! if derivatives are not desired, then set values to missing
-    if (.not.deriv_desired) then
-      dHydCond_dVolLiq   = realMissing ! not used, so cause problems
-      dDiffuse_dVolLiq   = realMissing ! not used, so cause problems
-      dHydCond_dMatric   = realMissing ! not used, so cause problems
-    end if
+   ! haven't included macropores yet
+   err=20; message=trim(message)//'still need to include macropores for the moisture-based form of Richards eqn'; return_flag=.true.; return
+   ! compute the hydraulic conductivity (m s-1) and diffusivity (m2 s-1) for a given layer
+   hydCond_noIce = hydCond_liq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m)
+   scalarHydCond = hydCond_noIce*iceImpedeFac
+   scalarDiffuse = scalardPsi_dTheta * scalarHydCond
+   ! compute derivative in hydraulic conductivity (m s-1) and hydraulic diffusivity (m2 s-1)
+   if (deriv_desired) then
+     if (scalarVolFracIceTrial > epsilon(iceImpedeFac)) then
+       dK_dLiq__noIce   = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)  ! [.true. = analytical]
+       dHydCond_dVolLiq = hydCond_noIce*dIceImpede_dLiq + dK_dLiq__noIce*iceImpedeFac
+     else
+       dHydCond_dVolLiq = dHydCond_dLiq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m,.true.)
+     end if
+       dPsi_dTheta2a    = dPsi_dTheta2(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m,.true.)   ! [.true. = analytical] compute derivative in dPsi_dTheta (m)
+       dDiffuse_dVolLiq = dHydCond_dVolLiq*scalardPsi_dTheta + scalarHydCond*dPsi_dTheta2a
+       dHydCond_dMatric = realMissing ! not used, so cause problems
+   end if
 
   end associate
+ end subroutine update_diagv_node_hydraulic_conductivity_moisture_form
+
+ subroutine update_diagv_node_hydraulic_conductivity_mixed_form ! SJT: work in progress -- reduce associate statements
+  ! **** Update operations for diagv_node: compute hydraulic conductivity and derivatives for mixed form of Richards' equation ****
+  associate(&
+   ! input: model control
+   deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
+   ixRichards    => in_diagv_node % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
+   ! input: state and diagnostic variables
+   scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
+   scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
+   scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
+   ! input: pre-computed deriavatives
+   dTheta_dTk    => in_diagv_node % dTheta_dTk   , & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   dPsiLiq_dTemp => in_diagv_node % dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   ! input: soil parameters
+   vGn_alpha => in_diagv_node % vGn_alpha, & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n     => in_diagv_node % vGn_n    , & ! van Genuchten "n" parameter (-)
+   vGn_m     => in_diagv_node % vGn_m    , & ! van Genuchten "m" parameter (-)
+   mpExp     => in_diagv_node % mpExp    , & ! empirical exponent in macropore flow equation (-)
+   theta_sat => in_diagv_node % theta_sat, & ! soil porosity (-)
+   theta_res => in_diagv_node % theta_res, & ! soil residual volumetric water content (-)
+   theta_mp  => in_diagv_node % theta_mp , & ! volumetric liquid water content when macropore flow begins (-)
+   f_impede  => in_diagv_node % f_impede , & ! ice impedence factor (-)
+   ! input: saturated hydraulic conductivity
+   scalarSatHydCond   => in_diagv_node % scalarSatHydCond,  & ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
+   scalarSatHydCondMP => in_diagv_node % scalarSatHydCondMP,& ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
+   ! output: derivative in the soil water characteristic
+   scalardPsi_dTheta => out_diagv_node % scalardPsi_dTheta, & ! derivative in the soil water characteristic
+   scalardTheta_dPsi => out_diagv_node % scalardTheta_dPsi, & ! derivative in the soil water characteristic
+   ! output: transmittance
+   scalarHydCond => out_diagv_node % scalarHydCond, & ! hydraulic conductivity at layer mid-points (m s-1)
+   scalarDiffuse => out_diagv_node % scalarDiffuse, & ! diffusivity at layer mid-points (m2 s-1)
+   iceImpedeFac  => out_diagv_node % iceImpedeFac , & ! ice impedence factor in each layer (-)
+   ! output: transmittance derivatives
+   dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+   dHydCond_dTemp   => out_diagv_node % dHydCond_dTemp  , & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   ! output: error control
+   err     => out_diagv_node % err    , & ! error code
+   message => out_diagv_node % message  & ! error message
+  &)
+
+   ! compute the hydraulic conductivity (m s-1) and diffusivity (m2 s-1) for a given layer
+   hydCond_noIce = hydCond_psi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
+   scalarDiffuse = realMissing ! not used, so cause problems
+   ! compute the hydraulic conductivity of macropores (m s-1)
+   localVolFracLiq = volFracLiq(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   scalarHydCondMP = hydCondMP_liq(localVolFracLiq,theta_sat,theta_mp,mpExp,scalarSatHydCondMP,scalarSatHydCond)
+   scalarHydCond   = hydCond_noIce*iceImpedeFac + scalarHydCondMP
+
+   ! compute derivative in hydraulic conductivity (m s-1)
+   if (deriv_desired) then 
+     ! compute derivative for macropores
+     if (localVolFracLiq > theta_mp) then
+       relSatMP              = (localVolFracLiq - theta_mp)/(theta_sat - theta_mp)
+       dHydCondMacro_dVolLiq = ((scalarSatHydCondMP - scalarSatHydCond)/(theta_sat - theta_mp))*mpExp*(relSatMP**(mpExp - 1._rkind))
+       dHydCondMacro_dMatric = scalardTheta_dPsi*dHydCondMacro_dVolLiq
+     else
+       dHydCondMacro_dVolLiq = 0._rkind
+       dHydCondMacro_dMatric = 0._rkind
+     end if
+     ! compute derivatives for micropores
+     if (scalarVolFracIceTrial > verySmall) then
+       dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)  ! analytical
+       dHydCondMicro_dTemp   = dPsiLiq_dTemp*dK_dPsi__noIce  ! m s-1 K-1
+       dHydCondMicro_dMatric = hydCond_noIce*dIceImpede_dLiq*scalardTheta_dPsi + dK_dPsi__noIce*iceImpedeFac
+     else
+       dHydCondMicro_dTemp   = 0._rkind
+       dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)
+     end if
+     ! combine derivatives
+     dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
+
+     ! compute analytical derivative for change in ice impedance factor w.r.t. temperature
+     call dIceImpede_dTemp(scalarVolFracIceTrial, & ! intent(in):  trial value of volumetric ice content (-)
+                           dTheta_dTk,            & ! intent(in):  derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                           f_impede,              & ! intent(in):  ice impedance parameter (-)
+                           dIceImpede_dT          ) ! intent(out): derivative in ice impedance factor w.r.t. temperature (K-1)
+     ! compute derivative in hydraulic conductivity w.r.t. temperature
+     dHydCond_dTemp = hydCond_noIce*dIceImpede_dT + dHydCondMicro_dTemp*iceImpedeFac
+     ! set values that are not used to missing
+     dHydCond_dVolLiq = realMissing ! not used, so cause problems
+     dDiffuse_dVolLiq = realMissing ! not used, so cause problems
+   end if
+
+  end associate
+ end subroutine update_diagv_node_hydraulic_conductivity_mixed_form
+
+ subroutine finalize_diagv_node
+  ! **** Finalize operations for diagv_node ****
+  associate(&
+   deriv_desired => in_diagv_node % deriv_desired,        & ! flag indicating if derivatives are desired
+   dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric  & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+  &)
+   ! if derivatives are not desired, then set values to missing
+   if (.not.deriv_desired) then
+     dHydCond_dVolLiq   = realMissing ! not used, so cause problems
+     dDiffuse_dVolLiq   = realMissing ! not used, so cause problems
+     dHydCond_dMatric   = realMissing ! not used, so cause problems
+   end if
+  end associate
+
+  associate(&
+   err     => out_diagv_node % err    , & ! error code
+   message => out_diagv_node % message  & ! error message
+  &)
+   ! final error check
+   if (err /= 0_i4b) then
+    message=trim(message)//'unanticipated error in diagv_node'
+    return_flag=.true.; return
+   end if
+  end associate
+ end subroutine finalize_diagv_node
+
 end subroutine diagv_node
 
 ! ***************************************************************************************************************
