@@ -334,8 +334,8 @@ subroutine opSplittin(&
   subroutine initialize_opSplittin
    ! *** Initial operations for opSplittin ***
    ! set splitting parameters
-   dtmin_coupled = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/2._rkind)
-   dtmin_split   = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/20._rkind)
+   dtmin_coupled = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/10._rkind)
+   dtmin_split   = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/40._rkind)
    dtmin_scalar  = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/60._rkind) 
    call initialize_split_select;   if (return_flag) return ! initialize split selector object (split_select)
    call initialize_split_coupling; if (return_flag) return ! prep for first iteration of update_opSplittin 
