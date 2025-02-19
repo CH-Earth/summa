@@ -681,50 +681,47 @@ contains
   end associate
  end subroutine update_diagv_node_hydraulic_conductivity
 
- subroutine update_diagv_node_hydraulic_conductivity_moisture_form ! SJT: work in progress -- reduce associate statements
+ subroutine update_diagv_node_hydraulic_conductivity_moisture_form
   ! **** Update operations for diagv_node: compute hydraulic conductivity and derivatives for moisture form of Richards' equation ****
+
+  ! validation
   associate(&
-   ! input: model control
-   deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
-   ixRichards    => in_diagv_node % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
-   ! input: state and diagnostic variables
-   scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
-   scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
-   scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
-   ! input: pre-computed deriavatives
-   dTheta_dTk    => in_diagv_node % dTheta_dTk   , & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-   dPsiLiq_dTemp => in_diagv_node % dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-   ! input: soil parameters
-   vGn_alpha => in_diagv_node % vGn_alpha, & ! van Genuchten "alpha" parameter (m-1)
-   vGn_n     => in_diagv_node % vGn_n    , & ! van Genuchten "n" parameter (-)
-   vGn_m     => in_diagv_node % vGn_m    , & ! van Genuchten "m" parameter (-)
-   mpExp     => in_diagv_node % mpExp    , & ! empirical exponent in macropore flow equation (-)
-   theta_sat => in_diagv_node % theta_sat, & ! soil porosity (-)
-   theta_res => in_diagv_node % theta_res, & ! soil residual volumetric water content (-)
-   theta_mp  => in_diagv_node % theta_mp , & ! volumetric liquid water content when macropore flow begins (-)
-   f_impede  => in_diagv_node % f_impede , & ! ice impedence factor (-)
-   ! input: saturated hydraulic conductivity
-   scalarSatHydCond   => in_diagv_node % scalarSatHydCond,  & ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
-   scalarSatHydCondMP => in_diagv_node % scalarSatHydCondMP,& ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
-   ! output: derivative in the soil water characteristic
-   scalardPsi_dTheta => out_diagv_node % scalardPsi_dTheta, & ! derivative in the soil water characteristic
-   scalardTheta_dPsi => out_diagv_node % scalardTheta_dPsi, & ! derivative in the soil water characteristic
-   ! output: transmittance
-   scalarHydCond => out_diagv_node % scalarHydCond, & ! hydraulic conductivity at layer mid-points (m s-1)
-   scalarDiffuse => out_diagv_node % scalarDiffuse, & ! diffusivity at layer mid-points (m2 s-1)
-   iceImpedeFac  => out_diagv_node % iceImpedeFac , & ! ice impedence factor in each layer (-)
-   ! output: transmittance derivatives
-   dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-   dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
-   dHydCond_dTemp   => out_diagv_node % dHydCond_dTemp  , & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
    ! output: error control
    err     => out_diagv_node % err    , & ! error code
    message => out_diagv_node % message  & ! error message
   &)
+   ! haven't included macropores yet -- return with error for now
+   err=20; message=trim(message)//'still need to include macropores for the moisture-based form of Richards eqn'
+   return_flag=.true.; return
+  end associate
 
-   ! haven't included macropores yet
-   err=20; message=trim(message)//'still need to include macropores for the moisture-based form of Richards eqn'; return_flag=.true.; return
+  ! computation
+  associate(&
+   ! input: model control
+   deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
+   ! input: state and diagnostic variables
+   scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
+   scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
+   ! input: soil parameters
+   vGn_alpha => in_diagv_node % vGn_alpha, & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n     => in_diagv_node % vGn_n    , & ! van Genuchten "n" parameter (-)
+   vGn_m     => in_diagv_node % vGn_m    , & ! van Genuchten "m" parameter (-)
+   theta_sat => in_diagv_node % theta_sat, & ! soil porosity (-)
+   theta_res => in_diagv_node % theta_res, & ! soil residual volumetric water content (-)
+   ! input: saturated hydraulic conductivity ...
+   scalarSatHydCond   => in_diagv_node % scalarSatHydCond,  & ! ... at the mid-point of a given layer (m s-1)
+   ! output: derivative in the soil water characteristic
+   scalardPsi_dTheta => out_diagv_node % scalardPsi_dTheta, & ! derivative in the soil water characteristic
+   ! output: transmittance
+   scalarHydCond => out_diagv_node % scalarHydCond, & ! hydraulic conductivity at layer mid-points (m s-1)
+   scalarDiffuse => out_diagv_node % scalarDiffuse, & ! diffusivity at layer mid-points (m2 s-1)
+   iceImpedeFac  => out_diagv_node % iceImpedeFac , & ! ice impedence factor in each layer (-)
+   ! output: transmittance derivatives in ...
+   dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! ... hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! ... hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric  & ! ... hydraulic conductivity w.r.t matric head (s-1)
+  &)
+
    ! compute the hydraulic conductivity (m s-1) and diffusivity (m2 s-1) for a given layer
    hydCond_noIce = hydCond_liq(scalarVolFracLiqTrial,scalarSatHydCond,theta_res,theta_sat,vGn_m)
    scalarHydCond = hydCond_noIce*iceImpedeFac
@@ -745,15 +742,13 @@ contains
   end associate
  end subroutine update_diagv_node_hydraulic_conductivity_moisture_form
 
- subroutine update_diagv_node_hydraulic_conductivity_mixed_form ! SJT: work in progress -- reduce associate statements
+ subroutine update_diagv_node_hydraulic_conductivity_mixed_form 
   ! **** Update operations for diagv_node: compute hydraulic conductivity and derivatives for mixed form of Richards' equation ****
   associate(&
    ! input: model control
    deriv_desired => in_diagv_node % deriv_desired, & ! flag indicating if derivatives are desired
-   ixRichards    => in_diagv_node % ixRichards   , & ! index defining the option for Richards' equation (moisture or mixdform)
    ! input: state and diagnostic variables
    scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
-   scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
    scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
    ! input: pre-computed deriavatives
    dTheta_dTk    => in_diagv_node % dTheta_dTk   , & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
@@ -767,24 +762,20 @@ contains
    theta_res => in_diagv_node % theta_res, & ! soil residual volumetric water content (-)
    theta_mp  => in_diagv_node % theta_mp , & ! volumetric liquid water content when macropore flow begins (-)
    f_impede  => in_diagv_node % f_impede , & ! ice impedence factor (-)
-   ! input: saturated hydraulic conductivity
-   scalarSatHydCond   => in_diagv_node % scalarSatHydCond,  & ! saturated hydraulic conductivity at the mid-point of a given layer (m s-1)
-   scalarSatHydCondMP => in_diagv_node % scalarSatHydCondMP,& ! saturated hydraulic conductivity of macropores at the mid-point of a given layer (m s-1)
+   ! input: saturated hydraulic conductivity ...
+   scalarSatHydCond   => in_diagv_node % scalarSatHydCond,  & ! ... at the mid-point of a given layer (m s-1)
+   scalarSatHydCondMP => in_diagv_node % scalarSatHydCondMP,& ! ... of macropores at the mid-point of a given layer (m s-1)
    ! output: derivative in the soil water characteristic
-   scalardPsi_dTheta => out_diagv_node % scalardPsi_dTheta, & ! derivative in the soil water characteristic
    scalardTheta_dPsi => out_diagv_node % scalardTheta_dPsi, & ! derivative in the soil water characteristic
    ! output: transmittance
    scalarHydCond => out_diagv_node % scalarHydCond, & ! hydraulic conductivity at layer mid-points (m s-1)
    scalarDiffuse => out_diagv_node % scalarDiffuse, & ! diffusivity at layer mid-points (m2 s-1)
    iceImpedeFac  => out_diagv_node % iceImpedeFac , & ! ice impedence factor in each layer (-)
-   ! output: transmittance derivatives
-   dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-   dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric, & ! derivative in hydraulic conductivity w.r.t matric head (s-1)
-   dHydCond_dTemp   => out_diagv_node % dHydCond_dTemp  , & ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-   ! output: error control
-   err     => out_diagv_node % err    , & ! error code
-   message => out_diagv_node % message  & ! error message
+   ! output: transmittance derivatives in ...
+   dHydCond_dVolLiq => out_diagv_node % dHydCond_dVolLiq, & ! ... hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+   dDiffuse_dVolLiq => out_diagv_node % dDiffuse_dVolLiq, & ! ... hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+   dHydCond_dMatric => out_diagv_node % dHydCond_dMatric, & ! ... hydraulic conductivity w.r.t matric head (s-1)
+   dHydCond_dTemp   => out_diagv_node % dHydCond_dTemp    & ! ... hydraulic conductivity w.r.t temperature (m s-1 K-1)
   &)
 
    ! compute the hydraulic conductivity (m s-1) and diffusivity (m2 s-1) for a given layer
