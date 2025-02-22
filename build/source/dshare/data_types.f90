@@ -1718,29 +1718,91 @@ contains
    firstSplitOper         => in_soilLiqFlx % firstSplitOper,                      & ! flag to compute infiltration
    deriv_desired          => in_soilLiqFlx % deriv_desired,                       & ! flag indicating if derivatives are desired
    ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,& ! index of the form of Richards' equation
-   ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,& ! index defining the type of boundary conditions
+   ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision & ! index defining the type of boundary conditions
+  &)
+   ! intent(in): model control
+   in_surfaceFlx % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
+   in_surfaceFlx % deriv_desired  = deriv_desired           ! flag indicating if derivatives are desired
+   in_surfaceFlx % ixRichards     = ixRichards              ! index defining the form of Richards' equation (moisture or mixdform)
+   in_surfaceFlx % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
+   in_surfaceFlx % nRoots         = nRoots                  ! number of layers that contain roots
+   in_surfaceFlx % ixIce          = ixIce                   ! index of lowest ice layer
+   in_surfaceFlx % nSoil          = nSoil                   ! number of soil layers
+  end associate
+
+  associate(&
    ! state variables
    mLayerTempTrial          => in_soilLiqFlx % mLayerTempTrial,          & ! intent(in): temperature in each layer at the current iteration (m)
    mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! liquid matric head in each layer at the current iteration (m)
    mLayerMatricHeadTrial    => in_soilLiqFlx % mLayerMatricHeadTrial,    & ! intent(in): matric head in each layer at the current iteration (m)
    mLayerVolFracLiqTrial    => in_soilLiqFlx % mLayerVolFracLiqTrial,    & ! volumetric fraction of liquid water at the current iteration (-)
-   mLayerVolFracIceTrial    => in_soilLiqFlx % mLayerVolFracIceTrial,    & ! volumetric fraction of ice at the current iteration (-)
+   mLayerVolFracIceTrial    => in_soilLiqFlx % mLayerVolFracIceTrial     & ! volumetric fraction of ice at the current iteration (-)
+  &)
+   ! intent(in): state variables
+   in_surfaceFlx % mLayerTemp          = mLayerTempTrial             ! temperature (K)
+   in_surfaceFlx % scalarMatricHeadLiq = mLayerMatricHeadLiqTrial(1) ! liquid matric head in the upper-most soil layer (m)
+   in_surfaceFlx % mLayerMatricHead    = mLayerMatricHeadTrial       ! matric head in each soil layer (m)
+   in_surfaceFlx % scalarVolFracLiq    = mLayerVolFracLiqTrial(1)    ! volumetric liquid water content the upper-most soil layer (-)
+   in_surfaceFlx % mLayerVolFracLiq    = mLayerVolFracLiqTrial       ! volumetric liquid water content in each soil layer (-)
+   in_surfaceFlx % mLayerVolFracIce    = mLayerVolFracIceTrial       ! volumetric ice content in each soil layer (-)
+  end associate
+
+  associate(&
    ! pre-computed deriavatives
    mLayerdTheta_dTk       => in_soilLiqFlx % mLayerdTheta_dTk,      & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    mLayerdTheta_dPsi      => io_soilLiqFlx % mLayerdTheta_dPsi,     & ! derivative in the soil water characteristic w.r.t. psi (m-1)
    mLayerdPsi_dTheta      => io_soilLiqFlx % mLayerdPsi_dTheta,     & ! derivative in the soil water characteristic w.r.t. theta (m)
    above_soilLiqFluxDeriv => in_soilLiqFlx % above_soilLiqFluxDeriv,& ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
    above_soildLiq_dTk     => in_soilLiqFlx % above_soildLiq_dTk,    & ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
-   above_soilFracLiq      => in_soilLiqFlx % above_soilFracLiq,     & ! fraction of liquid water layer above soil (canopy or snow) (-)
+   above_soilFracLiq      => in_soilLiqFlx % above_soilFracLiq      & ! fraction of liquid water layer above soil (canopy or snow) (-)
+  &)
+   ! intent(in): pre-computed deriavatives
+   in_surfaceFlx % dTheta_dTk             = mLayerdTheta_dTk       ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   in_surfaceFlx % dTheta_dPsi            = mLayerdTheta_dPsi      ! derivative in the soil water characteristic w.r.t. psi (m-1)
+   in_surfaceFlx % mLayerdPsi_dTheta      = mLayerdPsi_dTheta      ! derivative in the soil water characteristic w.r.t. theta (m)
+   in_surfaceFlx % above_soilLiqFluxDeriv = above_soilLiqFluxDeriv ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+   in_surfaceFlx % above_soildLiq_dTk     = above_soildLiq_dTk     ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+   in_surfaceFlx % above_soilFracLiq      = above_soilFracLiq      ! fraction of liquid water layer above soil (canopy or snow) (-)
+  end associate
+
+  associate(&
    ! depth of upper-most soil layer (m)
-   mLayerDepth         => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend), & ! depth of the layer (m)
+   mLayerDepth         => prog_data%var(iLookPROG%mLayerDepth)%dat(ibeg:iend) & ! depth of the layer (m)
+  &)
+   ! intent(in): depth of upper-most soil layer (m)
+   in_surfaceFlx % mLayerDepth     = mLayerDepth  ! depth of each soil layer (m)
+   in_surfaceFlx % iLayerHeight    = iLayerHeight ! height at the interface of each layer (m)
+  end associate
+
+  associate(&
    ! boundary conditions
    upperBoundHead      => mpar_data%var(iLookPARAM%upperBoundHead)%dat(1), & ! upper boundary condition for matric head (m)
-   upperBoundTheta     => mpar_data%var(iLookPARAM%upperBoundTheta)%dat(1),& ! upper boundary condition for volumetric liquid water content (-)
+   upperBoundTheta     => mpar_data%var(iLookPARAM%upperBoundTheta)%dat(1) & ! upper boundary condition for volumetric liquid water content (-)
+  &)
+   ! intent(in): boundary conditions
+   in_surfaceFlx % upperBoundHead  = upperBoundHead  ! upper boundary condition (m)
+   in_surfaceFlx % upperBoundTheta = upperBoundTheta ! upper boundary condition (-)
+  end associate
+
+  associate(&
    ! flux at the upper boundary
-   scalarRainPlusMelt  => in_soilLiqFlx % scalarRainPlusMelt,& ! rain plus melt (m s-1)
+   scalarRainPlusMelt  => in_soilLiqFlx % scalarRainPlusMelt & ! rain plus melt (m s-1)
+  &)
+   ! intent(in): flux at the upper boundary
+   in_surfaceFlx % scalarRainPlusMelt = scalarRainPlusMelt ! rain plus melt (m s-1)
+  end associate
+
+  associate(&
    ! transmittance
-   iLayerSatHydCond    => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,& ! saturated hydraulic conductivity at the interface of each layer (m s-1)
+   iLayerSatHydCond    => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat & ! saturated hydraulic conductivity at the interface of each layer (m s-1)
+  &)
+   ! intent(in): transmittance
+   in_surfaceFlx % surfaceSatHydCond = iLayerSatHydCond(0) ! saturated hydraulic conductivity at the surface (m s-1)
+   in_surfaceFlx % dHydCond_dTemp    = dHydCond_dTemp(1)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   in_surfaceFlx % iceImpedeFac      = iceImpedeFac(1)     ! ice impedence factor in the upper-most soil layer (-)
+  end associate
+
+  associate(&
    ! soil parameters
    vGn_alpha           => mpar_data%var(iLookPARAM%vGn_alpha)%dat,         & ! "alpha" parameter (m-1)
    vGn_n               => mpar_data%var(iLookPARAM%vGn_n)%dat,             & ! "n" parameter (-)
@@ -1754,40 +1816,6 @@ contains
    soilIceScale        => mpar_data%var(iLookPARAM%soilIceScale)%dat(1),& ! scaling factor for depth of soil ice, used to get frozen fraction (m)
    soilIceCV           => mpar_data%var(iLookPARAM%soilIceCV)%dat(1)    & ! CV of depth of soil ice, used to get frozen fraction (-)
   &)
-   ! intent(in): model control
-   in_surfaceFlx % firstSplitOper = firstSplitOper          ! flag indicating if desire to compute infiltration
-   in_surfaceFlx % deriv_desired  = deriv_desired           ! flag indicating if derivatives are desired
-   in_surfaceFlx % ixRichards     = ixRichards              ! index defining the form of Richards' equation (moisture or mixdform)
-   in_surfaceFlx % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
-   in_surfaceFlx % nRoots         = nRoots                  ! number of layers that contain roots
-   in_surfaceFlx % ixIce          = ixIce                   ! index of lowest ice layer
-   in_surfaceFlx % nSoil          = nSoil                   ! number of soil layers
-   ! intent(in): state variables
-   in_surfaceFlx % mLayerTemp          = mLayerTempTrial             ! temperature (K)
-   in_surfaceFlx % scalarMatricHeadLiq = mLayerMatricHeadLiqTrial(1) ! liquid matric head in the upper-most soil layer (m)
-   in_surfaceFlx % mLayerMatricHead    = mLayerMatricHeadTrial       ! matric head in each soil layer (m)
-   in_surfaceFlx % scalarVolFracLiq    = mLayerVolFracLiqTrial(1)    ! volumetric liquid water content the upper-most soil layer (-)
-   in_surfaceFlx % mLayerVolFracLiq    = mLayerVolFracLiqTrial       ! volumetric liquid water content in each soil layer (-)
-   in_surfaceFlx % mLayerVolFracIce    = mLayerVolFracIceTrial       ! volumetric ice content in each soil layer (-)
-   ! intent(in): pre-computed deriavatives
-   in_surfaceFlx % dTheta_dTk             = mLayerdTheta_dTk       ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-   in_surfaceFlx % dTheta_dPsi            = mLayerdTheta_dPsi      ! derivative in the soil water characteristic w.r.t. psi (m-1)
-   in_surfaceFlx % mLayerdPsi_dTheta      = mLayerdPsi_dTheta      ! derivative in the soil water characteristic w.r.t. theta (m)
-   in_surfaceFlx % above_soilLiqFluxDeriv = above_soilLiqFluxDeriv ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
-   in_surfaceFlx % above_soildLiq_dTk     = above_soildLiq_dTk     ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
-   in_surfaceFlx % above_soilFracLiq      = above_soilFracLiq      ! fraction of liquid water layer above soil (canopy or snow) (-)
-   ! intent(in): depth of upper-most soil layer (m)
-   in_surfaceFlx % mLayerDepth     = mLayerDepth  ! depth of each soil layer (m)
-   in_surfaceFlx % iLayerHeight    = iLayerHeight ! height at the interface of each layer (m)
-   ! intent(in): boundary conditions
-   in_surfaceFlx % upperBoundHead  = upperBoundHead  ! upper boundary condition (m)
-   in_surfaceFlx % upperBoundTheta = upperBoundTheta ! upper boundary condition (-)
-   ! intent(in): flux at the upper boundary
-   in_surfaceFlx % scalarRainPlusMelt = scalarRainPlusMelt ! rain plus melt (m s-1)
-   ! intent(in): transmittance
-   in_surfaceFlx % surfaceSatHydCond = iLayerSatHydCond(0) ! saturated hydraulic conductivity at the surface (m s-1)
-   in_surfaceFlx % dHydCond_dTemp    = dHydCond_dTemp(1)   ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-   in_surfaceFlx % iceImpedeFac      = iceImpedeFac(1)     ! ice impedence factor in the upper-most soil layer (-)
    ! intent(in): soil parameters
    in_surfaceFlx % vGn_alpha           = vGn_alpha(1)        ! van Genuchten "alpha" parameter (m-1)
    in_surfaceFlx % vGn_n               = vGn_n(1)            ! van Genuchten "n" parameter (-)
