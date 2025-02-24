@@ -272,9 +272,9 @@ subroutine opSplittin(&
   ! * operator splitting
   ! ------------------------------------------------------------------------------------------------------
   ! minimum timestep
-  real(rkind),parameter           :: dtmin_coupled=1800._rkind      ! minimum time step for the fully coupled solution (seconds)
-  real(rkind),parameter           :: dtmin_split=60._rkind          ! minimum time step for the fully split solution (seconds)
-  real(rkind),parameter           :: dtmin_scalar=10._rkind         ! minimum time step for the scalar solution (seconds)
+  real(rkind)                     :: dtmin_coupled                  ! minimum time step for the fully coupled solution (seconds)
+  real(rkind)                     :: dtmin_split                    ! minimum time step for the fully split solution (seconds)
+  real(rkind)                     :: dtmin_scalar                   ! minimum time step for the scalar solution (seconds)
   real(rkind)                     :: dt_min                         ! minimum time step (seconds)
   real(rkind)                     :: dtInit                         ! initial time step (seconds)
   ! number of substeps taken for a given split
@@ -333,6 +333,10 @@ subroutine opSplittin(&
 
   subroutine initialize_opSplittin
    ! *** Initial operations for opSplittin ***
+   ! set splitting parameters
+   dtmin_coupled = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/10._rkind)
+   dtmin_split   = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/40._rkind)
+   dtmin_scalar  = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/60._rkind) 
    call initialize_split_select;   if (return_flag) return ! initialize split selector object (split_select)
    call initialize_split_coupling; if (return_flag) return ! prep for first iteration of update_opSplittin 
   end subroutine initialize_opSplittin

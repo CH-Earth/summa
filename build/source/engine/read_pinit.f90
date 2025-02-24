@@ -213,10 +213,10 @@ contains
     parFallback(iLookPARAM%idaInitStepSize)%default_val = 0
   end if
   if (parFallback(iLookPARAM%idaMinStepSize)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMinStepSize)%default_val = 0
+    parFallback(iLookPARAM%idaMinStepSize)%default_val = 0 ! IDA default is 0, but then hangs up, may want to set to 1e-6
   end if
   if (parFallback(iLookPARAM%idaMaxStepSize)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%idaMaxStepSize)%default_val = 0 ! 0 means ida's default of infinity
+    parFallback(iLookPARAM%idaMaxStepSize)%default_val = 0 ! 0 means IDA's default of infinity
   end if
   if (parFallback(iLookPARAM%idaMaxErrTestFail)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%idaMaxErrTestFail)%default_val = 50 ! IDA default is 10
