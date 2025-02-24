@@ -596,7 +596,7 @@ contains
   case('scalarVolLatHt_fus'             ); get_ixDiag = iLookDIAG%scalarVolLatHt_fus               ! volumetric latent heat of fusion     (J m-3)
   ! timing information
   case('numFluxCalls'                   ); get_ixDiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
-  case('wallClockTime'                  ); get_ixDiag = iLookDIAG%wallClockTime                    ! wall clock time (s)
+  case('wallClockTime'                  ); get_ixDiag = iLookDIAG%wallClockTime                    ! wall clock time for physics routines (s)
   case('meanStepSize'                   ); get_ixDiag = iLookDIAG%meanStepSize                     ! mean time step size (s) over data window
   ! balances
   case('balanceCasNrg'                  ); get_ixDiag = iLookDIAG%balanceCasNrg                    ! balance of energy in the canopy air space (W m-3)

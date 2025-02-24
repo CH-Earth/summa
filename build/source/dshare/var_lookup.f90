@@ -477,7 +477,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarVolLatHt_fus              = integerMissing ! volumetric latent heat of fusion     (J m-3)
   ! number of function evaluations
   integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
-  integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time (s)
+  integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time for physics routines(s)
   integer(i4b)    :: meanStepSize                    = integerMissing ! mean time step size over data window (s)
   ! balances
   integer(i4b)    :: balanceCasNrg                   = integerMissing ! balance of energy in the canopy air space (W m-3)
