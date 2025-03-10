@@ -449,7 +449,7 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%scalarVolLatHt_fus)              = var_info('scalarVolLatHt_fus'             , 'volumetric latent heat of fusion'                                 , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! timing information
   diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%wallClockTime)                   = var_info('wallClockTime'                  , 'wall clock time'                                                  , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%wallClockTime)                   = var_info('wallClockTime'                  , 'wall clock time for physics routines'                             , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%meanStepSize)                    = var_info('meanStepSize'                   , 'mean time step size over data window'                             , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! balances
   diag_meta(iLookDIAG%balanceCasNrg)                   = var_info('balanceCasNrg'                  , 'balance of energy in the canopy air space on data window'         , 'W m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
