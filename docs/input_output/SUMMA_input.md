@@ -34,8 +34,6 @@ The following items must be provided in the master configuration file. Order is 
 
 `controlVersion`: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to `'SUMMA_FILE_MANAGER_V3.0.0'`.  Note, this version of the code is not backward compatible with versions using `SUMMA_FILE_MANAGER_V1.0` or `SUMMA_FILE_MANAGER_V2.0`.
 
-Here is the content in a code block for easy copy-pasting:
-
 - `simStartTime` : Start of the simulation specified as `'YYYY-MM-DD hh:mm'`. See [Time definition notes](#simulStartEndTimes).
 - `simEndTime` : End of the simulation specified as `'YYYY-MM-DD hh:mm'`.
 - `tmZoneInfo` : [Time zone information](#tmZoneInfo).
