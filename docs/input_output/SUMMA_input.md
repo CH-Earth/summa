@@ -32,8 +32,7 @@ The master configuration file is an [ASCII file](#infile_format_ASCII) and is pr
 
 The following items must be provided in the master configuration file. Order is not important, as the entries are each associated with a keyword.  Each keyword and entry pair must be on its own line, but may be followed by a comment (started by the '!' character), and you can add lines of comments between the items. Each entry must be enclosed in single quotes `'entry'`. The associations of the keywords to the actual variable name that is used in the SUMMA source code can be found in `summaFileManager.f90`, along with its default value where appropriate.
 
-`controlVersion`: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to `'SUMMA_FILE_MANAGER_V3.0.0'`.  Note, this version of the code is not backward compatible with versions using `SUMMA_FILE_MANAGER_V1.0` or `SUMMA_FILE_MANAGER_V2.0`.
-
+- `controlVersion`: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to `'SUMMA_FILE_MANAGER_V3.0.0'`.  Note, this version of the code is not backward compatible with versions using `'SUMMA_FILE_MANAGER_V1.0'` or `'SUMMA_FILE_MANAGER_V2.0'`.
 - `simStartTime` : Start of the simulation specified as `'YYYY-MM-DD hh:mm'`. See [Time definition notes](#simulStartEndTimes).
 - `simEndTime` : End of the simulation specified as `'YYYY-MM-DD hh:mm'`.
 - `tmZoneInfo` : [Time zone information](#tmZoneInfo).

@@ -26,3 +26,5 @@ nav:
   - SUMMA Git Workflow: 'development/SUMMA_git_workflow.md'
 - References: 'references.md'
 google_analytics: ['UA-108421993-5', 'summa.readthedocs.org']
+markdown_extensions:
+  - footnotes
