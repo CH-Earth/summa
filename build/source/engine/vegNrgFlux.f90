@@ -1616,6 +1616,7 @@ subroutine aeroResist(&
     windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)**oneThird / leafDimension**oneThird
 
     ! compute windspeed at the height z0Canopy+zeroPlaneDisplacement (m s-1)
+    referenceHeight   = z0Canopy+zeroPlaneDisplacement
     windConvFactor    = exp(-windReductionFactor*(1._rkind - (referenceHeight/heightCanopyTopAboveSnow)))
     windspdRefHeight  = windspdCanopyTop*windConvFactor
     if(heightCanopyTopAboveSnow < referenceHeight)then; err=20; message=trim(message)//'canopy top height above snow < reference height'; return; end if 
