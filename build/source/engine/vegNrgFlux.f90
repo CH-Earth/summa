@@ -1574,6 +1574,8 @@ subroutine aeroResist(&
     referenceHeight   = z0Canopy+zeroPlaneDisplacement
     windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
     print*, mHeight - zeroPlaneDisplacement, windspdCanopyRef, windspd - windspdCanopyRef, windspd
+    print* , 'referenceHeight = ', referenceHeight, 'z0Canopy = ', z0Canopy, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
+    print*, 'mHeight = ', mHeight, 'heightCanopyTopAboveSnow = ', heightCanopyTopAboveSnow, 'heightCanopyBottomAboveSnow = ', heightCanopyBottomAboveSnow
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! * compute resistance for the case where the canopy is exposed
@@ -1645,6 +1647,13 @@ subroutine aeroResist(&
 
 
     print*, windspd, windspd, RiBulkCanopy, canopyStabilityCorrection
+
+    print*, 'windspd =', windspd, ', RiBulkCanopy =', RiBulkCanopy, ', canopyStabilityCorrection =', canopyStabilityCorrection
+    print*, 'dCanopyStabilityCorrection_dRich =', dCanopyStabilityCorrection_dRich
+    print*, 'dCanopyStabilityCorrection_dAirTemp =', dCanopyStabilityCorrection_dAirTemp
+    print*, 'dCanopyStabilityCorrection_dCasTemp =', dCanopyStabilityCorrection_dCasTemp  
+    print*, 'canopyExNeut =', canopyExNeut, ', sfc2AtmExchangeCoeff_canopy =', sfc2AtmExchangeCoeff_canopy
+
 
     ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
     ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
