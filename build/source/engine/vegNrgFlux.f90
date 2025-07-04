@@ -1571,7 +1571,7 @@ subroutine aeroResist(&
     
     ! Above the aStability call
     referenceHeight   = z0Canopy+zeroPlaneDisplacement
-    windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
+    !windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! * compute resistance for the case where the canopy is exposed
@@ -1599,7 +1599,7 @@ subroutine aeroResist(&
 
 
     mHeightDiff = mHeight - zeroPlaneDisplacement
-    windspdDiff = windspd - windspdCanopyRef
+    windspdDiff = windspd ! - windspdCanopyRef
 
 
     ! compute turbulent exchange coefficient (-)
