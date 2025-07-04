@@ -1509,8 +1509,9 @@ subroutine aeroResist(&
   real(rkind)                      :: singleLeafConductance                ! leaf boundary layer conductance (m s-1)
   real(rkind)                      :: canopyLeafConductance                ! leaf boundary layer conductance -- scaled up to the canopy (m s-1)
   real(rkind)                      :: leaf2CanopyScaleFactor               ! factor to scale from the leaf to the canopy [m s-(1/2)]
-  real(rkind)                      :: mHeightDiff                          ! difference between measurement height and reference height (m)
-  real(rkind)                      :: windspdDiff                           ! wind speed at the top of the canopy under neutral conditions (m s-1)
+  real(rkind)                      :: mHeightDiff                          ! difference between measurement height and reference height (m) Fixes aStability call
+  real(rkind)                      :: windspdDiff                          ! wind speed at the top of the canopy under neutral conditions (m s-1) Fixes aStability call
+  real(rkind)                      :: windspdCanopyRef                     ! wind speed at the reference height (m s-1) Fixes aStability call
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='aeroResist/'
@@ -1570,7 +1571,7 @@ subroutine aeroResist(&
     
     ! Above the aStability call
     referenceHeight   = z0Canopy+zeroPlaneDisplacement
-    windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
+    windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! * compute resistance for the case where the canopy is exposed
