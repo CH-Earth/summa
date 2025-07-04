@@ -1644,7 +1644,7 @@ subroutine aeroResist(&
     eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTopAboveSnow - zeroPlaneDisplacement), mpe)
 
 
-    print*, windspd, windspd, RiBulkCanopy, canopyStabilityCorrection,
+    print*, windspd, windspd, RiBulkCanopy, canopyStabilityCorrection
 
     ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
     ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
