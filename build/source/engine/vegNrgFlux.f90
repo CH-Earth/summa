@@ -1509,8 +1509,6 @@ subroutine aeroResist(&
   real(rkind)                      :: singleLeafConductance                ! leaf boundary layer conductance (m s-1)
   real(rkind)                      :: canopyLeafConductance                ! leaf boundary layer conductance -- scaled up to the canopy (m s-1)
   real(rkind)                      :: leaf2CanopyScaleFactor               ! factor to scale from the leaf to the canopy [m s-(1/2)]
-  real(rkind)                      :: mHeightDiff                          ! difference between measurement height and reference height (m) Fixes aStability call
-  real(rkind)                      :: windspdDiff                          ! wind speed at the top of the canopy under neutral conditions (m s-1) Fixes aStability call
   real(rkind)                      :: windspdCanopyRef                     ! wind speed at the reference height (m s-1) Fixes aStability call
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -1571,7 +1569,7 @@ subroutine aeroResist(&
     
     ! Above the aStability call
     referenceHeight   = z0Canopy+zeroPlaneDisplacement
-    !windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
+    windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! * compute resistance for the case where the canopy is exposed
@@ -1580,10 +1578,10 @@ subroutine aeroResist(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
-                    mHeight,                                          & ! input:  measurement height (m)               
+                    mHeight - zeroPlaneDisplacement,                  & ! input:  measurement height difference (m)               
                     airTemp,                                          & ! input:  air temperature above the canopy (K)
                     canairTemp,                                       & ! input:  temperature of the canopy air space (K)
-                    windspd,                                          & ! input:  wind speed above the canopy (m s-1)
+                    windspd - windspdCanopyRef,                       & ! input:  wind speed difference  (m s-1)
                     ! input: stability parameters
                     critRichNumber,                                   & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                     Louis79_bparam,                                   & ! input:  parameter in Louis (1979) stability function
@@ -1597,26 +1595,21 @@ subroutine aeroResist(&
                     err, cmessage                                     ) ! output: error control
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
-
-    mHeightDiff = mHeight - zeroPlaneDisplacement
-    windspdDiff = windspd ! - windspdCanopyRef
-
-
     ! compute turbulent exchange coefficient (-)
-    canopyExNeut = (vkc**2_i4b) / ( log((mHeightDiff - zeroPlaneDisplacement)/z0Canopy))**2_i4b     ! coefficient under conditions of neutral stability
+    canopyExNeut = (vkc**2_i4b) / ( log((mHeight - zeroPlaneDisplacement)/z0Canopy))**2_i4b     ! coefficient under conditions of neutral stability
     sfc2AtmExchangeCoeff_canopy = canopyExNeut*canopyStabilityCorrection                        ! after stability corrections
 
     ! compute the friction velocity (m s-1)
-    frictionVelocity = windspdDiff * sqrt(sfc2AtmExchangeCoeff_canopy)
+    frictionVelocity = windspd * sqrt(sfc2AtmExchangeCoeff_canopy)
 
     ! compute the above-canopy resistance (s m-1)
-    canopyResistance = 1._rkind/(sfc2AtmExchangeCoeff_canopy*windspdDiff)
+    canopyResistance = 1._rkind/(sfc2AtmExchangeCoeff_canopy*windspd)
     if (canopyResistance < 0._rkind) then; err=20; message=trim(message)//'canopy resistance < 0'; return; end if
 
     ! compute windspeed at the top of the canopy above snow depth (m s-1)
     ! NOTE: stability corrections cancel out
-    windConvFactor_fv = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeightDiff - snowDepth - zeroPlaneDisplacement)/z0Canopy)
-    windspdCanopyTop  = windspdDiff*windConvFactor_fv
+    windConvFactor_fv = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
+    windspdCanopyTop  = windspd*windConvFactor_fv
 
     ! compute the windspeed reduction
     ! Refs: Norman et al. (Ag. Forest Met., 1995) -- citing Goudriaan (1977 manuscript "crop micrometeorology: a simulation study", Wageningen).
