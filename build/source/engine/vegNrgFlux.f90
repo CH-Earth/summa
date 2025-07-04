@@ -1570,6 +1570,7 @@ subroutine aeroResist(&
     ! Above the aStability call
     referenceHeight   = z0Canopy+zeroPlaneDisplacement
     windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
+    print*, mHeight - zeroPlaneDisplacement, windspdCanopyRef, windspd - windspdCanopyRef
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! * compute resistance for the case where the canopy is exposed
