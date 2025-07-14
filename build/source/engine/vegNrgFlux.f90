@@ -1569,27 +1569,21 @@ subroutine aeroResist(&
 
     ! check measurement height
     if (mHeight < zeroPlaneDisplacement+z0Canopy) then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; end if
-    
-    ! Above the aStability call
-    referenceHeight   = z0Canopy+zeroPlaneDisplacement
-    windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
-    print*, mHeight - zeroPlaneDisplacement, windspdCanopyRef, windspd - windspdCanopyRef, windspd
-    print* , 'referenceHeight = ', referenceHeight, 'z0Canopy = ', z0Canopy, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
-    print*, 'mHeight = ', mHeight, 'heightCanopyTopAboveSnow = ', heightCanopyTopAboveSnow, 'heightCanopyBottomAboveSnow = ', heightCanopyBottomAboveSnow
+
+
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------------------------------------------------------------
     ! * compute resistance for the case where the canopy is exposed
     ! compute the stability correction for resistance from canopy air space to air above the canopy (-)
-    heightDiff = mHeight - zeroPlaneDisplacement
-    windDiff   = windspd - windspdCanopyRef
+
     call aStability(&
                     ! input
                     ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
-                    heightDiff,                  & ! input:  measurement height difference (m)               
+                    mHeight,                  & ! input:  measurement height difference (m)               
                     airTemp,                                          & ! input:  air temperature above the canopy (K)
                     canairTemp,                                       & ! input:  temperature of the canopy air space (K)
-                    windDiff,                       & ! input:  wind speed difference  (m s-1)
+                    windspd,                       & ! input:  wind speed difference  (m s-1)
                     ! input: stability parameters
                     critRichNumber,                                   & ! input:  critical value for the bulk Richardson number where turbulence ceases (-)
                     Louis79_bparam,                                   & ! input:  parameter in Louis (1979) stability function
@@ -1602,6 +1596,13 @@ subroutine aeroResist(&
                     dCanopyStabilityCorrection_dCasTemp,              & ! output: derivative in stability correction w.r.t. canopy air space temperature (K-1)
                     err, cmessage                                     ) ! output: error control
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+    ! Inside the aStability call
+    referenceHeight   = z0Canopy+zeroPlaneDisplacement
+    windspdCanopyRef  = windspd/log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy) ! This is also a new variable 
+    
+    heightDiff = mHeight - zeroPlaneDisplacement
+    windDiff   = windspd - windspdCanopyRef
 
     ! compute turbulent exchange coefficient (-)
     canopyExNeut = (vkc**2_i4b) / ( log((heightDiff - zeroPlaneDisplacement)/z0Canopy))**2_i4b     ! coefficient under conditions of neutral stability
@@ -1646,13 +1647,16 @@ subroutine aeroResist(&
     eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTopAboveSnow - zeroPlaneDisplacement), mpe)
 
 
-    print*, windspd, windspd, RiBulkCanopy, canopyStabilityCorrection
+    !print*, windspd, windspd, RiBulkCanopy, canopyStabilityCorrection
 
     print*, 'windspd =', windspd, ', RiBulkCanopy =', RiBulkCanopy, ', canopyStabilityCorrection =', canopyStabilityCorrection
-    print*, 'dCanopyStabilityCorrection_dRich =', dCanopyStabilityCorrection_dRich
-    print*, 'dCanopyStabilityCorrection_dAirTemp =', dCanopyStabilityCorrection_dAirTemp
-    print*, 'dCanopyStabilityCorrection_dCasTemp =', dCanopyStabilityCorrection_dCasTemp  
-    print*, 'canopyExNeut =', canopyExNeut, ', sfc2AtmExchangeCoeff_canopy =', sfc2AtmExchangeCoeff_canopy
+    !print*, 'dCanopyStabilityCorrection_dRich =', dCanopyStabilityCorrection_dRich
+    !print*, 'dCanopyStabilityCorrection_dAirTemp =', dCanopyStabilityCorrection_dAirTemp
+    !print*, 'dCanopyStabilityCorrection_dCasTemp =', dCanopyStabilityCorrection_dCasTemp  
+    !print*, 'canopyExNeut =', canopyExNeut, ', sfc2AtmExchangeCoeff_canopy =', sfc2AtmExchangeCoeff_canopy
+    !print*, mHeight - zeroPlaneDisplacement, windspdCanopyRef, windspd - windspdCanopyRef, windspd
+    !print* , 'referenceHeight = ', referenceHeight, 'z0Canopy = ', z0Canopy, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
+    !print*, 'mHeight = ', mHeight, 'heightCanopyTopAboveSnow = ', heightCanopyTopAboveSnow, 'heightCanopyBottomAboveSnow = ', heightCanopyBottomAboveSnow
 
 
     ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
