@@ -1653,10 +1653,10 @@ subroutine aeroResist(&
     !print*, 'dCanopyStabilityCorrection_dRich =', dCanopyStabilityCorrection_dRich
     !print*, 'dCanopyStabilityCorrection_dAirTemp =', dCanopyStabilityCorrection_dAirTemp
     !print*, 'dCanopyStabilityCorrection_dCasTemp =', dCanopyStabilityCorrection_dCasTemp  
-    !print*, 'canopyExNeut =', canopyExNeut, ', sfc2AtmExchangeCoeff_canopy =', sfc2AtmExchangeCoeff_canopy
+    print*, 'canopyExNeut =', canopyExNeut, ', sfc2AtmExchangeCoeff_canopy =', sfc2AtmExchangeCoeff_canopy
     !print*, mHeight - zeroPlaneDisplacement, windspdCanopyRef, windspd - windspdCanopyRef, windspd
-    !print* , 'referenceHeight = ', referenceHeight, 'z0Canopy = ', z0Canopy, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
-    !print*, 'mHeight = ', mHeight, 'heightCanopyTopAboveSnow = ', heightCanopyTopAboveSnow, 'heightCanopyBottomAboveSnow = ', heightCanopyBottomAboveSnow
+    print* , 'referenceHeight = ', referenceHeight, 'z0Canopy = ', z0Canopy, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
+    print*, 'mHeight = ', mHeight, 'heightCanopyTopAboveSnow = ', heightCanopyTopAboveSnow, 'heightCanopyBottomAboveSnow = ', heightCanopyBottomAboveSnow
 
 
     ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
