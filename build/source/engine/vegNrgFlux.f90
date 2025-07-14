@@ -1651,7 +1651,7 @@ subroutine aeroResist(&
 
     !print*, windspd, windspd, RiBulkCanopy, canopyStabilityCorrection
 
-    print*, 'windspd =', windspd, ', RiBulkCanopy =', RiBulkCanopy, ', canopyStabilityCorrection =', canopyStabilityCorrection
+    print*, 'windspd =', windspd, ', RiBulkCanopy =', RiBulkCanopy, ', canopyStabilityCorrection =', canopyStabilityCorrection, 'FrictionVelocity =', frictionVelocity
     !print*, 'dCanopyStabilityCorrection_dRich =', dCanopyStabilityCorrection_dRich
     !print*, 'dCanopyStabilityCorrection_dAirTemp =', dCanopyStabilityCorrection_dAirTemp
     !print*, 'dCanopyStabilityCorrection_dCasTemp =', dCanopyStabilityCorrection_dCasTemp  
