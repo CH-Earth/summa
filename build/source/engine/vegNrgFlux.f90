@@ -1605,7 +1605,9 @@ subroutine aeroResist(&
     windDiff   = windspd - windspdCanopyRef
 
     ! compute turbulent exchange coefficient (-)
-    canopyExNeut = (vkc**2_i4b) / ( log((heightDiff - zeroPlaneDisplacement)/z0Canopy))**2_i4b     ! coefficient under conditions of neutral stability
+    !canopyExNeut = (vkc**2_i4b) / ( log((heightDiff - zeroPlaneDisplacement)/z0Canopy))**2_i4b     ! coefficient under conditions of neutral stability ! as should be
+    canopyExNeut = (vkc**2_i4b) / ( log((mHeight - zeroPlaneDisplacement)/z0Canopy))**2_i4b     ! coefficient under conditions of neutral stability
+
     sfc2AtmExchangeCoeff_canopy = canopyExNeut*canopyStabilityCorrection                        ! after stability corrections
 
     ! compute the friction velocity (m s-1)
