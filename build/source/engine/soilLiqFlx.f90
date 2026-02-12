@@ -1626,6 +1626,9 @@ subroutine update_volFracLiq_derivatives
    ! input-output: surface runoff and infiltration flux (m s-1)
    xMaxInfilRate    => io_surfaceFlx % xMaxInfilRate  & ! maximum infiltration rate (m s-1)
   &)
+   ! compute total soil depth from layer thicknesses
+   total_soil_depth = sum(in_surfaceFlx % mLayerDepth)
+
    ! define the depth to the wetting front (m) and derivatives
    depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth,total_soil_depth)
    if(updateInfil)then
