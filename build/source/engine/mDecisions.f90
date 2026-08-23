@@ -20,7 +20,9 @@
 
 module mDecisions_module
 USE nr_type
+USE globalData, only: isPrint          ! flag to enable informational screen/log output
 USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
+USE build_options, only: ngen_active   ! flag for nextgen
 implicit none
 private
 public::mDecisions
@@ -299,10 +301,10 @@ subroutine mDecisions(err,message)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
   ! check start and finish time
-#ifndef NGEN_ACTIVE
-  write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
-  write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
-#endif
+  if (.not. NGEN_ACTIVE)then
+    if(isPrint) write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
+    if(isPrint) write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
+  endif
   ! check that simulation end time is > start time
   if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
 
@@ -805,9 +807,9 @@ subroutine readoption(err,message)
   err=0; message='readoption/'
   ! build filename
   infile = trim(SETTINGS_PATH)//trim(M_DECISIONS)
-#ifndef NGEN_ACTIVE
-  write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
-#endif
+  if (.not. NGEN_ACTIVE)then
+    if(isPrint) write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
+  endif
   ! open file
   call file_open(trim(infile),unt,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -825,9 +827,9 @@ subroutine readoption(err,message)
     if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
     ! get the index of the decision in the data structure
     iVar = get_ixdecisions(trim(option))
-#ifndef NGEN_ACTIVE
-    write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
-#endif
+    if (.not. NGEN_ACTIVE)then
+      if(isPrint) write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
+    endif
     if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; end if
     ! populate the model decisions structure
     model_decisions(iVar)%cOption   = trim(option)

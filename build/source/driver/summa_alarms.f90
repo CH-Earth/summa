@@ -29,11 +29,11 @@ USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)
 
 ! named variables to write restart files
-USE globalData, only: ixRestart_iy            ! named variable to print a re-start file once per year
-USE globalData, only: ixRestart_im            ! named variable to print a re-start file once per month
-USE globalData, only: ixRestart_id            ! named variable to print a re-start file once per day
-USE globalData, only: ixRestart_end           ! named variable to print a re-start file at the end of a run
-USE globalData, only: ixRestart_never         ! named variable to print a re-start file never
+USE globalData, only: ixRestart_iy            ! named variable to write a re-start file once per year
+USE globalData, only: ixRestart_im            ! named variable to write a re-start file once per month
+USE globalData, only: ixRestart_id            ! named variable to write a re-start file once per day
+USE globalData, only: ixRestart_end           ! named variable to write a re-start file at the end of a run
+USE globalData, only: ixRestart_never         ! named variable to write a re-start file never
 
 ! named variables to print progress
 USE globalData, only: ixProgress_im           ! named variable to print progress once per month

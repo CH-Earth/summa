@@ -29,6 +29,7 @@ set(NRPROC
 set(HOOKUP
     ${HOOKUP_DIR}/ascii_util.f90
     ${HOOKUP_DIR}/summaFileManager.f90
+    ${DRIVER_DIR}/build_options.F90
     CACHE INTERNAL "HOOKUP")
 
 # Data modules
@@ -151,6 +152,7 @@ set(DRIVER
     ${DRIVER_DIR}/summa_globalData.f90
     ${DRIVER_DIR}/summa_util.f90
     ${DRIVER_DIR}/summa_defineOutput.f90
+    ${DRIVER_DIR}/summa_work_balance.f90
     ${DRIVER_DIR}/summa_init.f90
     ${DRIVER_DIR}/summa_forcing.f90
     ${DRIVER_DIR}/summa_modelRun.f90

@@ -21,6 +21,8 @@
 module summa_setup
 ! initializes parameter data structures (e.g. vegetation and soil parameters).
 
+USE globalData, only: isPrint           ! flag to enable informational screen/log output
+
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
 USE globalData,only:realMissing         ! missing real number
@@ -90,15 +92,10 @@ contains
  USE globalData,only:basinParFallback                        ! basin-average default parameters
  USE globalData,only:model_decisions                         ! model decision structure
  USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
- ! run time options
- USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
- USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
- USE globalData,only:iRunMode                                ! define the current running mode
 ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
  USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
- USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  ! timing variables
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
@@ -133,7 +130,7 @@ contains
   ! primary data structures (scalars)
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- GRU/HRU identifiers for the local domain 
 
   ! primary data structures (variable length vectors)
   mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
@@ -148,8 +145,8 @@ contains
 
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
-  nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
+  nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to this rank
+  nHRU_local           => summa1_struc%nHRU_local            & ! number of HRUs assigned to this rank
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -168,7 +165,7 @@ contains
  ! *****************************************************************************
  ! *** read description of model forcing datafile used in each HRU
  ! *****************************************************************************
- call ffile_info(nGRU,err,cmessage)
+ call ffile_info(nGRU_local,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 #endif
 
@@ -195,7 +192,7 @@ contains
  ! get the maximum number of layers
  maxLayers     = 0
  maxSoilLayers = 0
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
   do iHRU=1,gru_struc(iGRU)%hruCount
    maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
    maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
@@ -210,7 +207,7 @@ contains
  attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
 
  ! read local attributes for each HRU
- call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,err,cmessage)
+ call read_attrb(trim(attrFile),nGRU_local,attrStruct,typeStruct,idStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
@@ -260,11 +257,11 @@ contains
   case('plumberSUMMA');             urbanVegCategory = -999
   case default
    message=trim(message)//'unable to identify vegetation category'
-   return
+   err=20; return
  end select
 
  ! set default model parameters
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
   do iHRU=1,gru_struc(iGRU)%hruCount
 
    ! set parameters to their default value
@@ -294,14 +291,16 @@ contains
  ! *****************************************************************************
  ! *** read trial model parameter values for each HRU, and populate initial data structures
  ! *****************************************************************************
- call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,cmessage)
+ 
+ call read_param(nGRU_local, nHRU_local, &
+                 idStruct, mparStruct, bparStruct, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
  ! *** compute derived model variables that are pretty much constant for the basin as a whole
  ! *****************************************************************************
  ! loop through GRUs
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
 
   ! calculate the fraction of runoff in future time steps
   call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
@@ -319,7 +318,8 @@ contains
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
      else
-      message=trim(message)//'only expect there to be one downslope HRU'; return
+      message=trim(message)//'only expect there to be one downslope HRU'
+      err=20; return
      end if  ! (check there is a unique match)
     end if  ! (if identified a downslope HRU)
    end do
@@ -345,6 +345,13 @@ contains
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
    endif
 
+   ! NOTE: HVT, HVB, SAIM, and LAIM are process-global tables. If HRUs sharing a
+   ! vegetation class have different parameter values, later HRUs overwrite earlier
+   ! values. Results may therefore depend on the MPI partitioning and differ between
+   ! serial runs or parallel runs using different numbers of ranks.
+
+   ! TODO: Make these parameters HRU-local to eliminate dependence on MPI partitioning.
+
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
    HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)
@@ -362,7 +369,7 @@ contains
    upArea%gru(iGRU)%hru(iHRU) = 0._rkind
    do jHRU=1,gru_struc(iGRU)%hruCount
     ! check if jHRU flows into iHRU; assume no exchange between GRUs
-    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
+    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==idStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
      upArea%gru(iGRU)%hru(iHRU) = upArea%gru(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
     endif   ! (if jHRU is an upstream HRU)
    end do  ! jHRU
@@ -466,7 +473,7 @@ contains
         ! CALL wrf_message( mess )
         LUMATCH=1
      ELSE
-        call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
+        if (isPrint) call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
         DO LC = 1, LUCATS+12
            read(19,*)
         ENDDO
@@ -548,7 +555,7 @@ contains
      ! CALL wrf_message ( mess )
      LUMATCH=1
    ELSE
-    call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
+    if (isPrint) call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
     DO LC = 1, SLCATS
      read(19,*)
     ENDDO

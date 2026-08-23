@@ -25,6 +25,9 @@ module summa_init
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
+! global data to print data to screen (runtime, can be switched on/off based on context)
+USE globalData, only: isPrint                 ! flag to enable informational screen/log output
+
 ! named variables for run time options
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
 
@@ -68,10 +71,14 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE summaFileManager,only:summa_SetTimesDirsAndFiles        ! sets directories and filenames
   USE summa_globalData,only:summa_defineGlobalData            ! used to define global summa data structures
   USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
+  ! subroutines and functions: parallelization
+  USE summa_work_balance,only:balance_even                    ! module to identify start/end indices for a given rank
   ! subroutines and functions: read dimensions (NOTE: NetCDF)
   USE read_attrb_module,only:read_dimension                   ! module to read dimensions of GRU and HRU
+  USE read_attrb_module,only:read_mapping_vectors             ! module to define mapping between GRU and HRU
   USE read_icond_module,only:read_icond_nlayers               ! module to read initial condition dimensions
   ! subroutines and functions: allocate space
+  USE allocspace_module,only:alloc_driver_work                ! module to allocate space for work structures
   USE allocspace_module,only:allocGlobal                      ! module to allocate space for global data structures
   USE allocspace_module,only:allocLocal                       ! module to allocate space for local data structures
   ! timing variables
@@ -86,8 +93,8 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE globalData,only:refTime                                 ! reference time
   USE globalData,only:oldTime                                 ! time from previous step
   ! run time options
-  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
-  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
+  USE globalData,only:startGRU_user => startGRU               ! index of the starting GRU defined using the -g runtime option
+  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run using the -h runtime option
   USE globalData,only:iRunMode                                ! define the current running mode
   ! miscellaneous global data
   USE globalData,only:ncid                                    ! file id of netcdf output file
@@ -108,14 +115,21 @@ subroutine summa_initialize(summa1_struc, err, message)
   character(len=256)                    :: attrFile           ! attributes file name
   character(len=128)                    :: fmtGruOutput       ! a format string used to write start and end GRU in output file names
   integer(i4b)                          :: iStruct,iGRU       ! looping variables
-  integer(i4b)                          :: fileGRU            ! [used for filenames] number of GRUs in the input file
-  integer(i4b)                          :: fileHRU            ! [used for filenames] number of HRUs in the input file
-  integer(i4b)                          :: hruCount           ! number of local hydrologic response units
+  integer(i4b)                          :: nGRU_file          ! number of GRUs in the complete input file
+  integer(i4b)                          :: nHRU_file          ! number of HRUs in the complete input file
+  integer(i4b)                          :: startGRU_local     ! file index of first GRU assigned to the current rank
+  integer(i4b)                          :: startGRU_domain    ! file index of first GRU in the run domain
+  integer(i4b)                          :: nGRU_domain        ! number of GRUs in the run domain
   ! ---------------------------------------------------------------------------------------
   ! associate to elements in the data structure
   summaVars: associate(&
-  ! lookup table data structure
+    
+    ! parallel execution context
+    parallel             => summa1_struc%parallel            , & ! x%comm, x%rank, x%size -- parallel execution context
+
+    ! lookup table data structure
     lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
+    
     ! statistics structures
     forcStat             => summa1_struc%forcStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
     progStat             => summa1_struc%progStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
@@ -150,9 +164,12 @@ subroutine summa_initialize(summa1_struc, err, message)
     dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
     upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
 
-    ! miscellaneous variables
-    nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
-    nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
+    ! GRU and HRU dimensions
+    nGRU_user            => summa1_struc%nGRU_user           , & ! number of GRUs assigned to the current rank 
+    nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to the current rank 
+    nHRU_local           => summa1_struc%nHRU_local          , & ! number of HRUs assigned to the current rank
+    
+    ! manager file
     summaFileManagerFile => summa1_struc%summaFileManagerFile  & ! path/name of file defining directories and files
 
     ) ! assignment to variables in the data structures
@@ -188,15 +205,99 @@ subroutine summa_initialize(summa1_struc, err, message)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! *****************************************************************************
-    ! *** read the number of GRUs and HRUs
+    ! *** define spatial indexing and the run domain
     ! *****************************************************************************
-    ! obtain the HRU and GRU dimensions in the LocalAttribute file
+
+    ! Spatial indexing uses three distinct reference domains:
+    !
+    !   file   : the complete spatial domain in the input files
+    !            nGRU_file, nHRU_file
+    !
+    !   domain : the subset of GRUs selected for the model run
+    !            startGRU_domain, nGRU_domain
+    !
+    !   local  : the subset of the run domain assigned to the current rank
+    !            startGRU_local, nGRU_local, nHRU_local
+    !
+    ! startGRU_domain and startGRU_local are indices into the input file.
+
+    ! Read the number of GRUs and HRUs in the LocalAttributes file and identify
+    ! the GRU range selected for the model run. startGRU_domain is the file index
+    ! of the first selected GRU and nGRU_domain is the number of selected GRUs.
+    ! No parallel decomposition is performed here.
+
+    ! obtain the HRU and GRU dimensions in the LocalAttributes file
     attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
+    
     select case (iRunMode)
-      case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage)
-      case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,startGRU=startGRU)
-      case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,checkHRU=checkHRU)
+    
+      case (iRunModeFull)
+        call read_dimension(trim(attrFile), nGRU_file, nHRU_file, &
+                            startGRU_domain, nGRU_domain, err, cmessage)
+    
+      case (iRunModeGRU)
+
+        nGRU_domain = nGRU_user
+
+        call read_dimension(trim(attrFile), nGRU_file, nHRU_file, &
+                            startGRU_domain, nGRU_domain, err, cmessage, &
+                            startGRU_user=startGRU_user)
+    
+      case (iRunModeHRU)
+        call read_dimension(trim(attrFile), nGRU_file, nHRU_file, &
+                            startGRU_domain, nGRU_domain, err, cmessage, &
+                            checkHRU=checkHRU)
+    
     end select
+
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! *****************************************************************************
+    ! *** define the local spatial domain
+    ! *****************************************************************************
+
+    ! Partition the GRUs in the run domain evenly across the available ranks.
+    ! startGRU_local is the file index of the first GRU assigned to this rank
+    ! and nGRU_local is the number of GRUs assigned to this rank. For a serial
+    ! run, the local GRU range is identical to the run domain.
+
+    if(isPrint) print*, 'Parallel context: rank =', parallel%rank, ' size =', parallel%size, &
+                        ' comm =', parallel%comm
+
+    ! define start and count indices for each local rank
+    if(iRunMode /= iRunModeHRU)then
+    
+      call balance_even(startGRU_domain, nGRU_domain, &
+                        parallel%rank, parallel%size, &
+                        startGRU_local, nGRU_local, &
+                        err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    else
+      startGRU_local = integerMissing  ! assigned in read_mapping_vectors
+      nGRU_local     = nGRU_domain     ! =1
+    endif
+
+    if (isPrint) then
+      print*, 'Run mode =', iRunMode, iRunModeFull
+      print*, 'File dimensions:  nGRU_file =', nGRU_file, '  nHRU_file =', nHRU_file
+      print*, 'Run domain:  startGRU =', startGRU_domain, ' nGRU =', nGRU_domain
+      print*, 'Local rank:  startGRU =', startGRU_local,  ' nGRU =', nGRU_local
+    endif
+
+    ! *****************************************************************************
+    ! *** construct the local GRU-HRU mapping
+    ! *****************************************************************************
+
+    ! Read the GRU and HRU identifiers needed for this rank and construct the
+    ! local GRU-HRU and HRU-GRU mapping structures. nHRU_local is determined
+    ! from the HRUs belonging to the GRUs assigned to this rank.
+
+    call read_mapping_vectors(attrFile, &
+                              nGRU_file, nHRU_file, &
+                              startGRU_local, nGRU_local, nHRU_local, &
+                              merge(checkHRU, integerMissing, iRunMode == iRunModeHRU), &
+                              err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! *****************************************************************************
@@ -208,12 +309,18 @@ subroutine summa_initialize(summa1_struc, err, message)
     else
       restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
     endif
-    call read_icond_nlayers(trim(restartFile),nGRU,indx_meta,err,cmessage)
+    call read_icond_nlayers(trim(restartFile),nGRU_local,indx_meta,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! *****************************************************************************
     ! *** allocate space for data structures
     ! *****************************************************************************
+
+    ! Allocate the non-spatial time structures and the spatial model structures.
+
+    ! Spatial structures are allocated for the GRUs and HRUs assigned to this rank,
+    ! as defined by the local gru_struc mapping. For a serial run, the local spatial
+    ! domain is identical to the complete run domain.
 
     ! allocate time structures
     do iStruct=1,4
@@ -230,11 +337,11 @@ subroutine summa_initialize(summa1_struc, err, message)
     do iStruct=1,size(structInfo)
       ! allocate space
       select case(trim(structInfo(iStruct)%structName))
-        case('time'  ); call allocGlobal(time_meta,    timeStruct,    err, cmessage)   ! model forcing data
+        case('time'  ); call allocGlobal(time_meta,    timeStruct,    err, cmessage)   ! model time data
         case('forc'  ); call allocGlobal(forc_meta,    forcStruct,    err, cmessage)   ! model forcing data
         case('attr'  ); call allocGlobal(attr_meta,    attrStruct,    err, cmessage)   ! local attributes for each HRU
         case('type'  ); call allocGlobal(type_meta,    typeStruct,    err, cmessage)   ! local classification of soil veg etc. for each HRU
-        case('id'    ); call allocGlobal(id_meta,      idStruct,      err, message)    ! local values of hru and gru IDs
+        case('id'    ); call allocGlobal(id_meta,      idStruct,      err, cmessage)   ! local values of hru and gru IDs
         case('mpar'  ); call allocGlobal(mpar_meta,    mparStruct,    err, cmessage)   ! model parameters
         case('indx'  ); call allocGlobal(indx_meta,    indxStruct,    err, cmessage)   ! model variables
         case('prog'  ); call allocGlobal(prog_meta,    progStruct,    err, cmessage)   ! model prognostic (state) variables
@@ -242,7 +349,7 @@ subroutine summa_initialize(summa1_struc, err, message)
         case('flux'  ); call allocGlobal(flux_meta,    fluxStruct,    err, cmessage)   ! model fluxes
         case('bpar'  ); call allocGlobal(bpar_meta,    bparStruct,    err, cmessage)   ! basin-average parameters
         case('bvar'  ); call allocGlobal(bvar_meta,    bvarStruct,    err, cmessage)   ! basin-average variables
-        case('lookup'); call allocGlobal(lookup_meta,  lookupStruct,  err, cmessage)   ! basin-average variables
+        case('lookup'); call allocGlobal(lookup_meta,  lookupStruct,  err, cmessage)   ! lookup tables
         case('deriv' ); cycle ! derivatives are not stored in the data structure, but are instead computed on the fly and stored in local variables
         case default; err=20; message='unable to find structure name: '//trim(structInfo(iStruct)%structName)
       end select
@@ -261,26 +368,13 @@ subroutine summa_initialize(summa1_struc, err, message)
       return
     endif
 
-    ! allocate space for the time step and computeVegFlux flags (recycled for each GRU for subsequent model calls)
-    allocate(dt_init%gru(nGRU),upArea%gru(nGRU),computeVegFlux%gru(nGRU),stat=err)
-    if(err/=0)then
-      message=trim(message)//'problem allocating space for dt_init, upArea, or computeVegFlux [GRU]'
-      return
-    endif
+    ! allocate driver work structures
+    call alloc_driver_work(nGRU_local, dt_init, upArea, computeVegFlux, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! allocate space for the HRUs
-    do iGRU=1,nGRU
-      hruCount = gru_struc(iGRU)%hruCount  ! gru_struc populated in "read_dimension"
-      allocate(dt_init%gru(iGRU)%hru(hruCount),upArea%gru(iGRU)%hru(hruCount),computeVegFlux%gru(iGRU)%hru(hruCount),stat=err)
-      if(err/=0)then
-        message='problem allocating space for dt_init, upArea, or computeVegFlux [HRU]'
-      return
-      endif
-    end do
-
-      ! *****************************************************************************
-      ! *** allocate space for output statistics data structures
-      ! *****************************************************************************
+    ! *****************************************************************************
+    ! *** allocate space for output statistics structures assigned to this rank
+    ! *****************************************************************************
 
     ! loop through data structures
     do iStruct=1,size(structInfo)
@@ -307,17 +401,30 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! *****************************************************************************
     ! *** define the suffix for the model output file
     ! *****************************************************************************
+    
     if (output_fileSuffix(1:1) /= '_') output_fileSuffix='_'//trim(output_fileSuffix)   ! separate output_fileSuffix from others by underscores
     if (output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) == '_') output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) = ' '
+    
     select case (iRunMode)
-      case(iRunModeGRU)
-        ! left zero padding for startGRU and endGRU
-        write(fmtGruOutput,"(i0)") ceiling(log10(real(fileGRU)+0.1))                      ! maximum width of startGRU and endGRU
-        fmtGruOutput = "i"//trim(fmtGruOutput)//"."//trim(fmtGruOutput)                   ! construct the format string for startGRU and endGRU
-        fmtGruOutput = "('_G',"//trim(fmtGruOutput)//",'-',"//trim(fmtGruOutput)//")"
-        write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),fmtGruOutput) startGRU,startGRU+nGRU-1
-      case(iRunModeHRU)
+    
+      case (iRunModeGRU, iRunModeFull)
+
+        ! add GRU range text string for GRU-subset runs or parallel full-domain runs
+        if (iRunMode == iRunModeGRU .or. parallel%size > 1)then
+
+          ! left zero padding for startGRU and endGRU
+          write(fmtGruOutput,"(i0)") ceiling(log10(real(nGRU_file)+0.1))                    ! maximum width of startGRU and endGRU
+          fmtGruOutput = "i"//trim(fmtGruOutput)//"."//trim(fmtGruOutput)                   ! construct the format string for startGRU and endGRU
+          fmtGruOutput = "('_G',"//trim(fmtGruOutput)//",'-',"//trim(fmtGruOutput)//")"
+          
+          write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),fmtGruOutput) &
+                                   startGRU_local, startGRU_local+nGRU_local-1
+  
+        endif
+
+      case (iRunModeHRU)
         write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
+
     end select
 
     ! identify the end of the initialization
@@ -328,6 +435,8 @@ subroutine summa_initialize(summa1_struc, err, message)
 
   ! end associate statements
   end associate summaVars
+
+  !stop 'end of summa_initialize'
 
 end subroutine summa_initialize
 
