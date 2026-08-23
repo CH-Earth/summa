@@ -1,0 +1,3 @@
+[submodule "external/parallel-utils"]
+	path = external/parallel-utils
+	url = https://github.com/CH-Earth/parallel-utils.git
