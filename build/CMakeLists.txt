@@ -89,8 +89,8 @@ if (USE_MPI)
     find_package(MPI REQUIRED COMPONENTS Fortran)
 
     add_subdirectory(
-        ${F_MASTER}/external/parallel-fortran
-        ${CMAKE_BINARY_DIR}/parallel-fortran
+        ${F_MASTER}/external/parallel-utils
+        ${CMAKE_BINARY_DIR}/parallel-utils
     )
 endif()
 
@@ -310,7 +310,7 @@ else()
       ${EXEC_NAME_MPI}
       PRIVATE
         summa
-        parallel_fortran
+        parallel_utils
     )
 
   endif()
