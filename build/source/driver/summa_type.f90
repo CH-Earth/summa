@@ -28,6 +28,7 @@ MODULE summa_type
 
 USE nr_type         ! variable types, etc.
 
+! general summa data types
 USE data_types,  only : &
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
@@ -53,7 +54,13 @@ USE data_types,  only : &
                     ! gru+hru+z dimension
                     gru_hru_z_vLookup      ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:)  (dp)
 
-! access missing values
+! mizuRoute coupling
+#ifdef MIZUROUTE_ACTIVE
+use mizuroute_types, only: mizuroute_info
+use mizuroute_types, only: mizuroute_domain
+#endif
+
+! missing values
 USE globalData,only:integerMissing      ! missing integer
 USE globalData,only:realMissing         ! missing real number
 
@@ -76,54 +83,59 @@ end type parallel_context_type
 ! *****************************************************************************
 type, public :: summa1_type_dec    
 
-    ! MPI communication context
-    type(parallel_context_type)      :: parallel                   ! x%comm, x%rank, x%size
+! MPI communication context
+type(parallel_context_type)      :: parallel                   ! x%comm, x%rank, x%size
 
-    ! the lookup tables
-    type(gru_hru_z_vLookup)          :: lookupStruct               ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
-    
-    ! the statistics structures
-    type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
-    type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-    type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-    type(gru_hru_doubleVec)          :: fluxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-    type(gru_hru_doubleVec)          :: indxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-    type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat        -- basin-average variabl
+! the lookup tables
+type(gru_hru_z_vLookup)          :: lookupStruct               ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
 
-    ! the primary data structures (scalars)
-    type(var_i)                      :: timeStruct                 ! x%var(:)                   -- model time data
-    type(gru_hru_double)             :: forcStruct                 ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-    type(gru_hru_double)             :: attrStruct                 ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-    type(gru_hru_int)                :: typeStruct                 ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-    type(gru_hru_int8)               :: idStruct                   ! x%gru(:)%hru(:)%var(:)     -- local values of hru and gru IDs
+! the statistics structures
+type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
+type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
+type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
+type(gru_hru_doubleVec)          :: fluxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+type(gru_hru_doubleVec)          :: indxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model indices
+type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat        -- basin-average variabl
 
-    ! the primary data structures (variable length vectors)
-    type(gru_hru_intVec)             :: indxStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-    type(gru_hru_doubleVec)          :: mparStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
-    type(gru_hru_doubleVec)          :: progStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-    type(gru_hru_doubleVec)          :: diagStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-    type(gru_hru_doubleVec)          :: fluxStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+! the primary data structures (scalars)
+type(var_i)                      :: timeStruct                 ! x%var(:)                   -- model time data
+type(gru_hru_double)             :: forcStruct                 ! x%gru(:)%hru(:)%var(:)     -- model forcing data
+type(gru_hru_double)             :: attrStruct                 ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
+type(gru_hru_int)                :: typeStruct                 ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+type(gru_hru_int8)               :: idStruct                   ! x%gru(:)%hru(:)%var(:)     -- local values of hru and gru IDs
 
-    ! the basin-average structures
-    type(gru_double)                 :: bparStruct                 ! x%gru(:)%var(:)            -- basin-average parameters
-    type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)%dat        -- basin-average variables
+! the primary data structures (variable length vectors)
+type(gru_hru_intVec)             :: indxStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model indices
+type(gru_hru_doubleVec)          :: mparStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
+type(gru_hru_doubleVec)          :: progStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
+type(gru_hru_doubleVec)          :: diagStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
+type(gru_hru_doubleVec)          :: fluxStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
 
-    ! the ancillary data structures
-    type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
+! the basin-average structures
+type(gru_double)                 :: bparStruct                 ! x%gru(:)%var(:)            -- basin-average parameters
+type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)%dat        -- basin-average variables
 
-    ! the run-time variables
-    type(gru_i)                      :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-    type(gru_d)                      :: dt_init                    ! used to initialize the length of the sub-step for each HRU
-    type(gru_d)                      :: upArea                     ! area upslope of each HRU
+! the ancillary data structures
+type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
 
-    ! GRU and HRU dimensions
-    integer(i4b)                     :: nGRU_user = integerMissing ! number of GRUs requested with CLI -g
-    integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
-    integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
-    integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
+! the run-time variables
+type(gru_i)                      :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+type(gru_d)                      :: dt_init                    ! used to initialize the length of the sub-step for each HRU
+type(gru_d)                      :: upArea                     ! area upslope of each HRU
 
-    ! file manager
-    character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
+! GRU and HRU dimensions
+integer(i4b)                     :: nGRU_user = integerMissing ! number of GRUs requested with CLI -g
+integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
+integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
+integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
+
+! file manager
+character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
+
+#ifdef MIZUROUTE_ACTIVE
+type(mizuroute_info)   :: mizu_info
+type(mizuroute_domain) :: mizu_domain
+#endif
 
 end type summa1_type_dec
 

@@ -25,6 +25,7 @@ endif()
 set(CMAKE_CONFIGURATION_TYPES Release Debug)
 
 # Options: Enable each with cmake -DOPTION=ON
+option(USE_MIZUROUTE "Enable mizuRoute coupling" OFF)
 option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
 option(USE_OPENWQ "Use OpenWQ Framework" OFF)
@@ -92,6 +93,21 @@ if (USE_MPI)
         ${F_MASTER}/external/parallel-utils
         ${CMAKE_BINARY_DIR}/parallel-utils
     )
+endif()
+
+# mizuRoute
+if (USE_MIZUROUTE)
+    message("ENABLING MIZUROUTE")
+
+    set(MIZU_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/../external/mizuRoute/route/build/src
+    )
+
+    set(SUMMA_MIZU_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/mizuroute
+    )
+
+    include(${SUMMA_MIZU_DIR}/CMakeLists.txt)
 endif()
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
@@ -200,6 +216,86 @@ if (USE_SUNDIALS)
     set(SUMMA_ALL ${SUMMA_ALL} ${MODRUN_SUNDIALS} ${SOLVER_SUNDIALS})
 endif()
 
+if (USE_MIZUROUTE)
+
+    # mizuRoute type/interface layer
+    add_library(MIZUROUTE_TYPES STATIC
+        ${NRTYPE}
+        ${MIZU_TYPE}
+    )
+
+    target_compile_options(MIZUROUTE_TYPES PRIVATE ${FLAGS_ALL})
+
+    set_target_properties(
+        MIZUROUTE_TYPES
+        PROPERTIES
+        Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_types_mod
+    )
+
+    target_include_directories(
+        MIZUROUTE_TYPES
+        PUBLIC
+        ${CMAKE_BINARY_DIR}/mizuroute_types_mod
+    )
+
+    # mizuRoute implementation
+    add_library(MIZUROUTE STATIC
+        ${MIZU_BASE}
+        ${MIZU_DATA}
+        ${MIZU_TOPO}
+        ${MIZU_INIT}
+        ${MIZU_RMAP}
+        ${MIZU_ROUTE}
+    )
+
+    target_compile_options(MIZUROUTE PRIVATE ${FLAGS_ALL})
+
+    target_link_libraries(
+        MIZUROUTE
+        PUBLIC
+        MIZUROUTE_TYPES
+        NetCDF::NetCDF
+    )
+
+    set_target_properties(
+        MIZUROUTE
+        PROPERTIES
+        Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_mod
+    )
+
+    # SUMMA-facing mizuRoute coupling layer
+    add_library(MIZUROUTE_COUPLING STATIC
+        ${MIZU_COUPLING}
+    )
+
+    target_compile_options(MIZUROUTE_COUPLING PRIVATE ${FLAGS_ALL})
+
+    target_link_libraries(
+        MIZUROUTE_COUPLING
+        PUBLIC
+        MIZUROUTE
+    )
+
+    set_target_properties(
+        MIZUROUTE_COUPLING
+        PROPERTIES
+        Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_coupling_mod
+    )
+
+    target_include_directories(
+        MIZUROUTE_COUPLING
+        PRIVATE
+        ${CMAKE_BINARY_DIR}/mizuroute_mod
+    )
+
+    target_include_directories(
+        MIZUROUTE_COUPLING
+        PUBLIC
+        ${CMAKE_BINARY_DIR}/mizuroute_coupling_mod
+    )
+
+endif()
+
 if (USE_OPENWQ)
     add_subdirectory(${F_MASTER}/build/source/openwq)
     if (DEFINED OPENWQ_ERROR)
@@ -243,12 +339,14 @@ file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${G
 file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
 # Build SUMMA_NOAHMP Object
-add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
+add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL} ${NRTYPE})
 target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
+set_target_properties(SUMMA_COMM PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/summa_comm_mod)
+target_include_directories(SUMMA_COMM PUBLIC ${CMAKE_BINARY_DIR}/summa_comm_mod)
 target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS} ${LIBRARY_LINKS})
 
 # For NextGen, build SUMMA Shared Library and add the outside BMI libraries
@@ -276,6 +374,11 @@ else()
   # SUMMA shared library
   add_library(summa SHARED ${SUMMA_ALL})
   target_compile_options(summa PRIVATE ${FLAGS_ALL})
+
+  if (USE_MIZUROUTE)
+    target_compile_definitions(summa PRIVATE MIZUROUTE_ACTIVE)
+    target_link_libraries(summa PRIVATE MIZUROUTE_COUPLING)
+  endif()
 
   target_link_libraries(
     summa

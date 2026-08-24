@@ -11,13 +11,15 @@ set(NOAHMP
     ${NOAHMP_DIR}/module_sf_noahmplsm.F
     CACHE INTERNAL "NOAHMP")
 
-# Free versions of numerical recipes utilities for NOAH-MP modules
+set(NRTYPE
+    ${NUMREC_DIR}/nr_type.f90
+    CACHE INTERNAL "NRTYPE")
+
 set(NRUTIL
     ${NUMREC_DIR}/f2008funcs.f90
     ${NUMREC_DIR}/nr_utils.f90
-    ${NUMREC_DIR}/nr_type.f90
     CACHE INTERNAL "NRUTIL")
-
+  
 # Free versions of numerical recipes procedures for SUMMA modules
 set(NRPROC
     ${NUMREC_DIR}/expIntegral.f90
