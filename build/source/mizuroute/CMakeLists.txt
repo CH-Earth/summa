@@ -55,6 +55,7 @@ set(MIZU_ROUTE
 )
 
 set(MIZU_COUPLING
+    ${SUMMA_MIZU_DIR}/mizuroute_config.f90
     ${SUMMA_MIZU_DIR}/init_mizuRoute.f90
     ${SUMMA_MIZU_DIR}/network_routing.f90
 )

@@ -70,6 +70,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE summa_util, only:getCommandArguments                    ! process command line arguments
   USE summaFileManager,only:summa_SetTimesDirsAndFiles        ! sets directories and filenames
   USE summa_globalData,only:summa_defineGlobalData            ! used to define global summa data structures
+  USE summa_config,only:load_summa_config                     ! load TOML configuration settings (for parsing later)
   USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
   ! subroutines and functions: parallelization
   USE summa_work_balance,only:balance_even                    ! module to identify start/end indices for a given rank
@@ -170,7 +171,8 @@ subroutine summa_initialize(summa1_struc, err, message)
     nHRU_local           => summa1_struc%nHRU_local          , & ! number of HRUs assigned to the current rank
     
     ! manager file
-    summaFileManagerFile => summa1_struc%summaFileManagerFile  & ! path/name of file defining directories and files
+    summaFileManagerFile => summa1_struc%summaFileManagerFile, & ! path/name of file defining directories and files
+    summaConfigFile      => summa1_struc%summaConfigFile       & ! path/name of summa configuration file
 
     ) ! assignment to variables in the data structures
     ! ---------------------------------------------------------------------------------------
@@ -195,6 +197,15 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! get the command line arguments
     call getCommandArguments(summa1_struc,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! load configuration settings from TOML file
+    call load_summa_config(trim(summaConfigFile), summa1_struc, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! print*, 'summaControlFile = ', trim(summa1_struc%summaFileManagerFile)
+    ! print*, 'summaConfigFile  = ', trim(summa1_struc%summaConfigFile)
+    ! print*, 'idSegOut         = ', summa1_struc%mizu_info%ntopo%idSegOut
+    ! err=20; return
 
     ! set directories and files -- summaFileManager used as command-line argument
     call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)

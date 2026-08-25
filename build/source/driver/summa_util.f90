@@ -81,7 +81,8 @@ contains
  summaVars: associate(&
   nGRU_user            => summa1_struc%nGRU_user           ,& ! number of GRUs defined using CLI -g
   nHRU_check           => summa1_struc%nHRU_check          ,& ! number of HRUs defined using CLI -h
-  summaFileManagerFile => summa1_struc%summaFileManagerFile & ! path/name of file defining directories and files
+  summaFileManagerFile => summa1_struc%summaFileManagerFile,& ! path/name of file defining directories and files
+  summaConfigFile      => summa1_struc%summaConfigFile      & ! path/name of TOML config file 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -143,6 +144,19 @@ contains
     ! get name of master control file
     summaFileManagerFile=trim(argString(iArgument+1))
     if(isPrint) print "(A)", "file_master is '"//trim(summaFileManagerFile)//"'."
+
+   case ('-c', '--config')
+    ! check that the number of command line arguments is correct
+    nLocalArgument = 1
+    if (iArgument+nLocalArgument > nArgument) then
+      message="missing argument config_file; type 'summa.exe --help' for correct usage"
+      err=1; return
+    endif
+    ! get name of the configuration file
+    summaConfigFile = trim(argString(iArgument+1))
+
+  if (isPrint) print "(A)", &
+    "config_file is '"//trim(summaConfigFile)//"'."
 
    ! define the formation of new output files
    case ('-n', '--newFile')
@@ -288,10 +302,11 @@ contains
  subroutine printCommandHelp()
  implicit none
  ! command line usage
- print "(//A)",'Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]'
+ print "(//A)",'Usage: summa.exe -m master_file [-c config_file] [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress]'
  print "(A,/)",  ' summa.exe          summa executable'
  print "(A)",  'Running options:'
  print "(A)",  ' -m --master        Define path/name of master file (required)'
+ print "(A)",  ' -c --config        Define path/name of TOML configuration file'
  print "(A)",  ' -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files'
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'

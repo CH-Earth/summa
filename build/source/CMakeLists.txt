@@ -15,6 +15,15 @@ set(NRTYPE
     ${NUMREC_DIR}/nr_type.f90
     CACHE INTERNAL "NRTYPE")
 
+set(SUMMA_DATA_TYPES
+    ${DSHARE_DIR}/var_lookup.f90
+    ${DSHARE_DIR}/data_types.f90
+    CACHE INTERNAL "SUMMA_DATA_TYPES")
+
+set(SUMMA_TYPE
+    ${DRIVER_DIR}/summa_type.f90
+    CACHE INTERNAL "SUMMA_TYPE")
+
 set(NRUTIL
     ${NUMREC_DIR}/f2008funcs.f90
     ${NUMREC_DIR}/nr_utils.f90
@@ -36,14 +45,12 @@ set(HOOKUP
 
 # Data modules
 set(DATAMS
-    ${DSHARE_DIR}/data_types.f90
     ${DSHARE_DIR}/fluxMapping.f90
     ${DSHARE_DIR}/get_ixname.f90
     ${DSHARE_DIR}/globalData.f90
     ${DSHARE_DIR}/multiconst.f90
     ${DSHARE_DIR}/outpt_stat.f90
     ${DSHARE_DIR}/popMetadat.f90
-    ${DSHARE_DIR}/var_lookup.f90
     CACHE INTERNAL "DATAMS")
 set(DATAMS_SUNDIALS
     ${DSHARE_DIR}/type4ida.f90
@@ -147,7 +154,7 @@ set(SOLVER_SUNDIALS
 
 # Driver support modules
 set(DRIVER
-    ${DRIVER_DIR}/summa_type.f90
+    ${DRIVER_DIR}/summa_config.f90
     ${DRIVER_DIR}/summa_setup.f90
     ${DRIVER_DIR}/summa_restart.f90
     ${DRIVER_DIR}/summa_alarms.f90

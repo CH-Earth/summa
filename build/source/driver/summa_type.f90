@@ -60,10 +60,6 @@ use mizuroute_types, only: mizuroute_info
 use mizuroute_types, only: mizuroute_domain
 #endif
 
-! missing values
-USE globalData,only:integerMissing      ! missing integer
-USE globalData,only:realMissing         ! missing real number
-
 implicit none
 
 private
@@ -124,13 +120,14 @@ type(gru_d)                      :: dt_init                    ! used to initial
 type(gru_d)                      :: upArea                     ! area upslope of each HRU
 
 ! GRU and HRU dimensions
-integer(i4b)                     :: nGRU_user = integerMissing ! number of GRUs requested with CLI -g
+integer(i4b)                     :: nGRU_user = -1             ! number of GRUs requested with CLI -g
 integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
 integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
 integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
 
-! file manager
+! file managers
 character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
+character(len=256)               :: summaConfigFile =''        ! path/name of the TOML configuration file 
 
 #ifdef MIZUROUTE_ACTIVE
 type(mizuroute_info)   :: mizu_info
