@@ -21,12 +21,28 @@
 module summa_init
 ! used to declare and allocate summa data structures and initialize model state to known values
 
+! check if mizuroute is active
+use build_options, only: mizuroute_active
+use build_options, only: ngen_forcing_active
+
+#ifdef MIZUROUTE_ACTIVE
+USE init_mizuRoute, only: init_mizuroute_from_summa
+#endif
+
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
 ! global data to print data to screen (runtime, can be switched on/off based on context)
-USE globalData, only: isPrint                 ! flag to enable informational screen/log output
+USE globalData, only: isPrint        ! flag to enable informational screen/log output
+
+! global data on the forcing file
+USE globalData,only:data_step        ! length of the data step (s)
+
+! output constraints
+USE globalData,only:maxLayers        ! maximum number of layers
+USE globalData,only:maxSoilLayers    ! maximum number of soil layers
+USE globalData,only:maxSnowLayers    ! maximum number of snow layers
 
 ! named variables for run time options
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
@@ -51,6 +67,20 @@ USE summaFileManager,only:SETTINGS_PATH                     ! define path to set
 USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
 USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model initial attributes file
+
+! model decisions
+USE globalData,only:model_decisions                         ! model decision structure
+USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
+
+! named variables to define the decisions for snow layers
+USE mDecisions_module,only:&
+  sameRulesAllLayers,&                  ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  rulesDependLayerIndex                 ! CLM option: combination/sub-dividion rules depend on layer index
+
+! named variables for the output buffer
+USE mDecisions_module,only:&
+ writePerStep,   &                      ! write data per time step (default)
+ writeFullSeries                        ! write all data for a given output file
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -82,6 +112,9 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE allocspace_module,only:alloc_driver_work                ! module to allocate space for work structures
   USE allocspace_module,only:allocGlobal                      ! module to allocate space for global data structures
   USE allocspace_module,only:allocLocal                       ! module to allocate space for local data structures
+  ! subroutines and functions: model decisions and forcing file information
+  USE mDecisions_module,only:mDecisions                       ! module to read model decisions
+  USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
   ! timing variables
   USE globalData,only:startInit,endInit                       ! date/time for the start and end of the initialization
   USE globalData,only:elapsedInit                             ! elapsed time for the initialization
@@ -93,6 +126,8 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE globalData,only:finshTime                               ! end time
   USE globalData,only:refTime                                 ! reference time
   USE globalData,only:oldTime                                 ! time from previous step
+  ! buffered write
+  USE globalData,only:numtim                                  ! number of time steps
   ! run time options
   USE globalData,only:startGRU_user => startGRU               ! index of the starting GRU defined using the -g runtime option
   USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run using the -h runtime option
@@ -115,7 +150,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   character(len=256)                    :: restartFile        ! restart file name
   character(len=256)                    :: attrFile           ! attributes file name
   character(len=128)                    :: fmtGruOutput       ! a format string used to write start and end GRU in output file names
-  integer(i4b)                          :: iStruct,iGRU       ! looping variables
+  integer(i4b)                          :: iStruct,iGRU,iHRU  ! looping variables
   integer(i4b)                          :: nGRU_file          ! number of GRUs in the complete input file
   integer(i4b)                          :: nHRU_file          ! number of HRUs in the complete input file
   integer(i4b)                          :: startGRU_local     ! file index of first GRU assigned to the current rank
@@ -408,6 +443,65 @@ subroutine summa_initialize(summa1_struc, err, message)
       endif
 
     end do ! iStruct
+
+    ! *****************************************************************************
+    ! if using NGEN forcing only need to set the hourly data_step (fixed)
+    ! *****************************************************************************
+    if (ngen_forcing_active) then
+      data_step = 3600._rkind
+    
+    ! *****************************************************************************
+    ! *** read description of model forcing datafile used in each HRU
+    ! *****************************************************************************
+    else
+      call ffile_info(nGRU_local,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+    
+    ! *****************************************************************************
+    ! *** read model decisions
+    ! *****************************************************************************
+    ! NOTE: Must be after ffile_info because mDecisions uses the data_step
+    call mDecisions(err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    ! get the maximum number of snow layers
+    select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
+     case(sameRulesAllLayers);    maxSnowLayers = 100
+     case(rulesDependLayerIndex); maxSnowLayers = 5
+     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+    end select ! (option to combine/sub-divide snow layers)
+    
+    ! get the maximum number of layers
+    maxLayers     = 0
+    maxSoilLayers = 0
+    do iGRU=1,nGRU_local
+     do iHRU=1,gru_struc(iGRU)%hruCount
+      maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
+      maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
+     end do
+    end do
+   
+    ! get the number of time steps in the output buffer
+    select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)
+     case (writePerStep);    summa1_struc%n_write = 1
+     case (writeFullSeries); summa1_struc%n_write = numtim
+     case default; err=20; message=trim(message)//'unable to identify option for output buffer'; return
+    end select
+
+    ! save the length of the data window
+    summa1_struc%data_step = data_step
+
+    ! *****************************************************************************
+    ! *** initialize mizuRoute (if mizuRoute is active)
+    ! *****************************************************************************
+    
+    if (mizuroute_active) then
+
+      call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif
 
     ! *****************************************************************************
     ! *** define the suffix for the model output file

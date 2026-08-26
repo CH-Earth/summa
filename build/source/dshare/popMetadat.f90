@@ -1,4 +1,4 @@
-module popMetadat_module
+module summa_popMetadat_module
 USE nr_type, integerMissing=>nr_integerMissing
 USE globalData, only: isPrint               ! flag to enable informational screen/log output
 implicit none
@@ -1164,4 +1164,4 @@ subroutine popStat(meta, iFreq, iStat, err, message)
 
 end subroutine popStat
 
-end module popMetadat_module
+end module summa_popMetadat_module

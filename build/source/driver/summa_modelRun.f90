@@ -38,6 +38,10 @@ USE summa_util,only:handle_err
 USE globalData,only:fracJulDay       ! fractional julian days since the start of year
 USE globalData,only:yearLength       ! number of days in the current year
 
+#ifdef MIZUROUTE_ACTIVE
+use network_routing_module, only: route_mizuroute_from_summa
+#endif
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -270,6 +274,12 @@ contains
                   ! error control
                   err,cmessage)                   ! intent(out):   error control
 
+  ! put data into mizuRoute structures
+  if (mizuroute_active) then
+      summa1_struc%domain%river_network%runoff%sim(iGRU) = &
+                   bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
+  endif
+
   ! check errors
   call handle_err(err, cmessage)
 
@@ -285,6 +295,14 @@ contains
  !$omp end do
  end associate summaVars2
  !$omp end parallel
+
+ ! ----- network routing ----------------------------------------------------
+ if (mizuroute_active) then
+
+   call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   
+ endif  ! (if mizuRoute is active)
 
  ! identify the end of the physics
  call date_and_time(values=endPhysics)

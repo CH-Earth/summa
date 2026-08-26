@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module read_param_module
+module summa_read_param_module
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -422,4 +422,4 @@ contains
 
  end subroutine read_param
 
-end module read_param_module
+end module summa_read_param_module

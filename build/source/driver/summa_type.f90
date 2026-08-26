@@ -125,6 +125,10 @@ integer(i4b)                     :: nHRU_check = 1             ! number of HRUs 
 integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
 integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
 
+! global time step information
+real(dp)                         :: data_step                  ! length of the data window (seconds)
+integer(i4b)                     :: n_write                    ! length of the output buffer
+
 ! file managers
 character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
 character(len=256)               :: summaConfigFile =''        ! path/name of the TOML configuration file 

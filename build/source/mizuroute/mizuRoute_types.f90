@@ -104,11 +104,8 @@ module mizuroute_types
   
    integer(i4b) :: n_hru
    integer(i4b) :: n_seg
-   integer(i4b) :: nx
-   integer(i4b) :: ny
-   integer(i4b) :: n_time
   
-   real(wp)     :: dt_model_days
+   real(wp)     :: dt_landmodel
   
    logical(lgt) :: is_gridded
 

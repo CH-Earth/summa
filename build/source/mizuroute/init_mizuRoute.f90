@@ -2,6 +2,9 @@ MODULE init_mizuRoute
 
 USE nrtype,    ONLY: i4b,dp,lgt,strLen
 
+! Define length and time conversion factors for the host land model 
+use globalData, only: length_conv,time_conv
+
 ! Native mizuRoute data structures
 USE dataTypes, ONLY: var_ilength     ! integer type:          var(:)%dat
 USE dataTypes, ONLY: var_clength     ! character type:        var(:)%dat
@@ -52,10 +55,64 @@ USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
 implicit none
 
 private
-public :: init_mizuroute_domain
+public :: init_mizuroute_from_summa
 public :: route_method_name
 
 CONTAINS
+
+ !-----------------------------------------------------------------------
+ !-----------------------------------------------------------------------
+
+ ! Initialize mizuRoute using the SUMMA model structure 
+ subroutine init_mizuroute_from_summa(summaStruct, ierr, message)
+
+ USE summa_type, only:summa1_type_dec
+
+ type(summa1_type_dec), intent(inout) :: summaStruct
+ integer,               intent(out)   :: ierr
+ character(*),          intent(out)   :: message
+
+ integer(i4b)                         :: nSpace(1:2) = integerMissing
+ integer(i4b)                         :: n_write
+ character(len=256)                   :: cmessage
+
+ ierr = 0
+ message = 'init_mizuroute/'
+
+ associate(info   => summaStruct%mizu_info,   &
+           domain => summaStruct%mizu_domain)
+
+ ! ---- transfer information from summa ----
+
+ ! general info
+ info%is_print     = .true.
+ info%do_mizuroute = .true.
+ info%do_remapping = allocated(info%remap%remap_file) 
+
+ ! time information
+ n_write           = summaStruct%n_write
+ info%dt_landmodel = summaStruct%data_step
+
+ ! SUMMA provides runoff on a one-dimensional HRU domain
+ nSpace(1) = summaStruct%nGRU_local
+ nSpace(2) = integerMissing
+
+ info%is_gridded = (nSpace(2) /= integerMissing)
+
+ ! ---- initialize unit conversions (multipliers) ----
+ length_conv = 1._dp   ! no conversion needed: summa runoff length = m
+ time_conv   = 1._dp   ! no conversion needed: summa runoff time = s-1
+
+ ! ---- general routine that can work with all host land models 
+ call init_mizuroute_domain(info, domain, nSpace, n_write, ierr, cmessage)
+ if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ end associate
+
+ end subroutine init_mizuroute_from_summa
+
+ !-----------------------------------------------------------------------
+ !-----------------------------------------------------------------------
 
  !-----------------------------------------------------------------------
  ! Initialize the mizuRoute data structures used by the host land model.
@@ -67,13 +124,12 @@ CONTAINS
  !   (3) reads the spatial remapping information; and
  !   (5) allocates the mizuRoute routing data structures.
  !-----------------------------------------------------------------------
- subroutine init_mizuroute_domain(info, domain, ierr, message)
+ subroutine init_mizuroute_domain(info, domain, nSpace, n_write, ierr, message)
 
   ! shared data
   use public_var, only: ancil_dir
   use public_var, only: idSegOut
   use public_var, only: ntopAugmentMode
-  use globalData, only: length_conv,time_conv
   
   use globalData, only: onRoute
   use globaldata, only: nRoutes
@@ -95,10 +151,11 @@ CONTAINS
 
   type(mizuroute_info),   intent(inout) :: info
   type(mizuroute_domain), intent(inout) :: domain
+  integer(i4b),           intent(in)    :: nSpace(2)
+  integer(i4b),           intent(in)    :: n_write
   integer(i4b),           intent(out)   :: ierr
   character(*),           intent(out)   :: message
 
-  integer(i4b)                          :: nSpace(1:2) = integerMissing
   character(len=strLen)                 :: cmessage
 
   integer(i4b)                          :: iHRU
@@ -114,10 +171,6 @@ CONTAINS
     if (info%is_print) print*, 'mizuRoute hydrofabric file not defined: running lumped simulations'
     return
   endif
-
-  ! ---- initialize unit conversions (multipliers) ----
-  length_conv = 1.0e-3_dp            ! land model runoff length: mm -> m
-  time_conv   = 1._dp / 86400.0_dp   ! land model runoff time:   day-1 -> s-1
 
   !---------------------------------------------------------------------
   ! Read the mizuRoute namelist
@@ -137,10 +190,6 @@ CONTAINS
   !---------------------------------------------------------------------
   ! Configure the mizuRoute interface
   !---------------------------------------------------------------------
-
-  ! get the spatial dimensions
-  nSpace(1) = info%ny ! latitude dimension
-  nSpace(2) = info%nx ! longitude dimension
 
   ! Write an augmented hydrofabric if an output filename is provided.
   ntopAugmentMode = allocated(info%ntopo%hfabric_newfile) 
@@ -249,7 +298,7 @@ CONTAINS
    
   call allocate_mizuroute_domain(info,                                 &
                                  domain%river_network,                 &
-                                 nSpace,                               &
+                                 nSpace, n_write,                      &
                                  ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -355,6 +404,9 @@ CONTAINS
   dname_sseg = trim(info%ntopo%dname_seg)
   dname_nhru = trim(info%ntopo%dname_hru)
 
+  ! PfafStetter information (does not exist)
+  meta_PFAF   (ixPFAF%code           )%varFile = .false.
+
   ! VARIABLE NAMES for data (overwrite default name in popMeta.f90)
   ! HRU structure
   meta_HRU    (ixHRU%area            )%varName = trim(info%ntopo%varname_area)      ! HRU area
@@ -420,7 +472,7 @@ CONTAINS
   ! set up time step lengths
   ! -------------------------------------------------------------------
 
-  dt_land = info%dt_model_days * secprday
+  dt_land = info%dt_landmodel  ! seconds
 
   if (dt_route > dt_land) then
     dt_route = dt_land
@@ -437,7 +489,7 @@ CONTAINS
  ! *********************************************************************
  ! private subroutine: allocate space for the mizuRoute structures
  ! *********************************************************************
- subroutine allocate_mizuroute_domain(info, river_network, nSpace, &
+ subroutine allocate_mizuroute_domain(info, river_network, nSpace, n_write, &
                                       ierr, message)
  
    use globalData, only: onRoute
@@ -451,6 +503,7 @@ CONTAINS
    type(mizuroute_info),         intent(in)    :: info
    type(river_network_data),     intent(inout) :: river_network
    integer(i4b),                 intent(in)    :: nSpace(2)
+   integer(i4b),                 intent(in)    :: n_write
    integer(i4b),                 intent(out)   :: ierr
    character(*),                 intent(out)   :: message
    
@@ -458,15 +511,15 @@ CONTAINS
    
    integer(i4b)                                :: iHRU, n_hru
    integer(i4b)                                :: iSeg, n_seg
-   integer(i4b)                                :: n_time
    integer(i4b)                                :: idxRoute
 
    ierr = 0
    message = 'allocate_mizuroute_domain/'
 
+   ! ---- spatial information in mizuRoute ----
+
    n_hru  = info%n_hru
    n_seg  = info%n_seg
-   n_time = info%n_time
 
    ! ---- allocate space for runoff inputs ----
    
@@ -475,8 +528,8 @@ CONTAINS
    
    ! 1-D HRU runoff
    if ( .not. info%is_gridded ) then
-     message=trim(message)//'HRU spatial config not yet implemented'
-     ierr=10; return
+     allocate(river_network%runoff%sim(nSpace(1)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'unable to allocate basin runoff input'; return; endif
    
    ! 2-D gridded runoff
    else
@@ -571,7 +624,7 @@ CONTAINS
   ! * loop through ACTIVE routing methods
   do idxRoute=1,nRoutes
      
-    allocate(river_network%method(idxRoute)%streamflow(n_seg, n_time), &
+    allocate(river_network%method(idxRoute)%streamflow(n_seg, n_write), &
              source=0._dp, stat=ierr)
   
     if (ierr /= 0) then
