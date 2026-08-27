@@ -237,11 +237,6 @@ subroutine summa_initialize(summa1_struc, err, message)
     call load_summa_config(trim(summaConfigFile), summa1_struc, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! print*, 'summaControlFile = ', trim(summa1_struc%summaFileManagerFile)
-    ! print*, 'summaConfigFile  = ', trim(summa1_struc%summaConfigFile)
-    ! print*, 'idSegOut         = ', summa1_struc%mizu_info%ntopo%idSegOut
-    ! err=20; return
-
     ! set directories and files -- summaFileManager used as command-line argument
     call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

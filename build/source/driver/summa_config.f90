@@ -5,6 +5,8 @@ use build_options, only: mizuroute_active
 USE nr_type
 USE summa_type, only:summa1_type_dec
 
+USE globalData, only: iRunMode, iRunModeFull
+
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_config, ONLY: parse_mizuroute_config
 #endif
@@ -121,6 +123,20 @@ contains
 
     end do  ! (looping through sub-sections)
   end do  ! (looping through sections)
+
+  ! ----- check mizuRoute execution constraints -----
+
+  if (mizuroute_active .and. summaStruct%parallel%size > 1) then
+    message=trim(message)//'Coupled mizuRoute does not support SUMMA domain parallelization; '// &
+                           'use standalone mizuRoute for parallel river routing.'
+    err=20; return
+  endif
+
+  if (mizuroute_active .and. iRunMode /= iRunModeFull) then
+    message=trim(message)//'The -g subdomain option cannot be used with coupled mizuRoute because '// &
+                           'the selected GRUs may not contain the complete upstream river network.'
+    err=20; return
+  endif
 
   end subroutine load_summa_config
 
