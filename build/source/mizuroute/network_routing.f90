@@ -13,48 +13,9 @@ module network_routing_module
   implicit none
 
   private
-  public :: route_mizuroute_from_summa
+  public :: network_routing
 
 contains
-
-  ! -----------------------------------------------------------------------------------------------
-
-  subroutine route_mizuroute_from_summa(modelTimeStep, summaStruct, ierr, message)
-
-  use summa_type, only: summa1_type_dec
-  use summa_var_lookup, only: iLookBVAR   ! whatever SUMMA module name you settle on
-
-  integer(i4b),          intent(in)    :: modelTimeStep
-  type(summa1_type_dec), intent(inout) :: summaStruct
-  integer(i4b),          intent(out)   :: ierr
-  character(*),          intent(out)   :: message
-
-  integer(i4b)       :: iGRU
-  character(len=256) :: cmessage
-
-  ierr    = 0
-  message = 'route_mizuroute_from_summa/'
-
-  associate(info   => summaStruct%mizu_info,   &
-            domain => summaStruct%mizu_domain)
-
-    ! Transfer SUMMA basin runoff to the mizuRoute input structure
-    do iGRU = 1,summaStruct%nGRU_local
-      domain%river_network%runoff%sim(iGRU) = &
-        summaStruct%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
-    enddo
-
-    ! Route the complete runoff field
-    call network_routing(modelTimeStep,        &
-                         domain%river_network, &
-                         domain%remap%routing, &
-                         info%do_remapping,    &
-                         ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  end associate
-
-  end subroutine route_mizuroute_from_summa
 
   ! -----------------------------------------------------------------------------------------------
   ! -----------------------------------------------------------------------------------------------
@@ -104,6 +65,8 @@ contains
                         river_network%runoff%basinRunoff, &   ! output: runoff for basin HRUs
                         ierr, cmessage)                       ! output: error control
       if (ierr /= 0) then; message = trim(message)//trim(cmessage); return; end if
+    else
+      river_network%runoff%basinRunoff = river_network%runoff%sim
     end if
 
     !---------------------------------------------------------------------

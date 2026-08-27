@@ -29,7 +29,7 @@ contains
   ierr    = 0
   message = 'parse_mizuroute_config/'
 
-  ! extract data from subtable and put it in the summa data structures
+  ! extract configuration values and populate the mizuRoute information structure
 
   select case(trim(section)//'.'//trim(key))
   

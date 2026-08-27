@@ -26,7 +26,7 @@ use build_options, only: mizuroute_active
 use build_options, only: ngen_forcing_active
 
 #ifdef MIZUROUTE_ACTIVE
-USE init_mizuRoute, only: init_mizuroute_from_summa
+USE mizuroute_coupling, only: init_mizuroute_from_summa
 #endif
 
 ! access missing values
@@ -417,6 +417,10 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! allocate driver work structures
     call alloc_driver_work(nGRU_local, dt_init, upArea, computeVegFlux, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! allocate routed runoff for model coupling
+    allocate(summa1_struc%routedRunoff(nGRU_local), stat=err)
+    if(err/=0)then; message=trim(message)//' [problem allocating routedRunoff]'; return; endif
 
     ! *****************************************************************************
     ! *** allocate space for output statistics structures assigned to this rank

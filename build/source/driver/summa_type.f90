@@ -118,6 +118,7 @@ type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)
 type(gru_i)                      :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 type(gru_d)                      :: dt_init                    ! used to initialize the length of the sub-step for each HRU
 type(gru_d)                      :: upArea                     ! area upslope of each HRU
+real(rkind), allocatable         :: routedRunoff(:)            ! basin runoff used for model coupling
 
 ! GRU and HRU dimensions
 integer(i4b)                     :: nGRU_user = -1             ! number of GRUs requested with CLI -g

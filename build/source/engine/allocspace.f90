@@ -288,20 +288,19 @@ contains
 
   implicit none
 
-  integer(i4b),intent(in)      :: nGRU_local
-  type(gru_d),intent(inout)    :: dt_init
-  type(gru_d),intent(inout)    :: upArea
-  type(gru_i),intent(inout)    :: computeVegFlux
-  integer(i4b),intent(out)     :: err
-  character(*),intent(out)     :: message
+  integer(i4b)                , intent(in)      :: nGRU_local
+  type(gru_d)                 , intent(inout)   :: dt_init
+  type(gru_d)                 , intent(inout)   :: upArea
+  type(gru_i)                 , intent(inout)   :: computeVegFlux
+  integer(i4b)                , intent(out)     :: err
+  character(*)                , intent(out)     :: message
 
   integer(i4b) :: iGRU
   integer(i4b) :: hruCount
 
   err=0; message='alloc_driver_work/'
 
-  allocate(dt_init%gru(nGRU_local), upArea%gru(nGRU_local), &
-           computeVegFlux%gru(nGRU_local), stat=err)
+  allocate(dt_init%gru(nGRU_local), upArea%gru(nGRU_local), computeVegFlux%gru(nGRU_local), stat=err)
   if(err/=0)then; message=trim(message)//'problem allocating GRU structures'; return; endif
 
   do iGRU=1,nGRU_local

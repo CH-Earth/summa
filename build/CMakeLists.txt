@@ -248,7 +248,8 @@ if (USE_MIZUROUTE)
     target_include_directories(MIZUROUTE_TYPES PUBLIC ${CMAKE_BINARY_DIR}/mizuroute_types_mod)
 
     # Core mizuRoute implementation
-    add_library(MIZUROUTE STATIC ${MIZU_BASE} ${MIZU_DATA} ${MIZU_TOPO} ${MIZU_INIT} ${MIZU_RMAP} ${MIZU_ROUTE})
+    add_library(MIZUROUTE STATIC ${MIZU_BASE} ${MIZU_SHIM} ${MIZU_TOPO}
+      ${MIZU_INIT} ${MIZU_RMAP} ${MIZU_ROUTE} ${MIZU_OUTPUT})
     target_compile_options(MIZUROUTE PRIVATE ${FLAGS_ALL})
     target_link_libraries(MIZUROUTE PUBLIC MIZUROUTE_TYPES NetCDF::NetCDF)
     set_target_properties(MIZUROUTE PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_mod)

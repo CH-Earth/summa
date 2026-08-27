@@ -55,61 +55,10 @@ USE globalData, ONLY: idxSUM,idxIRF,idxKWT, &
 implicit none
 
 private
-public :: init_mizuroute_from_summa
+public :: init_mizuroute_domain
 public :: route_method_name
 
 CONTAINS
-
- !-----------------------------------------------------------------------
- !-----------------------------------------------------------------------
-
- ! Initialize mizuRoute using the SUMMA model structure 
- subroutine init_mizuroute_from_summa(summaStruct, ierr, message)
-
- USE summa_type, only:summa1_type_dec
-
- type(summa1_type_dec), intent(inout) :: summaStruct
- integer,               intent(out)   :: ierr
- character(*),          intent(out)   :: message
-
- integer(i4b)                         :: nSpace(1:2) = integerMissing
- integer(i4b)                         :: n_write
- character(len=256)                   :: cmessage
-
- ierr = 0
- message = 'init_mizuroute/'
-
- associate(info   => summaStruct%mizu_info,   &
-           domain => summaStruct%mizu_domain)
-
- ! ---- transfer information from summa ----
-
- ! general info
- info%is_print     = .true.
- info%do_mizuroute = .true.
- info%do_remapping = allocated(info%remap%remap_file) 
-
- ! time information
- n_write           = summaStruct%n_write
- info%dt_landmodel = summaStruct%data_step
-
- ! SUMMA provides runoff on a one-dimensional HRU domain
- nSpace(1) = summaStruct%nGRU_local
- nSpace(2) = integerMissing
-
- info%is_gridded = (nSpace(2) /= integerMissing)
-
- ! ---- initialize unit conversions (multipliers) ----
- length_conv = 1._dp   ! no conversion needed: summa runoff length = m
- time_conv   = 1._dp   ! no conversion needed: summa runoff time = s-1
-
- ! ---- general routine that can work with all host land models 
- call init_mizuroute_domain(info, domain, nSpace, n_write, ierr, cmessage)
- if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- end associate
-
- end subroutine init_mizuroute_from_summa
 
  !-----------------------------------------------------------------------
  !-----------------------------------------------------------------------
@@ -124,7 +73,9 @@ CONTAINS
  !   (3) reads the spatial remapping information; and
  !   (5) allocates the mizuRoute routing data structures.
  !-----------------------------------------------------------------------
- subroutine init_mizuroute_domain(info, domain, nSpace, n_write, ierr, message)
+ subroutine init_mizuroute_domain(info, domain, nSpace, n_write,& 
+                                  length_conv_in, time_conv_in, &
+                                  ierr, message)
 
   ! shared data
   use public_var, only: ancil_dir
@@ -153,6 +104,8 @@ CONTAINS
   type(mizuroute_domain), intent(inout) :: domain
   integer(i4b),           intent(in)    :: nSpace(2)
   integer(i4b),           intent(in)    :: n_write
+  real(dp),               intent(in)    :: length_conv_in
+  real(dp),               intent(in)    :: time_conv_in
   integer(i4b),           intent(out)   :: ierr
   character(*),           intent(out)   :: message
 
@@ -171,6 +124,10 @@ CONTAINS
     if (info%is_print) print*, 'mizuRoute hydrofabric file not defined: running lumped simulations'
     return
   endif
+
+  ! set conversion factors in mizuroute module public_var
+  length_conv = length_conv_in
+  time_conv   = time_conv_in
 
   !---------------------------------------------------------------------
   ! Read the mizuRoute namelist

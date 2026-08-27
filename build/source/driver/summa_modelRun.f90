@@ -32,14 +32,18 @@ USE globalData,only:yes,no           ! .true. and .false.
 USE var_lookup,only:iLookTIME        ! named variables for time data structure
 USE var_lookup,only:iLookDIAG        ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookINDEX       ! look-up values for local column index variables
+USE var_lookup,only:iLookBVAR        ! look-up values for basin variables
 USE summa_util,only:handle_err
 
 ! these are needed because we cannot access them in modules locally if we might use those modules with Actors
 USE globalData,only:fracJulDay       ! fractional julian days since the start of year
 USE globalData,only:yearLength       ! number of days in the current year
 
+! check if mizuroute is active
+use build_options, only: mizuroute_active
+
 #ifdef MIZUROUTE_ACTIVE
-use network_routing_module, only: route_mizuroute_from_summa
+use mizuroute_coupling, only: route_mizuroute_from_summa
 #endif
 
 ! safety: set private unless specified otherwise
@@ -274,12 +278,6 @@ contains
                   ! error control
                   err,cmessage)                   ! intent(out):   error control
 
-  ! put data into mizuRoute structures
-  if (mizuroute_active) then
-      summa1_struc%domain%river_network%runoff%sim(iGRU) = &
-                   bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
-  endif
-
   ! check errors
   call handle_err(err, cmessage)
 
@@ -298,6 +296,11 @@ contains
 
  ! ----- network routing ----------------------------------------------------
  if (mizuroute_active) then
+
+   ! transfer routed runoff from summa into a vector to pass to mizuRoute
+   do iGRU = 1,summa1_struc%nGRU_local
+     summa1_struc%routedRunoff(iGRU) = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
+   enddo
 
    call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

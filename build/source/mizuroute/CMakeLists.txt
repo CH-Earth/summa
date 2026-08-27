@@ -15,8 +15,7 @@ set(MIZU_BASE
     ${MIZU_DIR}/base_route.f90
 )
 
-set(MIZU_DATA
-    ${SUMMA_MIZU_DIR}/mizuRoute_types.f90
+set(MIZU_SHIM
     ${SUMMA_MIZU_DIR}/water_balance_shim.f90
     ${SUMMA_MIZU_DIR}/globalData_shim.f90
     ${SUMMA_MIZU_DIR}/pio_utils_shim.f90
@@ -36,6 +35,7 @@ set(MIZU_TOPO
 
 set(MIZU_INIT
     ${SUMMA_MIZU_DIR}/init_model_data_shim.f90
+    ${SUMMA_MIZU_DIR}/init_mizuRoute.f90
 )
 
 set(MIZU_RMAP
@@ -52,10 +52,14 @@ set(MIZU_ROUTE
     ${MIZU_DIR}/kwe_route.f90
     ${MIZU_DIR}/mc_route.f90
     ${MIZU_DIR}/dfw_route.f90
+    ${SUMMA_MIZU_DIR}/network_routing.f90
+)
+
+set(MIZU_OUTPUT
+    ${SUMMA_MIZU_DIR}/mizuroute_output.f90
 )
 
 set(MIZU_COUPLING
     ${SUMMA_MIZU_DIR}/mizuroute_config.f90
-    ${SUMMA_MIZU_DIR}/init_mizuRoute.f90
-    ${SUMMA_MIZU_DIR}/network_routing.f90
+    ${SUMMA_MIZU_DIR}/mizuroute_coupling.f90
 )
