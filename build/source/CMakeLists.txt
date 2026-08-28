@@ -13,7 +13,7 @@ set(NOAHMP
 
 # Free versions of numerical recipes utilities for NOAH-MP modules
 set(NRUTIL
-    ${NUMREC_DIR}/f2008funcs.f90
+    ${NUMREC_DIR}/f2008_funcs.f90
     ${NUMREC_DIR}/nr_utils.f90
     ${NUMREC_DIR}/nr_type.f90
     CACHE INTERNAL "NRUTIL")

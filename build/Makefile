@@ -149,7 +149,7 @@ ENGINE_DIR = $(F_KORE_DIR)/engine
 #  utilities
 SUMMA_NRUTIL= \
 		nrtype.f90 \
-		f2008funcs.f90 \
+		f2008_funcs.f90 \
 		nr_utility.f90
 NRUTIL = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRUTIL))
 
