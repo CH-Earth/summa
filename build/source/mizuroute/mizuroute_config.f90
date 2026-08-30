@@ -75,6 +75,7 @@ contains
     case ("remapping.vname_num_qhru"     ); call get_value(subtable, trim(key), info%remap%vname_num_qhru   , stat=istat)
     case ("remapping.vname_i_index"      ); call get_value(subtable, trim(key), info%remap%vname_i_index    , stat=istat)
     case ("remapping.vname_j_index"      ); call get_value(subtable, trim(key), info%remap%vname_j_index    , stat=istat)
+    case ("remapping.vname_qhruid"       ); call get_value(subtable, trim(key), info%remap%vname_qhruid     , stat=istat)
    
     ! ---- default case (something in the table that is not specified above) -----
     case default

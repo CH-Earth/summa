@@ -413,10 +413,6 @@ subroutine summa_initialize(summa1_struc, err, message)
     call alloc_driver_work(nGRU_local, dt_init, upArea, computeVegFlux, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! allocate routed runoff for model coupling
-    allocate(summa1_struc%routedRunoff(nGRU_local), stat=err)
-    if(err/=0)then; message=trim(message)//' [problem allocating routedRunoff]'; return; endif
-
     ! *****************************************************************************
     ! *** allocate space for output statistics structures assigned to this rank
     ! *****************************************************************************
@@ -496,6 +492,16 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! *****************************************************************************
     
     if (mizuroute_active) then
+
+      ! allocate data structure for mizuroute coupling
+      allocate(summa1_struc%coupling(nGRU_local), stat=err)
+      if(err/=0)then
+        message=trim(message)//' [problem allocating mizuroute coupling structure]'
+        return
+      endif
+
+      ! populate mizuroute coupling IDs
+      summa1_struc%coupling(:)%id = gru_struc(:)%gru_id
 
       call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

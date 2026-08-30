@@ -56,6 +56,7 @@ USE data_types,  only : &
 
 ! mizuRoute coupling
 #ifdef MIZUROUTE_ACTIVE
+use data_types,      only: q_coupling
 use mizuroute_types, only: mizuroute_info
 use mizuroute_types, only: mizuroute_domain
 #endif
@@ -91,7 +92,7 @@ type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)
 type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
 type(gru_hru_doubleVec)          :: fluxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
 type(gru_hru_doubleVec)          :: indxStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat        -- basin-average variabl
+type(gru_doubleVec)              :: bvarStat                   ! x%gru(:)%var(:)%dat        -- basin-average variable
 
 ! the primary data structures (scalars)
 type(var_i)                      :: timeStruct                 ! x%var(:)                   -- model time data
@@ -118,7 +119,9 @@ type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)
 type(gru_i)                      :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 type(gru_d)                      :: dt_init                    ! used to initialize the length of the sub-step for each HRU
 type(gru_d)                      :: upArea                     ! area upslope of each HRU
-real(rkind), allocatable         :: routedRunoff(:)            ! basin runoff used for model coupling
+
+! runoff exchanged between SUMMA and mizuRoute
+type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
 
 ! GRU and HRU dimensions
 integer(i4b)                     :: nGRU_user = -1             ! number of GRUs requested with CLI -g

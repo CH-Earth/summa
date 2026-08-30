@@ -1,6 +1,6 @@
 MODULE init_mizuRoute
 
-USE nrtype,    ONLY: i4b,dp,lgt,strLen
+USE nrtype,    ONLY: i4b,i8b,dp,lgt,strLen
 
 ! Define length and time conversion factors for the host land model 
 use globalData, only: length_conv,time_conv
@@ -66,14 +66,17 @@ CONTAINS
  !-----------------------------------------------------------------------
  ! Initialize the mizuRoute data structures used by the host land model.
  !
- ! This routine:
- !   (1) initializes the mizuRoute metadata;
- !   (2) configures the land–mizuRoute interface;
- !   (4) constructs the river-network topology;
- !   (3) reads the spatial remapping information; and
- !   (5) allocates the mizuRoute routing data structures.
+ ! This routine is responsible for:
+ !   - reading routing configuration and parameter information
+ !   - reading the river-network topology
+ !   - constructing the river-network data structures
+ !   - allocating the runoff and river-routing data structures
+ !   - populating the host-model runoff IDs
+ !   - reading spatial-remapping information, when required
+ !   - constructing the indices required for spatial remapping
  !-----------------------------------------------------------------------
  subroutine init_mizuroute_domain(info, domain, nSpace, n_write,& 
+                                  hostmodel_runoff_ids,         &
                                   length_conv_in, time_conv_in, &
                                   ierr, message)
 
@@ -104,6 +107,7 @@ CONTAINS
   type(mizuroute_domain), intent(inout) :: domain
   integer(i4b),           intent(in)    :: nSpace(2)
   integer(i4b),           intent(in)    :: n_write
+  integer(i8b),           intent(in)    :: hostmodel_runoff_ids(:)
   real(dp),               intent(in)    :: length_conv_in
   real(dp),               intent(in)    :: time_conv_in
   integer(i4b),           intent(out)   :: ierr
@@ -238,10 +242,7 @@ CONTAINS
                         domain%remap%routing,                         & ! output: data structure to remap data from a polygon
                         ierr, cmessage)                                 ! output: error control
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-    
-    domain%remap%routing%hru_ix = match_index(domain%reach%hru_id, domain%remap%routing%hru_id, ierr, cmessage)
-    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+  
   endif  ! (if remapping file exists)
 
   !---------------------------------------------------------------------
@@ -258,6 +259,37 @@ CONTAINS
                                  nSpace, n_write,                      &
                                  ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  !---------------------------------------------------------------------
+  ! Populate IDs of host-model runoff elements 
+  !---------------------------------------------------------------------
+  
+  if(size(domain%river_network%runoff%hru_id) /= size(hostmodel_runoff_ids))then
+    message=trim(message)//'number of SUMMA runoff elements does not match mizuRoute runoff dimension'
+    ierr=20; return
+  endif
+
+  domain%river_network%runoff%hru_id(:) = hostmodel_runoff_ids(:)
+
+  !---------------------------------------------------------------------
+  ! Define indices to support remapping 
+  !---------------------------------------------------------------------
+
+  if ( info%do_remapping ) then
+   
+    ! map remapping-file qHRU IDs onto positions in the host-model runoff vector
+    domain%remap%routing%qhru_ix = match_index(domain%river_network%runoff%hru_id, &
+                                               domain%remap%routing%qhru_id,       &
+                                               ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+   
+    ! map the river-network HRUs in the remapping file onto positions in the mizuRoute river-network HRU vector
+    domain%remap%routing%hru_ix = match_index(domain%reach%hru_id,         &
+                                              domain%remap%routing%hru_id, &
+                                              ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  endif ! if remapping file exists
 
  end subroutine init_mizuroute_domain
 
@@ -317,6 +349,7 @@ CONTAINS
   use public_var, only: vname_num_qhru        ! name of variable containing numbers of runoff HRUs within each river network HRU
   use public_var, only: vname_i_index         ! name of variable containing index of xlon dimension in runoff grid (if runoff file is grid)
   use public_var, only: vname_j_index         ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
+  use public_var, only: vname_qhruid          ! name of variable containing the HRU ID in the runoff file (if runoff file is hru) 
 
   ! Routing options
   use public_var, only: idSegOut
@@ -385,8 +418,9 @@ CONTAINS
   vname_hruid_in_remap = trim(info%remap%vname_hruid)       ! variable name for river network hru id
   vname_weight         = trim(info%remap%vname_weight)      ! variable name for areal weights of runoff HRUs within each river network
   vname_num_qhru       = trim(info%remap%vname_num_qhru)    ! variable for numbers of runoff HRUs within each river network HRU
-  vname_i_index        = trim(info%remap%vname_i_index)     ! variable for numbers of y (latitude) index if runoff file is grid
-  vname_j_index        = trim(info%remap%vname_j_index)     ! variable for numbers of x (longitude) index if runoff file is grid
+  vname_i_index        = trim(info%remap%vname_i_index)     ! variable for numbers of y (latitude) index (if runoff file is grid)
+  vname_j_index        = trim(info%remap%vname_j_index)     ! variable for numbers of x (longitude) index (if runoff file is grid)
+  vname_qhruid         =  trim(info%remap%vname_qhruid)     ! variable for HRU ID in the runoff file (if runoff file is hru)
 
   ! routing methods
   call char2int(trim(info%mrout%methods), routeMethods, invalid_value=0)
@@ -485,9 +519,13 @@ CONTAINS
    
    ! 1-D HRU runoff
    if ( .not. info%is_gridded ) then
+     
+     allocate(river_network%runoff%hru_id(nSpace(1)), stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'unable to allocate basin hru id'; return; endif
+
      allocate(river_network%runoff%sim(nSpace(1)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'unable to allocate basin runoff input'; return; endif
-   
+
    ! 2-D gridded runoff
    else
      allocate(river_network%runoff%sim2d(nSpace(1), nSpace(2)), stat=ierr)

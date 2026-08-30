@@ -119,6 +119,72 @@ mizuRoute. The interface is intentionally narrow so that the routing
 implementation remains localized within mizuRoute and the amount of
 SUMMA-specific coupling code remains small.
 
+## Runoff exchange and routing responsibilities
+
+The coupled configuration separates runoff routing through the unresolved
+drainage network (handled by SUMMA) from routing through the explicit river
+network (handled by mizuRoute).
+
+SUMMA computes runoff within its HRUs, aggregates runoff to the GRU level, and
+applies its existing time delay routing (using a parameterized unit hydrograph)
+through the unresolved river network. The resulting routed GRU runoff is then
+passed across the coupling interface to mizuRoute.
+
+Within mizuRoute, the runoff supplied by SUMMA is stored on the spatial
+elements defined by the host model. These elements may differ from the HRUs
+associated with the mizuRoute river network. When necessary, mizuRoute
+spatially remaps the supplied runoff onto the river-network HRUs before
+aggregating the resulting runoff to river reaches and routing flow through the
+explicit river network.
+
+The coupled workflow can therefore be summarized as:
+
+```text
+SUMMA HRUs
+    |
+    | optional lateral flow among HRUs
+    v
+aggregate runoff to SUMMA GRUs
+    |
+    | SUMMA routing through the unresolved river network
+    v
+routed SUMMA GRU runoff
+    |
+    | ------------------
+    | coupling interface
+    | ------------------
+    v
+mizuRoute runoff input
+    |
+    | optional spatial remapping
+    v
+mizuRoute river-network HRUs
+    |
+    | aggregate runoff to reaches
+    v
+lateral reach inflow
+    |
+    | explicit river-network routing
+    v
+routed streamflow
+```
+
+The mizuRoute version of the parameterized unit hydrograph to represent
+routing through the unresolved drainage network is deliberately not included
+in the set of mizuRoute source files compiled and linked into SUMMA. The
+corresponding time-delay routing is already performed by SUMMA before runoff
+crosses the coupling interface. The coupled mizuRoute components therefore
+provide spatial remapping (where required), aggregation of runoff to river
+reaches, and routing through the explicit river network.
+
+Spatial remapping is optional. If runoff from the host model is already defined
+on the mizuRoute river-network HRUs, the remapping step can be skipped.
+
+The current SUMMA coupling supplies runoff at GRU resolution. The interface
+could in principle instead supply runoff from individual SUMMA HRUs and rely on
+mizuRoute for the subsequent spatial aggregation and unresolved-network
+routing, but this configuration is not currently implemented.
+
 ## Build-system separation
 
 The software boundary described above is also reflected in the CMake build

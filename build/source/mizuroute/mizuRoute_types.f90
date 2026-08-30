@@ -91,6 +91,7 @@ module mizuroute_types
    character(len=:), allocatable :: vname_num_qhru     ! name of variable containing numbers of runoff HRUs within each river network HRU
    character(len=:), allocatable :: vname_i_index      ! name of variable containing index of xlon dimension in runoff grid (if runoff file is grid)
    character(len=:), allocatable :: vname_j_index      ! name of variable containing index of ylat dimension in runoff grid (if runoff file is grid)
+   character(len=:), allocatable :: vname_qhruid       ! name of variable containing the HRU ID in the runoff file (if runoff file is hru)
 
   end type remap_info
 

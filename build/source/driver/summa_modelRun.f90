@@ -297,9 +297,9 @@ contains
  ! ----- network routing ----------------------------------------------------
  if (mizuroute_active) then
 
-   ! transfer routed runoff from summa into a vector to pass to mizuRoute
+   ! transfer routed runoff from summa into the coupling structure to pass to mizuRoute
    do iGRU = 1,summa1_struc%nGRU_local
-     summa1_struc%routedRunoff(iGRU) = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
+     summa1_struc%coupling(iGRU)%qsim = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
    enddo
 
    call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
