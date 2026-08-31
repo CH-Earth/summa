@@ -322,7 +322,7 @@ contains
     idx_buff = merge(1, modelTimeStep, summaStruct%n_write == 1)
   
     ! Transfer summa routed runoff into the mizuRoute runoff structure
-    domain%river_network%runoff%sim(:) = summaStruct%coupling(:)%qsim
+    domain%river_network%core%runoff%sim(:) = summaStruct%coupling(:)%qsim
 
     ! Route the complete runoff field
     call network_routing(idx_buff,             &

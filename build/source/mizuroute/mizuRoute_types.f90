@@ -145,52 +145,55 @@ module mizuroute_types
   end type mizuroute_topology
 
   !---------------------------------------------------------------------
-  ! FUSE-step mean streamflow for each reach and time step [m3/s] 
+  ! mizuroute core structures 
   !---------------------------------------------------------------------
-  type :: fusestep_mean
-  
-    real(wp),               allocatable :: streamflow(:,:) 
-  
-  end type fusestep_mean
+  type :: river_network_core
+
+    type(mizuroute_topology)            :: topology
+    type(mizu_runoff)                   :: runoff
+    type(mizu_RCHPRP),  allocatable     :: param(:)
+    type(mizu_RCHTOPO), allocatable     :: ntopo(:)
+    type(mizu_STRSTA),  allocatable     :: state(:)
+    type(mizu_STRFLX),  allocatable     :: flux(:)
+
+  end type river_network_core
 
   !---------------------------------------------------------------------
-  ! Information to couple with a host land model
+  ! mizuroute driver structures
   !---------------------------------------------------------------------
-  type :: reach_data
+  
+  type :: routing_output
+    real(wp),               allocatable  :: streamflow(:,:) 
+  end type routing_output
 
-    ! IDs for HRU and stream segments
+  type :: river_network_driver
+
+    ! IDs used by the driver
     integer(i4b), allocatable :: hru_id(:)
     integer(i4b), allocatable :: seg_id(:)
+   
+    ! Network attributes used by the driver
+    real(wp), allocatable :: totArea(:)
+   
+    ! Routing workspace
+    real(wp), allocatable :: reach_inflow(:)
+   
+    ! Host-step output
+    real(wp), allocatable :: basin_runoff(:,:)
+    type(routing_output), allocatable :: method(:)
+   
+    ! Routing time information
+    type(routing_time_data) :: time
 
-    ! Reach properties needed for FUSE coupling
-    real(wp)    , allocatable :: totArea(:)
-
-  end type reach_data
-
+  end type river_network_driver
+  
   !---------------------------------------------------------------------
   ! Persistent river-network data
   !---------------------------------------------------------------------
   type :: river_network_data
 
-    type(mizuroute_topology)         :: topology  ! static network topology and attributes
-    type(mizu_runoff)                :: runoff    ! FUSE runoff in mizuRoute structures
-
-    ! mizuRoute routing: reach properties and network topology
-    type(mizu_RCHPRP),   allocatable :: param(:)  ! reach properties
-    type(mizu_RCHTOPO),  allocatable :: ntopo(:)  ! network topology
-
-    ! mizuRoute routing state and fluxes
-    type(mizu_STRSTA),   allocatable :: state(:)  ! model states
-    type(mizu_STRFLX),   allocatable :: flux(:)   ! model fluxes
-
-    ! coupling workspace
-    real(wp),            allocatable :: reach_inflow(:)  ! lateral inflow to each reach [m3/s]
-
-    ! outputs for each routing method
-    type(fusestep_mean), allocatable :: method(:)
-
-    ! time data for routing substeps
-    type(routing_time_data)          :: time
+    type(river_network_core)   :: core
+    type(river_network_driver) :: driver
 
   end type river_network_data
 
@@ -211,7 +214,6 @@ module mizuroute_types
   type :: mizuroute_domain
 
     type(river_network_data) :: river_network
-    type(reach_data)         :: reach
     type(spatial_remap_data) :: remap
 
   end type mizuroute_domain

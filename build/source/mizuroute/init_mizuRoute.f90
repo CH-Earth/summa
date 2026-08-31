@@ -156,7 +156,7 @@ CONTAINS
   ntopAugmentMode = allocated(info%ntopo%hfabric_newfile) 
 
   ! Populate the shared mizuRoute control variables.
-  call populate_mizu_modules(info, domain%river_network%time, ierr, cmessage)
+  call populate_mizu_modules(info, domain%river_network%driver%time, ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! initialize polymorphic routing structures
@@ -178,38 +178,38 @@ CONTAINS
   ! It is the only substantial mizuRoute routine duplicated in the compatibility layer; all other
   ! mizuRoute functionality is called from the original mizuRoute modules and subroutines.
 
-  call init_ntopo(domain%river_network%topology%n_hru,           &
-                  domain%river_network%topology%n_seg,           &
-                  domain%river_network%topology%hru,             &
-                  domain%river_network%topology%seg,             &
-                  domain%river_network%topology%hru2seg,         &
-                  domain%river_network%topology%ntopo,           &
-                  domain%river_network%topology%pfaf,            &
+  call init_ntopo(domain%river_network%core%topology%n_hru,           &
+                  domain%river_network%core%topology%n_seg,           &
+                  domain%river_network%core%topology%hru,             &
+                  domain%river_network%core%topology%seg,             &
+                  domain%river_network%core%topology%hru2seg,         &
+                  domain%river_network%core%topology%ntopo,           &
+                  domain%river_network%core%topology%pfaf,            &
                   ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   
   ! TEMPORARY: Copy the data to the old mizuRoute data structures
-  call put_data_struct(domain%river_network%topology%n_seg,      & 
-                       domain%river_network%topology%seg,        &
-                       domain%river_network%topology%ntopo,      &
-                       domain%river_network%param,               &
-                       domain%river_network%ntopo,               &
+  call put_data_struct(domain%river_network%core%topology%n_seg,      & 
+                       domain%river_network%core%topology%seg,        &
+                       domain%river_network%core%topology%ntopo,      &
+                       domain%river_network%core%param,               &
+                       domain%river_network%core%ntopo,               &
                        ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  domain%river_network%topology%is_initialized = .true.
+  domain%river_network%core%topology%is_initialized = .true.
 
   !---------------------------------------------------------------------
-  ! Copy routing-domain metadata to the info/domain data structures
+  ! Copy routing-domain metadata to the info/driver data structures
   !---------------------------------------------------------------------
 
-  info%n_hru = domain%river_network%topology%n_hru
-  info%n_seg = domain%river_network%topology%n_seg
+  info%n_hru = domain%river_network%core%topology%n_hru
+  info%n_seg = domain%river_network%core%topology%n_seg
 
-  domain%reach%hru_id  = [ (domain%river_network%topology%hru2seg(iHRU)%var(ixHRU2SEG%hruId)%dat(1), iHRU=1,info%n_hru) ]
-  domain%reach%seg_id  = [ (domain%river_network%topology%ntopo  (iSeg)%var(ixNTOPO%segId  )%dat(1), iSeg=1,info%n_seg) ]
+  domain%river_network%driver%hru_id  = [ (domain%river_network%core%topology%hru2seg(iHRU)%var(ixHRU2SEG%hruId)%dat(1), iHRU=1,info%n_hru) ]
+  domain%river_network%driver%seg_id  = [ (domain%river_network%core%topology%ntopo  (iSeg)%var(ixNTOPO%segId  )%dat(1), iSeg=1,info%n_seg) ]
 
-  domain%reach%totArea = [ (domain%river_network%topology%seg    (iSeg)%var(ixSEG%totalArea)%dat(1), iSeg=1,info%n_seg) ]
+  domain%river_network%driver%totArea = [ (domain%river_network%core%topology%seg    (iSeg)%var(ixSEG%totalArea)%dat(1), iSeg=1,info%n_seg) ]
 
   !---------------------------------------------------------------------
   ! Identify the output reach 
@@ -217,11 +217,11 @@ CONTAINS
 
   ! segment ID is not supplied: identify the reach with the largest upstream area
   if (info%ntopo%idSegOut < 0) then
-    info%ntopo%ixSegOut = maxloc(domain%reach%totArea, dim=1)
+    info%ntopo%ixSegOut = maxloc(domain%river_network%driver%totArea, dim=1)
 
   ! segment ID supplied: find corresponding reach index
   else
-    info%ntopo%ixSegOut = findloc(domain%reach%seg_id, info%ntopo%idSegOut, dim=1)
+    info%ntopo%ixSegOut = findloc(domain%river_network%driver%seg_id, info%ntopo%idSegOut, dim=1)
     if (info%ntopo%ixSegOut == 0) then
      write(message,'(a,i0,a)') trim(message)//'requested segment ID ', info%ntopo%idSegOut, ' not found in river network'
      ierr=10; return
@@ -264,12 +264,12 @@ CONTAINS
   ! Populate IDs of host-model runoff elements 
   !---------------------------------------------------------------------
   
-  if(size(domain%river_network%runoff%hru_id) /= size(hostmodel_runoff_ids))then
+  if(size(domain%river_network%core%runoff%hru_id) /= size(hostmodel_runoff_ids))then
     message=trim(message)//'number of SUMMA runoff elements does not match mizuRoute runoff dimension'
     ierr=20; return
   endif
 
-  domain%river_network%runoff%hru_id(:) = hostmodel_runoff_ids(:)
+  domain%river_network%core%runoff%hru_id(:) = hostmodel_runoff_ids(:)
 
   !---------------------------------------------------------------------
   ! Define indices to support remapping 
@@ -278,14 +278,14 @@ CONTAINS
   if ( info%do_remapping ) then
    
     ! map remapping-file qHRU IDs onto positions in the host-model runoff vector
-    domain%remap%routing%qhru_ix = match_index(domain%river_network%runoff%hru_id, &
-                                               domain%remap%routing%qhru_id,       &
+    domain%remap%routing%qhru_ix = match_index(domain%river_network%core%runoff%hru_id, &
+                                               domain%remap%routing%qhru_id,            &
                                                ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
    
     ! map the river-network HRUs in the remapping file onto positions in the mizuRoute river-network HRU vector
-    domain%remap%routing%hru_ix = match_index(domain%reach%hru_id,         &
-                                              domain%remap%routing%hru_id, &
+    domain%remap%routing%hru_ix = match_index(domain%river_network%driver%hru_id,       &
+                                              domain%remap%routing%hru_id,              &
                                               ierr, cmessage)
     if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -514,41 +514,41 @@ CONTAINS
 
    ! ---- allocate space for runoff inputs ----
    
-   river_network%runoff%nSpace    = nSpace
-   river_network%runoff%fillvalue = realMissing
+   river_network%core%runoff%nSpace    = nSpace
+   river_network%core%runoff%fillvalue = realMissing
    
    ! 1-D HRU runoff
    if ( .not. info%is_gridded ) then
      
-     allocate(river_network%runoff%hru_id(nSpace(1)), stat=ierr)
+     allocate(river_network%core%runoff%hru_id(nSpace(1)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'unable to allocate basin hru id'; return; endif
 
-     allocate(river_network%runoff%sim(nSpace(1)), stat=ierr)
+     allocate(river_network%core%runoff%sim(nSpace(1)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'unable to allocate basin runoff input'; return; endif
 
    ! 2-D gridded runoff
    else
-     allocate(river_network%runoff%sim2d(nSpace(1), nSpace(2)), stat=ierr)
+     allocate(river_network%core%runoff%sim2d(nSpace(1), nSpace(2)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'unable to allocate gridded runoff input'; return; endif
    endif
    
    ! allocate space for HRU variables
-   allocate(river_network%runoff%basinRunoff(n_hru), stat=ierr)
+   allocate(river_network%core%runoff%basinRunoff(n_hru), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'unable to allocate hru runoff input'; return; endif
    
    ! ---- initialize network states and fluxes ----
    
    ! allocate space for all segments in the river network
-   allocate(river_network%flux(n_seg),  &
-            river_network%state(n_seg), & 
-            river_network%reach_inflow(n_seg), stat=ierr)
+   allocate(river_network%core%flux(n_seg),  &
+            river_network%core%state(n_seg), & 
+            river_network%driver%reach_inflow(n_seg), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'unable to allocate river_network flux/state'; return; endif
    
    ! * loop through stream segments
    do iSeg = 1, n_seg
    
      ! allocate fluxes for the routing method vector in each stream segment
-     allocate(river_network%flux(iSeg)%ROUTE(nRoutes), stat=ierr)
+     allocate(river_network%core%flux(iSeg)%ROUTE(nRoutes), stat=ierr)
      if (ierr /= 0) then
        write(message,'(A,I0)') trim(message)//'unable to allocate river_network%flux%ROUTE for iSeg=', iSeg
        return
@@ -562,15 +562,15 @@ CONTAINS
        select case(routeMethods(idxRoute))
    
          case (kinematicWave)
-           allocate(river_network%state(iSeg)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), &
+           allocate(river_network%core%state(iSeg)%KW_ROUTE%molecule%Q(nMolecule%KW_ROUTE), &
                     source=0._dp, stat=ierr)
        
          case (muskingumCunge)
-           allocate(river_network%state(iSeg)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), &
+           allocate(river_network%core%state(iSeg)%MC_ROUTE%molecule%Q(nMolecule%MC_ROUTE), &
                     source=0._dp, stat=ierr)
    
          case (diffusiveWave)
-           allocate(river_network%state(iSeg)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), &
+           allocate(river_network%core%state(iSeg)%DW_ROUTE%molecule%Q(nMolecule%DW_ROUTE), &
                     source=0._dp, stat=ierr)
          
          case (accumRunoff, impulseResponseFunc, kinematicWaveTracking)
@@ -591,26 +591,34 @@ CONTAINS
        endif
    
        ! initialize common routing inputs
-       river_network%flux(iSeg)%BASIN_QR(:)   = 0._dp
-       river_network%flux(iSeg)%REACH_WM_FLUX = 0._dp
-       river_network%flux(iSeg)%REACH_WM_VOL  = 0._dp
+       river_network%core%flux(iSeg)%BASIN_QR(:)   = 0._dp
+       river_network%core%flux(iSeg)%REACH_WM_FLUX = 0._dp
+       river_network%core%flux(iSeg)%REACH_WM_VOL  = 0._dp
 
        ! method-specific routing fluxes
-       river_network%flux(iSeg)%ROUTE(idxRoute)%REACH_VOL   = 0._dp
-       river_network%flux(iSeg)%ROUTE(idxRoute)%REACH_Q     = 0._dp
-       river_network%flux(iSeg)%ROUTE(idxRoute)%Qerror      = 0._dp
+       river_network%core%flux(iSeg)%ROUTE(idxRoute)%REACH_VOL   = 0._dp
+       river_network%core%flux(iSeg)%ROUTE(idxRoute)%REACH_Q     = 0._dp
+       river_network%core%flux(iSeg)%ROUTE(idxRoute)%Qerror      = 0._dp
      
      end do  ! * loop through routing methods
   end do  ! * loop through stream segments
  
   ! ---- allocate space for routing outputs ---- 
 
+  ! basin runoff on river-network HRUs for each host-model output step
+  allocate(river_network%driver%basin_runoff(n_hru,n_write), &
+           source=0._dp, stat=ierr)
+  if(ierr/=0)then
+    message=trim(message)//'unable to allocate basin runoff output'
+    return
+  endif
+
   if (nRoutes /= 1) then
     message = trim(message)//'implementation requires exactly one active mizuRoute routing method'
     ierr = 20; return
   endif
 
-  allocate(river_network%method(nRoutes), stat=ierr)
+  allocate(river_network%driver%method(nRoutes), stat=ierr)
   if (ierr /= 0) then
     message = trim(message)//'unable to allocate routing method data'
     return
@@ -618,8 +626,9 @@ CONTAINS
   
   ! * loop through ACTIVE routing methods
   do idxRoute=1,nRoutes
-     
-    allocate(river_network%method(idxRoute)%streamflow(n_seg, n_write), &
+
+    ! reach streamflow river-network stream segments for each host-model output step  
+    allocate(river_network%driver%method(idxRoute)%streamflow(n_seg, n_write), &
              source=0._dp, stat=ierr)
   
     if (ierr /= 0) then
