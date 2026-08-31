@@ -323,17 +323,22 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
- subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,err,message)
- ! provide access to subroutines
+ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,upArea,err,message)
+ ! subroutines
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
  USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                     ! netcdf error handling function
- ! provide access to derived data types
+ ! derived data types
  USE data_types,only:gru_hru_int                            ! x%gru(:)%hru(:)%var(:)     (i4b)
  USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     (i8b)
  USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (rkind)
- ! provide access to global data
+ USE data_types,only:gru_d                                  ! x%gru(:)%hru(:)            (rkind)
+ ! named variables
+ USE var_lookup,only:iLookID                                ! look-up values for local column model ids
+ USE var_lookup,only:iLookTYPE                              ! look-up values for classification of veg, soils etc.
+ USE var_lookup,only:iLookATTR                              ! look-up values for local attributes
+ ! global data
  USE globalData,only:gru_struc                              ! gru-hru mapping structure
  USE globalData,only:attr_meta,type_meta,id_meta            ! metadata structures
  USE get_ixname_module,only:get_ixAttr,get_ixType,get_ixId  ! access function to find index of elements in structure
@@ -345,12 +350,13 @@ contains
  type(gru_hru_double),intent(inout)   :: attrStruct         ! local attributes for each HRU
  type(gru_hru_int),intent(inout)      :: typeStruct         ! local classification of soil veg etc. for each HRU
  type(gru_hru_int8),intent(inout)     :: idStruct           ! local values of hru and gru IDs
+ type(gru_d),intent(inout)            :: upArea             ! area upslope of each HRU
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  ! define local variables
  character(len=256)                   :: cmessage           ! error message for downwind routine
  integer(i4b)                         :: iVar               ! loop through varibles in the netcdf file
- integer(i4b)                         :: iHRU               ! index of an HRU within a GRU
+ integer(i4b)                         :: iHRU,jHRU,kHRU     ! index of an HRU within a GRU
  integer(i4b)                         :: iGRU               ! index of an GRU
  integer(i4b)                         :: varType            ! type of variable (categorica, numerical, idrelated)
  integer(i4b)                         :: varIndx            ! index of variable within its data structure
@@ -530,6 +536,47 @@ contains
 
  call nc_file_close(ncid,err,cmessage)
  if (err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
+
+ ! *****************************************************************************
+ ! (6) validate HRU connectivity and compute directly contributing area
+ ! *****************************************************************************
+
+ do iGRU=1,nGRU_local
+
+  do iHRU=1,gru_struc(iGRU)%hruCount
+
+    kHRU = 0
+    upArea%gru(iGRU)%hru(iHRU) = 0._rkind
+
+    do jHRU=1,gru_struc(iGRU)%hruCount
+
+      ! check whether iHRU drains to jHRU
+      if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == &
+         idStruct%gru(iGRU)%hru(jHRU)%var(iLookID%hruId))then
+
+        if(kHRU==0)then
+          kHRU = jHRU
+        else
+          message=trim(message)//'downslope HRU identifier is not unique'
+          err=20; return
+        endif
+
+      endif
+
+      ! check whether jHRU drains directly to iHRU
+      if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex) == &
+         idStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
+
+        upArea%gru(iGRU)%hru(iHRU) = upArea%gru(iGRU)%hru(iHRU) + &
+          attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
+
+      endif
+
+    enddo ! jHRU
+
+  enddo ! iHRU
+
+ enddo ! iGRU
 
  end subroutine read_attrb
 
