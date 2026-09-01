@@ -187,6 +187,9 @@ MODULE globalData
   type(extended_info),save,public,allocatable :: statFlux_meta(:)             ! child metadata for stats
   type(extended_info),save,public,allocatable :: statIndx_meta(:)             ! child metadata for stats
   type(extended_info),save,public,allocatable :: statBvar_meta(:)             ! child metadata for stats
+  ! define mapping structures
+  type(gru2hru_map),save,public,allocatable   :: gru_struc(:)                 ! gru2hru map
+  type(hru2gru_map),save,public,allocatable   :: index_map(:)                 ! hru2gru map
 
   ! ----------------------------------------------------------------------------------------------------------------
   ! * part 3: run time variables
@@ -197,9 +200,6 @@ MODULE globalData
   ! define index variables describing the indices of the first and last HRUs in the forcing file
   integer(i4b),save,public                       :: ixHRUfile_min                     ! minimum index
   integer(i4b),save,public                       :: ixHRUfile_max                     ! maximum index
-  ! define mapping structures
-  type(gru2hru_map),allocatable,save,public      :: gru_struc(:)                      ! gru2hru map
-  type(hru2gru_map),allocatable,save,public      :: index_map(:)                      ! hru2gru map
   ! define variables used for the vegetation phenology
   real(rkind),dimension(12),save,public          :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
   real(rkind),save,public                        :: minExpLogHgtFac=0.02_rkind        ! factor for minimum height of transition from the exponential to the logarithmic wind profile

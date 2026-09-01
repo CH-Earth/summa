@@ -52,11 +52,16 @@ USE data_types,  only : &
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (dp)
                     ! gru+hru+z dimension
-                    gru_hru_z_vLookup      ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:)  (dp)
+                    gru_hru_z_vLookup,   & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:)  (dp)
+                    ! mapping between the GRUs and HRUs
+                    gru2hru_map,         & ! x(iGRU)%hruinfo(iHRU)%y 
+                    hru2gru_map            ! x(iHRU)%y
+
+! generic runoff coupling structure
+USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 
 ! mizuRoute coupling
 #ifdef MIZUROUTE_ACTIVE
-use data_types,      only: q_coupling
 use mizuroute_types, only: mizuroute_info
 use mizuroute_types, only: mizuroute_domain
 #endif
@@ -120,14 +125,15 @@ type(gru_i)                      :: computeVegFlux             ! flag to indicat
 type(gru_d)                      :: dt_init                    ! used to initialize the length of the sub-step for each HRU
 type(gru_d)                      :: upArea                     ! area upslope of each HRU
 
-! runoff exchanged between SUMMA and mizuRoute
-type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
-
 ! GRU and HRU dimensions
 integer(i4b)                     :: nGRU_user = -1             ! number of GRUs requested with CLI -g
 integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
 integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
 integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
+
+! gru2hru mapping structures
+type(gru2hru_map), allocatable   :: gru_struc(:)               ! gru2hru map
+type(hru2gru_map), allocatable   :: index_map(:)               ! hru2gru map
 
 ! global time step information
 real(dp)                         :: data_step                  ! length of the data window (seconds)
@@ -137,9 +143,12 @@ integer(i4b)                     :: n_write                    ! length of the o
 character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
 character(len=256)               :: summaConfigFile =''        ! path/name of the TOML configuration file 
 
+! generic runoff coupling data
+type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
+
 #ifdef MIZUROUTE_ACTIVE
-type(mizuroute_info)   :: mizu_info
-type(mizuroute_domain) :: mizu_domain
+type(mizuroute_info)             :: mizu_info                  ! mizuroute information structure
+type(mizuroute_domain)           :: mizu_domain                ! mizuroute domain data
 #endif
 
 end type summa1_type_dec

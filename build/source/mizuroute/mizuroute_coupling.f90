@@ -244,8 +244,8 @@ contains
   ierr = 0
   message = 'init_mizuroute_from_summa/'
   
-  associate(info   => summaStruct%mizu_info,   &
-            domain => summaStruct%mizu_domain)
+  associate(info     => summaStruct%mizu_info,   &
+            domain   => summaStruct%mizu_domain  )
 
   ! -----------------------------------------------------------------------
   ! Define host-model information required by mizuRoute
@@ -269,7 +269,7 @@ contains
   ! ---- initialize unit conversions (multipliers) ----
   length_conv = 1._rkind   ! no conversion needed: summa runoff length = m
   time_conv   = 1._rkind   ! no conversion needed: summa runoff time = s-1
-  
+ 
   ! -----------------------------------------------------------------------
   ! Initialize the mizuRoute domain
   !
@@ -283,9 +283,9 @@ contains
   !   - constructing the indices required for spatial remapping
   ! -----------------------------------------------------------------------
   
-  call init_mizuroute_domain(info, domain, nSpace, n_write, &
-                             summaStruct%coupling(:)%id,    &
-                             length_conv, time_conv,        &
+  call init_mizuroute_domain(info, domain, nSpace, n_write,  &
+                             summaStruct%coupling(:)%id,     &
+                             length_conv, time_conv,         &
                              ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

@@ -134,7 +134,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE globalData,only:iRunMode                                ! define the current running mode
   ! miscellaneous global data
   USE globalData,only:ncid                                    ! file id of netcdf output file
-  USE globalData,only:gru_struc                               ! gru-hru mapping structures
+  USE globalData,only:gru_struc                               ! gru-hru mapping structures (constructed in read_mapping_vectors)
   USE globalData,only:structInfo                              ! information on the data structures
   USE globalData,only:output_fileSuffix                       ! suffix for the output file
   ! ---------------------------------------------------------------------------------------
@@ -204,7 +204,7 @@ subroutine summa_initialize(summa1_struc, err, message)
     nGRU_user            => summa1_struc%nGRU_user           , & ! number of GRUs assigned to the current rank 
     nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to the current rank 
     nHRU_local           => summa1_struc%nHRU_local          , & ! number of HRUs assigned to the current rank
-    
+
     ! manager file
     summaFileManagerFile => summa1_struc%summaFileManagerFile, & ! path/name of file defining directories and files
     summaConfigFile      => summa1_struc%summaConfigFile       & ! path/name of summa configuration file
@@ -334,10 +334,11 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! local GRU-HRU and HRU-GRU mapping structures. nHRU_local is determined
     ! from the HRUs belonging to the GRUs assigned to this rank.
 
-    call read_mapping_vectors(attrFile, &
-                              nGRU_file, nHRU_file, &
-                              startGRU_local, nGRU_local, nHRU_local, &
+    call read_mapping_vectors(attrFile,                                                 &
+                              nGRU_file, nHRU_file,                                     &
+                              startGRU_local, nGRU_local, nHRU_local,                   &
                               merge(checkHRU, integerMissing, iRunMode == iRunModeHRU), &
+                              summa1_struc%gru_struc, summa1_struc%index_map,           & 
                               err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -501,7 +502,7 @@ subroutine summa_initialize(summa1_struc, err, message)
       endif
 
       ! populate mizuroute coupling IDs
-      summa1_struc%coupling(:)%id = gru_struc(:)%gru_id
+      summa1_struc%coupling(:)%id = summa1_struc%gru_struc(:)%gru_id
 
       call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
