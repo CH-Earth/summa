@@ -22,10 +22,14 @@ module read_attrb_module
 
 USE nr_type
 
+! mapping between the GRUs and HRUs
+USE data_types, only: gru2hru_map            ! x(iGRU)%hruinfo(iHRU)%y
+USE data_types, only: hru2gru_map            ! x(iHRU)%y
+
 USE netcdf
-USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
-USE netcdf_util_module,only:nc_file_close                  ! close netcdf file
-USE nr_utils_module ,only:arth                             ! use to build vectors with regular increments
+USE netcdf_util_module,only:nc_file_open     ! open netcdf file
+USE netcdf_util_module,only:nc_file_close    ! close netcdf file
+USE nr_utils_module ,only:arth               ! use to build vectors with regular increments
 
 USE build_options, only : ngen_active
 
@@ -141,23 +145,27 @@ contains
 
  subroutine read_mapping_vectors(attrFile, nGRU_file, nHRU_file,         &
                                  startGRU_local, nGRU_local, nHRU_local, &
-                                 checkHRU, err, message)
+                                 checkHRU,                               &
+                                 gru_struc, index_map,                   &
+                                 err, message)
 
- ! provide access to global mapping structures
- USE globalData, only : gru_struc   ! local GRU-to-HRU mapping
- USE globalData, only : index_map   ! local HRU-to-GRU mapping
+ ! legacy module-level mappings for the local MPI rank
+ USE globalData, only : global_gru_struc  => gru_struc
+ USE globalData, only : global_index_map  => index_map
 
  implicit none
 
- character(*), intent(in)   :: attrFile               ! LocalAttributes filename
- integer(i4b), intent(in)   :: nGRU_file              ! number of GRUs in the complete input file
- integer(i4b), intent(in)   :: nHRU_file              ! number of HRUs in the complete input file
- integer(i4b), intent(in)   :: startGRU_local         ! file index of first GRU assigned to this rank
- integer(i4b), intent(in)   :: nGRU_local             ! number of GRUs assigned to this rank
- integer(i4b), intent(out)  :: nHRU_local             ! number of HRUs assigned to this rank
- integer(i4b), intent(in)   :: checkHRU               ! file index of HRU for single-HRU run; missing otherwise
- integer(i4b), intent(out)  :: err                    ! error code
- character(*), intent(out)  :: message                ! error message
+ character(*)                  , intent(in)    :: attrFile               ! LocalAttributes filename
+ integer(i4b)                  , intent(in)    :: nGRU_file              ! number of GRUs in the complete input file
+ integer(i4b)                  , intent(in)    :: nHRU_file              ! number of HRUs in the complete input file
+ integer(i4b)                  , intent(in)    :: startGRU_local         ! file index of first GRU assigned to this rank
+ integer(i4b)                  , intent(in)    :: nGRU_local             ! number of GRUs assigned to this rank
+ integer(i4b)                  , intent(out)   :: nHRU_local             ! number of HRUs assigned to this rank
+ integer(i4b)                  , intent(in)    :: checkHRU               ! file index of HRU for single-HRU run; missing otherwise
+ type(gru2hru_map) ,allocatable, intent(inout) :: gru_struc(:)           ! gru2hru map
+ type(hru2gru_map) ,allocatable, intent(inout) :: index_map(:)           ! hru2gru map
+ integer(i4b)                  , intent(out)   :: err                    ! error code
+ character(*)                  , intent(out)   :: message                ! error message
 
  ! local indices and mapping vectors
  integer(i4b)               :: iHRU                   ! HRU counting index in the local run domain
@@ -317,6 +325,10 @@ contains
  ! close netcdf file
  call nc_file_close(ncid,err,cmessage)
  if (err/=nf90_noerr) then; message=trim(message)//trim(cmessage); return; end if
+
+ ! temporary compatibility copies for routines that still use globalData
+ global_gru_struc = gru_struc
+ global_index_map = index_map
 
  end subroutine read_mapping_vectors
 
