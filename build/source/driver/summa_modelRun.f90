@@ -62,6 +62,7 @@ contains
  USE globalData,only:model_decisions                            ! model decision structure
  USE globalData,only:startPhysics,endPhysics                    ! date/time for the start and end of the initialization
  USE globalData,only:elapsedPhysics                             ! elapsed time for the initialization
+ USE globalData,only:fracJulDay,yearLength
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------

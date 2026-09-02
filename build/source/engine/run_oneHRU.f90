@@ -108,7 +108,7 @@ contains
                        err,message)           ! intent(out):   error control
 
  ! ----- define downstream subroutines -----------------------------------------------------------------------------------
-
+ USE globalData,only:fracJulDay,yearLength,tmZoneOffsetFracDay   ! fraction of julian day and length of year (Summa-Actors has these as local vars)
  USE module_sf_noahmplsm,only:redprm          ! module to assign more Noah-MP parameters
  USE derivforce_module,only:derivforce        ! module to compute derived forcing data
  USE coupled_em_module,only:coupled_em        ! module to run the coupled energy and mass model

@@ -296,7 +296,7 @@ contains
       ! ensure consistency among state variables
       call updatSoil(&
                       mLayerTemp(iLayer),              & ! intent(in): layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in): matric head (m)
+                      mLayerMatricHead(iSoil),         & ! intent(in): matric head (m)
                       vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m, & ! intent(in): van Genutchen soil parameters
                       scalarTheta,                     & ! intent(out): volumetric fraction of total water (-)
                       mLayerVolFracLiq(iLayer),        & ! intent(out): volumetric fraction of liquid water (-)
@@ -314,7 +314,7 @@ contains
                       lookupData%gru(iGRU)%hru(iHRU),  & ! intent(in):  lookup table data structure
                       realMissing,                     & ! intent(in):  lower value of integral (not computed)
                       mLayerTemp(iLayer),              & ! intent(in):  layer temperature (K)
-                      mLayerMatricHead(iLayer-nSnow),  & ! intent(in):  matric head (m)
+                      mLayerMatricHead(iSoil),         & ! intent(in):  matric head (m)
                       mLayerEnthTemp(iLayer),          & ! intent(out): temperature component of enthalpy soil layer (J m-3)
                       err,cmessage)                      ! intent(out): error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
