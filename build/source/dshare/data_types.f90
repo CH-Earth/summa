@@ -19,7 +19,8 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 MODULE data_types
- ! used to define model data structures
+
+  ! used to define model data structures
  USE nr_type, integerMissing=>nr_integerMissing
  USE var_lookup,only:maxvarFreq
  USE var_lookup,only:maxvarStat
@@ -31,8 +32,37 @@ MODULE data_types
  USE var_lookup,only:iLookDIAG        ! lookup indices for diagnostic variable data
  USE var_lookup,only:iLookDECISIONS   ! lookup indices for elements of the decision structure
  USE var_lookup,only:iLookPROG        ! lookup indices for prognostic variables
+
+ ! named parameters
+ 
  implicit none
  private
+
+ ! ***********************************************************************************************************
+ ! Define the command line interface
+ ! ***********************************************************************************************************
+ type,public  :: cli_options
+
+  logical                       :: show_help    = .false.
+  logical                       :: show_version = .false.
+  
+  character(len=:), allocatable :: tag
+  character(len=:), allocatable :: master_file
+  character(len=:), allocatable :: config_file
+  character(len=:), allocatable :: suffix
+  character(len=:), allocatable :: runmode
+  character(len=:), allocatable :: domain_id
+  
+  integer(i4b)                  :: run_mode  = integerMissing
+  integer(i4b)                  :: hru_index = integerMissing
+  integer(i4b)                  :: start_gru = integerMissing
+  integer(i4b)                  :: count_gru = integerMissing
+  
+  integer(i4b)                  :: new_file  = integerMissing
+  integer(i4b)                  :: progress  = integerMissing
+  integer(i4b)                  :: restart   = integerMissing
+ 
+ end type cli_options
 
  ! ***********************************************************************************************************
  ! Define the model decisions
