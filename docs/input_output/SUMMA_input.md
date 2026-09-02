@@ -112,7 +112,7 @@ outFilePrefix     'sf_flathead_v1'                    ! output_prefix
 ```
 
 <a id="infile_model_decisions"></a>
-## Model decisions file
+## 3. Model decisions file
 The model decisions file is an [ASCII file](#infile_format_ASCII) that indicates the model decisions with which SUMMA is configured. The model decisions file is parsed by `build/source/engine/mDecisions.f90`, which also serves as the file of record for all available options for the individual model decisions. The names for the model decisions are found in `build/source/dshare/get_ixname.f90:function get_ixdecisions(varName)`. Detailed information about the individual model decisions and their associated options can be found in the [configuration section](../configuration/SUMMA_model_decisions.md).
 
 Model decisions can be specified in any order with one decision per line. The decisions take the form `<keyword> <value>`, where `<keyword>` is the decision to be made and `<value>` is the option that is selected for that decision. For example, the line `num_method homegrown` indicates that the homegrown version of the solver should be used in the simulation(`homegrown` option for the `num_method` decision). Another option for this model decision would be `ida` which indicates the SUNDIALS IDA solver will be used.
@@ -173,7 +173,7 @@ The model decisions and their options or values are listed in the following tabl
 The model decisions for each simulation are included as global attributes in [SUMMA output files](SUMMA_output.md).
 
 <a id="infile_output_control"></a>
-## Output control file
+## 4. Output control file
 The output control file is an [ASCII file](#infile_format_ASCII) that specifies which variables are retained in the [SUMMA output files](SUMMA_output.md). The output control file is parsed by `build/source/dshare/popMetadat.f90:read_output_file()`
 
 SUMMA is pretty flexible in its output. There are many variables that you can output and for most of them you can also choose to record summary statistics. For example, you can configure the model to run with meteorological forcings that are defined every hour, but only save summary output with a daily time step. This flexibility comes at the small price that you need to be clear in specifying what output you want.
@@ -202,11 +202,11 @@ The time-constant parameters (in `bpar`, `attr`, `type`, or `mpar`) do not have 
 Additionally, you can specify the output precision by adding the line `outputPrecision | <precision>` to the output control file where `<precision>` is one of `float`, `single`, or `double`. The default precision if this is not included is `double`. Both `single` and `float` correspond to single precision. The output compression level can be specified by adding the line `outputCompressionLevel | <compression>` to the output control file where `<compression>` is 0-9. Higher levels mean smaller files but slower write/read speed. The default compression level is 4. 
 
 <a id="infile_forcing_list"></a>
-## List of forcing files file
+## 5. List of forcing files file
 The list of forcing files file is an [ASCII file](#infile_format_ASCII) that specifies a list of [meteorological forcing files](#infile_meteorological_forcing) that are read by SUMMA and that provide the time-varying atmospheric boundary conditions. The list of forcing files file contains one field per line, which specifies the name of a forcing file in single quotes. The file is parsed by `build/source/engine/ffile_info.f90:ffile_info()`. Each of the forcing files must contain all the GRUs/HRUs that are part of the simulation, but can contain a subset of the modeling period. For example, the forcing files can be organized by year or month to stop file sizes for large domains from becoming too unwieldy. In the forcing files file, these meteorological forcing files would be listed in order, with the earliest file listed first.
 
 <a id="infile_meteorological_forcing">
-## Meteorological forcing files
+## 6. Meteorological forcing files
 The meteorological forcing files are [NetCDF files](#infile_format_nc) that specify the time-varying atmospheric boundary conditions for SUMMA. The files are parsed by `build/source/engine/ffile_info.f90:ffile_info()` to perform a series of file checks (number of HRUs, presence of all required variables) and by `build/source/engine/read_force.f90:read_force()` to get the meteorological information for the next time step.
 
 Each forcing file must contain a `time` and a `hru` [dimension](#forcing_file_dimensions). In addition, the file must contain the following variables at a minimum (it is OK if the file contains additional variables that will not be read, for example, it may be useful include latitude and longitude for each HRU to facilitate visualization of the forcing data).

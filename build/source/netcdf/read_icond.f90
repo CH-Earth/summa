@@ -462,6 +462,9 @@ contains
  ! cleanup
  deallocate(index_to_gruid,index_to_hrunc)
 
+ call nc_file_close(ncID,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
  end subroutine read_icond
 
  ! --------------------------------------------------------------------------------------------------------------------------

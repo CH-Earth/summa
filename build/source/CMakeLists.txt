@@ -25,7 +25,7 @@ set(SUMMA_TYPE
     CACHE INTERNAL "SUMMA_TYPE")
 
 set(NRUTIL
-    ${NUMREC_DIR}/f2008funcs.f90
+    ${NUMREC_DIR}/f2008_funcs.f90
     ${NUMREC_DIR}/nr_utils.f90
     CACHE INTERNAL "NRUTIL")
   

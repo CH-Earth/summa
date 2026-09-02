@@ -370,7 +370,7 @@ contains
  subroutine addModelLayer(dataStruct,metaStruct,ix_divide,nSnow,nLayers,err,message)
  USE var_lookup,only:iLookVarType                     ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
- USE f2008funcs_module,only:cloneStruc                ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
+ USE f2008_funcs_module,only:cloneStruc               ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
  USE data_types,only:var_ilength,var_dlength          ! data vectors with variable length dimension
  USE data_types,only:var_info                         ! metadata structure
  implicit none
