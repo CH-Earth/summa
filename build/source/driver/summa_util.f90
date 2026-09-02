@@ -298,10 +298,14 @@ contains
     endif
   endif
 
- print*, 'Parameters adjusted:'
- do i=1,size(opts%param_name)
-   print *, trim(opts%param_name(i)), opts%param_value(i)
- enddo
+ ! list parameters supplied by the CLI
+
+ if(allocated(opts%param_name))then
+   print*, 'Parameters adjusted:'
+   do i=1,size(opts%param_name)
+     print *, trim(opts%param_name(i)), opts%param_value(i)
+   enddo
+ endif
 
  end subroutine parse_command_args
 

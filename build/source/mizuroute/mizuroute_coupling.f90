@@ -13,6 +13,7 @@ module mizuroute_coupling
   public :: route_mizuroute_from_summa
   public :: define_mizuroute_output_from_summa
   public :: write_mizuroute_output_from_summa
+  public :: get_mizuroute_streamflow
 
   ! *****************************************************************************
   ! SUMMA--mizuRoute coupling interface
@@ -395,7 +396,29 @@ contains
                               ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-end subroutine write_mizuroute_output_from_summa
+  end subroutine write_mizuroute_output_from_summa
 
+  !-----------------------------------------------------------------------
+  !-----------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------
+  ! Get mizuRoute streamflow
+  !-----------------------------------------------------------------------
+  subroutine get_mizuroute_streamflow(modelTimeStep, summaStruct, simFlow)
+
+  integer(i4b),          intent(in)  :: modelTimeStep
+  type(summa1_type_dec), intent(in)  :: summaStruct
+  real(rkind),           intent(out) :: simFlow
+
+  integer(i4b) :: idx_buff
+  integer(i4b) :: ixSeg
+
+  idx_buff = merge(1, modelTimeStep, summaStruct%n_write == 1)
+  ixSeg    = summaStruct%mizu_info%ntopo%ixSegOut
+
+  simFlow = &
+    summaStruct%mizu_domain%river_network%driver%method(1)%streamflow(ixSeg,idx_buff)
+
+  end subroutine get_mizuroute_streamflow
 
 end module mizuroute_coupling
