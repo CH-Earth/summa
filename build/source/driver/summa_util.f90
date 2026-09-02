@@ -102,7 +102,7 @@ contains
  ! locals
  integer(i4b)                   :: n_arg         ! number of command line arguments
  integer(i4b)                   :: i             ! looping
- character(len=:) , allocatable :: a, v          ! command line arguments
+ character(len=:) , allocatable :: a, v, vn      ! command line arguments
  character(len=:) , allocatable :: program_name  ! name of executable program
  character(len=256)             :: cmessage      ! error message of downwind routine
 
@@ -196,21 +196,21 @@ contains
       
        opts%run_mode = iRunModeGRU 
        
-       call require_next(i,n_arg,a,v,err,cmessage)
+       call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       
-       call parse_integer(v,'startGRU',opts%start_gru,err,cmessage)
+       call parse_integer(v,'startGRU', opts%start_gru, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-       call require_next(i+1,n_arg,a,v,err,cmessage)
+       call require_next(i+1, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-       call parse_integer(v,'countGRU',opts%count_gru,err,cmessage)
+       call parse_integer(v, 'countGRU', opts%count_gru, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
        i = i + 3
 
      case ('-p','--progress')
-       call require_next(i,n_arg,a,v,err,cmessage)
+       call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       
        select case(trim(v))
@@ -226,7 +226,7 @@ contains
        i = i + 2
       
      case ('-r','--restart')
-       call require_next(i,n_arg,a,v,err,cmessage)
+       call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
         
        select case(trim(v))
@@ -240,6 +240,20 @@ contains
            err = 1; return
        end select
        i = i + 2
+
+     case ('--param')
+
+       call require_next(i, n_arg, a, vn, err, cmessage)  ! param name
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       call require_next(i+1, n_arg, a, v, err, cmessage)   ! param value
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       call append_param(opts, vn, v, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+       i = i + 3
+
 
      case default
         if (len_trim(a) > 0 .and. a(1:1) == '-') then
@@ -284,6 +298,10 @@ contains
     endif
   endif
 
+ print*, 'Parameters adjusted:'
+ do i=1,size(opts%param_name)
+   print *, trim(opts%param_name(i)), opts%param_value(i)
+ enddo
 
  end subroutine parse_command_args
 
@@ -326,6 +344,37 @@ contains
 
  ! --------------------------------------------------------------------------------------------------
 
+ subroutine append_param(opts, name, value_string, err, message)
+
+   type(cli_options), intent(inout) :: opts
+   character(len=*),  intent(in)    :: name
+   character(len=*),  intent(in)    :: value_string
+   integer(i4b),      intent(out)   :: err
+   character(len=*),  intent(out)   :: message
+
+   real(rkind)        :: value
+   character(len=256) :: cmessage
+
+   err = 0
+   message = 'append_param/'
+
+   ! parse parameter value
+   call parse_real(value_string, name, value, err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! append parameter name and value
+   if(.not.allocated(opts%param_name))then
+     opts%param_name  = [trim(name)]
+     opts%param_value = [value]
+   else
+     opts%param_name  = [opts%param_name, trim(name)]
+     opts%param_value = [opts%param_value, value]
+   endif
+
+ end subroutine append_param
+
+ ! --------------------------------------------------------------------------------------------------
+
  subroutine parse_integer(value, name, result, err, message)
    character(len=*), intent(in)  :: value
    character(len=*), intent(in)  :: name
@@ -345,6 +394,32 @@ contains
    endif
 
  end subroutine parse_integer
+
+ ! --------------------------------------------------------------------------------------------------
+
+ subroutine parse_real(value, name, result, err, message)
+
+   character(len=*), intent(in)  :: value
+   character(len=*), intent(in)  :: name
+   real(rkind),      intent(out) :: result
+   integer(i4b),     intent(out) :: err
+   character(len=*), intent(out) :: message
+
+   integer :: ios
+
+   err = 0
+   message = 'parse_real/'
+
+   read(value,*,iostat=ios) result
+   if(ios/=0)then
+     message = trim(message)//'invalid '//trim(name)// &
+               ' specification: "'//trim(value)//'"'
+     err = 1
+     return
+   endif
+
+ end subroutine parse_real
+
 
  ! **************************************************************************************************
  ! apply the command argyments
@@ -449,6 +524,13 @@ contains
        return
    
    end select
+
+   ! *** parameter overrides passed through the CLI
+
+   if(allocated(opts%param_name))then
+     summa1_struc%param_name  = opts%param_name
+     summa1_struc%param_value = opts%param_value
+   endif
 
    ! *** informational output
 

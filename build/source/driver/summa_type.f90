@@ -139,6 +139,10 @@ type(hru2gru_map), allocatable   :: index_map(:)               ! hru2gru map
 real(dp)                         :: data_step                  ! length of the data window (seconds)
 integer(i4b)                     :: n_write                    ! length of the output buffer
 
+! parameter overrides supplied at runtime
+character(len=64), allocatable   :: param_name(:)              ! parameter names supplied through CLI
+real(rkind),       allocatable   :: param_value(:)             ! parameter values supplied through CLI
+
 ! file managers
 character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
 character(len=256)               :: summaConfigFile =''        ! path/name of the TOML configuration file 

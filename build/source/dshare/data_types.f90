@@ -41,27 +41,31 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! Define the command line interface
  ! ***********************************************************************************************************
+
  type,public  :: cli_options
 
-  logical                       :: show_help    = .false.
-  logical                       :: show_version = .false.
+  logical                        :: show_help    = .false.
+  logical                        :: show_version = .false.
   
-  character(len=:), allocatable :: tag
-  character(len=:), allocatable :: master_file
-  character(len=:), allocatable :: config_file
-  character(len=:), allocatable :: suffix
-  character(len=:), allocatable :: runmode
-  character(len=:), allocatable :: domain_id
+  character(len=:), allocatable  :: tag
+  character(len=:), allocatable  :: master_file
+  character(len=:), allocatable  :: config_file
+  character(len=:), allocatable  :: suffix
+  character(len=:), allocatable  :: runmode
+  character(len=:), allocatable  :: domain_id
   
-  integer(i4b)                  :: run_mode  = integerMissing
-  integer(i4b)                  :: hru_index = integerMissing
-  integer(i4b)                  :: start_gru = integerMissing
-  integer(i4b)                  :: count_gru = integerMissing
+  integer(i4b)                   :: run_mode  = integerMissing
+  integer(i4b)                   :: hru_index = integerMissing
+  integer(i4b)                   :: start_gru = integerMissing
+  integer(i4b)                   :: count_gru = integerMissing
   
-  integer(i4b)                  :: new_file  = integerMissing
-  integer(i4b)                  :: progress  = integerMissing
-  integer(i4b)                  :: restart   = integerMissing
+  integer(i4b)                   :: new_file  = integerMissing
+  integer(i4b)                   :: progress  = integerMissing
+  integer(i4b)                   :: restart   = integerMissing
  
+  character(len=64), allocatable :: param_name(:)
+  real(rkind),       allocatable :: param_value(:)
+
  end type cli_options
 
  ! ***********************************************************************************************************

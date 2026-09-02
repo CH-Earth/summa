@@ -76,7 +76,8 @@ contains
 
  ! modules and subroutines
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
- USE summa_read_param_module,only:read_param                 ! module to read model parameter sets
+ USE param_override_module,only:read_param                   ! read trial model parameter sets
+ USE param_override_module,only:apply_cli_param              ! apply trial parameters passed through the CLI 
 
  ! global data
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
@@ -118,6 +119,18 @@ contains
  call read_param(nGRU_local, nHRU_local, &
                  idStruct, mparStruct, bparStruct, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! overwrite parameter values supplied through the command line
+ if(allocated(summa1_struc%param_name))then
+
+   call apply_cli_param(nGRU_local,                  &
+                        summa1_struc%param_name,     &
+                        summa1_struc%param_value,    &
+                        mparStruct, bparStruct,      &
+                        err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ endif
 
  ! update parameter-dependent model quantities
  call summa_paramUpdate(summa1_struc, err, cmessage)

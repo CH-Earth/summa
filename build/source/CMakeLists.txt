@@ -92,7 +92,7 @@ set(PRELIM
     ${ENGINE_DIR}/paramCheck.f90
     ${ENGINE_DIR}/pOverwrite.f90
     ${ENGINE_DIR}/sunGeomtry.f90
-    ${ENGINE_DIR}/read_param.f90
+    ${ENGINE_DIR}/param_override.f90
     CACHE INTERNAL "PRELIM")
 
 # Model run support modules
