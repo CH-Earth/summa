@@ -204,7 +204,7 @@ contains
  attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
 
  ! read local attributes for each HRU
- call read_attrb(trim(attrFile),nGRU_local,attrStruct,typeStruct,idStruct,upArea, &
+ call read_attrb(trim(attrFile),nGRU_local,attrStruct,typeStruct,idStruct, &
                  err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -350,76 +350,181 @@ contains
    bvarStruct   => summa1_struc%bvarStruct,   &
    
    lookupStruct => summa1_struc%lookupStruct, &
-   nGRU_local   => summa1_struc%nGRU_local    &
- 
+   nGRU_local   => summa1_struc%nGRU_local,   &
+
+   upArea       => summa1_struc%upArea        &
+
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
 
- ! initialize error control
  err = 0
  message = 'summa_paramUpdate/'
 
+ ! *****************************************************************************
+ ! *** determine whether soil temperature-enthalpy lookup tables are required
+ ! *****************************************************************************
 
- ! decide if computing soil enthalpy lookup tables and vegetation enthalpy lookup tables
  needLookup_soil = .false.
- ! if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
- if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyForm) needLookup_soil = .true.
- ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
- ! TODO: need to define temperature-enthalpy lookup tables for soil and vegetation?
 
- ! loop through GRUs
+ ! soil lookup tables are required when enthalpy is used for energy conservation
+ if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyForm) &
+   needLookup_soil = .true.
+
+ ! TODO: determine whether additional temperature-enthalpy lookup tables are
+ !       required when using IDA with enthalpy as the state variable
+
+
+ ! *****************************************************************************
+ ! *** update parameter-dependent quantities for each GRU and HRU
+ ! *****************************************************************************
+
  do iGRU=1,nGRU_local
 
-  ! calculate the fraction of runoff in future time steps
-  call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
-                  bvarStruct%gru(iGRU),        &  ! data structure of basin-average variables
-                  err,cmessage)                   ! error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  ! loop through local HRUs
-  do iHRU=1,gru_struc(iGRU)%hruCount
-
-   ! check that the parameters are consistent
-   call paramCheck(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+   ! update time-delay runoff-routing weights
+   call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
+                   bvarStruct%gru(iGRU),        &  ! data structure of basin-average variables
+                   err,cmessage)                   ! error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
-   ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
-   ! NOTE2: H is the mixture enthalpy of snow liquid and ice
-   call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   do iHRU=1,gru_struc(iGRU)%hruCount
 
-   ! calculate a lookup table for the temperature-enthalpy conversion of soil 
-   ! NOTE: L is the integral of soil Clapeyron equation liquid water matric potential from temperature
-   !       multiply by Cp_liq*iden_water to get temperature component of enthalpy
-   if(needLookup_soil)then
-     call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
-                          mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
-                          lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
-                          err,cmessage)                              ! intent(out):   error control
-     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
-   endif
+     ! check consistency of the current HRU parameters
+     call paramCheck(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! NOTE: HVT, HVB, SAIM, and LAIM are process-global tables. If HRUs sharing a
-   ! vegetation class have different parameter values, later HRUs overwrite earlier
-   ! values. Results may therefore depend on the MPI partitioning and differ between
-   ! serial runs or parallel runs using different numbers of ranks.
+     ! construct the snow temperature-enthalpy lookup table used during
+     ! future snow-layer merging
+     ! NOTE: H is the mixture enthalpy of snow liquid water and ice
+     ! TODO: this could potentially be restricted to HRUs containing snow
+     call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! TODO: Make these parameters HRU-local to eliminate dependence on MPI partitioning.
+     ! construct the soil temperature-enthalpy lookup table when required
+     ! NOTE: L is the integral of the soil Clapeyron-equation liquid-water
+     !       matric potential with respect to temperature. Multiplication by
+     !       Cp_liq*iden_water gives the temperature component of enthalpy
+     if(needLookup_soil)then
+       call T2L_lookup_soil(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
+                            mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
+                            lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
+                            err,cmessage)                              ! intent(out):   error control
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     endif
 
-   ! overwrite the vegetation height
-   HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
-   HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)
+     ! update process-global Noah-MP vegetation tables from the current HRU
+     ! parameter values
+     !
+     ! NOTE: HVT, HVB, SAIM, and LAIM are process-global tables. If HRUs sharing
+     !       a vegetation class have different parameter values, later HRUs
+     !       overwrite earlier values. Results may therefore depend on MPI
+     !       partitioning and differ between serial runs or parallel runs using
+     !       different numbers of ranks
+     !
+     ! TODO: make these parameters HRU-local to eliminate dependence on MPI
+     !       partitioning
 
-   ! overwrite the tables for LAI and SAI
-   if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
-    SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)%dat(1)
-    LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)%dat(1)*greenVegFrac_monthly
-   endif
+     HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = &
+       mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
 
-  end do ! HRU
+     HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = &
+       mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)
 
- end do ! GRU
+     if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
+
+       SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = &
+         mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%winterSAI)%dat(1)
+
+       LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = &
+         mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%summerLAI)%dat(1) * &
+         greenVegFrac_monthly
+
+     endif
+
+   enddo ! iHRU
+
+ enddo ! iGRU
+
+
+ ! *****************************************************************************
+ ! *** validate HRU connectivity
+ ! *****************************************************************************
+
+ do iGRU=1,nGRU_local
+
+   do iHRU=1,gru_struc(iGRU)%hruCount
+
+     kHRU = 0
+
+     do jHRU=1,gru_struc(iGRU)%hruCount
+
+       ! check that the downslope HRU identifier maps uniquely within the GRU
+       if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == &
+          idStruct%gru(iGRU)%hru(jHRU)%var(iLookID%hruId))then
+
+         if(kHRU==0)then
+           kHRU = jHRU
+         else
+           message=trim(message)//'downslope HRU identifier is not unique'
+           err=20; return
+         endif
+
+       endif
+
+     enddo ! jHRU
+
+   enddo ! iHRU
+
+ enddo ! iGRU
+
+
+ ! *****************************************************************************
+ ! *** compute directly contributing area for each HRU
+ ! *****************************************************************************
+
+ do iGRU=1,nGRU_local
+
+   do iHRU=1,gru_struc(iGRU)%hruCount
+
+     upArea%gru(iGRU)%hru(iHRU) = 0._rkind
+
+     do jHRU=1,gru_struc(iGRU)%hruCount
+
+       ! accumulate the area of HRUs that drain directly to iHRU
+       if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex) == &
+          idStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
+
+         upArea%gru(iGRU)%hru(iHRU) = upArea%gru(iGRU)%hru(iHRU) + &
+           attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
+
+       endif
+
+     enddo ! jHRU
+
+   enddo ! iHRU
+
+ enddo ! iGRU
+
+
+ ! *****************************************************************************
+ ! *** compute total GRU area
+ ! *****************************************************************************
+
+ do iGRU=1,nGRU_local
+
+   associate(totalArea => &
+             bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1))
+
+     totalArea = 0._rkind
+
+     do iHRU=1,gru_struc(iGRU)%hruCount
+       totalArea = totalArea + &
+         attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
+     enddo ! iHRU
+
+   end associate
+
+ enddo ! iGRU
+
 
  ! end associate statements
  end associate summaVars

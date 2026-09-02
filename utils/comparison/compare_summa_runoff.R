@@ -114,39 +114,53 @@ compare_runs <- function(ref_file, new_file) {
 # ----- LOOP THROUGH DIFFERENT OUTPUT FILES -----------------------------------
 # -----------------------------------------------------------------------------
 
-data_path <- '~/data/century'
+#          data_path <- '~/data/century'
+#          
+#          ref_path <- file.path(data_path, 'old/CAN_05BB001/7-FA_mod_IC_newSUMMA_inf_GA_bsflwParams_MP/best_run/summa/summa_results')
+#          ref_file <- file.path(ref_path, 'run1_timestep.nc')
+#          
+#          new_path <- file.path(data_path, 'test/summa_results')
+#          
+#          files    <- file.path(
+#            new_path,
+#            c(
+#              'run1_10Jul2025_timestep.nc', 
+#              'run1_26Aug2025_timestep.nc', 
+#              'run1_13Dec2025_timestep.nc', 
+#              'run1_09Jan2026_timestep.nc', 
+#              'run1_03Feb2026_timestep.nc', 
+#              'run1_stable_timestep.nc'
+#            )
+#          )
 
-ref_path <- file.path(data_path, 'old/CAN_05BB001/7-FA_mod_IC_newSUMMA_inf_GA_bsflwParams_MP/best_run/summa/summa_results')
-ref_file <- file.path(ref_path, 'run1_timestep.nc')
+test_root <- path.expand("~/models/summa_test_cases/test_cases/output")
 
-new_path <- file.path(data_path, 'test/summa_results')
+experiment_dir  <- "reynolds_canopySrad_windPrfile_stomResist"
+#experiment_name <- "reynoldsUEB2stream"
+experiment_name <- "reynoldsExponential"
 
-files    <- file.path(
-  new_path,
-  c(
-    'run1_10Jul2025_timestep.nc', 
-    'run1_26Aug2025_timestep.nc', 
-    'run1_13Dec2025_timestep.nc', 
-    'run1_09Jan2026_timestep.nc', 
-    'run1_03Feb2026_timestep.nc', 
-    'run1_stable_timestep.nc'
-  )
+experiment_dir  <- "reynolds_groundwatr"
+experiment_name <- "reynoldsLumpedQTopmodel"
+
+exe0 <- "_exe_0"
+exe1 <- "_exe_1"
+
+output_dir <- file.path(test_root, experiment_dir)
+
+file0 <- Sys.glob(
+  file.path(output_dir, paste0(experiment_name, exe0, "*.nc"))
 )
 
-for (new_file in files) {
+file1 <- Sys.glob(
+  file.path(output_dir, paste0(experiment_name, exe1, "*.nc"))
+)
 
- cat("\n")
- cat(strrep("-", 50), "\n")
- cat(strrep("-", 50), "\n")
+cat("Executable 0:\n  ", file0, "\n")
+cat("Executable 1:\n  ", file1, "\n")
 
- compare_runs(ref_file, new_file)
+ref_file <- file0
 
- ref_file <- file.path(new_path, 'run1_10Jul2025_timestep.nc')
-
-}
-
-ref_path <- file.path(data_path, 'test/summa_results')
-ref_file <- file.path(ref_path,  'run1_stable_timestep.nc')
+files <- c(file1)
 
 for (new_file in files) {
 
@@ -157,14 +171,3 @@ for (new_file in files) {
  compare_runs(ref_file, new_file)
 
 }
-
-
-
-
-
-
-
-
-
-
-

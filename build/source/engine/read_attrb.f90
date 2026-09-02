@@ -335,7 +335,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
- subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,upArea,err,message)
+ subroutine read_attrb(attrFile,nGRU_local,attrStruct,typeStruct,idStruct,err,message)
  ! subroutines
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
@@ -362,7 +362,6 @@ contains
  type(gru_hru_double),intent(inout)   :: attrStruct         ! local attributes for each HRU
  type(gru_hru_int),intent(inout)      :: typeStruct         ! local classification of soil veg etc. for each HRU
  type(gru_hru_int8),intent(inout)     :: idStruct           ! local values of hru and gru IDs
- type(gru_d),intent(inout)            :: upArea             ! area upslope of each HRU
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
  ! define local variables
@@ -548,47 +547,6 @@ contains
 
  call nc_file_close(ncid,err,cmessage)
  if (err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
-
- ! *****************************************************************************
- ! (6) validate HRU connectivity and compute directly contributing area
- ! *****************************************************************************
-
- do iGRU=1,nGRU_local
-
-  do iHRU=1,gru_struc(iGRU)%hruCount
-
-    kHRU = 0
-    upArea%gru(iGRU)%hru(iHRU) = 0._rkind
-
-    do jHRU=1,gru_struc(iGRU)%hruCount
-
-      ! check whether iHRU drains to jHRU
-      if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == &
-         idStruct%gru(iGRU)%hru(jHRU)%var(iLookID%hruId))then
-
-        if(kHRU==0)then
-          kHRU = jHRU
-        else
-          message=trim(message)//'downslope HRU identifier is not unique'
-          err=20; return
-        endif
-
-      endif
-
-      ! check whether jHRU drains directly to iHRU
-      if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex) == &
-         idStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
-
-        upArea%gru(iGRU)%hru(iHRU) = upArea%gru(iGRU)%hru(iHRU) + &
-          attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
-
-      endif
-
-    enddo ! jHRU
-
-  enddo ! iHRU
-
- enddo ! iGRU
 
  end subroutine read_attrb
 
