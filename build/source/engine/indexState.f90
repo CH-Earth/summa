@@ -281,7 +281,7 @@ contains
                        indx_data,                   & ! intent(inout) : index data structure
                        out_indexSplit)                ! intent(out)   : error control
  ! external modules 
- USE f2008funcs_module,only:findIndex                 ! finds the index of the first value within a vector
+ USE f2008_funcs_module,only:findIndex                ! finds the index of the first value within a vector
  USE nr_utils_module,only:arth                        ! use to build vectors with regular increments
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------

@@ -448,7 +448,7 @@ subroutine opSplittin(&
   subroutine initialize_split_select
    ! *** Initialize split_select class object ***
    
-   ! initizlaize iteration counter for split_select_loop
+   ! initialize iteration counter for split_select_loop
    split_select % iSplit = 1 
  
    ! initialize # of state variables

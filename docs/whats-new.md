@@ -12,6 +12,13 @@ This page provides simple, high-level documentation about what has changed in ea
 - Bug fix: fixed a problem with snow sublimation due to a bug in transitioning from exponential to log wind profile below canopy.
 
 ### Minor changes
+- 
+
+## Version 3.3.0
+### Major changes
+- 
+
+### Minor changes
 - Updated SWE balance check in coupled_em for cases where all snow melts in one of the substeps
 
 ## Version 3.2.0
