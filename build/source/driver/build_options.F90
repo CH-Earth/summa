@@ -21,4 +21,10 @@ module build_options
   logical, parameter, public :: mizuroute_active = .false.
 #endif
 
+#ifdef OPENWQ_ACTIVE
+  logical, parameter, public :: openwq_active = .true.
+#else
+  logical, parameter, public :: openwq_active = .false.
+#endif
+
 end module build_options

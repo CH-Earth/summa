@@ -72,12 +72,12 @@ contains
  ! --------------------------------------------------------------------------------------------------
 
  ! initializes parameter data structures (e.g. vegetation and soil parameters).
- subroutine summa_paramSetup(summa1_struc, err, message)
+ subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
 
  ! modules and subroutines
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
  USE param_override_module,only:read_param                   ! read trial model parameter sets
- USE param_override_module,only:apply_cli_param              ! apply trial parameters passed through the CLI 
+ USE param_override_module,only:apply_overrides              ! apply user-specified trial parameters
 
  ! global data
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
@@ -86,12 +86,14 @@ contains
  implicit none
 
  ! dummy variables
- type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
- integer(i4b),intent(out)              :: err                ! error code
- character(*),intent(out)              :: message            ! error message
+ type(summa1_type_dec)  , intent(inout)    :: summa1_struc
+ character(*)           , intent(in)       :: param_name(:)
+ real(rkind)            , intent(in)       :: param_value(:)
+ integer(i4b)           , intent(out)      :: err
+ character(*)           , intent(out)      :: message
 
  ! local variables
- character(len=256)                    :: cmessage           ! error message of downwind routine
+ character(len=256)                        :: cmessage
 
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
@@ -111,6 +113,18 @@ contains
  ! initialize the start of the initialization
  call date_and_time(values=startSetup)
 
+ ! check parameter dimensions
+ if(size(param_name)/=size(param_value))then
+  message=trim(message)//'parameter name and value vectors have different sizes'
+  err=1; return
+ endif
+
+ ! caller-supplied parameters take precedence over CLI supplied parameters
+ if(size(param_name)>0)then
+   summa1_struc%param_name  = param_name
+   summa1_struc%param_value = param_value
+ endif
+
  ! initialize model parameters and static HRU attributes
  call summa_paramInit(summa1_struc, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -120,10 +134,10 @@ contains
                  idStruct, mparStruct, bparStruct, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! overwrite parameter values supplied through the command line
+ ! overwrite parameters with user-specified parameter values
  if(allocated(summa1_struc%param_name))then
 
-   call apply_cli_param(nGRU_local,                  &
+   call apply_overrides(nGRU_local,                  &
                         summa1_struc%param_name,     &
                         summa1_struc%param_value,    &
                         mparStruct, bparStruct,      &

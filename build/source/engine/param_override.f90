@@ -42,7 +42,7 @@ USE data_types,only:gru_hru_doubleVec      ! spatial double data type:  x%gru(:)
 implicit none
 private
 public::read_param
-public::apply_cli_param
+public::apply_overrides
 contains
 
 
@@ -425,9 +425,9 @@ contains
 
 
  ! ************************************************************************************************
- ! public subroutine apply_cli_param: apply parameter values specified on the command line
+ ! public subroutine apply_overrides: apply user-specified parameter values
  ! ************************************************************************************************
- subroutine apply_cli_param(nGRU_local, param_name, param_value, &
+ subroutine apply_overrides(nGRU_local, param_name, param_value, &
                             mparStruct, bparStruct, err, message)
 
  USE get_ixname_module,only:get_ixParam,get_ixBpar           ! access function to find index of elements in structure
@@ -491,6 +491,6 @@ contains
 
  enddo
 
- end subroutine apply_cli_param
+ end subroutine apply_overrides
 
 end module param_override_module
