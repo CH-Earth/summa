@@ -1,0 +1,13 @@
+! -------------
+!  attributes
+! -------------
+hruId
+latitude
+longitude     
+
+! -----------
+! timestep vars
+! -----------
+pptrate                   | 1
+averageRoutedRunoff       | 1
+scalarTotalET             | 1
