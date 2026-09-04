@@ -5,6 +5,7 @@ use build_options, only: mizuroute_active
 USE nr_type
 USE summa_type, only:summa1_type_dec
 
+USE globaldata, only: isPrint
 USE globalData, only: iRunMode, iRunModeFull
 
 #ifdef MIZUROUTE_ACTIVE
@@ -44,11 +45,11 @@ contains
   character(*),          intent(out)   :: message
 
   ! TOML table
-  type(toml_table), allocatable :: table       ! root TOML table
-  type(toml_table), pointer     :: subtable    ! sub-table for a given section
-  type(toml_key),   allocatable :: sections(:) ! top-level sections
-  type(toml_key),   allocatable :: keys(:)     ! sub-table keys
-  type(toml_error), allocatable :: error
+  type(toml_table),      allocatable   :: table       ! root TOML table
+  type(toml_table),      pointer       :: subtable    ! sub-table for a given section
+  type(toml_key),        allocatable   :: sections(:) ! top-level sections
+  type(toml_key),        allocatable   :: keys(:)     ! sub-table keys
+  type(toml_error),      allocatable   :: error
 
   ! locals
   integer(i4b)       :: i, j
@@ -114,6 +115,15 @@ contains
             if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
           endif
 
+        ! ----- parse the objective function sections of the TOML table -----
+        case ("observations", "objective")
+
+          call parse_objective_config(subtable,              &
+                                      trim(sections(i)%key), &
+                                      trim(keys(j)%key),     &
+                                      summaStruct, err, cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
         ! ----- no other sections implemented -----
         case default
           message=trim(message)//'section ['//trim(sections(i)%key)//'] not implemented: remove section from TOML file'
@@ -126,18 +136,110 @@ contains
 
   ! ----- check mizuRoute execution constraints -----
 
+  ! Coupled mizuRoute currently requires the complete SUMMA domain on a single process.
+  ! River-network routing cannot be performed independently for each SUMMA domain partition.
   if (mizuroute_active .and. summaStruct%parallel%size > 1) then
     message=trim(message)//'Coupled mizuRoute does not support SUMMA domain parallelization; '// &
                            'use standalone mizuRoute for parallel river routing.'
     err=20; return
   endif
 
+  ! Coupled mizuRoute requires the complete set of SUMMA GRUs because runoff from upstream
+  ! GRUs may contribute to river reaches outside the selected SUMMA subdomain.
   if (mizuroute_active .and. iRunMode /= iRunModeFull) then
     message=trim(message)//'The -g subdomain option cannot be used with coupled mizuRoute because '// &
                            'the selected GRUs may not contain the complete upstream river network.'
     err=20; return
   endif
 
+  ! ----- set default objective function settings -----
+
+  ! set default objective-function metric
+  if(.not.allocated(summaStruct%obj%metric))then
+    summaStruct%obj%metric = 'kge'
+    if(isPrint) print*, 'WARNING: objective metric not specified; using kge'
+  endif
+  
+  ! set default objective-function transformation
+  if(.not.allocated(summaStruct%obj%transformation))then
+    summaStruct%obj%transformation = 'none'
+    if(isPrint) print*, 'WARNING: objective transformation not specified; using none'
+  endif
+
+  ! check start_date and end_date are defined
+  if(.not.allocated(summaStruct%obj%start_date) .or. .not.allocated(summaStruct%obj%start_date) )then
+    message=trim(message)//'Objective function start_date or end_date are not defined'
+    err=20; return
+  endif
+
   end subroutine load_summa_config
+
+ ! --------------------------------------------------------------------------------------------------
+ ! --------------------------------------------------------------------------------------------------
+ ! --------------------------------------------------------------------------------------------------
+
+ ! **************************************************************************************************
+ ! Parse observation and objective-function configuration.
+ ! **************************************************************************************************
+
+  subroutine parse_objective_config(subtable, section, key, summaStruct, ierr, message)
+
+  use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
+  use tomlf_all, only: toml_load, get_value, len                                ! procedures
+
+  type(toml_table), pointer, intent(in)    :: subtable
+  character(*),              intent(in)    :: section
+  character(*),              intent(in)    :: key
+  type(summa1_type_dec),     intent(inout) :: summaStruct
+  integer,                   intent(out)   :: ierr
+  character(*),              intent(out)   :: message
+
+  integer(i4b)       :: istat
+
+  associate(obs => summaStruct%obs, &
+            obj => summaStruct%obj)
+
+  ierr    = 0
+  message = 'parse_obs_config/'
+
+  ! extract configuration values and populate structures
+
+  select case(trim(section)//'.'//trim(key))
+
+    ! ---- observations: filename ----
+    case ("observations.obs_path"        ); call get_value(subtable, trim(key), obs%obs_path           , stat=istat)
+    case ("observations.obs_file"        ); call get_value(subtable, trim(key), obs%obs_file           , stat=istat)
+
+    ! ---- observations: variable names ----
+    case ("observations.vname_obsflow"   ); call get_value(subtable, trim(key), obs%vname_obsflow      , stat=istat)
+
+    ! ---- objective function: metrics  ----
+    case ("objective.metric"             ); call get_value(subtable, trim(key), obj%metric             , stat=istat)
+    case ("objective.transformation"     ); call get_value(subtable, trim(key), obj%transformation     , stat=istat)
+
+    ! ---- objective function: calibration period  ----
+    case ("objective.start_date"         ); call get_value(subtable, trim(key), obj%start_date         , stat=istat)
+    case ("objective.end_date"           ); call get_value(subtable, trim(key), obj%end_date           , stat=istat)
+
+    ! ---- default case (something in the table that is not specified above) -----
+    case default
+      message = trim(message)// "unexpected entry: section = "//trim(section)//"; sub-section = "//trim(key)
+      ierr=20; return
+
+  end select ! (select key/value pair based on lookup)
+
+  ! ---- error checking -----
+  if(istat /= 0)then
+    message=trim(message)// "get_value error: section = "//trim(section)//"; sub-section = "//trim(key)
+    ierr=20; return
+  endif
+
+  end associate
+
+  end subroutine parse_objective_config
+
+
+
+
 
 end module summa_config

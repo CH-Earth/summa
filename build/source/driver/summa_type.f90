@@ -57,8 +57,10 @@ USE data_types,  only : &
                     gru2hru_map,         & ! x(iGRU)%hruinfo(iHRU)%y 
                     hru2gru_map            ! x(iHRU)%y
 
-! generic runoff coupling structure
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
+
+USE data_types,      only: obs_fileinfo    ! information on the observation file
+USE data_types,      only: obj_info        ! choices for the objective function (metric, transformation) 
 
 ! mizuRoute coupling
 #ifdef MIZUROUTE_ACTIVE
@@ -142,6 +144,10 @@ integer(i4b)                     :: n_write                    ! length of the o
 ! parameter overrides supplied at runtime
 character(len=64), allocatable   :: param_name(:)              ! parameter names supplied through CLI
 real(rkind),       allocatable   :: param_value(:)             ! parameter values supplied through CLI
+
+! objective function
+type(obs_fileinfo)               :: obs                        ! observations file path/name, variable names, ...
+type(obj_info)                   :: obj                        ! choices for the objective function (transformation, metric) 
 
 ! file managers
 character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files

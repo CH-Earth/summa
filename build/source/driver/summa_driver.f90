@@ -21,7 +21,7 @@
 program summa_driver
 
   USE nr_type, only: i4b, rkind
-  USE summa_simulation, only: run_simulation
+  USE summa_simulation, only: evaluate_objective
   USE summa_util, only: handle_err, stop_program
 
   implicit none
@@ -29,17 +29,12 @@ program summa_driver
   ! parallel dummy variables
   integer(i4b), parameter :: comm=0, rank=0, nproc=1
 
-  ! simulated time series
-  real(rkind), allocatable :: timeSim(:)
-  real(rkind), allocatable :: flowSim(:)
-
-  ! time-series metadata
-  character(len=:), allocatable :: timeUnits
-  character(len=:), allocatable :: flowUnits
-
   ! parameter overrides
   character(len=64), allocatable :: param_name(:)
   real(rkind),       allocatable :: param_value(:)
+
+  ! objective function
+  real(rkind)                    :: objective
 
   ! error control
   integer(i4b)        :: err=0
@@ -49,11 +44,11 @@ program summa_driver
   allocate(param_name(0))
   allocate(param_value(0))
 
-  ! run SUMMA
-  call run_simulation(comm, rank, nproc,                      &
-                      timeSim, flowSim, timeUnits, flowUnits, &
-                      param_name, param_value,                &
-                      err, message)
+  ! run SUMMA and evaluate the objective function
+  call evaluate_objective(comm, rank, nproc,        &
+                          param_name, param_value,  &
+                          objective,                &
+                          err, message)
   call handle_err(err,message)
 
   call stop_program(0,'finished simulation successfully.')

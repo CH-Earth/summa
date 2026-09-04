@@ -540,15 +540,6 @@ contains
 
    if(isPrint)then
 
-     if(allocated(opts%master_file)) &
-       print "(A)", "master_file is '"//trim(opts%master_file)//"'."
-
-     if(allocated(opts%config_file)) &
-       print "(A)", "config_file is '"//trim(opts%config_file)//"'."
-
-     if(allocated(opts%suffix)) &
-       print "(A)", "file_suffix is '"//trim(opts%suffix)//"'."
-
      select case(iRunMode)
 
        case(iRunModeHRU)

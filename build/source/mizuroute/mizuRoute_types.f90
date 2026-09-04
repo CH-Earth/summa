@@ -79,6 +79,7 @@ module mizuroute_types
   type :: remap_info
 
    ! Remapping filename
+   character(len=:), allocatable :: remap_path         ! remapping path
    character(len=:), allocatable :: remap_file         ! remapping file
 
    ! NetCDF dimensions

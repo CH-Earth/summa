@@ -10,7 +10,7 @@ module mizuroute_config
 
 contains
 
-  subroutine parse_mizuroute_config(subtable, section, key,summaStruct, ierr, message)
+  subroutine parse_mizuroute_config(subtable, section, key, summaStruct, ierr, message)
   
   use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
   use tomlf_all, only: toml_load, get_value, len                                ! procedures
@@ -63,6 +63,7 @@ contains
     case ("hydrofabric.seg_outlet"       ); call get_value(subtable, trim(key), info%ntopo%idSegOut         , stat=istat)
     
     ! ---- remapping: filename ----
+    case ("remapping.remap_path"         ); call get_value(subtable, trim(key), info%remap%remap_path       , stat=istat)
     case ("remapping.remap_file"         ); call get_value(subtable, trim(key), info%remap%remap_file       , stat=istat)
     
     ! ---- remapping: dimension names ----
@@ -89,7 +90,7 @@ contains
     message=trim(message)// "get_value error: section = "//trim(section)//"; sub-section = "//trim(key)
     ierr=20; return
   endif
-    
+ 
   end associate
 
   end subroutine parse_mizuroute_config
