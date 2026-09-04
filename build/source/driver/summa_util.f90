@@ -24,6 +24,9 @@ module summa_util
 ! data types
 USE nr_type                             ! high-level data types
 
+! global data to print data to screen (runtime, can be switched on/off based on context)
+USE globalData, only: isPrint           ! flag to enable informational screen/log output
+
 ! global data
 USE globalData,only:integerMissing      ! missing integer value
 USE globalData,only:realMissing         ! missing double precision value
@@ -76,9 +79,10 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
-  nGRU                 => summa1_struc%nGRU                ,& ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                ,& ! number of global hydrologic response units
-  summaFileManagerFile => summa1_struc%summaFileManagerFile & ! path/name of file defining directories and files
+  nGRU_user            => summa1_struc%nGRU_user           ,& ! number of GRUs defined using CLI -g
+  nHRU_check           => summa1_struc%nHRU_check          ,& ! number of HRUs defined using CLI -h
+  summaFileManagerFile => summa1_struc%summaFileManagerFile,& ! path/name of file defining directories and files
+  summaConfigFile      => summa1_struc%summaConfigFile      & ! path/name of TOML config file 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -88,7 +92,7 @@ contains
   ! no command arguments with NGen
   nArgument = 0
   checkHRU = integerMissing
-  nGRU = 1; nHRU = integerMissing
+  nGRU_user = 1; nHRU_check = integerMissing
   newOutputFile = noNewFiles
   ixProgress = ixProgress_never ! NGen prints own progress
   iRunMode = iRunModeGRU
@@ -120,7 +124,7 @@ contains
 
  ! initialize command line argument variables
  startGRU = integerMissing; checkHRU = integerMissing
- nGRU = integerMissing; nHRU = integerMissing
+ nGRU_user = integerMissing; nHRU_check = integerMissing
  newOutputFile = noNewFiles
  iRunMode = iRunModeFull
 
@@ -139,7 +143,20 @@ contains
     endif
     ! get name of master control file
     summaFileManagerFile=trim(argString(iArgument+1))
-    print "(A)", "file_master is '"//trim(summaFileManagerFile)//"'."
+    if(isPrint) print "(A)", "file_master is '"//trim(summaFileManagerFile)//"'."
+
+   case ('-c', '--config')
+    ! check that the number of command line arguments is correct
+    nLocalArgument = 1
+    if (iArgument+nLocalArgument > nArgument) then
+      message="missing argument config_file; type 'summa.exe --help' for correct usage"
+      err=1; return
+    endif
+    ! get name of the configuration file
+    summaConfigFile = trim(argString(iArgument+1))
+
+  if (isPrint) print "(A)", &
+    "config_file is '"//trim(summaConfigFile)//"'."
 
    ! define the formation of new output files
    case ('-n', '--newFile')
@@ -167,7 +184,7 @@ contains
      err=1; return
     endif
     output_fileSuffix=trim(argString(iArgument+1))
-    print "(A)", "file_suffix is '"//trim(output_fileSuffix)//"'."
+    if(isPrint) print "(A)", "file_suffix is '"//trim(output_fileSuffix)//"'."
 
    case ('-h', '--hru')
     ! define a single HRU run
@@ -180,13 +197,13 @@ contains
     ! check if the number of command line arguments is correct
     if (iArgument+nLocalArgument>nArgument) call handle_err(1,"missing argument checkHRU; type 'summa.exe --help' for correct usage")
     read(argString(iArgument+1),*) checkHRU ! read the index of the HRU for a single HRU run
-    nHRU=1; nGRU=1                          ! nHRU and nGRU are both one in this case
+    nHRU_check=1; nGRU_user=1               ! nHRU and nGRU are both one in this case
     ! examines the checkHRU is correct
     if (checkHRU<1) then
      message="illegal iHRU specification; type 'summa.exe --help' for correct usage"
      err=1; return
     else
-     print '(A)',' Single-HRU run activated. HRU '//trim(argString(iArgument+1))//' is selected for simulation.'
+      if(isPrint) print '(A)',' Single-HRU run activated. HRU '//trim(argString(iArgument+1))//' is selected for simulation.'
     end if
 
    case ('-g','--gru')
@@ -202,13 +219,13 @@ contains
      message="missing argument startGRU or countGRU; type 'summa.exe --help' for correct usage"
      err=1; return
     endif
-    read(argString(iArgument+1),*) startGRU ! read the argument of startGRU
-    read(argString(iArgument+2),*) nGRU     ! read the argument of countGRU
-    if (startGRU<1 .or. nGRU<1) then
+    read(argString(iArgument+1),*) startGRU   ! read the argument of startGRU
+    read(argString(iArgument+2),*) nGRU_user  ! read the argument of countGRU
+    if (startGRU<1 .or. nGRU_user<1) then
      message='startGRU and countGRU must be larger than 1.'
      err=1; return
     else
-     print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
+      if(isPrint) print '(A)', ' GRU-Parallelization run activated. '//trim(argString(iArgument+2))//' GRUs are selected for simulation.'
     end if
 
    case ('-p', '--progress')
@@ -285,10 +302,11 @@ contains
  subroutine printCommandHelp()
  implicit none
  ! command line usage
- print "(//A)",'Usage: summa.exe -m master_file [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress] [-c]'
+ print "(//A)",'Usage: summa.exe -m master_file [-c config_file] [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress]'
  print "(A,/)",  ' summa.exe          summa executable'
  print "(A)",  'Running options:'
  print "(A)",  ' -m --master        Define path/name of master file (required)'
+ print "(A)",  ' -c --config        Define path/name of TOML configuration file'
  print "(A)",  ' -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files'
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'

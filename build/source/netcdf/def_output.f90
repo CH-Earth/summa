@@ -74,13 +74,14 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,infile,err,message)
+ subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash, &
+                       nGRU_local,nHRU_local,fprefix,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta  ! metadata structures
  USE globalData,only:indx_meta,bpar_meta,bvar_meta            ! metadata structures
  USE globalData,only:model_decisions                          ! model decisions
- USE globalData,only:ncid
+ USE globalData,only:ncid                                     ! vector of IDs for different netcdf files (different time aggregations)
  USE globalData,only:outFreq                                  ! output frequencies
  USE var_lookup,only:maxvarFreq                               ! # of available output frequencies
  USE get_ixname_module,only:get_freqName                      ! get name of frequency from frequency index
@@ -90,9 +91,9 @@ contains
  character(*),intent(in)     :: buildTime                     ! build time
  character(*),intent(in)     :: gitBranch                     ! git branch
  character(*),intent(in)     :: gitHash                       ! git hash
- integer(i4b),intent(in)     :: nGRU                          ! number of GRUs
- integer(i4b),intent(in)     :: nHRU                          ! number of HRUs
- character(*),intent(in)     :: infile                        ! file suffix
+ integer(i4b),intent(in)     :: nGRU_local                    ! number of GRUs assigned to local rank
+ integer(i4b),intent(in)     :: nHRU_local                    ! number of HRUs assigned to local rank
+ character(*),intent(in)     :: fprefix                       ! file prefix
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
  ! local variables
@@ -132,8 +133,8 @@ contains
   endif
 
   ! create file
-  fname   = trim(infile)//'_'//trim(fstring)//'.nc'
-  call ini_create(nGRU,nHRU,trim(fname),ncid(iFreq),err,cmessage)
+  fname   = trim(fprefix)//'_'//trim(fstring)//'.nc'
+  call ini_create(nGRU_local,nHRU_local,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print*,'Created output file: '//trim(fname)
 
@@ -189,7 +190,7 @@ contains
  ! **********************************************************************************************************
  ! private subroutine ini_create: initial create
  ! **********************************************************************************************************
- subroutine ini_create(nGRU,nHRU,infile,ncid,err,message)
+ subroutine ini_create(nGRU_local,nHRU_local,infile,ncid,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
  ! vector lengths
@@ -201,39 +202,56 @@ contains
  USE globalData,only:allowRoutingOutput ! flag to allow routing variable output
  implicit none
  ! declare dummy variables
- integer(i4b),intent(in)     :: nGRU            ! number of GRUs
- integer(i4b),intent(in)     :: nHRU            ! number of HRUs
+ integer(i4b),intent(in)     :: nGRU_local      ! number of GRUs assigned to local rank
+ integer(i4b),intent(in)     :: nHRU_local      ! number of HRUs assigned to local rank
  character(*),intent(in)     :: infile          ! filename
  integer(i4b),intent(out)    :: ncid            ! netcdf file id
  integer(i4b),intent(out)    :: err             ! error code
  character(*),intent(out)    :: message         ! error message
  ! define local variables
  integer(i4b),parameter      :: scalarLength=1  ! length of scalar variable
+ integer(i4b)                :: iStruct
  ! initialize error control
  err=0;message="ini_create/"
 
  ! create output file
  !err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
  err = nf90_create(trim(infile),NF90_NETCDF4,ncid)
- message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
+ if (err/=0) then
+   message=trim(message)//'iCreate[create]'
+   call netcdf_err(err,message)
+   return
+  endif
 
  ! create dimensions
-                        err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
- if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,     depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,     scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
- if(allowRoutingOutput) err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,      routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
- if(maxSnowLayers>0)    err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,   midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
- if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,   midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,       midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
- if(maxSnowLayers>0)    err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1, ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
- if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers+1, ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
+ do iStruct=0,12 ! go 0-12 for good luck
+
+  err=nf90_noerr
+  message='ini_create/'
+
+   select case(iStruct)
+     case ( 0);                        err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU_local,          gru_DimID); message=trim(message)//'iCreate[gru]'      
+     case ( 1);                        err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU_local,          hru_DimID); message=trim(message)//'iCreate[hru]'      
+     case ( 2);                        err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, timestep_DimID); message=trim(message)//'iCreate[time]'     
+     case ( 3); if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,     depth_DimID); message=trim(message)//'iCreate[depth]'    
+     case ( 4);                        err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,     scalar_DimID); message=trim(message)//'iCreate[scalar]'   
+     case ( 5);                        err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,       wLength_DimID); message=trim(message)//'iCreate[spectral]' 
+     case ( 6); if(allowRoutingOutput) err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,      routing_DimID); message=trim(message)//'iCreate[routing]'  
+     case ( 7); if(maxSnowLayers>0)    err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,   midSnow_DimID); message=trim(message)//'iCreate[midSnow]'  
+     case ( 8); if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,   midSoil_DimID); message=trim(message)//'iCreate[midSoil]'  
+     case ( 9);                        err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,       midToto_DimID); message=trim(message)//'iCreate[midToto]'  
+     case (10); if(maxSnowLayers>0)    err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1, ifcSnow_DimID); message=trim(message)//'iCreate[ifcSnow]'  
+     case (11); if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers+1, ifcSoil_DimID); message=trim(message)//'iCreate[ifcSoil]'  
+     case (12);                        err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message=trim(message)//'iCreate[ifcToto]'  
+   end select
+
+   call netcdf_err(err,message)
+   if (err/=0) return
+
+ end do
 
  ! Leave define mode of NetCDF files
- err = nf90_enddef(ncid);  message='nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
+ err = nf90_enddef(ncid);  message='ini_create/nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
 
  end subroutine ini_create
 

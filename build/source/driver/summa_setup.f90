@@ -21,6 +21,8 @@
 module summa_setup
 ! initializes parameter data structures (e.g. vegetation and soil parameters).
 
+USE globalData, only: isPrint           ! flag to enable informational screen/log output
+
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
 USE globalData,only:realMissing         ! missing real number
@@ -48,11 +50,6 @@ USE mDecisions_module,only:&
   enthalpyForm,  &                      ! use enthalpy with soil temperature-enthalpy lookup tables
   enthalpyFormAN                        ! use enthalpy with soil temperature-enthalpy analytical solution
 
-! named variables to define the decisions for snow layers
-USE mDecisions_module,only:&
-  sameRulesAllLayers,&                  ! SNTHERM option: same combination/sub-dividion rules applied to all layers
-  rulesDependLayerIndex                 ! CLM option: combination/sub-dividion rules depend on layer index
-
 ! named variables to define LAI decisions
 USE mDecisions_module,only:&
  monthlyTable,&                         ! LAI/SAI taken directly from a monthly table for different vegetation classes
@@ -73,13 +70,11 @@ contains
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! subroutines and functions
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
- USE mDecisions_module,only:mDecisions                       ! module to read model decisions
- USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
  USE read_attrb_module,only:read_attrb                       ! module to read local attributes
  USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
- USE read_param_module,only:read_param                       ! module to read model parameter sets
+ USE summa_read_param_module,only:read_param                 ! module to read model parameter sets
  USE convertEnthalpyTemp_module,only:T2H_lookup_snWat        ! module to calculate a look-up table for the snow temperature-enthalpy conversion
  USE convertEnthalpyTemp_module,only:T2L_lookup_soil         ! module to calculate a look-up table for the soil temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
@@ -90,15 +85,6 @@ contains
  USE globalData,only:basinParFallback                        ! basin-average default parameters
  USE globalData,only:model_decisions                         ! model decision structure
  USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
- ! run time options
- USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
- USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
- USE globalData,only:iRunMode                                ! define the current running mode
-! output constraints
- USE globalData,only:maxLayers                               ! maximum number of layers
- USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
- USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
- USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  ! timing variables
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
@@ -133,7 +119,7 @@ contains
   ! primary data structures (scalars)
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- GRU/HRU identifiers for the local domain 
 
   ! primary data structures (variable length vectors)
   mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
@@ -148,8 +134,8 @@ contains
 
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
-  nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
+  nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to this rank
+  nHRU_local           => summa1_struc%nHRU_local            & ! number of HRUs assigned to this rank
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -159,48 +145,13 @@ contains
  ! initialize the start of the initialization
  call date_and_time(values=startSetup)
 
-#ifdef NGEN_FORCING_ACTIVE
- ! *****************************************************************************
- ! if using NGEN forcing only need to set the hourly data_step (fixed)
- ! *****************************************************************************
- data_step = 3600._rkind
-#else
- ! *****************************************************************************
- ! *** read description of model forcing datafile used in each HRU
- ! *****************************************************************************
- call ffile_info(nGRU,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-#endif
-
- ! *****************************************************************************
- ! *** read model decisions
- ! *****************************************************************************
- ! NOTE: Must be after ffile_info because mDecisions uses the data_step
- call mDecisions(err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
  ! decide if computing soil enthalpy lookup tables and vegetation enthalpy lookup tables
  needLookup_soil = .false.
  ! if need enthalpy for either energy backward Euler residual or IDA state variable and not using soil enthalpy hypergeometric function
- if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyForm) needLookup_soil = .true. 
+ if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyForm) needLookup_soil = .true.
  ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
- 
- ! get the maximum number of snow layers
- select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
-  case(sameRulesAllLayers);    maxSnowLayers = 100
-  case(rulesDependLayerIndex); maxSnowLayers = 5
-  case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
- end select ! (option to combine/sub-divide snow layers)
+ ! TODO: need to define temperature-enthalpy lookup tables for soil and vegetation?
 
- ! get the maximum number of layers
- maxLayers     = 0
- maxSoilLayers = 0
- do iGRU=1,nGRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
-   maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
-  end do
- end do
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU
@@ -210,7 +161,7 @@ contains
  attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
 
  ! read local attributes for each HRU
- call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,err,cmessage)
+ call read_attrb(trim(attrFile),nGRU_local,attrStruct,typeStruct,idStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
@@ -260,11 +211,11 @@ contains
   case('plumberSUMMA');             urbanVegCategory = -999
   case default
    message=trim(message)//'unable to identify vegetation category'
-   return
+   err=20; return
  end select
 
  ! set default model parameters
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
   do iHRU=1,gru_struc(iGRU)%hruCount
 
    ! set parameters to their default value
@@ -294,14 +245,16 @@ contains
  ! *****************************************************************************
  ! *** read trial model parameter values for each HRU, and populate initial data structures
  ! *****************************************************************************
- call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,cmessage)
+ 
+ call read_param(nGRU_local, nHRU_local, &
+                 idStruct, mparStruct, bparStruct, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
  ! *** compute derived model variables that are pretty much constant for the basin as a whole
  ! *****************************************************************************
  ! loop through GRUs
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
 
   ! calculate the fraction of runoff in future time steps
   call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
@@ -319,7 +272,8 @@ contains
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
      else
-      message=trim(message)//'only expect there to be one downslope HRU'; return
+      message=trim(message)//'only expect there to be one downslope HRU'
+      err=20; return
      end if  ! (check there is a unique match)
     end if  ! (if identified a downslope HRU)
    end do
@@ -345,6 +299,13 @@ contains
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
    endif
 
+   ! NOTE: HVT, HVB, SAIM, and LAIM are process-global tables. If HRUs sharing a
+   ! vegetation class have different parameter values, later HRUs overwrite earlier
+   ! values. Results may therefore depend on the MPI partitioning and differ between
+   ! serial runs or parallel runs using different numbers of ranks.
+
+   ! TODO: Make these parameters HRU-local to eliminate dependence on MPI partitioning.
+
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
    HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)
@@ -362,7 +323,7 @@ contains
    upArea%gru(iGRU)%hru(iHRU) = 0._rkind
    do jHRU=1,gru_struc(iGRU)%hruCount
     ! check if jHRU flows into iHRU; assume no exchange between GRUs
-    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
+    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==idStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
      upArea%gru(iGRU)%hru(iHRU) = upArea%gru(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
     endif   ! (if jHRU is an upstream HRU)
    end do  ! jHRU
@@ -466,7 +427,7 @@ contains
         ! CALL wrf_message( mess )
         LUMATCH=1
      ELSE
-        call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
+        if (isPrint) call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
         DO LC = 1, LUCATS+12
            read(19,*)
         ENDDO
@@ -548,7 +509,7 @@ contains
      ! CALL wrf_message ( mess )
      LUMATCH=1
    ELSE
-    call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
+    if (isPrint) call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
     DO LC = 1, SLCATS
      read(19,*)
     ENDDO

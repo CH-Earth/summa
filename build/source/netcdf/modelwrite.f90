@@ -39,8 +39,8 @@ USE globalData,only:nSpecBand           ! maximum number of spectral bands
 USE globalData,only:allowRoutingOutput  ! flag to allow routing variable output
 
 ! provide access to global data
-USE globalData,only:nGRUrun             ! number of GRUs in the run
-USE globalData,only:nHRUrun             ! number of HRUs in the run
+USE globalData,only:nGRUrun             ! number of GRUs in the run (rank)
+USE globalData,only:nHRUrun             ! number of HRUs in the run (rank)
 USE globalData,only:gru_struc           ! gru->hru mapping structure
 
 ! provide access to the derived types to define the data structures
@@ -381,7 +381,7 @@ contains
     select type (stat)
      class is (gru_hru_doubleVec); nSpace = nHRUrun; realBuffer(:) = realMissing
      class is (gru_doubleVec);     nSpace = nGRUrun; realBuffer(:) = realMissing
-      class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'; err=20; return;err=20; return
+      class default; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec or gru_doubleVec'; err=20; return
     end select
 
     ! loop thru GRUs and HRUs
@@ -428,14 +428,14 @@ contains
 
       ! get the length of each data vector
       select case (meta(iVar)%varType)
-       case(iLookVarType%wLength); datLength = nSpecBand
-       case(iLookVarType%midToto); datLength = nLayers
-       case(iLookVarType%midSnow); datLength = nSnow
-       case(iLookVarType%midSoil); datLength = nSoil
-       case(iLookVarType%ifcToto); datLength = nLayers+1
-       case(iLookVarType%ifcSnow); datLength = nSnow+1
-       case(iLookVarType%ifcSoil); datLength = nSoil+1
-       case(iLookVarType%routing); datLength = nTimeDelay
+       case (iLookVarType%wLength); datLength = nSpecBand
+       case (iLookVarType%midToto); datLength = nLayers
+       case (iLookVarType%midSnow); datLength = nSnow
+       case (iLookVarType%midSoil); datLength = nSoil
+       case (iLookVarType%ifcToto); datLength = nLayers+1
+       case (iLookVarType%ifcSnow); datLength = nSnow+1
+       case (iLookVarType%ifcSoil); datLength = nSoil+1
+       case (iLookVarType%routing); datLength = nTimeDelay
        case default; cycle iVarLoop
        ! case parSoil only in parameters (mpar, not written here)
        ! case unknown skipped above
@@ -454,22 +454,22 @@ contains
 
     ! get the maximum length of each data vector
     select case (meta(iVar)%varType)
-     case(iLookVarType%wLength); maxLength = nSpecBand
-     case(iLookVarType%midToto); maxLength = maxLayers
-     case(iLookVarType%midSnow); maxLength = maxSnowLayers
-     case(iLookVarType%midSoil); maxLength = maxSoilLayers
-     case(iLookVarType%ifcToto); maxLength = maxLayers+1
-     case(iLookVarType%ifcSnow); maxLength = maxSnowLayers+1
-     case(iLookVarType%ifcSoil); maxLength = maxSoilLayers+1
-     case(iLookVarType%routing); maxLength = nTimeDelay
+     case (iLookVarType%wLength); maxLength = nSpecBand
+     case (iLookVarType%midToto); maxLength = maxLayers
+     case (iLookVarType%midSnow); maxLength = maxSnowLayers
+     case (iLookVarType%midSoil); maxLength = maxSoilLayers
+     case (iLookVarType%ifcToto); maxLength = maxLayers+1
+     case (iLookVarType%ifcSnow); maxLength = maxSnowLayers+1
+     case (iLookVarType%ifcSoil); maxLength = maxSoilLayers+1
+     case (iLookVarType%routing); maxLength = nTimeDelay
      case default; cycle iVarLoop ! move onto the next variable
     end select ! varType
 
     ! write the data vectors
     if(maxLength==0) cycle iVarLoop ! skip if there is no length
     select case (dataType)
-     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
-     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
+     case (ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
+     case (ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nSpace,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nSpace,maxLength,1/))
     end select ! data type
     call netcdf_err(err,message); if (err/=0) return
 
@@ -536,8 +536,8 @@ contains
  ! public subroutine writeRestart: print a re-start file
  ! *********************************************************************************************************
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
-                         nGRU,             & ! intent(in): number of GRUs
-                         nHRU,             & ! intent(in): number of HRUs
+                         nGRU_local,       & ! intent(in): number of GRUs assigned to this rank
+                         nHRU_local,       & ! intent(in): number of HRUs assigned to this rank
                          prog_meta,        & ! intent(in): prognostics metadata
                          prog_data,        & ! intent(in): prognostics data
                          bvar_meta,        & ! intent(in): basin (gru) variable metadata
@@ -564,8 +564,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! input
  character(len=256),intent(in)      :: filename      ! name of the restart file
- integer(i4b),intent(in)            :: nGRU          ! number of GRUs
- integer(i4b),intent(in)            :: nHRU          ! number of HRUs
+ integer(i4b),intent(in)            :: nGRU_local    ! number of GRUs assigned to this rank
+ integer(i4b),intent(in)            :: nHRU_local    ! number of HRUs assigned to this rank
  type(var_info),intent(in)          :: prog_meta(:)  ! prognostic variable metadata
  type(gru_hru_doubleVec),intent(in) :: prog_data     ! prognostic vars
  type(var_info),intent(in)          :: bvar_meta(:)  ! basin variable metadata
@@ -628,39 +628,50 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
 
  ! define dimensions
-                     err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU             ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
-                     err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU             ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
-                     err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay       ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
-                     err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar          ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
-                     err = nf90_def_dim(ncid,trim(specDimName)   ,nSpecBand        ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
-                     err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers        ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
-                     err = nf90_def_dim(ncid,trim(ifcTotoDimName),maxLayers+1      ,ifcTotoDimID); message='iCreate[ifcToto]' ; call netcdf_err(err,message); if(err/=0)return
- if(maxSoilLayers>0) err = nf90_def_dim(ncid,trim(midSoilDimName),maxSoilLayers    ,midSoilDimID); message='iCreate[midSoil]' ; call netcdf_err(err,message); if(err/=0)return
- if(maxSoilLayers>0) err = nf90_def_dim(ncid,trim(ifcSoilDimName),maxSoilLayers+1  ,ifcSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
- if(maxSnowLayers>0) err = nf90_def_dim(ncid,trim(midSnowDimName),maxSnowLayers    ,midSnowDimID); message='iCreate[midSnow]' ; call netcdf_err(err,message); if(err/=0)return
- if(maxSnowLayers>0) err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnowLayers+1  ,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU_local       ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU_local       ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay       ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar          ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(specDimName)   ,nSpecBand        ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(midTotoDimName),maxLayers        ,midTotoDimID); message='iCreate[midToto]' ; call netcdf_err(err,message); if(err/=0)return
+ err = nf90_def_dim(ncid,trim(ifcTotoDimName),maxLayers+1      ,ifcTotoDimID); message='iCreate[ifcToto]' ; call netcdf_err(err,message); if(err/=0)return
+ 
+ if(maxSoilLayers>0)then
+   err = nf90_def_dim(ncid,trim(midSoilDimName),maxSoilLayers    ,midSoilDimID); message='iCreate[midSoil]' ; call netcdf_err(err,message); if(err/=0)return
+   err = nf90_def_dim(ncid,trim(ifcSoilDimName),maxSoilLayers+1  ,ifcSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
+ endif
+ 
+ if(maxSnowLayers>0)then
+   err = nf90_def_dim(ncid,trim(midSnowDimName),maxSnowLayers    ,midSnowDimID); message='iCreate[midSnow]' ; call netcdf_err(err,message); if(err/=0)return
+   err = nf90_def_dim(ncid,trim(ifcSnowDimName),maxSnowLayers+1  ,ifcSnowDimID); message='iCreate[ifcSnow]' ; call netcdf_err(err,message); if(err/=0)return
+ endif
+
  ! re-initialize error control
  err=0; message='writeRestart/'
 
  ! define prognostic variables
+
+ ! NOTE: soil/snow prognostic variable types are only present when the
+ ! corresponding maximum layer count is greater than zero.
+
  do iVar = 1,nProgVars
   if (prog_meta(iVar)%varType==iLookVarType%unknown) cycle
 
   ! define variable
   select case(prog_meta(iVar)%varType)
-   case(iLookVarType%scalarv);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  scalDimID /),ncVarID(iVar))
-   case(iLookVarType%wLength);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  specDimID /),ncVarID(iVar))
-   case(iLookVarType%midToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midTotoDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcTotoDimID/),ncVarID(iVar))
-   case(iLookVarType%midSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSoilDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSoilDimID/),ncVarID(iVar))
-   case(iLookVarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSnowDimID/),ncVarID(iVar))
-   case(iLookVarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSnowDimID/),ncVarID(iVar))
+   case (iLookVarType%scalarv);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  scalDimID /),ncVarID(iVar))
+   case (iLookVarType%wLength);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,  specDimID /),ncVarID(iVar))
+   case (iLookVarType%midToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midTotoDimID/),ncVarID(iVar))
+   case (iLookVarType%ifcToto);                      err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcTotoDimID/),ncVarID(iVar))
+   case (iLookVarType%midSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSoilDimID/),ncVarID(iVar))
+   case (iLookVarType%ifcSoil); if (maxSoilLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSoilDimID/),ncVarID(iVar))
+   case (iLookVarType%midSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,midSnowDimID/),ncVarID(iVar))
+   case (iLookVarType%ifcSnow); if (maxSnowLayers>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varName),nf90_double,(/hruDimID,ifcSnowDimID/),ncVarID(iVar))
   end select
 
   ! check errors
   if(err/=0)then
-   message=trim(message)//trim(cmessage)//' [variable '//trim(prog_meta(iVar)%varName)//']'
+   message=trim(message)//trim(nf90_strerror(err))//' [variable '//trim(prog_meta(iVar)%varName)//']'
    return
   end if
 
@@ -676,24 +687,27 @@ contains
  
  ! define selected basin variables (derived) -- e.g., hillslope routing
  err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName), nf90_double, (/gruDimID, tdhDimID /), ncVarID(nProgVars+1))
- err = nf90_put_att(ncid,ncVarID(nProgVars+1),'long_name',trim(bvar_meta(iLookBVAR%routingRunoffFuture)%vardesc));   call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
+ call netcdf_err(err,message); if(err/=0)return
+
+ ! define attributes
+ err = nf90_put_att(ncid,ncVarID(nProgVars+1),'long_name',trim(bvar_meta(iLookBVAR%routingRunoffFuture)%vardesc));   call netcdf_err(err,message); if(err/=0)return
+ err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message); if(err/=0)return
 
  ! define index variables - snow
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/hruDimID/),ncSnowID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSnowID,'long_name',trim(indx_meta(iLookINDEX%nSnow)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSnowID,'units'    ,trim(indx_meta(iLookINDEX%nSnow)%varunit));           call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSnow)%varName),nf90_int,(/hruDimID/),ncSnowID); call netcdf_err(err,message); if(err/=0)return
+ err = nf90_put_att(ncid,ncSnowID,'long_name',trim(indx_meta(iLookINDEX%nSnow)%vardesc));           call netcdf_err(err,message); if(err/=0)return
+ err = nf90_put_att(ncid,ncSnowID,'units'    ,trim(indx_meta(iLookINDEX%nSnow)%varunit));           call netcdf_err(err,message); if(err/=0)return
 
  ! define index variables - soil
- err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/hruDimID/),ncSoilID); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSoilID,'long_name',trim(indx_meta(iLookINDEX%nSoil)%vardesc));           call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncSoilID,'units'    ,trim(indx_meta(iLookINDEX%nSoil)%varunit));           call netcdf_err(err,message)
+ err = nf90_def_var(ncid,trim(indx_meta(iLookINDEX%nSoil)%varName),nf90_int,(/hruDimID/),ncSoilID); call netcdf_err(err,message); if(err/=0)return
+ err = nf90_put_att(ncid,ncSoilID,'long_name',trim(indx_meta(iLookINDEX%nSoil)%vardesc));           call netcdf_err(err,message); if(err/=0)return
+ err = nf90_put_att(ncid,ncSoilID,'units'    ,trim(indx_meta(iLookINDEX%nSoil)%varunit));           call netcdf_err(err,message); if(err/=0)return
 
  ! end definition phase
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
 
  ! write variables
- do iGRU = 1,nGRU
+ do iGRU = 1,nGRU_local
   do iHRU = 1,gru_struc(iGRU)%hruCount
    cHRU = gru_struc(iGRU)%hruInfo(iHRU)%hru_ix
    do iVar = 1,size(prog_meta)
@@ -710,14 +724,14 @@ contains
     ! NOTE: this may take time that we do not wish to use
     okLength=.true.
     select case (prog_meta(iVar)%varType)
-     case(iLookVarType%scalarv);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nScalar  )
-     case(iLookVarType%wlength);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSpecBand)
-     case(iLookVarType%midSoil);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSoil    )
-     case(iLookVarType%midToto);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nLayers  )
-     case(iLookVarType%ifcSoil); if (nSoil>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSoil+1  )
-     case(iLookVarType%ifcToto); if (nSoil>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nLayers+1)
-     case(iLookVarType%midSnow); if (nSnow>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSnow    )
-     case(iLookVarType%ifcSnow); if (nSnow>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSnow+1  )
+     case (iLookVarType%scalarv);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nScalar  )
+     case (iLookVarType%wlength);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSpecBand)
+     case (iLookVarType%midSoil);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSoil    )
+     case (iLookVarType%midToto);              okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nLayers  )
+     case (iLookVarType%ifcSoil); if (nSoil>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSoil+1  )
+     case (iLookVarType%ifcToto); if (nSoil>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nLayers+1)
+     case (iLookVarType%midSnow); if (nSnow>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSnow    )
+     case (iLookVarType%ifcSnow); if (nSnow>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSnow+1  )
      case default; err=20; message=trim(message)//'unknown var type'; return
     end select
 
@@ -729,14 +743,14 @@ contains
 
     ! write data
     select case (prog_meta(iVar)%varType)
-     case(iLookVarType%scalarv);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nScalar  /))
-     case(iLookVarType%wlength);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSpecBand/))
-     case(iLookVarType%midSoil);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSoil    /))
-     case(iLookVarType%midToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nLayers  /))
-     case(iLookVarType%ifcSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSoil+1  /))
-     case(iLookVarType%ifcToto); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nLayers+1/))
-     case(iLookVarType%midSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow    /))
-     case(iLookVarType%ifcSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow+1  /))
+     case (iLookVarType%scalarv);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nScalar  /))
+     case (iLookVarType%wlength);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSpecBand/))
+     case (iLookVarType%midSoil);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSoil    /))
+     case (iLookVarType%midToto);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nLayers  /))
+     case (iLookVarType%ifcSoil); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSoil+1  /))
+     case (iLookVarType%ifcToto); if (nSoil>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nLayers+1/))
+     case (iLookVarType%midSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow    /))
+     case (iLookVarType%ifcSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow+1  /))
      case default; err=20; message=trim(message)//'unknown var type'; return
     end select
 
@@ -748,14 +762,16 @@ contains
    end do ! iVar loop
 
    ! write index variables
-   err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat/),start=(/cHRU/),count=(/1/))
-   err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat/),start=(/cHRU/),count=(/1/))
+   err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat/),start=(/cHRU/),count=(/1/)); call netcdf_err(err,message); if (err/=0) return
+   err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat/),start=(/cHRU/),count=(/1/)); call netcdf_err(err,message); if (err/=0) return
 
   end do ! iHRU loop
   
   ! write selected basin variables
   err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/),  start=(/iGRU/),count=(/1,nTimeDelay/))
-  
+  call netcdf_err(err,message)
+  if (err/=0) return 
+
  end do  ! iGRU loop
 
  ! write HRU dimension and ID for file

@@ -71,7 +71,7 @@ subroutine summa_defineGlobalData(err, message)
   ! subroutines and functions: initial priming
   USE,intrinsic :: ieee_arithmetic                            ! IEEE arithmetic (obviously)
   ! subroutines and functions: define metadata structures
-  USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
+  USE summa_popMetadat_module,only:popMetadat                 ! module to populate metadata structures
   USE fluxMapping_module,only:fluxMapping                     ! module to map fluxes to states
   USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
   USE childStruc_module,only:childStruc                       ! module to create a child data structure

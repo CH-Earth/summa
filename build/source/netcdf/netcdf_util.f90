@@ -93,7 +93,6 @@ contains
   character(*), intent(inout)   :: message
   ! start procedure here
   if (err/=nf90_noerr) then
-   print*, 'trim(nf90_strerror(err) = ', trim(nf90_strerror(err))
    message=trim(message)//"["//trim(nf90_strerror(err))//"]"
    print*, trim(message)
    err=200

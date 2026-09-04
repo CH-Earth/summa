@@ -1,0 +1,9 @@
+[submodule "external/parallel-utils"]
+	path = external/parallel-utils
+	url = https://github.com/CH-Earth/parallel-utils.git
+[submodule "external/mizuRoute"]
+	path = external/mizuRoute
+	url = https://github.com/ESCOMP/mizuRoute.git
+[submodule "external/toml-f"]
+	path = external/toml-f
+	url = https://github.com/toml-f/toml-f.git
