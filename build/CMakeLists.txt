@@ -28,6 +28,7 @@ set(CMAKE_CONFIGURATION_TYPES Release Debug)
 option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
 option(USE_OPENWQ "Use OpenWQ Framework" OFF)
+option(USE_MPI "Use MPI parallelization" OFF)
 set(EXT_TARGETS) # list of external targets to link to
 
 # Set Default Executable Name
@@ -43,6 +44,8 @@ set(PARENT_DIR "${F_MASTER}")
 set(EXEC_DIR "${F_MASTER}/bin")
 
 # Handle optional external libraries
+
+# SUNDIALS
 if (USE_SUNDIALS)
     message("ENABLING SUNDIALS")
     find_package(SUNDIALS REQUIRED)
@@ -52,6 +55,7 @@ if (USE_SUNDIALS)
     set(EXEC_NAME summa_sundials.exe)
 endif()
 
+# NextGen
 if (USE_NEXTGEN)
     message("ENABLING NEXTGEN")
     add_compile_definitions(NGEN_ACTIVE BMI_ACTIVE NGEN_FORCING_ACTIVE
@@ -78,6 +82,17 @@ if (USE_OPENWQ)
     endif()
 endif()
 
+# MPI
+if (USE_MPI)
+    message("ENABLING MPI")
+
+    find_package(MPI REQUIRED COMPONENTS Fortran)
+
+    add_subdirectory(
+        ${F_MASTER}/external/parallel-utils
+        ${CMAKE_BINARY_DIR}/parallel-utils
+    )
+endif()
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
 get_filename_component(PARENT_DIR "${PARENT_DIR}" REALPATH)
@@ -166,6 +181,16 @@ set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
 set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${DRIVER})
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
+if (USE_MPI)
+    set(MAIN_SUMMA_MPI ${DRIVER_DIR}/summa_driver_mpi.f90)
+
+    if (USE_SUNDIALS)
+        set(EXEC_NAME_MPI summa_sundials_mpi.exe)
+    else()
+        set(EXEC_NAME_MPI summa_mpi.exe)
+    endif()
+endif()
+
 if (USE_NEXTGEN)
     set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_NEXTGEN})
 endif()
@@ -183,7 +208,6 @@ if (USE_OPENWQ)
     set(SUMMA_ALL ${SUMMA_ALL} ${OPENWQ_COUPLER})
     list(APPEND EXT_TARGETS openWQ)
 endif ()
-
 
 # Define version number
 set(VERSIONFILE     ${DRIVER_DIR}/summaversion.inc)
@@ -229,7 +253,8 @@ target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS} ${LIBRARY_LI
 
 # For NextGen, build SUMMA Shared Library and add the outside BMI libraries
 if(USE_NEXTGEN)
-	if(WIN32)
+
+  if(WIN32)
 		add_library(summabmi ${SUMMA_ALL})
 	else()
 		add_library(summabmi SHARED ${SUMMA_ALL})
@@ -245,12 +270,49 @@ if(USE_NEXTGEN)
                 PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 	configure_file(summabmi.pc.in summabmi.pc @ONLY)
 	install(FILES ${CMAKE_BINARY_DIR}/summabmi.pc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
+
 else()
-	add_library(summa SHARED ${SUMMA_ALL})
-	target_compile_options(summa PRIVATE ${FLAGS_ALL})
-	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
-	add_executable(${EXEC_NAME} ${MAIN_SUMMA})
-	target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
-	set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS} ${LIBRARY_LINKS})
+
+  # SUMMA shared library
+  add_library(summa SHARED ${SUMMA_ALL})
+  target_compile_options(summa PRIVATE ${FLAGS_ALL})
+
+  target_link_libraries(
+    summa
+    PUBLIC
+      ${EXT_TARGETS}
+      SUMMA_NOAHMP
+      SUMMA_COMM
+      ${LIBRARY_LINKS}
+  )
+
+  # Serial SUMMA executable
+  add_executable(${EXEC_NAME} ${MAIN_SUMMA})
+  target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
+  set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
+
+  target_link_libraries(
+    ${EXEC_NAME}
+    PRIVATE
+      summa
+      ${EXT_TARGETS}
+      ${LIBRARY_LINKS}
+  )
+
+  # MPI SUMMA executable
+  if(USE_MPI)
+
+    add_executable(${EXEC_NAME_MPI} ${MAIN_SUMMA_MPI})
+    target_compile_options(${EXEC_NAME_MPI} PRIVATE ${FLAGS_ALL})
+    set_property(TARGET ${EXEC_NAME_MPI} PROPERTY LINKER_LANGUAGE Fortran)
+
+    target_link_libraries(
+      ${EXEC_NAME_MPI}
+      PRIVATE
+        summa
+        parallel_utils
+    )
+
+  endif()
+
 endif()

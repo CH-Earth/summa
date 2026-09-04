@@ -20,6 +20,9 @@
 
 module summa_writeOutput ! used to define/write output files
 
+! global data to print data to screen (runtime, can be switched on/off based on context)
+USE globalData, only: isPrint                 ! flag to enable informational screen/log output
+
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)
@@ -186,9 +189,9 @@ contains
   fluxStruct           => summa1_struc%fluxStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
   bvarStruct           => summa1_struc%bvarStruct  , & ! x%gru(:)%var(:)%dat        -- basin-average variables
 
-  ! miscellaneous variables
-  nGRU                 => summa1_struc%nGRU        , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU          & ! number of global hydrologic response units
+  ! GRU and HRU dimensions for local rank
+  nGRU_local           => summa1_struc%nGRU_local,   & ! number of grouped response units in the local rank
+  nHRU_local           => summa1_struc%nHRU_local    & ! number of hydrologic response units in the local rank
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -217,8 +220,8 @@ contains
   finalizeStats(iLookFREQ%timestep)=.true.
 
   ! initialize number of hru and gru in global data
-  nGRUrun = nGRU
-  nHRUrun = nHRU
+  nGRUrun = nGRU_local
+  nHRUrun = nHRU_local
 
  endif  ! if the first time step
 
@@ -281,7 +284,7 @@ contains
  is_bufferedWrite = (model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries .and. modelTimeStep == numtim)
 
  ! print progress
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var(1:5)
+ if(printProgress .and. isPrint) write(*,'(i4,1x,5(i2,1x))') timeStruct%var(1:5)
 
  ! *****************************************************************************
  ! *** define summa output files
@@ -305,7 +308,7 @@ contains
 
  if(model_decisions(iLookDECISIONS%write_buff)%iDecision == writePerStep)then
   ! loop through GRUs and HRUs
-  do iGRU=1,nGRU
+  do iGRU=1,nGRU_local
    do iHRU=1,gru_struc(iGRU)%hruCount
   
     ! calculate output statistics
@@ -397,7 +400,7 @@ contains
     restartFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
   endif
 
-  call writeRestart(restartFile,nGRU,nHRU,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,err,cmessage)  
+  call writeRestart(restartFile,nGRU_local,nHRU_local,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if
 
@@ -545,7 +548,7 @@ contains
   diagStruct           => summaStruct%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
   fluxStruct           => summaStruct%fluxStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
   bvarStruct           => summaStruct%bvarStruct  , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-  nGRU                 => summaStruct%nGRU          &
+  nGRU_local           => summaStruct%nGRU_local    &
   ) ! assignment to variables in the data structures
  ! -------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -578,7 +581,7 @@ contains
    end select
 
    ! loop through GRUs and HRUs
-   do iGRU=1,nGRU
+   do iGRU=1,nGRU_local
     do iHRU=1,gru_struc(iGRU)%hruCount
      ! populate GRU+HRU+DOM structures
      select case(trim(structInfo(iStruct)%structName))
