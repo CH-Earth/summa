@@ -27,8 +27,8 @@ use build_options, only: mizuroute_active
 USE mizuroute_coupling, only: write_mizuroute_output_from_summa
 #endif
 
-! global data to print data to screen (runtime, can be switched on/off based on context)
-USE globalData, only: isPrint                 ! flag to enable informational screen/log output
+! global data
+USE globalData, only: iulog                   ! I/O unit for logging messages
 
 ! NetCDF file ids
 USE globalData, only: ncid                    ! vector of ncids for NetCDF files (different aggregation periods) 
@@ -299,7 +299,7 @@ contains
  is_bufferedWrite = (is_fullSeries .and. modelTimeStep == numtim)
 
  ! print progress
- if(printProgress .and. isPrint) write(*,'(i4,1x,5(i2,1x))') timeStruct%var(1:5)
+ if(printProgress) write(iulog,'(i4,1x,5(i2,1x))') timeStruct%var(1:5)
 
  ! *****************************************************************************
  ! *** define summa output files

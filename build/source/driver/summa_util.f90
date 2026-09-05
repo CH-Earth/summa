@@ -35,15 +35,13 @@ USE globalData,only:ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixResta
 
 USE globalData,only:noNewFiles,newFileEveryOct1
 
-! global data to print data to screen (runtime, can be switched on/off based on context)
-USE globalData, only: isPrint           ! flag to enable informational screen/log output
-
 ! global data
-USE globalData,only:integerMissing      ! missing integer value
-USE globalData,only:realMissing         ! missing double precision value
+USE globalData, only: iulog              ! I/O unit for logging messages
+USE globalData, only: integerMissing     ! missing integer value
+USE globalData, only: realMissing        ! missing double precision value
 
 ! provide access to file IDs
-USE globalData,only:ncid                ! file id of netcdf output file
+USE globalData,only:ncid                 ! file id of netcdf output file
 
 ! privacy
 implicit none
@@ -149,7 +147,7 @@ contains
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
        opts%master_file = trim(v)
-       if(isPrint) print "(A)", "master_file is '"//trim(opts%master_file)//"'."
+       write(iulog,*) "master_file is '"//trim(opts%master_file)//"'."
        i = i + 2
 
      case ('-c','--config')
@@ -157,7 +155,7 @@ contains
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       
         opts%config_file = trim(v)
-        if(isPrint) print "(A)", "config_file is '"//trim(opts%config_file)//"'."
+        write(iulog,*) "config_file is '"//trim(opts%config_file)//"'."
         i = i + 2
 
      case ('-s','--suffix')
@@ -165,7 +163,7 @@ contains
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       
        opts%suffix = trim(v)
-       if(isPrint) print "(A)", "file_suffix is '"//trim(opts%suffix)//"'." 
+       write(iulog,*) "file_suffix is '"//trim(opts%suffix)//"'." 
        i = i + 2
 
      case ('-n','--newFile')
@@ -301,9 +299,9 @@ contains
  ! list parameters supplied by the CLI
 
  if(allocated(opts%param_name))then
-   print*, 'Parameters adjusted:'
+   write(iulog,*) 'Parameters adjusted:'
    do i=1,size(opts%param_name)
-     print *, trim(opts%param_name(i)), opts%param_value(i)
+     write(iulog,*) trim(opts%param_name(i)), opts%param_value(i)
    enddo
  endif
 
@@ -538,21 +536,17 @@ contains
 
    ! *** informational output
 
-   if(isPrint)then
+   select case(iRunMode)
 
-     select case(iRunMode)
+     case (iRunModeHRU)
+       write(iulog,'(A,I0,A)') &
+         ' Single-HRU run activated. HRU ',checkHRU,' is selected for simulation.'
 
-       case(iRunModeHRU)
-         print '(A,I0,A)', &
-           ' Single-HRU run activated. HRU ',checkHRU,' is selected for simulation.'
+     case (iRunModeGRU)
+       write(iulog,'(A,I0,A)') &
+         ' GRU-parallelization run activated. ', summa1_struc%nGRU_user,' GRUs are selected for simulation.'
 
-       case(iRunModeGRU)
-         print '(A,I0,A)', &
-           ' GRU-parallelization run activated. ', summa1_struc%nGRU_user,' GRUs are selected for simulation.'
-
-     end select
-
-   endif
+   end select
 
  end subroutine apply_command_args
 
@@ -655,12 +649,13 @@ contains
  USE globalData,only: elapsedRead                      ! elapsed time for the data read
  USE globalData,only: elapsedWrite                     ! elapsed time for the stats/write
  USE globalData,only: elapsedPhysics                   ! elapsed time for the physics
+ USE globalData,only: iulog                            ! I/O unit for logging messages
+
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)            :: err             ! error code
  character(*),intent(in)            :: message         ! error messgage
  ! define the local variables
- integer(i4b),parameter             :: outunit=6       ! write to screen
  integer(i4b)                       :: endModelRun(8)  ! final time
  integer(i4b)                       :: localErr        ! local error code
  integer(i4b)                       :: iFreq           ! loop through output frequencies
@@ -677,48 +672,48 @@ contains
  elpSec = elapsedSec(startInit,endModelRun)
 
  ! print initial and final date and time
- write(outunit,"(/,A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',startInit(1:3),  startInit(5:8)
- write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)")   '  final date/time = ',endModelRun(1:3),endModelRun(5:8)
+ write(iulog,"(/,A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',startInit(1:3),  startInit(5:8)
+ write(iulog,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)")   '  final date/time = ',endModelRun(1:3),endModelRun(5:8)
 
  ! print elapsed time for the initialization
- write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed init = ', elapsedInit,           ' s'
- write(outunit,"(A,1PG15.7)")                                                 '    fraction init = ', elapsedInit/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '     elapsed init = ', elapsedInit,           ' s'
+ write(iulog,"(A,1PG15.7)")                                                 '    fraction init = ', elapsedInit/elpSec
 
  ! print elapsed time for the parameter setup
- write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed setup = ', elapsedSetup,          ' s'
- write(outunit,"(A,1PG15.7)")                                                 '   fraction setup = ', elapsedSetup/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '    elapsed setup = ', elapsedSetup,          ' s'
+ write(iulog,"(A,1PG15.7)")                                                 '   fraction setup = ', elapsedSetup/elpSec
 
  ! print elapsed time to read the restart data
- write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed restart = ', elapsedRestart,        ' s'
- write(outunit,"(A,1PG15.7)")                                                 ' fraction restart = ', elapsedRestart/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '  elapsed restart = ', elapsedRestart,        ' s'
+ write(iulog,"(A,1PG15.7)")                                                 ' fraction restart = ', elapsedRestart/elpSec
 
  ! print elapsed time for the data read
- write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed read = ', elapsedRead,           ' s'
- write(outunit,"(A,1PG15.7)")                                                 '    fraction read = ', elapsedRead/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '     elapsed read = ', elapsedRead,           ' s'
+ write(iulog,"(A,1PG15.7)")                                                 '    fraction read = ', elapsedRead/elpSec
 
  ! print elapsed time for the data write
- write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed write = ', elapsedWrite,          ' s'
- write(outunit,"(A,1PG15.7)")                                                 '   fraction write = ', elapsedWrite/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '    elapsed write = ', elapsedWrite,          ' s'
+ write(iulog,"(A,1PG15.7)")                                                 '   fraction write = ', elapsedWrite/elpSec
 
  ! print elapsed time for the physics
- write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed physics = ', elapsedPhysics,        ' s'
- write(outunit,"(A,1PG15.7)")                                                 ' fraction physics = ', elapsedPhysics/elpSec
+ write(iulog,"(/,A,1PG15.7,A)")                                             '  elapsed physics = ', elapsedPhysics,        ' s'
+ write(iulog,"(A,1PG15.7)")                                                 ' fraction physics = ', elapsedPhysics/elpSec
 
  ! print total elapsed time
- write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed time = ', elpSec,                ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/60_rkind,          ' m'
- write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/3600_rkind,        ' h'
- write(outunit,"(A,1PG15.7,A/)")                                              '       or           ', elpSec/86400_rkind,       ' d'
+ write(iulog,"(/,A,1PG15.7,A)")                                             '     elapsed time = ', elpSec,                ' s'
+ write(iulog,"(A,1PG15.7,A)")                                               '       or           ', elpSec/60_rkind,          ' m'
+ write(iulog,"(A,1PG15.7,A)")                                               '       or           ', elpSec/3600_rkind,        ' h'
+ write(iulog,"(A,1PG15.7,A/)")                                              '       or           ', elpSec/86400_rkind,       ' d'
 
  ! print the number of threads
- write(outunit,"(A,i10,/)")                                                   '   number threads = ', nThreads
+ write(iulog,"(A,i10,/)")                                                   '   number threads = ', nThreads
 #endif
  ! stop with message
  if(err==0)then
-  print*,'FORTRAN STOP: '//trim(message)
+  write(iulog,*) 'FORTRAN STOP: '//trim(message)
   stop
  else
-  print*,'FATAL ERROR: '//trim(message)
+  write(iulog,*) 'FATAL ERROR: '//trim(message)
   stop 1
  endif
 

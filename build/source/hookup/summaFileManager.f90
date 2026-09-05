@@ -24,7 +24,7 @@
 !******************************************************************
 MODULE summaFileManager
 use nr_type
-USE globalData,    only: isPrint     ! flag to enable informational screen/log output
+USE globalData,    only: iulog       ! I/O unit for logging messages
 use build_options, only: ngen_active ! if nextgen is active
 implicit none
 public
@@ -108,7 +108,7 @@ subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
     if (err/=0) then; err=30; message=trim(message)//"error reading charline array"; return; end if
     ! get the index of the control file entry in the data structure
     if (.not.NGEN_ACTIVE)then
-      if (isPrint) write(*,'(i4,1x,a)') iControl, trim(option)//': '//trim(varEntry)
+      write(iulog,'(i4,1x,a)') iControl, trim(option)//': '//trim(varEntry)
     endif
     ! assign entries from control file to module public variables; add checking as needed
     select case(trim(option))

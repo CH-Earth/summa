@@ -11,8 +11,7 @@ USE summa_modelRun, only: summa_runPhysics
 USE summa_writeOutput, only: summa_writeOutputFiles
 
 USE globalData, only: realMissing
-USE globalData, only: print_step_freq
-USE globalData, only: isPrint
+USE globalData, only: iulog
 
 USE build_options, only: mizuroute_active
 USE build_options, only: openwq_active
@@ -88,8 +87,6 @@ contains
     summa1_struc(n)%parallel%rank = rank
     summa1_struc(n)%parallel%size = nproc
    
-    isPrint = (rank == 0)
-   
     call initialize_summa(summa1_struc(n), param_name, param_value, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    
@@ -114,7 +111,10 @@ contains
                                 param_name, param_value,  &
                                 metric,                   &
                                 err, message)
-  
+ 
+    use iso_fortran_env, only: error_unit
+    use iso_fortran_env, only: output_unit
+
     ! dummy arguments
   
     integer(i4b), intent(in)           :: comm               ! MPI communicator
@@ -154,7 +154,10 @@ contains
   
     err=0
     message='evaluate_objective/'
-  
+ 
+    ! send log information to stderr
+    iulog = error_unit
+
     ! allocate master SUMMA structure
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then
@@ -166,8 +169,6 @@ contains
     summa1_struc(n)%parallel%comm = comm
     summa1_struc(n)%parallel%rank = rank
     summa1_struc(n)%parallel%size = nproc
-  
-    isPrint = (rank == 0)
   
     ! initialize SUMMA
     call initialize_summa(summa1_struc(n),param_name,param_value,err,cmessage)
@@ -205,6 +206,9 @@ contains
 
     call finalize_summa(summa1_struc(n),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! write error metric to standard output
+    write(output_unit,'(ES24.16)') metric
 
   end subroutine evaluate_objective
 
@@ -294,10 +298,6 @@ contains
       ! read model forcing data
       call summa_readForcing(modelTimeStep, summa_struct, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      if(isPrint .and. mod(modelTimeStep,print_step_freq)==0)then
-        print *, 'step ---> ', modelTimeStep
-      endif
 
       ! initialize OpenWQ time step
       if(openwq_active) call openwq_run_time_start(summa_struct)

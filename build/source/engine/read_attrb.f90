@@ -35,6 +35,8 @@ USE build_options, only : ngen_active
 
 USE globalData, only: integerMissing
 
+USE globalData, only: iulog
+
 implicit none
 
 private
@@ -503,7 +505,7 @@ contains
  varIndx = get_ixAttr('aspect')
  ! check that the variable was not found in the attribute file
  if(.not. checkAttr(varIndx)) then
-   write(*,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
+   write(iulog,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
 
    do iGRU=1,nGRU_local
      do iHRU = 1, gru_struc(iGRU)%hruCount

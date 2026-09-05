@@ -27,6 +27,9 @@ USE globalData,only:realMissing     ! missing real number
 ! input sizes
 USE globalData,only:maxSoilLayers          ! maximum number of soil layers
 
+! logging
+USE globalData, only: iulog                ! I/O unit for logging information
+
 ! common modules
 USE nr_type
 USE netcdf
@@ -124,8 +127,8 @@ contains
  inquire(file=trim(infile),exist=fexist)
 
  if (.not.fexist) then
-   write(*,'(/,A,/)') 'WARNING: trial parameter file not found; using default parameters. '// &
-                      'Check the file manager path if this is not the intended behavior.'
+   write(iulog,'(/,A,/)') 'WARNING: trial parameter file not found; using default parameters. '// &
+                          'Check the file manager path if this is not the intended behavior.'
    return
  endif
 

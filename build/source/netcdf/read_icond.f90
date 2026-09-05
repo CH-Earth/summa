@@ -28,8 +28,7 @@ USE globalData,only:nTimeDelay    ! number of timesteps in the time delay histog
 USE globalData,only:nSpecBand     ! number of spectral bands
 
 USE globalData,only:gru_struc     ! gru-hru mapping structures
-
-USE globalData, only: isPrint     ! flag to enable informational screen/log output
+USE globalData,only:iulog         ! I/O unit for logging messages
 
 implicit none
 private
@@ -390,7 +389,7 @@ contains
  ! get dimension of time delay histogram (TDH) from initial conditions file
  err = nf90_inq_dimid(ncid,"tdh",dimID);
  if(err/=nf90_noerr)then
-  if(isPrint) write(*,*) 'WARNING: routingRunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
+  write(iulog,*) 'WARNING: routingRunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
   err=nf90_noerr    ! reset this err
 
  else

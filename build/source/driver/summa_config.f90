@@ -5,7 +5,8 @@ use build_options, only: mizuroute_active
 USE nr_type
 USE summa_type, only:summa1_type_dec
 
-USE globaldata, only: isPrint
+USE globalData, only: iulog          ! I/O unit for logging messages
+
 USE globalData, only: iRunMode, iRunModeFull
 
 #ifdef MIZUROUTE_ACTIVE
@@ -57,7 +58,6 @@ contains
 
   err = 0
   message = 'load_summa_config/'
-  print*, trim(message), mizuroute_active
 
   ! ----- initial checks with early return -----
 
@@ -157,13 +157,13 @@ contains
   ! set default objective-function metric
   if(.not.allocated(summaStruct%obj%metric))then
     summaStruct%obj%metric = 'kge'
-    if(isPrint) print*, 'WARNING: objective metric not specified; using kge'
+    write(iulog,*) 'WARNING: objective metric not specified; using kge'
   endif
   
   ! set default objective-function transformation
   if(.not.allocated(summaStruct%obj%transformation))then
     summaStruct%obj%transformation = 'none'
-    if(isPrint) print*, 'WARNING: objective transformation not specified; using none'
+    write(iulog,*) 'WARNING: objective transformation not specified; using none'
   endif
 
   ! check start_date and end_date are defined

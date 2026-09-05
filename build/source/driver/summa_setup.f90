@@ -1,4 +1,4 @@
-! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! fUMMA - Structure for Unifying Multiple Modeling Alternatives
 ! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
@@ -29,7 +29,7 @@ USE summa_type, only:summa1_type_dec    ! master summa data type
 USE globalData,only:integerMissing      ! missing integer
 USE globalData,only:realMissing         ! missing real number
 USE globalData,only:data_step           ! length of the data step (s)
-USE globalData,only:isPrint             ! flag to enable informational screen/log output
+USE globalData,only:iulog               ! I/O unit for logging messages 
 
 ! named variables
 USE var_lookup,only:iLookATTR           ! look-up values for local attributes
@@ -634,7 +634,7 @@ contains
         ! CALL wrf_message( mess )
         LUMATCH=1
      ELSE
-        if (isPrint) call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
+        !call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
         DO LC = 1, LUCATS+12
            read(19,*)
         ENDDO
@@ -716,7 +716,7 @@ contains
      ! CALL wrf_message ( mess )
      LUMATCH=1
    ELSE
-    if (isPrint) call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
+    !call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
     DO LC = 1, SLCATS
      read(19,*)
     ENDDO

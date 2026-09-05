@@ -28,6 +28,7 @@ USE globalData, only: numtim                  ! number of model time steps
 USE globalData, only: outputPrecision         ! data structure for output precision
 USE globalData, only: chunkSize               ! size of chunks to write
 USE globalData, only: outputCompressionLevel  ! netcdf deflate level
+USE globalData, only: iulog                   ! I/O unit for logging information
 
 implicit none
 private
@@ -136,7 +137,7 @@ contains
   fname   = trim(fprefix)//'_'//trim(fstring)//'.nc'
   call ini_create(nGRU_local,nHRU_local,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  print*,'Created output file: '//trim(fname)
+  write(iulog,*) 'Created output file: '//trim(fname)
 
   ! define SUMMA version
   do iVar=1,4

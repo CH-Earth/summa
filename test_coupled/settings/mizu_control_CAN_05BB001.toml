@@ -11,8 +11,9 @@ dt = 3600
 
 [hydrofabric]
 
-hfabric_path = "test_coupled/mizuroute_inputs/"
-hfabric_file = "topology.nc"
+hfabric_path    = "test_coupled/mizuroute_inputs/"
+hfabric_file    = "topology.nc"
+hfabric_newfile = "topology_new.nc"
 
 dname_seg = "seg"
 dname_hru = "hru"

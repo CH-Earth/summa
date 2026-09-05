@@ -80,6 +80,8 @@ CONTAINS
                                   length_conv_in, time_conv_in, &
                                   ierr, message)
 
+  use iso_fortran_env, only: error_unit
+
   ! shared data
   use public_var, only: ancil_dir
   use public_var, only: idSegOut
@@ -122,6 +124,9 @@ CONTAINS
 
   ierr = 0
   message = 'init_mizuroute_domain/'
+
+  ! ---- set logging to standard error ----
+  iulog = error_unit
 
   ! ---- early return (not running mizuRoute) ----
   if ( .not. info%do_mizuRoute ) then

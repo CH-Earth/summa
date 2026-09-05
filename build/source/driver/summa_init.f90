@@ -33,11 +33,9 @@ USE mizuroute_coupling, only: init_mizuroute_from_summa
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
-! global data to print data to screen (runtime, can be switched on/off based on context)
-USE globalData, only: isPrint        ! flag to enable informational screen/log output
-
-! global data on the forcing file
+! global data 
 USE globalData,only:data_step        ! length of the data step (s)
+USE globalData, only: iulog          ! I/O unit for logging messages 
 
 ! output constraints
 USE globalData,only:maxLayers        ! maximum number of layers
@@ -302,8 +300,8 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! and nGRU_local is the number of GRUs assigned to this rank. For a serial
     ! run, the local GRU range is identical to the run domain.
 
-    if(isPrint) print*, 'Parallel context: rank =', parallel%rank, ' size =', parallel%size, &
-                        ' comm =', parallel%comm
+    write(iulog,*) 'Parallel context: rank =', parallel%rank, ' size =', parallel%size, &
+                                    ' comm =', parallel%comm
 
     ! define start and count indices for each local rank
     if(iRunMode /= iRunModeHRU)then
@@ -319,12 +317,10 @@ subroutine summa_initialize(summa1_struc, err, message)
       nGRU_local     = nGRU_domain     ! =1
     endif
 
-    if (isPrint) then
-      print*, 'Run mode =', iRunMode, iRunModeFull
-      print*, 'File dimensions:  nGRU_file =', nGRU_file, '  nHRU_file =', nHRU_file
-      print*, 'Run domain:  startGRU =', startGRU_domain, ' nGRU =', nGRU_domain
-      print*, 'Local rank:  startGRU =', startGRU_local,  ' nGRU =', nGRU_local
-    endif
+    write(iulog,*) 'Run mode =', iRunMode, iRunModeFull
+    write(iulog,*) 'File dimensions:  nGRU_file =', nGRU_file, '  nHRU_file =', nHRU_file
+    write(iulog,*) 'Run domain:  startGRU =', startGRU_domain, ' nGRU =', nGRU_domain
+    write(iulog,*) 'Local rank:  startGRU =', startGRU_local,  ' nGRU =', nGRU_local
 
     ! *****************************************************************************
     ! *** construct the local GRU-HRU mapping

@@ -2,8 +2,11 @@ library(ncdf4)
 library(hydroGOF)
 
 # files
-sim_file <- "~/data/century/test/summa_results/run1_test_timestep.nc"
-obs_file <- "~/data/century/test/mizuroute_input/CAN_05BB001_daily_flow_observations.nc"
+#sim_file <- "~/data/century/test/summa_results/run1_test_timestep.nc"
+#obs_file <- "~/data/century/test/mizuroute_input/CAN_05BB001_daily_flow_observations.nc"
+
+sim_file <- "~/models/summa/test_coupled/work//run1_coupled_timestep.nc"
+obs_file <- "~/models/summa/test_coupled/mizuroute_inputs/CAN_05BB001_daily_flow_observations.nc"
 
 # evaluation period
 start_date <- as.POSIXct("1982-10-01", tz="UTC")
