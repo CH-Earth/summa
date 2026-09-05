@@ -10,6 +10,7 @@ USE summa_forcing, only: summa_readForcing
 USE summa_modelRun, only: summa_runPhysics
 USE summa_writeOutput, only: summa_writeOutputFiles
 
+USE globalData, only: integerMissing
 USE globalData, only: realMissing
 USE globalData, only: iulog
 
@@ -17,7 +18,8 @@ USE build_options, only: mizuroute_active
 USE build_options, only: openwq_active
 
 #ifdef MIZUROUTE_ACTIVE
-USE mizuroute_coupling,  only: get_mizuroute_streamflow
+USE mizuroute_coupling,        only: get_mizuroute_streamflow
+USE finalize_mizuroute_module, only: finalize_mizuroute
 #endif
 
 #ifdef OPENWQ_ACTIVE
@@ -223,6 +225,10 @@ contains
     call finalize_summa(summa1_struc(n),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    ! release master SUMMA data structure
+    ! NOTE: Deallocate here because finalize_summa operates on a single array element
+    if(allocated(summa1_struc)) deallocate(summa1_struc)
+
     ! write error metric to standard output
     write(output_unit,'(ES24.16)') metric
 
@@ -348,15 +354,74 @@ contains
   ! **************************************************************************************************
   subroutine finalize_summa(summa_struct, err, message)
 
+    ! SUMMA global data
+    use globalData, only: forcNcid                ! netcdf id for current netcdf forcing file
+    use globalData, only: ncid                    ! vector of file ids of netcdf output files
+
+    ! SUMMA buffered output structures
+    use globalData, only: fullIndxSave
+    use globalData, only: fullForcSave
+    use globalData, only: fullProgSave
+    use globalData, only: fullDiagSave
+    use globalData, only: fullFluxSave
+    use globalData, only: fullBvarSave
+
+    use netcdf_util_module, only: nc_file_close   ! module to handle netcdf stuff for inputs and outputs
+
+
     type(summa1_type_dec), intent(inout) :: summa_struct
     integer(i4b),          intent(out)   :: err
     character(*),          intent(out)   :: message
 
+    integer(i4b)                         :: iFreq
+    character(len=256)                   :: cmessage
+
     err = 0
     message = 'finalize_summa/'
 
-    ! cleanup operations can be added here as required
+    ! deallocate SUMMA buffered output structures
+    if(allocated(fullIndxSave)) deallocate(fullIndxSave)
+    if(allocated(fullForcSave)) deallocate(fullForcSave)
+    if(allocated(fullProgSave)) deallocate(fullProgSave)
+    if(allocated(fullDiagSave)) deallocate(fullDiagSave)
+    if(allocated(fullFluxSave)) deallocate(fullFluxSave)
+    if(allocated(fullBvarSave)) deallocate(fullBvarSave)
+
+    ! close NetCDF forcing file
+    if(forcNcid/=integerMissing)then
+        
+      call nc_file_close(forcNcid, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      forcNcid = integerMissing
+
+    endif
+
+    ! close SUMMA NetCDF output files
+    do iFreq=1,size(ncid)
+
+      if(ncid(iFreq)/=integerMissing)then
+
+        call nc_file_close(ncid(iFreq), err, cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        ncid(iFreq) = integerMissing
+
+      endif
+
+    enddo
+
+    ! deallocate mizuroute structures
+    if(mizuroute_active) then
+      call finalize_mizuroute(err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+
+    ! more cleanup operations can be added here as required
  
+
+
     ! Allow output libraries to complete file closure
     call sleep(2)
 

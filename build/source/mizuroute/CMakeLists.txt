@@ -62,4 +62,5 @@ set(MIZU_OUTPUT
 set(MIZU_COUPLING
     ${SUMMA_MIZU_DIR}/mizuroute_config.f90
     ${SUMMA_MIZU_DIR}/mizuroute_coupling.f90
+    ${SUMMA_MIZU_DIR}/finalize_mizuroute.f90
 )
