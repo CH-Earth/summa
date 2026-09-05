@@ -35,6 +35,14 @@ USE globalData,only:bpar_meta                 ! basin parameter metadata structu
 USE var_lookup,only:iLookTIME                 ! named variables for time data structure
 USE var_lookup,only:iLookFREQ                 ! named variables for the frequency structure
 
+USE globalData,only:ncid                      ! vector of IDs for different netcdf files (different time aggregations)
+
+USE build_options, only: mizuroute_active
+
+#ifdef MIZUROUTE_ACTIVE
+use mizuroute_coupling, only: define_mizuroute_output_from_summa
+#endif
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -85,8 +93,8 @@ contains
   idStruct             => summa1_struc%idStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
   mparStruct           => summa1_struc%mparStruct        , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
   bparStruct           => summa1_struc%bparStruct        , & ! x%gru(:)%var(:)            -- basin-average parameters
-  nGRU                 => summa1_struc%nGRU              , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                & ! number of global hydrologic response units
+  nGRU_local           => summa1_struc%nGRU_local        , & ! number of GRUs assigned to each rank
+  nHRU_local           => summa1_struc%nHRU_local          & ! number of HRUs assigned to each rank
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -114,15 +122,17 @@ contains
  endif
 
  ! *****************************************************************************
- ! *** define the model output file and write parameters
+ ! *** define the summa model output file and write parameters
  ! *****************************************************************************
 
  ! define the file
- call def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,fileout,err,cmessage)
+ call def_output(using_buffer, summaVersion, buildTime, gitBranch, gitHash, &
+                 nGRU_local, nHRU_local, trim(fileout),                     &
+                 err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! write parameters with no time dimension
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
 
   ! write HRU parameters, all written to timestep frequency file
   do iHRU=1,gru_struc(iGRU)%hruCount
@@ -148,6 +158,15 @@ contains
 
  ! end associate statements
  end associate summaVars
+
+ ! *****************************************************************************
+ ! *** add mizuRoute dimensions, variables, and coordinate data
+ ! *****************************************************************************
+
+ if(mizuroute_active)then
+   call define_mizuroute_output_from_summa(ncid(iLookFREQ%timestep), summa1_struc, err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
 
  end subroutine summa_defineOutputFiles
 end module summa_defineOutput

@@ -1,0 +1,64 @@
+# MizuRoute control file for CAN_05BB001
+
+[mizuRoute]
+
+namelist_path = "test_coupled/mizuroute_inputs/"
+namelist_file = "mizuroute.param"
+
+methods = "3"
+
+dt = 3600
+
+write_qbasin = false
+write_Qreach = false
+
+[hydrofabric]
+
+hfabric_path    = "test_coupled/mizuroute_inputs/"
+hfabric_file    = "topology.nc"
+hfabric_newfile = "topology_new.nc"
+
+dname_seg = "seg"
+dname_hru = "hru"
+
+varname_HRUid     = "hruId"
+varname_segId     = "segId"
+varname_hruSegId  = "hruToSegId"
+varname_downSegId = "downSegId"
+
+varname_area   = "area"
+varname_slope  = "slope"
+varname_length = "length"
+
+seg_outlet = 710285850
+
+[remapping]
+
+remap_path     = "test_coupled/mizuroute_inputs/"
+remap_file     = "lumped_to_hru.nc"
+
+dname_hru      = "polyid"
+dname_data     = "data"
+
+vname_hruid    = "polyid"
+vname_weight   = "weight"
+vname_num_qhru = "nOverlaps"
+vname_qhruid   = "qhru_id"
+
+[observations]
+
+obs_path       = "test_coupled/mizuroute_inputs/"
+obs_file       = "CAN_05BB001_daily_flow_observations.nc"
+
+vname_obsflow  = "q_obs"
+
+[objective]
+
+metric         = "kge"
+transformation = "none"
+
+start_date     = "1982-10-01"
+end_date       = "1983-10-01"
+
+write_aligned  = false
+

@@ -24,6 +24,8 @@
 !******************************************************************
 MODULE summaFileManager
 use nr_type
+USE globalData,    only: iulog       ! I/O unit for logging messages
+use build_options, only: ngen_active ! if nextgen is active
 implicit none
 public
 ! summa-wide pathlength
@@ -105,9 +107,9 @@ subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
     read(charline(iControl),*,iostat=err) option, varEntry
     if (err/=0) then; err=30; message=trim(message)//"error reading charline array"; return; end if
     ! get the index of the control file entry in the data structure
-#ifndef NGEN_ACTIVE
-    write(*,'(i4,1x,a)') iControl, trim(option)//': '//trim(varEntry)
-#endif
+    if (.not.NGEN_ACTIVE)then
+      write(iulog,'(i4,1x,a)') iControl, trim(option)//': '//trim(varEntry)
+    endif
     ! assign entries from control file to module public variables; add checking as needed
     select case(trim(option))
     case('controlVersion' );
@@ -117,26 +119,26 @@ subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
         err=20
         return
       end if
-      case('simStartTime'       ); SIM_START_TM = trim(varEntry)                  ! start simulation time
-      case('simEndTime'         ); SIM_END_TM = trim(varEntry)                    ! end simulation time
-      case('tmZoneInfo'         ); NC_TIME_ZONE = trim(varEntry)                  ! time zone info
-      case('settingsPath'       ); SETTINGS_PATH = trim(varEntry)                 ! settings directory
-      case('forcingPath'        ); FORCING_PATH = trim(varEntry)                  ! input forcing directory
-      case('outputPath'         ); OUTPUT_PATH = trim(varEntry)                   ! output directory
-      case('statePath'          ); STATE_PATH = trim(varEntry)                    ! state file input/output directory
-      case('decisionsFile'      ); M_DECISIONS = trim(varEntry)                   ! model decisions file
-      case('outputControlFile'  ); OUTPUT_CONTROL = trim(varEntry)                ! output control file
-      case('globalHruParamFile' ); LOCALPARAM_INFO = trim(varEntry)               ! default/global hru-level param file
-      case('globalGruParamFile' ); BASINPARAM_INFO = trim(varEntry)               ! default/global gru-level param file
-      case('attributeFile'      ); LOCAL_ATTRIBUTES = trim(varEntry)              ! attribute file
-      case('trialParamFile'     ); PARAMETER_TRIAL = trim(varEntry)               ! trial parameters file (hru and/or gru)
-      case('vegTableFile'       ); VEGPARM = trim(varEntry)                       ! vegetation parameter table
-      case('soilTableFile'      ); SOILPARM = trim(varEntry)                      ! soil parameter table
-      case('generalTableFile'   ); GENPARM = trim(varEntry)                       ! general parameter table
-      case('noahmpTableFile'    ); MPTABLE = trim(varEntry)                       ! noah mp parameter table
-      case('forcingListFile'    ); FORCING_FILELIST = trim(varEntry)              ! file listing forcing filenames
-      case('initConditionFile'  ); MODEL_INITCOND = trim(varEntry)                ! initial conditions file (cold State)
-      case('outFilePrefix'      ); OUTPUT_PREFIX = trim(varEntry)                 ! filename root for output files
+      case ('simStartTime'       ); SIM_START_TM = trim(varEntry)                  ! start simulation time
+      case ('simEndTime'         ); SIM_END_TM = trim(varEntry)                    ! end simulation time
+      case ('tmZoneInfo'         ); NC_TIME_ZONE = trim(varEntry)                  ! time zone info
+      case ('settingsPath'       ); SETTINGS_PATH = trim(varEntry)                 ! settings directory
+      case ('forcingPath'        ); FORCING_PATH = trim(varEntry)                  ! input forcing directory
+      case ('outputPath'         ); OUTPUT_PATH = trim(varEntry)                   ! output directory
+      case ('statePath'          ); STATE_PATH = trim(varEntry)                    ! state file input/output directory
+      case ('decisionsFile'      ); M_DECISIONS = trim(varEntry)                   ! model decisions file
+      case ('outputControlFile'  ); OUTPUT_CONTROL = trim(varEntry)                ! output control file
+      case ('globalHruParamFile' ); LOCALPARAM_INFO = trim(varEntry)               ! default/global hru-level param file
+      case ('globalGruParamFile' ); BASINPARAM_INFO = trim(varEntry)               ! default/global gru-level param file
+      case ('attributeFile'      ); LOCAL_ATTRIBUTES = trim(varEntry)              ! attribute file
+      case ('trialParamFile'     ); PARAMETER_TRIAL = trim(varEntry)               ! trial parameters file (hru and/or gru)
+      case ('vegTableFile'       ); VEGPARM = trim(varEntry)                       ! vegetation parameter table
+      case ('soilTableFile'      ); SOILPARM = trim(varEntry)                      ! soil parameter table
+      case ('generalTableFile'   ); GENPARM = trim(varEntry)                       ! general parameter table
+      case ('noahmpTableFile'    ); MPTABLE = trim(varEntry)                       ! noah mp parameter table
+      case ('forcingListFile'    ); FORCING_FILELIST = trim(varEntry)              ! file listing forcing filenames
+      case ('initConditionFile'  ); MODEL_INITCOND = trim(varEntry)                ! initial conditions file (cold State)
+      case ('outFilePrefix'      ); OUTPUT_PREFIX = trim(varEntry)                 ! filename root for output files
       ! get to here if cannot find the variable
       case default
         err=10; message=trim(message)//"unknown control file option: "//trim(option); return

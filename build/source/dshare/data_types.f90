@@ -19,6 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 MODULE data_types
+
  ! used to define model data structures
  USE nr_type, integerMissing=>nr_integerMissing
  USE var_lookup,only:maxvarFreq
@@ -31,11 +32,75 @@ MODULE data_types
  USE var_lookup,only:iLookDIAG        ! lookup indices for diagnostic variable data
  USE var_lookup,only:iLookDECISIONS   ! lookup indices for elements of the decision structure
  USE var_lookup,only:iLookPROG        ! lookup indices for prognostic variables
+
+ ! named parameters
+ 
  implicit none
  private
 
  ! ***********************************************************************************************************
- ! Define the model decisions
+ ! command line interface
+ ! ***********************************************************************************************************
+
+ type,public  :: cli_options
+
+  logical                        :: show_help    = .false.
+  logical                        :: show_version = .false.
+  
+  character(len=:), allocatable  :: tag
+  character(len=:), allocatable  :: master_file
+  character(len=:), allocatable  :: config_file
+  character(len=:), allocatable  :: suffix
+  character(len=:), allocatable  :: runmode
+  character(len=:), allocatable  :: domain_id
+  
+  integer(i4b)                   :: run_mode  = integerMissing
+  integer(i4b)                   :: hru_index = integerMissing
+  integer(i4b)                   :: start_gru = integerMissing
+  integer(i4b)                   :: count_gru = integerMissing
+  
+  integer(i4b)                   :: new_file  = integerMissing
+  integer(i4b)                   :: progress  = integerMissing
+  integer(i4b)                   :: restart   = integerMissing
+ 
+  character(len=64), allocatable :: param_name(:)
+  real(rkind),       allocatable :: param_value(:)
+
+ end type cli_options
+
+ ! ***********************************************************************************************************
+ ! objective function
+ ! ***********************************************************************************************************
+ 
+ ! information on the obs file
+ type,public  :: obs_fileinfo
+
+  ! Observations filename
+  character(len=:), allocatable :: obs_path           ! obs path
+  character(len=:), allocatable :: obs_file           ! obs file
+
+  ! NetCDF variable names
+  character(len=:), allocatable :: vname_obsflow      ! name of variable containing observed flow 
+
+ end type obs_fileinfo
+
+ ! -----------------------------------------------------------------------------------------------------------
+
+ ! choices for the objective function
+ type,public  :: obj_info
+
+  character(len=:), allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
+  character(len=:), allocatable :: transformation     ! none, log, power, box-cox
+
+  character(len=:), allocatable :: start_date         ! start of the calibration time period
+  character(len=:), allocatable :: end_date           ! end of the calibration time period
+
+  logical(lgt)                  :: write_aligned = .false. ! flag to write the aligned sim/obs time series
+
+ end type obj_info
+
+ ! ***********************************************************************************************************
+ ! model decisions
  ! ***********************************************************************************************************
  ! the model decision structure
  type,public  :: model_options
@@ -45,9 +110,9 @@ MODULE data_types
  end type model_options
 
  ! ***********************************************************************************************************
- ! Define metadata for model forcing datafile
+ ! data for model forcing datafile
  ! ***********************************************************************************************************
- ! define a derived type for the data in the file
+ ! derived type for the data in the file
  type,public  :: file_info
   character(len=256)                     :: filenmData='notPopulatedYet'  ! name of data file
   integer(i4b)                           :: nVars                         ! number of variables in the file
@@ -60,9 +125,9 @@ MODULE data_types
  end type file_info
 
  ! ***********************************************************************************************************
- ! Define metadata on model parameters
+ ! metadata on model parameters
  ! ***********************************************************************************************************
- ! define a data type to store model parameter information
+ ! a data type to store model parameter information
  type,public  :: par_info
   real(rkind)                            :: default_val                   ! default parameter value
   real(rkind)                            :: lower_limit                   ! lower bound
@@ -70,9 +135,9 @@ MODULE data_types
  endtype par_info
 
  ! ***********************************************************************************************************
- ! Define variable metadata
+ ! variable metadata
  ! ***********************************************************************************************************
- ! define derived type for model variables, including name, description, and units
+ ! derived type for model variables, including name, description, and units
  type,public :: var_info
   character(len=64)                      :: varName   = 'empty'           ! variable name
   character(len=128)                     :: vardesc   = 'empty'           ! variable description
@@ -83,19 +148,19 @@ MODULE data_types
   logical(lgt)                           :: varDesire = .false.           ! flag to denote if the variable is desired for model output
  endtype var_info
 
- ! define extended data type (include indices to map onto parent data type)
+ ! extended data type (include indices to map onto parent data type)
  type,extends(var_info),public :: extended_info
   integer(i4b)                           :: ixParent                      ! index in the parent data structure
  endtype extended_info
 
- ! define extended data type (includes named variables for the states affected by each flux)
+ ! extended data type (includes named variables for the states affected by each flux)
  type,extends(var_info),public :: flux2state
   integer(i4b)                           :: state1                        ! named variable of the 1st state affected by the flux
   integer(i4b)                           :: state2                        ! named variable of the 2nd state affected by the flux
  endtype flux2state
 
  ! ***********************************************************************************************************
- ! Define summary of data structures
+ ! summary of data structures
  ! ***********************************************************************************************************
  ! data structure information
  type,public :: struct_info
@@ -105,7 +170,7 @@ MODULE data_types
  end type struct_info
 
  ! ***********************************************************************************************************
- ! Define data types to map between GRUs and HRUs
+ ! data types to map between GRUs and HRUs
  ! ***********************************************************************************************************
 
  ! hru info data structure
@@ -117,7 +182,7 @@ MODULE data_types
   integer(i4b)                           :: nSoil                         ! number of soil layers
  endtype hru_info
 
- ! define mapping from GRUs to the HRUs
+ ! mapping from GRUs to the HRUs
  type, public :: gru2hru_map
   integer(i8b)                           :: gru_id                        ! id of the gru
   integer(i4b)                           :: hruCount                      ! total number of hrus in the gru
@@ -125,16 +190,32 @@ MODULE data_types
   integer(i4b)                           :: gru_nc                        ! index of gru in the netcdf file
  endtype gru2hru_map
 
- ! define the mapping from the HRUs to the GRUs
+ ! the mapping from the HRUs to the GRUs
  type, public :: hru2gru_map
   integer(i4b)                           :: gru_ix                        ! index of gru which the hru belongs to
   integer(i4b)                           :: localHRU_ix                   ! index of a hru within a gru (start from 1 per gru)
  endtype hru2gru_map
 
  ! ***********************************************************************************************************
- ! Define hierarchal derived data types
+ ! model coupling structure
  ! ***********************************************************************************************************
-  ! define derived types to hold look-up tables for each soil layer
+
+ type, public :: q_coupling
+   integer(i8b)                          :: id                            ! identifier of the runoff element
+   real(rkind)                           :: qsim                          ! simulated runoff for this element (m s-1)
+ end type q_coupling
+
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+
+ ! ***********************************************************************************************************
+ ! hierarchal derived data types
+ ! ***********************************************************************************************************
+  ! derived types to hold look-up tables for each soil layer
  ! ** double precision type
  type, public :: dLookup
   real(rkind),allocatable                :: lookup(:)                     ! lookup(:)
@@ -155,7 +236,7 @@ MODULE data_types
  type, public :: gru_hru_z_vLookup
   type(hru_z_vLookup),allocatable        :: gru(:)                        ! gru(:)%hru(:)%z(:)%var(:)%lookup(:)
  endtype gru_hru_z_vLookup
- ! define derived types to hold multiVariate data for a single variable (different variables have different length)
+ ! derived types to hold multiVariate data for a single variable (different variables have different length)
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
  type, public :: dlength
@@ -174,7 +255,7 @@ MODULE data_types
   logical(lgt),allocatable               :: dat(:)                        ! dat(:)
  endtype flagVec
 
- ! define derived types to hold data for multiple variables
+ ! derived types to hold data for multiple variables
  ! NOTE: use derived types here to facilitate adding extra dimensions (e.g., spatial)
 
  ! ** double precision type of variable length
@@ -220,7 +301,7 @@ MODULE data_types
   integer(i8b),allocatable               :: hru(:)                        ! hru(:)
  endtype hru_i8
 
- ! define derived types to hold JUST the HRU dimension
+ ! derived types to hold JUST the HRU dimension
  ! ** double precision type of variable length
  type, public :: hru_doubleVec
   type(var_dlength),allocatable          :: hru(:)                        ! hru(:)%var(:)%dat
@@ -242,7 +323,7 @@ MODULE data_types
   type(var_i8),allocatable               :: hru(:)                        ! hru(:)%var(:)
  endtype hru_int8
 
- ! define derived types to hold JUST the HRU dimension
+ ! derived types to hold JUST the HRU dimension
  ! ** double precision type of variable length
  type, public :: gru_doubleVec
   type(var_dlength),allocatable          :: gru(:)                        ! gru(:)%var(:)%dat
@@ -264,7 +345,7 @@ MODULE data_types
   type(var_i8),allocatable               :: gru(:)                        ! gru(:)%var(:)
  endtype gru_int8
 
- ! define derived types to hold BOTH the GRU and HRU dimension
+ ! derived types to hold BOTH the GRU and HRU dimension
  ! ** double precision type of variable length
  type, public :: gru_hru_doubleVec
   type(hru_doubleVec),allocatable        :: gru(:)                        ! gru(:)%hru(:)%var(:)%dat
@@ -294,10 +375,17 @@ MODULE data_types
   type(hru_i),allocatable                :: gru(:)                        ! gru(:)%hru(:)
  endtype gru_i
 
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ !
  integer(i4b),parameter :: len_msg=256 ! length of character string used in class definitions
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subroutines in computFlux
+ ! classes used to simplify calls to the subroutines in computFlux
  ! ***********************************************************************************************************
  ! Note: class procedures are located in the contains block of this (data_types) module
  ! ** vegNrgFlux
@@ -569,7 +657,7 @@ MODULE data_types
  ! ** end bigAquifer
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subroutines in soilLiqFlux
+ ! classes used to simplify calls to the subroutines in soilLiqFlux
  ! ***********************************************************************************************************
 
  ! ** diagv_node
@@ -792,7 +880,7 @@ MODULE data_types
  ! ** end qDrainFlux
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subroutines in opSplittin
+ ! classes used to simplify calls to the subroutines in opSplittin
  ! ***********************************************************************************************************
  ! ** stateFilter
  type, public :: out_type_stateFilter ! class for intent(out) arguments in stateFilter call
@@ -861,7 +949,7 @@ MODULE data_types
  ! ** end varSubstep
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subroutines in summaSolv4homegrown
+ ! classes used to simplify calls to the subroutines in summaSolv4homegrown
  ! ***********************************************************************************************************
 
  type, public :: in_type_computJacob  ! class for intent(in) arguments in computJacob call
@@ -903,7 +991,7 @@ MODULE data_types
  end type out_type_lineSearchRefinement
 
  ! ***********************************************************************************************************
- ! Define classes used to simplify calls to the subroutines in systemSolv
+ ! classes used to simplify calls to the subroutines in systemSolv
  ! ***********************************************************************************************************
 
  type, public :: in_type_summaSolv4homegrown  ! class for intent(in) arguments in summaSolv4homegrown call

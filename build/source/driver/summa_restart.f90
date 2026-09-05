@@ -113,7 +113,7 @@ contains
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
-  nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
+  nGRU_local           => summa1_struc%nGRU_local            & ! number of grouped response units in local rank
  ) ! assignment to variables in the data structures
  
  ! ---------------------------------------------------------------------------------------
@@ -136,7 +136,7 @@ contains
 
  ! read initial conditions
  call read_icond(restartFile,                   & ! intent(in):    name of initial conditions file
-                 nGRU,                          & ! intent(in):    number of response units
+                 nGRU_local,                    & ! intent(in):    number of response units in local rank
                  mparStruct,                    & ! intent(in):    model parameters
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables
@@ -150,7 +150,7 @@ contains
  use_lookup    = .false.
  if(ixNrgConserv/=closedForm) checkEnthalpy = .true. ! check enthalpy either for mixed form energy equation or enthalpy state variable
  if(ixNrgConserv==enthalpyForm) use_lookup  = .true. ! use lookup tables for soil temperature-enthalpy instead of analytical solution
- call check_icond(nGRU,                         & ! intent(in):    number of response units
+ call check_icond(nGRU_local,                   & ! intent(in):    number of response units in local rank
                   progStruct,                   & ! intent(inout): model prognostic variables
                   diagStruct,                   & ! intent(inout): model diagnostic variables
                   mparStruct,                   & ! intent(in):    model parameters
@@ -163,7 +163,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! loop through GRUs
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
 
   ! *****************************************************************************
   ! *** compute ancillary variables
@@ -221,20 +221,20 @@ contains
 
   ! select aquifer option
   select case(aquiferIni)
-   case(fullStart)
+   case (fullStart)
     aquifer_start  = 1._rkind ! Start with full aquifer, since easier to spin up by draining than filling (filling we need to wait for precipitation) 
-   case(emptyStart)
+   case (emptyStart)
     aquifer_start  = 0._rkind ! Start with empty aquifer ! If want to compare model method outputs, empty start leads to quicker equilibrium
    case default
     message=trim(message)//'unable to identify decision for initial aquifer storage'
-    return
+    err=10; return
   end select  ! aquifer option
 
   ! select groundwater option
   select case(spatial_gw)
 
    ! the basin-average aquifer storage is not used if the groundwater is included in the local column
-   case(localColumn)
+   case (localColumn)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
     do iHRU=1,gru_struc(iGRU)%hruCount
       if(aquiferIni==emptyStart) progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start ! leave at initialized values if fullStart
@@ -242,7 +242,7 @@ contains
 
    ! the local column aquifer storage is not used if the groundwater is basin-average
    ! (i.e., where multiple HRUs drain to a basin-average aquifer)
-   case(singleBasin)
+   case (singleBasin)
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = aquifer_start 
     do iHRU=1,gru_struc(iGRU)%hruCount
      progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
@@ -251,7 +251,7 @@ contains
    ! error check
    case default
     message=trim(message)//'unable to identify decision for regional representation of groundwater'
-    return
+    err=10; return
 
   end select  ! groundwater option
 

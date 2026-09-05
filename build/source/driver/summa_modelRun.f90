@@ -32,11 +32,19 @@ USE globalData,only:yes,no           ! .true. and .false.
 USE var_lookup,only:iLookTIME        ! named variables for time data structure
 USE var_lookup,only:iLookDIAG        ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookINDEX       ! look-up values for local column index variables
+USE var_lookup,only:iLookBVAR        ! look-up values for basin variables
 USE summa_util,only:handle_err
 
 ! these are needed because we cannot access them in modules locally if we might use those modules with Actors
 USE globalData,only:fracJulDay       ! fractional julian days since the start of year
 USE globalData,only:yearLength       ! number of days in the current year
+
+! check if mizuroute is active
+use build_options, only: mizuroute_active
+
+#ifdef MIZUROUTE_ACTIVE
+use mizuroute_coupling, only: route_mizuroute_from_summa
+#endif
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -114,7 +122,7 @@ contains
   ! run time variables
   computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
-  nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
+  nGRU_local           => summa1_struc%nGRU_local            & ! number of GRUs assigned to a given rank
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -126,7 +134,7 @@ contains
  ! *******************************************************************************************
  ! if computeVegFlux changes, then the number of state variables changes, and we need to reorganize the data structures
  if(modelTimeStep==1)then
-  do iGRU=1,nGRU
+  do iGRU=1,nGRU_local
    do iHRU=1,gru_struc(iGRU)%hruCount
 
     ! get vegetation phenology
@@ -171,12 +179,13 @@ contains
  !  -- assume that that expensive GRUs from a previous time step are also expensive in the current time step
 
  ! allocate space for GRU timing
- allocate(totalFluxCalls(nGRU), timeGRU(nGRU), timeGRUstart(nGRU), timeGRUcompleted(nGRU), ixExpense(nGRU), stat=err)
+ allocate(totalFluxCalls(nGRU_local), timeGRU(nGRU_local), timeGRUstart(nGRU_local), timeGRUcompleted(nGRU_local), &
+                         ixExpense(nGRU_local), stat=err)
  if(err/=0)then; message=trim(message)//'unable to allocate space for GRU timing'; return; endif
  timeGRU(:) = realMissing ! initialize because used for ranking
 
  ! compute the total number of flux calls from the previous time step
- do jGRU=1,nGRU
+ do jGRU=1,nGRU_local
   totalFluxCalls(jGRU) = 0._rkind
   do iHRU=1,gru_struc(jGRU)%hruCount
    totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
@@ -185,7 +194,7 @@ contains
 
  ! get the indices that can rank the computational expense
  call indexx(timeGRU, ixExpense) ! ranking of each GRU w.r.t. computational expense
- ixExpense=ixExpense(nGRU:1:-1)  ! reverse ranking: now largest to smallest
+ ixExpense=ixExpense(nGRU_local:1:-1)  ! reverse ranking: now largest to smallest
 
  ! initialize the GRU count
  ! NOTE: this needs to be outside the parallel section so it is not reinitialized by different threads
@@ -231,12 +240,12 @@ contains
   ! run time variables
   computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
-  nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
+  nGRU_local           => summa1_struc%nGRU_local            & ! number of GRUs assigned to a given rank
 
  ) ! assignment to variables in the data structures
 
  !$omp do schedule(dynamic, 1)
- do jGRU=1,nGRU  ! loop through GRUs
+ do jGRU=1,nGRU_local  ! loop through GRUs
 
   !----- process GRUs in order of computational expense -------------------------
   !$omp critical(setGRU)
@@ -285,6 +294,19 @@ contains
  !$omp end do
  end associate summaVars2
  !$omp end parallel
+
+ ! ----- network routing ----------------------------------------------------
+ if (mizuroute_active) then
+
+   ! transfer routed runoff from summa into the coupling structure to pass to mizuRoute
+   do iGRU = 1,summa1_struc%nGRU_local
+     summa1_struc%coupling(iGRU)%qsim = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
+   enddo
+
+   call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   
+ endif  ! (if mizuRoute is active)
 
  ! identify the end of the physics
  call date_and_time(values=endPhysics)

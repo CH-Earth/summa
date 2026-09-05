@@ -22,12 +22,18 @@ module read_pinit_module
 USE nr_type
 ! check for when model decisions are undefined
 USE mDecisions_module,only: unDefined
+
 USE globalData,only:model_decisions
 USE globalData,only:realMissing
+USE globalData,only:iulog
+
 USE var_lookup,only:iLookDECISIONS,iLookPARAM
+
 implicit none
+
 private
 public::read_pinit
+
 contains
 
 
@@ -113,7 +119,7 @@ contains
   if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
   ! skip deprecated parameters (for backwards compatibility with existing parameter input files)
   if (trim(varName) == 'upperBoundTheta' .or. trim(varName) == 'lowerBoundTheta')then
-    write(*,'(a)') "WARNING: deprecated parameter '"//trim(varName)//"' found in parameter input file -- ignoring this parameter"
+    write(iulog,'(a)') "WARNING: deprecated parameter '"//trim(varName)//"' found in parameter input file -- ignoring this parameter"
     cycle
   end if
   ! (identify the index of the variable in the data structure)

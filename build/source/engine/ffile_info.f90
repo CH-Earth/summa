@@ -31,7 +31,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine ffile_info: read information on model forcing files
  ! ************************************************************************************************
- subroutine ffile_info(nGRU,err,message)
+ subroutine ffile_info(nGRU_local,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
  USE ascii_util_module,only:linewidth
@@ -42,13 +42,13 @@ contains
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
  USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
  USE globalData,only:forc_meta               ! forcing metadata
- USE get_ixname_module,only:get_ixTime,get_ixForce  ! identify index of named variable
+ USE get_ixname_module,only:get_ixForce      ! identify index of named variable
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line       ! split a line into words
  USE globalData,only:gru_struc               ! gru-hru mapping structure
  implicit none
  ! define input & output
- integer(i4b),intent(in)              :: nGRU                ! number of grouped response units
+ integer(i4b),intent(in)              :: nGRU_local          ! number of GRUs assigned to local rank
  integer(i4b),intent(out)             :: err                 ! error code
  character(*),intent(out)             :: message             ! error message
  ! define local variables
@@ -113,13 +113,13 @@ contains
  close(unit=unt,iostat=err); if(err/=0)then;message=trim(message)//'problem closing forcing file list'; return; end if
 
  ! ------------------------------------------------------------------------------------------------------------------
- ! (2) pull descriptive information from netcdf forcing file and check number of HRUs in each forcing file matches nHRU
+ ! (2) read forcing-file metadata and verify the local HRU mapping 
  ! ------------------------------------------------------------------------------------------------------------------
 
  ! get the number of forcing variables
  nForcing = size(forc_meta)
 
- ! loop through files, and read descriptive information from each file
+ ! loop through files, and forcing-file metadata
  do iFile=1,nFile
 
   ! ensure allocatable structure components are deallocated
@@ -237,16 +237,21 @@ contains
 
      ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
-     do iGRU=1,nGRU
+     do iGRU=1,nGRU_local
       do localHRU_ix=1,gru_struc(iGRU)%hruCount
-       ! check the HRU is what we expect
+
+       ! read the HRU id from the file
        err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc/),count=(/1/))
+       if(err/=nf90_noerr)then; message=trim(message)//'problem reading hruId from forcing file'; return; endif
+
+       ! check the HRU is what we expect
        if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_id /= ncHruId(1))then
-        write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ',gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc,' - ',  &
+        write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId mismatch at forcing-file HRU index ',gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc,' - ',  &
             ncHruId(1), ' differs from the expected: ',gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_id, ' in file ', trim(infile)
         write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return
        endif
+
       end do
      end do
      completed_hruId = .true.

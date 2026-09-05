@@ -1,0 +1,21 @@
+controlVersion       'SUMMA_FILE_MANAGER_V3.0.0' !  file manager version 
+simStartTime         '1981-10-01 00:00' ! 
+simEndTime           '1989-09-30 23:00' ! 
+tmZoneInfo           'localTime' ! 
+outFilePrefix        'run1_coupled' ! 
+settingsPath         'test_coupled/summa_inputs/'  !
+forcingPath          'test_coupled/summa_inputs/'
+outputPath           'test_coupled/work/' !  output_path
+statePath            'test_coupled/summa_inputs/'  !
+initConditionFile    'coldState.nc' ! Relative to statePath
+attributeFile        'attributes.nc' ! Relative to settingsPath 
+trialParamFile       'trialParams.nc' ! Relative to settingsPath 
+forcingListFile      'forcingFileList.txt' ! Relative to settingsPath 
+decisionsFile        'modelDecisions.txt' !  Relative to settingsPath 
+outputControlFile    'outputControl_short.txt' !  Relative to settingsPath 
+globalHruParamFile   'localParamInfo.txt' !  Relative to settingsPath 
+globalGruParamFile   'basinParamInfo.txt' !  Relative to settingsPatho 
+vegTableFile         'TBL_VEGPARM.TBL' ! Relative to settingsPath 
+soilTableFile        'TBL_SOILPARM.TBL' ! Relative to settingsPath 
+generalTableFile     'TBL_GENPARM.TBL' ! Relative to settingsPath 
+noahmpTableFile      'TBL_MPTABLE.TBL' ! Relative to settingsPath 

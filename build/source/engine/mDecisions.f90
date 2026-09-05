@@ -20,7 +20,9 @@
 
 module mDecisions_module
 USE nr_type
+USE globalData, only: iulog            ! I/O unit for logging messages
 USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
+USE build_options, only: ngen_active   ! flag for nextgen
 implicit none
 private
 public::mDecisions
@@ -299,10 +301,10 @@ subroutine mDecisions(err,message)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
   ! check start and finish time
-#ifndef NGEN_ACTIVE
-  write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
-  write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
-#endif
+  if (.not. NGEN_ACTIVE)then
+    write(iulog,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
+    write(iulog,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
+  endif
   ! check that simulation end time is > start time
   if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
 
@@ -485,7 +487,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision))
     case('mixdform', 'notPopulatedYet'); model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform            ! mixed form
     case default
-      write(*,'(a)') 'WARNING: f_Richards option "'//trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision)//'" is ignored; mixed form (mixdform) is always used'
+      write(iulog,'(a)') 'WARNING: f_Richards option "'//trim(model_decisions(iLookDECISIONS%f_Richards)%cDecision)//'" is ignored; mixed form (mixdform) is always used'
       model_decisions(iLookDECISIONS%f_Richards)%cDecision = 'mixdform'
       model_decisions(iLookDECISIONS%f_Richards)%iDecision = mixdform
   end select
@@ -766,7 +768,7 @@ subroutine mDecisions(err,message)
       end if
     case(bigBucket)
       if(model_decisions(iLookDECISIONS%infRateMax)%iDecision == topModel_GA)then
-        write(*,*) 'DEPRECATION WARNING: Combining groundwater parametrization bigBucket with maximum infiltration rate method topModel_GA is not recommended. This was the default in SUMMA v3.x.x and below, but is not appropriate for this groundwater option. Please use Green-Ampt instead (set "infRateMax" to "GreenAmpt" in model decisions input file)'
+        write(iulog,*) 'DEPRECATION WARNING: Combining groundwater parametrization bigBucket with maximum infiltration rate method topModel_GA is not recommended. This was the default in SUMMA v3.x.x and below, but is not appropriate for this groundwater option. Please use Green-Ampt instead (set "infRateMax" to "GreenAmpt" in model decisions input file)'
         ! This preps us for when we want to remove this option in the future
         !message=trim(message)//'maximum infiltration rate method (infRateMax) cannot be topModel_GA when using BigBucket for groundwater, use GreenAmpt instead'
         !err=20; return
@@ -805,9 +807,9 @@ subroutine readoption(err,message)
   err=0; message='readoption/'
   ! build filename
   infile = trim(SETTINGS_PATH)//trim(M_DECISIONS)
-#ifndef NGEN_ACTIVE
-  write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
-#endif
+  if (.not. NGEN_ACTIVE)then
+    write(iulog,'(2(a,1x))') 'decisions file = ', trim(infile)
+  endif
   ! open file
   call file_open(trim(infile),unt,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -825,9 +827,9 @@ subroutine readoption(err,message)
     if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
     ! get the index of the decision in the data structure
     iVar = get_ixdecisions(trim(option))
-#ifndef NGEN_ACTIVE
-    write(*,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
-#endif
+    if (.not. NGEN_ACTIVE)then
+      write(iulog,'(i4,1x,a)') iDecision, trim(option)//': '//trim(decision)
+    endif
     if(iVar<=0)then; err=40; message=trim(message)//"cannotFindDecisionIndex[name='"//trim(option)//"']"; return; end if
     ! populate the model decisions structure
     model_decisions(iVar)%cOption   = trim(option)
