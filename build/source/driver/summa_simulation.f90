@@ -213,6 +213,7 @@ contains
 
     ! write aligned evaluation time series and objective value
     call write_evaluation(ncid(iLookFREQ%timestep),                  &
+                          summa1_struc(n)%obj%write_aligned,         &
                           timeAligned,                               &
                           flowObsAligned,flowSimAligned,             &
                           timeObsUnits,flowObsUnits,                 &

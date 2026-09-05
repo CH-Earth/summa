@@ -95,6 +95,8 @@ MODULE data_types
   character(len=:), allocatable :: start_date         ! start of the calibration time period
   character(len=:), allocatable :: end_date           ! end of the calibration time period
 
+  logical(lgt)                  :: write_aligned = .false. ! flag to write the aligned sim/obs time series
+
  end type obj_info
 
  ! ***********************************************************************************************************

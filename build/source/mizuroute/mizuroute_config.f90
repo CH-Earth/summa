@@ -40,7 +40,11 @@ contains
     ! ---- mizuRoute: runtime ----
     case ("mizuRoute.dt"                 ); call get_value(subtable, trim(key), info%mrout%dt               , stat=istat)
     case ("mizuRoute.methods"            ); call get_value(subtable, trim(key), info%mrout%methods          , stat=istat)
-    
+
+    ! ---- mizuRoute: flags to write information ----
+    case ("mizuRoute.write_qbasin"       ); call get_value(subtable, trim(key), info%mrout%write_qbasin     , stat=istat)
+    case ("mizuRoute.write_Qreach"       ); call get_value(subtable, trim(key), info%mrout%write_Qreach     , stat=istat)
+
     ! ---- hydrofabric: path/filenames ----
     case ("hydrofabric.hfabric_path"     ); call get_value(subtable, trim(key), info%ntopo%hfabric_path     , stat=istat)
     case ("hydrofabric.hfabric_file"     ); call get_value(subtable, trim(key), info%ntopo%hfabric_file     , stat=istat)

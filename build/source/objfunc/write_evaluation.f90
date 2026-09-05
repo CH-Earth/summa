@@ -10,67 +10,147 @@ module write_evaluation_module
 
 contains
 
+
   ! **************************************************************************************************
   ! Write objective-function evaluation results to the SUMMA NetCDF output file.
   !
-  ! Define the evaluation output variables and write the aligned observed and
-  ! simulated streamflow time series together with the objective-function value.
+  ! The objective-function value is always written. The aligned observed and
+  ! simulated streamflow time series are written only when write_aligned is true.
   ! **************************************************************************************************
-
-  subroutine write_evaluation(ncid,                     &
-                              timeEval,flowObs,flowSim, &
-                              timeUnits,flowUnits,      &
-                              metric,transformation,    &
-                              objective,                &
+  subroutine write_evaluation(ncid,write_aligned,          &
+                              timeEval,flowObs,flowSim,   &
+                              timeUnits,flowUnits,        &
+                              metric,transformation,      &
+                              objective,                  &
                               err,message)
 
-  integer(i4b), intent(in)  :: ncid
+    integer(i4b), intent(in)  :: ncid
 
-  real(rkind), intent(in)   :: timeEval(:)
-  real(rkind), intent(in)   :: flowObs(:)
-  real(rkind), intent(in)   :: flowSim(:)
+    logical, intent(in)       :: write_aligned
 
-  character(*), intent(in)  :: timeUnits
-  character(*), intent(in)  :: flowUnits
-  character(*), intent(in)  :: metric
-  character(*), intent(in)  :: transformation
+    real(rkind), intent(in)   :: timeEval(:)
+    real(rkind), intent(in)   :: flowObs(:)
+    real(rkind), intent(in)   :: flowSim(:)
 
-  real(rkind), intent(in)   :: objective
+    character(*), intent(in)  :: timeUnits
+    character(*), intent(in)  :: flowUnits
+    character(*), intent(in)  :: metric
+    character(*), intent(in)  :: transformation
 
-  integer(i4b), intent(out) :: err
-  character(*), intent(out) :: message
+    real(rkind), intent(in)   :: objective
 
-  character(len=256) :: cmessage
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
 
-  err = 0
-  message = 'write_evaluation/'
+    character(len=256) :: cmessage
 
-  ! define evaluation variables
-  call define_objective_output(ncid,size(timeEval), &
-                               timeUnits,flowUnits,  &
-                               metric,transformation, &
-                               err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    err = 0
+    message = 'write_evaluation/'
 
-  ! write aligned time series and objective value
-  call write_objective_output(ncid,                   &
-                              timeEval,flowObs,flowSim,&
-                              objective,               &
-                              err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! define objective-function variable
+    call define_objective(ncid,metric,transformation,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! optionally define aligned evaluation time series
+    if(write_aligned)then
+
+      call define_evaluation_series(ncid,size(timeEval), &
+                                    timeUnits,flowUnits,  &
+                                    err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif
+
+    ! write objective-function value
+    call write_objective(ncid,objective,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! optionally write aligned evaluation time series
+    if(write_aligned)then
+
+      call write_evaluation_series(ncid,                   &
+                                   timeEval,flowObs,flowSim,&
+                                   err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif
 
   end subroutine write_evaluation
 
 
   ! **************************************************************************************************
-  ! Add objective-function evaluation variables to an existing SUMMA NetCDF file.
+  ! Add the objective-function variable and metadata to an existing SUMMA NetCDF file.
+  ! **************************************************************************************************
+  subroutine define_objective(ncid,metric,transformation,ierr,message)
+
+    integer(i4b), intent(in)  :: ncid
+
+    character(*), intent(in)  :: metric
+    character(*), intent(in)  :: transformation
+
+    integer(i4b), intent(out) :: ierr
+    character(*), intent(out) :: message
+
+    integer(i4b) :: varid_obj
+    integer(i4b) :: ierr_enddef
+
+    logical :: in_define
+
+    ierr = 0
+    message = 'define_objective/'
+
+    in_define = .false.
+
+    netcdf_block: block
+
+      ! enter (re)-define mode
+      ierr = nf90_redef(ncid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      in_define = .true.
+
+      ! objective-function value
+      ierr = nf90_def_var(ncid,'objective',NF90_DOUBLE,varid=varid_obj)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr = nf90_put_att(ncid,varid_obj,'long_name', &
+                          'objective-function value')
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr = nf90_put_att(ncid,varid_obj,'metric',trim(metric))
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr = nf90_put_att(ncid,varid_obj,'transformation',trim(transformation))
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! leave define mode
+      ierr = nf90_enddef(ncid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      in_define = .false.
+
+    end block netcdf_block
+
+    ! process NetCDF errors
+    if(ierr/=nf90_noerr)then
+      message = trim(message)//trim(nf90_strerror(ierr))
+      if(in_define) ierr_enddef = nf90_enddef(ncid)
+      return
+    endif
+
+    ierr = 0
+
+  end subroutine define_objective
+
+
+  ! **************************************************************************************************
+  ! Add aligned objective-function evaluation time series to an existing SUMMA NetCDF file.
   !
   ! The evaluation time series has its own time dimension because the observation
   ! timestep may differ from the native SUMMA simulation timestep.
   ! **************************************************************************************************
-  subroutine define_objective_output(ncid,nEval,timeUnits,flowUnits, &
-                                     metric,transformation,           &
-                                     ierr,message)
+  subroutine define_evaluation_series(ncid,nEval,timeUnits,flowUnits, &
+                                      ierr,message)
 
     use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
 
@@ -79,8 +159,6 @@ contains
 
     character(*), intent(in)  :: timeUnits
     character(*), intent(in)  :: flowUnits
-    character(*), intent(in)  :: metric
-    character(*), intent(in)  :: transformation
 
     integer(i4b), intent(out) :: ierr
     character(*), intent(out) :: message
@@ -90,7 +168,6 @@ contains
     integer(i4b) :: varid_time
     integer(i4b) :: varid_obs
     integer(i4b) :: varid_sim
-    integer(i4b) :: varid_obj
 
     integer(i4b) :: ierr_enddef
 
@@ -99,7 +176,7 @@ contains
     logical :: in_define
 
     ierr = 0
-    message = 'define_objective_output/'
+    message = 'define_evaluation_series/'
 
     in_define = .false.
 
@@ -159,20 +236,6 @@ contains
       ierr = nf90_put_att(ncid,varid_sim,'_FillValue',nanValue)
       if(ierr/=nf90_noerr) exit netcdf_block
 
-      ! objective-function value
-      ierr = nf90_def_var(ncid,'objective',NF90_DOUBLE,varid=varid_obj)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ierr = nf90_put_att(ncid,varid_obj,'long_name', &
-                          'objective-function value')
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ierr = nf90_put_att(ncid,varid_obj,'metric',trim(metric))
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ierr = nf90_put_att(ncid,varid_obj,'transformation',trim(transformation))
-      if(ierr/=nf90_noerr) exit netcdf_block
-
       ! leave define mode
       ierr = nf90_enddef(ncid)
       if(ierr/=nf90_noerr) exit netcdf_block
@@ -190,22 +253,57 @@ contains
 
     ierr = 0
 
-  end subroutine define_objective_output
+  end subroutine define_evaluation_series
 
 
   ! **************************************************************************************************
-  ! Write the aligned observed and simulated streamflow series and objective-function
-  ! value to an existing SUMMA NetCDF file.
+  ! Write the objective-function value to an existing SUMMA NetCDF file.
   ! **************************************************************************************************
-  subroutine write_objective_output(ncid,timeEval,flowObs,flowSim,objective, &
-                                    ierr,message)
+  subroutine write_objective(ncid,objective,ierr,message)
+
+    integer(i4b), intent(in)  :: ncid
+    real(rkind), intent(in)   :: objective
+
+    integer(i4b), intent(out) :: ierr
+    character(*), intent(out) :: message
+
+    integer(i4b) :: varid_obj
+
+    ierr = 0
+    message = 'write_objective/'
+
+    netcdf_block: block
+
+      ierr = nf90_inq_varid(ncid,'objective',varid_obj)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr = nf90_put_var(ncid,varid_obj,objective)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+    end block netcdf_block
+
+    ! process NetCDF errors
+    if(ierr/=nf90_noerr)then
+      message = trim(message)//trim(nf90_strerror(ierr))
+      return
+    endif
+
+    ierr = 0
+
+  end subroutine write_objective
+
+
+  ! **************************************************************************************************
+  ! Write aligned observed and simulated streamflow time series to an existing SUMMA NetCDF file.
+  ! **************************************************************************************************
+  subroutine write_evaluation_series(ncid,timeEval,flowObs,flowSim, &
+                                     ierr,message)
 
     integer(i4b), intent(in)  :: ncid
 
     real(rkind), intent(in)   :: timeEval(:)
     real(rkind), intent(in)   :: flowObs(:)
     real(rkind), intent(in)   :: flowSim(:)
-    real(rkind), intent(in)   :: objective
 
     integer(i4b), intent(out) :: ierr
     character(*), intent(out) :: message
@@ -213,10 +311,9 @@ contains
     integer(i4b) :: varid_time
     integer(i4b) :: varid_obs
     integer(i4b) :: varid_sim
-    integer(i4b) :: varid_obj
 
     ierr = 0
-    message = 'write_objective_output/'
+    message = 'write_evaluation_series/'
 
     ! check dimensions
     if(size(flowObs)/=size(timeEval) .or. &
@@ -237,9 +334,6 @@ contains
       ierr = nf90_inq_varid(ncid,'eval_qsim',varid_sim)
       if(ierr/=nf90_noerr) exit netcdf_block
 
-      ierr = nf90_inq_varid(ncid,'objective',varid_obj)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
       ! evaluation time coordinate
       ierr = nf90_put_var(ncid,varid_time,timeEval)
       if(ierr/=nf90_noerr) exit netcdf_block
@@ -252,10 +346,6 @@ contains
       ierr = nf90_put_var(ncid,varid_sim,flowSim)
       if(ierr/=nf90_noerr) exit netcdf_block
 
-      ! objective-function value
-      ierr = nf90_put_var(ncid,varid_obj,objective)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
     end block netcdf_block
 
     ! process NetCDF errors
@@ -266,7 +356,7 @@ contains
 
     ierr = 0
 
-  end subroutine write_objective_output
+  end subroutine write_evaluation_series
 
 
 end module write_evaluation_module

@@ -48,6 +48,9 @@ module mizuroute_types
 
    real(wp)                      :: dt = 3600._wp       ! routing time step (s)
 
+   logical(lgt)                  :: write_qbasin = .false.  ! flag to write basin runoff
+   logical(lgt)                  :: write_Qreach = .false.  ! flag to write routed streamflow
+
   end type rout_info
 
   !---------------------------------------------------------------------

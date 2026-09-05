@@ -221,6 +221,9 @@ contains
     case ("objective.start_date"         ); call get_value(subtable, trim(key), obj%start_date         , stat=istat)
     case ("objective.end_date"           ); call get_value(subtable, trim(key), obj%end_date           , stat=istat)
 
+    ! ---- objective function: flag to write aligned sim/obs time series  ----
+    case ("objective.write_aligned"      ); call get_value(subtable, trim(key), obj%write_aligned      , stat=istat)
+    
     ! ---- default case (something in the table that is not specified above) -----
     case default
       message = trim(message)// "unexpected entry: section = "//trim(section)//"; sub-section = "//trim(key)

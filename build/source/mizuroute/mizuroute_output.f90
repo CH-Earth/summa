@@ -69,16 +69,20 @@ contains
       ierr = nf90_put_att(ncid, varid_uparea, 'units', 'm2');                         if(ierr/=nf90_noerr) exit netcdf_block
 
       ! basin runoff on river-network HRUs
-      ierr = nf90_def_var(ncid, 'q_basin', NF90_DOUBLE, dimids_basin, varid_qbasin);  if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid, varid_qbasin, 'long_name', &
-                                'runoff on mizuRoute river-network HRUs');            if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid, varid_qbasin, 'units', 'm s-1');                      if(ierr/=nf90_noerr) exit netcdf_block
+      if (info%mrout%write_qbasin) then
+        ierr = nf90_def_var(ncid, 'q_basin', NF90_DOUBLE, dimids_basin, varid_qbasin);  if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_qbasin, 'long_name', &
+                                  'runoff on mizuRoute river-network HRUs');            if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_qbasin, 'units', 'm s-1');                      if(ierr/=nf90_noerr) exit netcdf_block
+      endif
 
       ! routed streamflow
-      ierr = nf90_def_var(ncid, 'Q_reach', NF90_DOUBLE, dimids_reach, varid_Qreach);  if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid, varid_Qreach, 'long_name', &
-                          'streamflow at the downstream end of each river reach');    if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid, varid_Qreach, 'units', 'm3 s-1');                     if(ierr/=nf90_noerr) exit netcdf_block
+      if (info%mrout%write_Qreach) then
+        ierr = nf90_def_var(ncid, 'Q_reach', NF90_DOUBLE, dimids_reach, varid_Qreach);  if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_Qreach, 'long_name', &
+                            'streamflow at the downstream end of each river reach');    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_Qreach, 'units', 'm3 s-1');                     if(ierr/=nf90_noerr) exit netcdf_block
+      endif
 
       ! coordinate variables: mizu_hru
       ierr = nf90_def_var(ncid, 'mizu_hru', NF90_INT, (/dim_hru/), varid_hru);        if(ierr/=nf90_noerr) exit netcdf_block
@@ -148,32 +152,42 @@ contains
   
     netcdf_block: block
   
-      ! get variable ID
-      ierr = nf90_inq_varid(ncid, 'q_basin', varid_qbasin); if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_inq_varid(ncid, 'Q_reach', varid_Qreach); if(ierr/=nf90_noerr) exit netcdf_block
-  
       ! basin runoff
       start2_basin = (/1,          istart/)
       count2_basin = (/info%n_hru, numtim/)
       
-      ierr = nf90_put_var(ncid, varid_qbasin, &
-                          domain%river_network%driver%basin_runoff(:,1:numtim), &
-                          start=start2_basin, count=count2_basin)
-      if(ierr/=nf90_noerr) exit netcdf_block
+      if (info%mrout%write_qbasin) then
+        
+        ierr = nf90_inq_varid(ncid, 'q_basin', varid_qbasin)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        
+        ierr = nf90_put_var(ncid, varid_qbasin, &
+                            domain%river_network%driver%basin_runoff(:,1:numtim), &
+                            start=start2_basin, count=count2_basin)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      
+      endif
 
       ! reach stream for each active routing method
-      do iRoute = 1,size(domain%river_network%driver%method)
-
-        start3_reach = (/iRoute,          1, istart/)
-        count3_reach = (/     1, info%n_seg, numtim/)
- 
-        ierr = nf90_put_var(ncid, varid_Qreach, &
-                            domain%river_network%driver%method(iRoute)%streamflow(:,1:numtim), &
-                            start=start3_reach, count=count3_reach)
+      if (info%mrout%write_Qreach) then
+        
+        ierr = nf90_inq_varid(ncid, 'Q_reach', varid_Qreach)
         if(ierr/=nf90_noerr) exit netcdf_block
+        
+        do iRoute = 1,size(domain%river_network%driver%method)
 
-      enddo
-  
+          start3_reach = (/iRoute,          1, istart/)
+          count3_reach = (/     1, info%n_seg, numtim/)
+    
+          ierr = nf90_put_var(ncid, varid_Qreach, &
+                              domain%river_network%driver%method(iRoute)%streamflow(:,1:numtim), &
+                              start=start3_reach, count=count3_reach)
+          if(ierr/=nf90_noerr) exit netcdf_block
+
+        enddo
+
+      endif
+
     end block netcdf_block
   
     if(ierr/=nf90_noerr)then
