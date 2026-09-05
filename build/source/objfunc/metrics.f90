@@ -19,9 +19,12 @@ contains
   !   mae   : mean absolute error
   !   rmse  : root mean square error
   !
-  ! Optional streamflow transformations are applied before evaluating the metric.
+  ! Missing values are removed and the selected streamflow transformation is
+  ! applied before evaluating the metric.
   ! **************************************************************************************************
   subroutine compute_metric(obs,sim,metric,transfo,objective,err,message)
+
+    ! dummies
 
     real(rkind), intent(in)             :: obs(:)       ! observed streamflow
     real(rkind), intent(in)             :: sim(:)       ! simulated streamflow
@@ -34,16 +37,28 @@ contains
     integer(i4b), intent(out)           :: err          ! error code
     character(*), intent(out)           :: message      ! error message
 
+    ! locals
+
+    real(rkind), allocatable :: obsUse(:)
+    real(rkind), allocatable :: simUse(:)
+
+    character(len=256) :: cmessage
+
     err = 0
     message = 'compute_metric/'
 
+    ! remove missing values and conduct any transformations
+    call prepare_series(obs,sim,obsUse,simUse,transfo,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! compute selected metric
     select case(trim(metric))
 
-      case ('kge');  objective = get_kge(obs,sim,transfo)
-      case ('kgep'); objective = get_kgep(obs,sim,transfo)
-      case ('nse');  objective = get_nse(obs,sim,transfo)
-      case ('mae');  objective = get_mae(obs,sim,transfo)
-      case ('rmse'); objective = get_rmse(obs,sim,transfo)
+      case ('kge');  objective = get_kge( obsUse,simUse)
+      case ('kgep'); objective = get_kgep(obsUse,simUse)
+      case ('nse');  objective = get_nse( obsUse,simUse)
+      case ('mae');  objective = get_mae( obsUse,simUse)
+      case ('rmse'); objective = get_rmse(obsUse,simUse)
 
       case default
         message=trim(message)//'unknown objective-function metric "'//trim(metric)//'"'
@@ -57,10 +72,12 @@ contains
   ! **************************************************************************************************
   ! Prepare observed and simulated streamflow for metric calculation.
   !
-  ! Missing values are removed and the selected transformation is applied to
-  ! both observed and simulated streamflow.
+  ! Retain pairs where both observed and simulated streamflow are finite, then
+  ! apply the selected transformation to both series.
   ! **************************************************************************************************
-  subroutine prepare_series(obs,sim,obsUse,simUse,transfo)
+  subroutine prepare_series(obs,sim,obsUse,simUse,transfo,err,message)
+
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 
     real(rkind), intent(in)               :: obs(:)
     real(rkind), intent(in)               :: sim(:)
@@ -70,21 +87,42 @@ contains
 
     character(*), intent(in)              :: transfo
 
+    integer(i4b), intent(out)             :: err
+    character(*), intent(out)             :: message
+
     logical, allocatable :: valid(:)
 
     integer(i4b) :: n
 
-    valid = .not.(is_nan(obs) .or. is_nan(sim))
+    err = 0
+    message = 'prepare_series/'
+
+    ! check dimensions
+    if(size(obs)/=size(sim))then
+      message=trim(message)//'observed and simulated streamflow dimensions differ'
+      err=20; return
+    endif
+
+    ! identify finite observation-simulation pairs
+    valid = ieee_is_finite(obs) .and. ieee_is_finite(sim)
 
     n = count(valid)
 
+    if(n==0)then
+      message=trim(message)//'no valid observation-simulation pairs'
+      err=20; return
+    endif
+
+    ! retain only valid pairs
     allocate(obsUse(n),simUse(n))
 
     obsUse = pack(obs,valid)
     simUse = pack(sim,valid)
 
-    if(trim(transfo)/='none') &
+    ! apply streamflow transformation
+    if(trim(transfo)/='none')then
       call apply_transformation(obsUse,simUse,transfo)
+    endif
 
   end subroutine prepare_series
 
@@ -158,12 +196,10 @@ contains
   ! **************************************************************************************************
   ! Compute Kling-Gupta efficiency.
   ! **************************************************************************************************
-  function get_kge(obs,sim,transfo) result(kge)
+  function get_kge(obs,sim) result(kge)
 
     real(rkind), intent(in) :: obs(:)
     real(rkind), intent(in) :: sim(:)
-
-    character(*), intent(in) :: transfo
 
     real(rkind) :: kge
     real(rkind) :: r
@@ -174,18 +210,13 @@ contains
     real(rkind) :: sdObs
     real(rkind) :: sdSim
 
-    real(rkind), allocatable :: obsUse(:)
-    real(rkind), allocatable :: simUse(:)
+    meanObs = sum(obs)/size(obs)
+    meanSim = sum(sim)/size(sim)
 
-    call prepare_series(obs,sim,obsUse,simUse,transfo)
+    sdObs = standard_deviation(obs)
+    sdSim = standard_deviation(sim)
 
-    meanObs = sum(obsUse)/size(obsUse)
-    meanSim = sum(simUse)/size(simUse)
-
-    sdObs = standard_deviation(obsUse)
-    sdSim = standard_deviation(simUse)
-
-    r     = correlation(simUse,obsUse)
+    r     = correlation(sim,obs)
     alpha = sdSim/sdObs
     beta  = meanSim/meanObs
 
@@ -201,12 +232,10 @@ contains
   ! **************************************************************************************************
   ! Compute modified Kling-Gupta efficiency.
   ! **************************************************************************************************
-  function get_kgep(obs,sim,transfo) result(kgep)
+  function get_kgep(obs,sim) result(kgep)
 
     real(rkind), intent(in) :: obs(:)
     real(rkind), intent(in) :: sim(:)
-
-    character(*), intent(in) :: transfo
 
     real(rkind) :: kgep
     real(rkind) :: r
@@ -217,18 +246,13 @@ contains
     real(rkind) :: sdObs
     real(rkind) :: sdSim
 
-    real(rkind), allocatable :: obsUse(:)
-    real(rkind), allocatable :: simUse(:)
+    meanObs = sum(obs)/size(obs)
+    meanSim = sum(sim)/size(sim)
 
-    call prepare_series(obs,sim,obsUse,simUse,transfo)
+    sdObs = standard_deviation(obs)
+    sdSim = standard_deviation(sim)
 
-    meanObs = sum(obsUse)/size(obsUse)
-    meanSim = sum(simUse)/size(simUse)
-
-    sdObs = standard_deviation(obsUse)
-    sdSim = standard_deviation(simUse)
-
-    r      = correlation(simUse,obsUse)
+    r      = correlation(sim,obs)
     alphaP = (sdSim/meanSim)/(sdObs/meanObs)
     beta   = meanSim/meanObs
 
@@ -244,23 +268,16 @@ contains
   ! **************************************************************************************************
   ! Compute Nash-Sutcliffe efficiency.
   ! **************************************************************************************************
-  function get_nse(obs,sim,transfo) result(nse)
+  function get_nse(obs,sim) result(nse)
 
     real(rkind), intent(in) :: obs(:)
     real(rkind), intent(in) :: sim(:)
 
-    character(*), intent(in) :: transfo
-
     real(rkind) :: nse
 
-    real(rkind), allocatable :: obsUse(:)
-    real(rkind), allocatable :: simUse(:)
-
-    call prepare_series(obs,sim,obsUse,simUse,transfo)
-
     nse = 1._rkind - &
-          sum((obsUse-simUse)**2) / &
-          sum((obsUse-sum(obsUse)/size(obsUse))**2)
+          sum((obs-sim)**2) / &
+          sum((obs-sum(obs)/size(obs))**2)
 
     if(is_nan(nse)) nse = -1.e6_rkind
 
@@ -270,21 +287,14 @@ contains
   ! **************************************************************************************************
   ! Compute mean absolute error.
   ! **************************************************************************************************
-  function get_mae(obs,sim,transfo) result(mae)
+  function get_mae(obs,sim) result(mae)
 
     real(rkind), intent(in) :: obs(:)
     real(rkind), intent(in) :: sim(:)
 
-    character(*), intent(in) :: transfo
-
     real(rkind) :: mae
 
-    real(rkind), allocatable :: obsUse(:)
-    real(rkind), allocatable :: simUse(:)
-
-    call prepare_series(obs,sim,obsUse,simUse,transfo)
-
-    mae = sum(abs(obsUse-simUse))/size(obsUse)
+    mae = sum(abs(obs-sim))/size(obs)
 
     if(is_nan(mae)) mae = 1.e6_rkind
 
@@ -294,21 +304,14 @@ contains
   ! **************************************************************************************************
   ! Compute root mean square error.
   ! **************************************************************************************************
-  function get_rmse(obs,sim,transfo) result(rmse)
+  function get_rmse(obs,sim) result(rmse)
 
     real(rkind), intent(in) :: obs(:)
     real(rkind), intent(in) :: sim(:)
 
-    character(*), intent(in) :: transfo
-
     real(rkind) :: rmse
 
-    real(rkind), allocatable :: obsUse(:)
-    real(rkind), allocatable :: simUse(:)
-
-    call prepare_series(obs,sim,obsUse,simUse,transfo)
-
-    rmse = sqrt(sum((obsUse-simUse)**2)/size(obsUse))
+    rmse = sqrt(sum((obs-sim)**2)/size(obs))
 
     if(is_nan(rmse)) rmse = 1.e6_rkind
 
@@ -381,7 +384,7 @@ contains
     sdX = standard_deviation(x)
     sdY = standard_deviation(y)
 
-    r = sum((x-meanX)*(y-meanY))/(n*sdX*sdY)
+    r = sum((x-meanX)*(y-meanY))/((n-1)*sdX*sdY)
 
   end function correlation
 

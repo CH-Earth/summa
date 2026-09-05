@@ -157,6 +157,7 @@ set(OBJFNC
     ${OBJFNC_DIR}/read_flowobs.f90
     ${OBJFNC_DIR}/time_align.f90
     ${OBJFNC_DIR}/metrics.f90
+    ${OBJFNC_DIR}/write_evaluation.f90
     CACHE INTERNAL "OBJFNC")
 
 # Driver support modules

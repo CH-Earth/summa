@@ -16,10 +16,6 @@ USE globalData, only: iulog
 USE build_options, only: mizuroute_active
 USE build_options, only: openwq_active
 
-USE read_flowobs_module,  only: read_flow_observations
-USE timeseries_alignment, only: align_timeseries
-USE metrics,              only: compute_metric
-
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling,  only: get_mizuroute_streamflow
 #endif
@@ -115,6 +111,15 @@ contains
     use iso_fortran_env, only: error_unit
     use iso_fortran_env, only: output_unit
 
+    use globalData, only: ncid
+    use var_lookup, only: iLookFREQ
+    
+    use read_flowobs_module,     only: read_flow_observations
+    use timeseries_alignment,    only: align_timeseries
+    use metrics,                 only: compute_metric
+
+    use write_evaluation_module, only: write_evaluation
+
     ! dummy arguments
   
     integer(i4b), intent(in)           :: comm               ! MPI communicator
@@ -198,10 +203,21 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    
     ! compute objective function
-    call compute_metric(flowObsAligned,flowSimAligned,           &
-                        summa1_struc(n)%obj%metric,              &
-                        summa1_struc(n)%obj%transformation,      &
+    call compute_metric(flowObsAligned,flowSimAligned,               &
+                        summa1_struc(n)%obj%metric,                  &
+                        summa1_struc(n)%obj%transformation,          &
                         metric,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! write aligned evaluation time series and objective value
+    call write_evaluation(ncid(iLookFREQ%timestep),                  &
+                          timeAligned,                               &
+                          flowObsAligned,flowSimAligned,             &
+                          timeObsUnits,flowObsUnits,                 &
+                          summa1_struc(n)%obj%metric,                &
+                          summa1_struc(n)%obj%transformation,        &
+                          metric,                                    &
+                          err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     call finalize_summa(summa1_struc(n),err,cmessage)

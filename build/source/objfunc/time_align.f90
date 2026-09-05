@@ -2,7 +2,7 @@ module timeseries_alignment
 
   USE nr_type, only: i4b, rkind
 
-  USE, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
 
   implicit none
   private
@@ -71,10 +71,15 @@ contains
     integer(i4b) :: iSim
     integer(i4b) :: nMatch
 
+    real(rkind)  :: nanValue
+
     character(len=256) :: cmessage
 
     err = 0
     message = 'align_timeseries/'
+
+    ! set NaN
+    nanValue = ieee_value(0._rkind, ieee_quiet_nan)
 
     ! check array dimensions
 
@@ -183,18 +188,19 @@ contains
           if(timeSimSec(iSim)>tStart+tol .and. &
              timeSimSec(iSim)<=tEnd+tol)then
      
-            if(ieee_is_finite(flowSim(iSim)))then
-              simMean(iObs) = simMean(iObs)+flowSim(iSim)
-              nSim(iObs)    = nSim(iObs)+1
-            endif
+            simMean(iObs) = simMean(iObs)+flowSim(iSim)
+            nSim(iObs)    = nSim(iObs)+1
      
           endif
      
         enddo
      
         ! compute mean simulated flow over the observation period
-        if(nSim(iObs)>0) &
-          simMean(iObs)=simMean(iObs)/real(nSim(iObs),rkind)
+        if(nSim(iObs)>0)then
+          simMean(iObs) = simMean(iObs)/real(nSim(iObs),rkind)
+        else
+          simMean(iObs) = nanValue
+        endif
      
       endif
 
@@ -205,13 +211,12 @@ contains
     nMatch = 0
 
     do iObs=1,size(timeObs)
-
+    
       if(timeObsSec(iObs) >= evalStart .and. &
-         timeObsSec(iObs) <  evalEnd   .and. &
-         nSim(iObs)>0 .and. ieee_is_finite(flowObs(iObs)))then
+         timeObsSec(iObs) <  evalEnd)then
         nMatch=nMatch+1
       endif
-
+    
     enddo
 
     if(nMatch==0)then
@@ -220,28 +225,29 @@ contains
     endif
 
     ! allocate aligned arrays
-
+    
     allocate(timeAligned(nMatch))
     allocate(flowSimAligned(nMatch))
     allocate(flowObsAligned(nMatch))
-
+    
     ! populate aligned arrays
-
+    
     nMatch = 0
-
+    
     do iObs=1,size(timeObs)
-
-      if(nSim(iObs)>0 .and. ieee_is_finite(flowObs(iObs)))then
-
+    
+      if(timeObsSec(iObs) >= evalStart .and. &
+         timeObsSec(iObs) <  evalEnd)then
+    
         nMatch=nMatch+1
-
+    
         ! retain the original observation time coordinate
         timeAligned(nMatch)    = timeObs(iObs)
         flowSimAligned(nMatch) = simMean(iObs)
         flowObsAligned(nMatch) = flowObs(iObs)
-
+    
       endif
-
+    
     enddo
 
   end subroutine align_timeseries
