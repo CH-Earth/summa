@@ -222,11 +222,14 @@ target_include_directories(SUMMA_DATA_TYPES PUBLIC ${CMAKE_BINARY_DIR}/summa_dat
 
 if (USE_MPI)
     set(MAIN_SUMMA_MPI ${DRIVER_DIR}/summa_driver_mpi.f90)
+    set(MAIN_SUMMA_OPT ${DRIVER_DIR}/summa_driver_opt.f90)
 
     if (USE_SUNDIALS)
         set(EXEC_NAME_MPI summa_sundials_mpi.exe)
+        set(EXEC_NAME_OPT summa_sundials_opt.exe)
     else()
         set(EXEC_NAME_MPI summa_mpi.exe)
+        set(EXEC_NAME_OPT summa_opt.exe)
     endif()
 endif()
 
@@ -379,6 +382,14 @@ else()
     target_compile_options(${EXEC_NAME_MPI} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_MPI} PROPERTY LINKER_LANGUAGE Fortran)
     target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa parallel_utils)
+  endif()
+
+  # Parallel optimization SUMMA executable
+  if (USE_MPI)
+    add_executable(${EXEC_NAME_OPT} ${MAIN_SUMMA_OPT})
+    target_compile_options(${EXEC_NAME_OPT} PRIVATE ${FLAGS_ALL})
+    set_property(TARGET ${EXEC_NAME_OPT} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa parallel_utils)
   endif()
 
 endif()

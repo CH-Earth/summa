@@ -20,7 +20,7 @@
 
 MODULE summa_type
 
-! used to define master summa data structure
+! used to define the top-level summa data structure
 
 ! *****************************************************************************
 ! * higher-level derived data types
@@ -60,7 +60,7 @@ USE data_types,  only : &
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 
 USE data_types,      only: obs_fileinfo    ! information on the observation file
-USE data_types,      only: obj_info        ! choices for the objective function (metric, transformation) 
+USE data_types,      only: obj_info        ! choices for the objective function (metric, transformation)
 
 ! mizuRoute coupling
 #ifdef MIZUROUTE_ACTIVE
@@ -72,9 +72,40 @@ implicit none
 
 private
 
+! ***********************************************************************************************************
+! Configuration information shared across SUMMA simulations.
+!
+! Contains settings that are established during initial model configuration
+! and can be reused when initializing individual SUMMA model instances.
+! ***********************************************************************************************************
+
+type, public :: config_info
+
+! SUMMA configuration options from -g and -h
+integer(i4b)                     :: nGRU_user = -1             ! number of GRUs requested with CLI -g
+integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
+
+! parameter overrides supplied at runtime
+character(len=64), allocatable   :: param_name(:)              ! parameter names supplied through CLI
+real(rkind),       allocatable   :: param_value(:)             ! parameter values supplied through CLI
+
+! objective function
+type(obs_fileinfo)               :: obs                        ! observations file path/name, variable names, ...
+type(obj_info)                   :: obj                        ! choices for the objective function (transformation, metric)
+
+! file managers
+character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
+character(len=256)               :: summaConfigFile =''        ! path/name of the TOML configuration file
+
+#ifdef MIZUROUTE_ACTIVE
+type(mizuroute_info)             :: mizu_info                  ! mizuroute information structure
+#endif
+
+end type config_info
+
 ! ************************************************************************
 ! * parallel communication context
-! *****************************************************************************
+! ************************************************************************
 
 type, public :: parallel_context_type
   integer(I4B) :: comm = -1
@@ -83,9 +114,12 @@ type, public :: parallel_context_type
 end type parallel_context_type
 
 ! ************************************************************************
-! * master summa data type
+! * top-level summa data type
 ! *****************************************************************************
 type, public :: summa1_type_dec    
+
+! summa/mizuroute information
+type(config_info)                :: config                     ! summa/mizuroute configuration settings
 
 ! MPI communication context
 type(parallel_context_type)      :: parallel                   ! x%comm, x%rank, x%size
@@ -128,8 +162,6 @@ type(gru_d)                      :: dt_init                    ! used to initial
 type(gru_d)                      :: upArea                     ! area upslope of each HRU
 
 ! GRU and HRU dimensions
-integer(i4b)                     :: nGRU_user = -1             ! number of GRUs requested with CLI -g
-integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
 integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
 integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
 
@@ -141,23 +173,10 @@ type(hru2gru_map), allocatable   :: index_map(:)               ! hru2gru map
 real(dp)                         :: data_step                  ! length of the data window (seconds)
 integer(i4b)                     :: n_write                    ! length of the output buffer
 
-! parameter overrides supplied at runtime
-character(len=64), allocatable   :: param_name(:)              ! parameter names supplied through CLI
-real(rkind),       allocatable   :: param_value(:)             ! parameter values supplied through CLI
-
-! objective function
-type(obs_fileinfo)               :: obs                        ! observations file path/name, variable names, ...
-type(obj_info)                   :: obj                        ! choices for the objective function (transformation, metric) 
-
-! file managers
-character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
-character(len=256)               :: summaConfigFile =''        ! path/name of the TOML configuration file 
-
 ! generic runoff coupling data
 type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
 
 #ifdef MIZUROUTE_ACTIVE
-type(mizuroute_info)             :: mizu_info                  ! mizuroute information structure
 type(mizuroute_domain)           :: mizu_domain                ! mizuroute domain data
 #endif
 

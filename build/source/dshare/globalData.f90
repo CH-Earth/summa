@@ -289,6 +289,10 @@ MODULE globalData
   ! define fixed dimensions
   integer(i4b),parameter,public                  :: nSpecBand=2                       ! number of spectral bands
   integer(i4b),parameter,public                  :: nTimeDelay=2000                   ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
+  ! flag to read configuration
+  logical(lgt),save,public                       :: initConfig = .true.               ! .true. = read configuration files
   ! printing
   integer(i4b),save,public                       :: iulog = 6                         ! default logging directed to stdout
+  ! restart
+  character(len=:),  allocatable, save, public   :: restart_filename                  ! name of the restart file
 END MODULE globalData

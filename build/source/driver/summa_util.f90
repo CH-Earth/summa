@@ -24,7 +24,7 @@ module summa_util
 ! data types
 USE nr_type                             ! high-level data types
 USE data_types, only: cli_options       ! command-line-interface options
-USE summa_type, only: summa1_type_dec   ! master summa data type
+USE summa_type, only: config_info       ! summa configuation info
 
 ! named parameters
 
@@ -56,17 +56,17 @@ contains
  ! **************************************************************************************************
  ! * obtain the command line arguments
  ! **************************************************************************************************
- subroutine getCommandArguments(summa1_struc,err,message)
+ subroutine getCommandArguments(config, err, message)
  
  implicit none
  
  ! dummy variables
- type(summa1_type_dec),intent(inout)   :: summa1_struc        ! master summa data structure
- integer(i4b),intent(out)              :: err                 ! error code
- character(*),intent(out)              :: message             ! error message
+ type(config_info), intent(inout)       :: config              ! summa configuration info
+ integer(i4b),intent(out)               :: err                 ! error code
+ character(*),intent(out)               :: message             ! error message
 
- type(cli_options)                     :: cli_opts            ! command line interface options
- character(len=256)                    :: cmessage            ! error message of downwind routine
+ type(cli_options)                      :: cli_opts            ! command line interface options
+ character(len=256)                     :: cmessage            ! error message of downwind routine
 
  err=0
  message='getCommandArguments/'
@@ -76,7 +76,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! apply the command line arguments
- call apply_command_args(cli_opts,summa1_struc,err,cmessage)
+ call apply_command_args(cli_opts,config,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end subroutine getCommandArguments
@@ -426,7 +426,7 @@ contains
  ! **************************************************************************************************
  ! apply the command argyments
  ! **************************************************************************************************
- subroutine apply_command_args(opts, summa1_struc, err, message)
+ subroutine apply_command_args(opts, config, err, message)
 
    ! global run controls
    USE globalData, only: iRunMode
@@ -443,10 +443,10 @@ contains
    implicit none
 
    ! dummy variables
-   type(cli_options),     intent(in)    :: opts
-   type(summa1_type_dec), intent(inout) :: summa1_struc
-   integer(i4b),          intent(out)   :: err
-   character(*),          intent(out)   :: message
+   type(cli_options),       intent(in)    :: opts
+   type(config_info),       intent(inout) :: config
+   integer(i4b),            intent(out)   :: err
+   character(*),            intent(out)   :: message
 
    err = 0
    message = 'apply_command_args/'
@@ -461,8 +461,8 @@ contains
      ixProgress    = ixProgress_never
      iRunMode      = iRunModeGRU
    
-     summa1_struc%nGRU_user  = 1
-     summa1_struc%nHRU_check = integerMissing
+     config%nGRU_user  = 1
+     config%nHRU_check = integerMissing
    
      return
    
@@ -471,10 +471,10 @@ contains
    ! *** file names and output controls
 
    if(allocated(opts%master_file)) &
-     summa1_struc%summaFileManagerFile = opts%master_file
+     config%summaFileManagerFile = opts%master_file
 
    if(allocated(opts%config_file)) &
-     summa1_struc%summaConfigFile = opts%config_file
+     config%summaConfigFile = opts%config_file
 
    if(allocated(opts%suffix)) &
      output_fileSuffix = opts%suffix
@@ -495,16 +495,16 @@ contains
        startGRU = 1
        checkHRU = integerMissing
    
-       summa1_struc%nGRU_user  = integerMissing
-       summa1_struc%nHRU_check = integerMissing
+       config%nGRU_user  = integerMissing
+       config%nHRU_check = integerMissing
    
    
      case (iRunModeHRU)
    
        checkHRU = opts%hru_index
    
-       summa1_struc%nHRU_check = 1
-       summa1_struc%nGRU_user  = 1
+       config%nHRU_check = 1
+       config%nGRU_user  = 1
    
        startGRU = integerMissing
    
@@ -513,8 +513,8 @@ contains
    
        startGRU = opts%start_gru
    
-       summa1_struc%nGRU_user  = opts%count_gru
-       summa1_struc%nHRU_check = integerMissing
+       config%nGRU_user  = opts%count_gru
+       config%nHRU_check = integerMissing
    
        checkHRU = integerMissing
    
@@ -530,8 +530,8 @@ contains
    ! *** parameter overrides passed through the CLI
 
    if(allocated(opts%param_name))then
-     summa1_struc%param_name  = opts%param_name
-     summa1_struc%param_value = opts%param_value
+     config%param_name  = opts%param_name
+     config%param_value = opts%param_value
    endif
 
    ! *** informational output
@@ -544,7 +544,7 @@ contains
 
      case (iRunModeGRU)
        write(iulog,'(A,I0,A)') &
-         ' GRU-parallelization run activated. ', summa1_struc%nGRU_user,' GRUs are selected for simulation.'
+         ' GRU-parallelization run activated. ', config%nGRU_user,' GRUs are selected for simulation.'
 
    end select
 

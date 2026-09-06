@@ -52,16 +52,18 @@ contains
     err = 0
     message = 'read_flow_observations/'
 
+    associate(obs => summaStruc%config%obs)
+
     ! check that the observation file information is defined
-    if(.not.allocated(summaStruc%obs%obs_path) .or. &
-       .not.allocated(summaStruc%obs%obs_file))then
+    if(.not.allocated(obs%obs_path) .or. &
+       .not.allocated(obs%obs_file))then
        message=trim(message)//'observation file path or filename is not defined'
        err=20; return
     endif
 
     ! check that the variable name is defined
-    if(allocated(summaStruc%obs%vname_obsflow))then
-      vname_obsflow = trim(summaStruc%obs%vname_obsflow)
+    if(allocated(obs%vname_obsflow))then
+      vname_obsflow = trim(obs%vname_obsflow)
     else
       vname_obsflow = 'q_obs'
     endif
@@ -71,8 +73,8 @@ contains
     netcdf_block: block
 
       ! open observation file
-      err = nf90_open(trim(summaStruc%obs%obs_path)// &
-                      trim(summaStruc%obs%obs_file), NF90_NOWRITE, ncid)
+      err = nf90_open(trim(obs%obs_path)// &
+                      trim(obs%obs_file), NF90_NOWRITE, ncid)
       if(err/=nf90_noerr) exit netcdf_block
       file_open = .true.
 
@@ -147,6 +149,8 @@ contains
     endif
 
     err = 0
+
+    end associate
 
   end subroutine read_flow_observations
 

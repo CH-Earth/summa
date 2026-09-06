@@ -3,9 +3,9 @@ module summa_config
 use build_options, only: mizuroute_active
 
 USE nr_type
-USE summa_type, only:summa1_type_dec
+USE summa_type, only: config_info       ! summa configuation info
 
-USE globalData, only: iulog          ! I/O unit for logging messages
+USE globalData, only: iulog             ! I/O unit for logging messages
 
 USE globalData, only: iRunMode, iRunModeFull
 
@@ -32,7 +32,7 @@ public :: load_summa_config
 
 contains
 
-  subroutine load_summa_config(config_file, summaStruct, err, message)
+  subroutine load_summa_config(config_file, config, err, message)
 
 
   use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
@@ -40,17 +40,17 @@ contains
 
   implicit none
 
-  character(*),          intent(in)    :: config_file
-  type(summa1_type_dec), intent(inout) :: summaStruct
-  integer,               intent(out)   :: err
-  character(*),          intent(out)   :: message
+  character(*),            intent(in)    :: config_file
+  type(config_info),       intent(inout) :: config
+  integer,                 intent(out)   :: err
+  character(*),            intent(out)   :: message
 
   ! TOML table
-  type(toml_table),      allocatable   :: table       ! root TOML table
-  type(toml_table),      pointer       :: subtable    ! sub-table for a given section
-  type(toml_key),        allocatable   :: sections(:) ! top-level sections
-  type(toml_key),        allocatable   :: keys(:)     ! sub-table keys
-  type(toml_error),      allocatable   :: error
+  type(toml_table),        allocatable   :: table       ! root TOML table
+  type(toml_table),        pointer       :: subtable    ! sub-table for a given section
+  type(toml_key),          allocatable   :: sections(:) ! top-level sections
+  type(toml_key),          allocatable   :: keys(:)     ! sub-table keys
+  type(toml_error),        allocatable   :: error
 
   ! locals
   integer(i4b)       :: i, j
@@ -81,7 +81,7 @@ contains
   ! ----- get the top-level sections -----
   call table%get_keys(sections)
   if(.not.allocated(sections)) then
-    message = trim(message)//"problem loading toml sections['"//trim(summaStruct%summaConfigFile)//"']"
+    message = trim(message)//"problem loading toml sections['"//trim(config%summaConfigFile)//"']"
     err=10; return
   endif
 
@@ -91,7 +91,7 @@ contains
     ! ----- load the TOML sub-table for the current section -----
     call get_value(table, trim(sections(i)%key), subtable, requested=.false.)
     if(.not.associated(subtable)) then
-      message = trim(message)//"problem loading toml sub-sections['"//trim(summaStruct%summaConfigFile)//"']:"//trim(sections(i)%key)
+      message = trim(message)//"problem loading toml sub-sections['"//trim(config%summaConfigFile)//"']:"//trim(sections(i)%key)
       err=10; return
     endif
 
@@ -111,7 +111,7 @@ contains
             call parse_mizuroute_config(subtable,              &
                                         trim(sections(i)%key), &
                                         trim(keys(j)%key),     &
-                                        summaStruct, err, cmessage)
+                                        config, err, cmessage)
             if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
           endif
 
@@ -121,7 +121,7 @@ contains
           call parse_objective_config(subtable,              &
                                       trim(sections(i)%key), &
                                       trim(keys(j)%key),     &
-                                      summaStruct, err, cmessage)
+                                      config, err, cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         ! ----- no other sections implemented -----
@@ -136,14 +136,6 @@ contains
 
   ! ----- check mizuRoute execution constraints -----
 
-  ! Coupled mizuRoute currently requires the complete SUMMA domain on a single process.
-  ! River-network routing cannot be performed independently for each SUMMA domain partition.
-  if (mizuroute_active .and. summaStruct%parallel%size > 1) then
-    message=trim(message)//'Coupled mizuRoute does not support SUMMA domain parallelization; '// &
-                           'use standalone mizuRoute for parallel river routing.'
-    err=20; return
-  endif
-
   ! Coupled mizuRoute requires the complete set of SUMMA GRUs because runoff from upstream
   ! GRUs may contribute to river reaches outside the selected SUMMA subdomain.
   if (mizuroute_active .and. iRunMode /= iRunModeFull) then
@@ -155,19 +147,19 @@ contains
   ! ----- set default objective function settings -----
 
   ! set default objective-function metric
-  if(.not.allocated(summaStruct%obj%metric))then
-    summaStruct%obj%metric = 'kge'
+  if(.not.allocated(config%obj%metric))then
+    config%obj%metric = 'kge'
     write(iulog,*) 'WARNING: objective metric not specified; using kge'
   endif
   
   ! set default objective-function transformation
-  if(.not.allocated(summaStruct%obj%transformation))then
-    summaStruct%obj%transformation = 'none'
+  if(.not.allocated(config%obj%transformation))then
+    config%obj%transformation = 'none'
     write(iulog,*) 'WARNING: objective transformation not specified; using none'
   endif
 
   ! check start_date and end_date are defined
-  if(.not.allocated(summaStruct%obj%start_date) .or. .not.allocated(summaStruct%obj%start_date) )then
+  if(.not.allocated(config%obj%start_date) .or. .not.allocated(config%obj%end_date) )then
     message=trim(message)//'Objective function start_date or end_date are not defined'
     err=20; return
   endif
@@ -182,7 +174,7 @@ contains
  ! Parse observation and objective-function configuration.
  ! **************************************************************************************************
 
-  subroutine parse_objective_config(subtable, section, key, summaStruct, ierr, message)
+  subroutine parse_objective_config(subtable, section, key, config, ierr, message)
 
   use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
   use tomlf_all, only: toml_load, get_value, len                                ! procedures
@@ -190,14 +182,14 @@ contains
   type(toml_table), pointer, intent(in)    :: subtable
   character(*),              intent(in)    :: section
   character(*),              intent(in)    :: key
-  type(summa1_type_dec),     intent(inout) :: summaStruct
+  type(config_info),         intent(inout) :: config
   integer,                   intent(out)   :: ierr
   character(*),              intent(out)   :: message
 
   integer(i4b)       :: istat
 
-  associate(obs => summaStruct%obs, &
-            obj => summaStruct%obj)
+  associate(obs => config%obs, &
+            obj => config%obj)
 
   ierr    = 0
   message = 'parse_obs_config/'

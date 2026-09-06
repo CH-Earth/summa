@@ -1,7 +1,7 @@
 module mizuroute_config
 
-  USE nr_type
-  USE summa_type, only:summa1_type_dec
+ USE nr_type
+ USE summa_type, only: config_info ! summa configuation info
 
   implicit none
   private
@@ -10,7 +10,7 @@ module mizuroute_config
 
 contains
 
-  subroutine parse_mizuroute_config(subtable, section, key, summaStruct, ierr, message)
+  subroutine parse_mizuroute_config(subtable, section, key, config, ierr, message)
   
   use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
   use tomlf_all, only: toml_load, get_value, len                                ! procedures
@@ -18,13 +18,13 @@ contains
   type(toml_table), pointer, intent(in)    :: subtable
   character(*),              intent(in)    :: section
   character(*),              intent(in)    :: key
-  type(summa1_type_dec),     intent(inout) :: summaStruct
+  type(config_info),         intent(inout) :: config
   integer,                   intent(out)   :: ierr
   character(*),              intent(out)   :: message
 
   integer(i4b)       :: istat
 
-  associate(info => summaStruct%mizu_info)
+  associate(info => config%mizu_info)
 
   ierr    = 0
   message = 'parse_mizuroute_config/'

@@ -121,8 +121,8 @@ contains
 
  ! caller-supplied parameters take precedence over CLI supplied parameters
  if(size(param_name)>0)then
-   summa1_struc%param_name  = param_name
-   summa1_struc%param_value = param_value
+   summa1_struc%config%param_name  = param_name
+   summa1_struc%config%param_value = param_value
  endif
 
  ! initialize model parameters and static HRU attributes
@@ -135,12 +135,12 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! overwrite parameters with user-specified parameter values
- if(allocated(summa1_struc%param_name))then
+ if(allocated(summa1_struc%config%param_name))then
 
-   call apply_overrides(nGRU_local,                  &
-                        summa1_struc%param_name,     &
-                        summa1_struc%param_value,    &
-                        mparStruct, bparStruct,      &
+   call apply_overrides(nGRU_local,                         &
+                        summa1_struc%config%param_name,     &
+                        summa1_struc%config%param_value,    &
+                        mparStruct, bparStruct,             &
                         err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

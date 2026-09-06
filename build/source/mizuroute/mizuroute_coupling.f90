@@ -245,7 +245,7 @@ contains
   ierr = 0
   message = 'init_mizuroute_from_summa/'
   
-  associate(info     => summaStruct%mizu_info,   &
+  associate(info     => summaStruct%config%mizu_info,   &
             domain   => summaStruct%mizu_domain  )
 
   ! -----------------------------------------------------------------------
@@ -316,7 +316,7 @@ contains
   ierr    = 0
   message = 'route_mizuroute_from_summa/'
   
-  associate(info   => summaStruct%mizu_info,   &
+  associate(info   => summaStruct%config%mizu_info,   &
             domain => summaStruct%mizu_domain)
   
     ! Determine the index of the output buffer (if writePerStep n_write=1)
@@ -357,9 +357,9 @@ contains
   ierr = 0
   message = 'define_mizuroute_output_from_summa/'
   
-  call define_mizuroute_output(ncid,                      &
-                               summaStruct%mizu_info,     &
-                               summaStruct%mizu_domain,   &
+  call define_mizuroute_output(ncid,                          &
+                               summaStruct%config%mizu_info,  &
+                               summaStruct%mizu_domain,       &
                                ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
   
@@ -388,11 +388,11 @@ contains
   ierr = 0
   message = 'write_mizuroute_output_from_summa/'
 
-  call write_mizuroute_output(ncid,                    &
-                              istart,                   &
-                              numtim,                   &
-                              summaStruct%mizu_info,    &
-                              summaStruct%mizu_domain,  &
+  call write_mizuroute_output(ncid,                         &
+                              istart,                       &
+                              numtim,                       &
+                              summaStruct%config%mizu_info, &
+                              summaStruct%mizu_domain,      &
                               ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -414,7 +414,7 @@ contains
   integer(i4b) :: ixSeg
 
   idx_buff = merge(1, modelTimeStep, summaStruct%n_write == 1)
-  ixSeg    = summaStruct%mizu_info%ntopo%ixSegOut
+  ixSeg    = summaStruct%config%mizu_info%ntopo%ixSegOut
 
   simFlow = &
     summaStruct%mizu_domain%river_network%driver%method(1)%streamflow(ixSeg,idx_buff)

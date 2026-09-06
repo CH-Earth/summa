@@ -21,6 +21,11 @@
 module summa_init
 ! used to declare and allocate summa data structures and initialize model state to known values
 
+! data types
+USE nr_type                            ! variable types, etc.
+USE summa_type, only: summa1_type_dec  ! top-level summa data type
+USE summa_type, only: config_info      ! summa configuation info
+
 ! check if mizuroute is active
 use build_options, only: mizuroute_active
 use build_options, only: ngen_forcing_active
@@ -34,7 +39,8 @@ USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
 ! global data 
-USE globalData,only:data_step        ! length of the data step (s)
+USE globalData, only: initConfig     ! flag to initialize model configuration (read control files etc.)
+USE globalData, only: data_step      ! length of the data step (s)
 USE globalData, only: iulog          ! I/O unit for logging messages 
 
 ! output constraints
@@ -80,26 +86,19 @@ USE mDecisions_module,only:&
  writePerStep,   &                      ! write data per time step (default)
  writeFullSeries                        ! write all data for a given output file
 
+
 ! safety: set private unless specified otherwise
 implicit none
 private
+public::init_config
 public::summa_initialize
 contains
 
 ! used to declare and allocate summa data structures and initialize model state to known values
-subroutine summa_initialize(summa1_struc, err, message)
+subroutine summa_initialize(config, summa1_struc, err, message)
   ! ---------------------------------------------------------------------------------------
   ! * desired modules
   ! ---------------------------------------------------------------------------------------
-  ! data types
-  USE nr_type                                                 ! variable types, etc.
-  USE summa_type, only:summa1_type_dec                        ! master summa data type
-  ! subroutines and functions: initial priming
-  USE summa_util, only:getCommandArguments                    ! process command line arguments
-  USE summaFileManager,only:summa_SetTimesDirsAndFiles        ! sets directories and filenames
-  USE summa_globalData,only:summa_defineGlobalData            ! used to define global summa data structures
-  USE summa_config,only:load_summa_config                     ! load TOML configuration settings (for parsing later)
-  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
   ! subroutines and functions: parallelization
   USE summa_work_balance,only:balance_even                    ! module to identify start/end indices for a given rank
   ! subroutines and functions: read dimensions (NOTE: NetCDF)
@@ -114,6 +113,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE mDecisions_module,only:mDecisions                       ! module to read model decisions
   USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
   ! timing variables
+  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
   USE globalData,only:startInit,endInit                       ! date/time for the start and end of the initialization
   USE globalData,only:elapsedInit                             ! elapsed time for the initialization
   USE globalData,only:elapsedRead                             ! elapsed time for the data read
@@ -140,7 +140,8 @@ subroutine summa_initialize(summa1_struc, err, message)
   ! ---------------------------------------------------------------------------------------
   implicit none
   ! dummy variables
-  type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
+  type(config_info),intent(inout)       :: config             ! configuration info
+  type(summa1_type_dec),intent(inout)   :: summa1_struc       ! top-level summa data structure
   integer(i4b),intent(out)              :: err                ! error code
   character(*),intent(out)              :: message            ! error message
   ! local variables
@@ -155,43 +156,43 @@ subroutine summa_initialize(summa1_struc, err, message)
   integer(i4b)                          :: startGRU_domain    ! file index of first GRU in the run domain
   integer(i4b)                          :: nGRU_domain        ! number of GRUs in the run domain
   ! ---------------------------------------------------------------------------------------
+  ! initialize error control
+  err=0; message='summa_initialize/'
+
+  ! initialize the start of the initialization
+  call date_and_time(values=startInit)
+
+  ! *****************************************************************************
+  ! *** inital priming -- get command line arguments, identify files, etc.
+  ! *****************************************************************************
+
+  ! initialize the netcdf file id
+  ncid(:) = integerMissing
+
+  ! initialize the elapsed time for cumulative quantities
+  elapsedRead=0._rkind
+  elapsedWrite=0._rkind
+  elapsedPhysics=0._rkind
+
+  if (initConfig) then
+
+    call init_config(config, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  endif
+
+  ! populate the top-level summa data structure
+  summa1_struc%config = config
+
+  ! *****************************************************************************
+  ! *** Associate local names with components of the top-level SUMMA structure.
+  ! *****************************************************************************
+
   ! associate to elements in the data structure
   summaVars: associate(&
     
     ! parallel execution context
     parallel             => summa1_struc%parallel            , & ! x%comm, x%rank, x%size -- parallel execution context
-
-    ! lookup table data structure
-    lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
-    
-    ! statistics structures
-    forcStat             => summa1_struc%forcStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
-    progStat             => summa1_struc%progStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-    diagStat             => summa1_struc%diagStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-    fluxStat             => summa1_struc%fluxStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-    indxStat             => summa1_struc%indxStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-    bvarStat             => summa1_struc%bvarStat            , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-
-    ! primary data structures (scalars)
-    timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                   -- model time data
-    forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-    attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-    typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-    idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     --
-
-    ! primary data structures (variable length vectors)
-    indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-    mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
-    progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-    diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-    fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-
-    ! basin-average structures
-    bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
-    bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-
-    ! ancillary data structures
-    dparStruct           => summa1_struc%dparStruct          , & ! x%gru(:)%hru(:)%var(:)     -- default model parameters
 
     ! run time variables
     computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -199,49 +200,16 @@ subroutine summa_initialize(summa1_struc, err, message)
     upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
 
     ! GRU and HRU dimensions
-    nGRU_user            => summa1_struc%nGRU_user           , & ! number of GRUs assigned to the current rank 
+    nGRU_user            => summa1_struc%config%nGRU_user    , & ! number of GRUs selected by the user
     nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to the current rank 
     nHRU_local           => summa1_struc%nHRU_local          , & ! number of HRUs assigned to the current rank
 
     ! manager file
-    summaFileManagerFile => summa1_struc%summaFileManagerFile, & ! path/name of file defining directories and files
-    summaConfigFile      => summa1_struc%summaConfigFile       & ! path/name of summa configuration file
+    summaFileManagerFile => summa1_struc%config%summaFileManagerFile, & ! path/name of file defining directories and files
+    summaConfigFile      => summa1_struc%config%summaConfigFile       & ! path/name of summa configuration file
 
-    ) ! assignment to variables in the data structures
+    ) ! associate components of the top-level SUMMA structure 
     ! ---------------------------------------------------------------------------------------
-    ! initialize error control
-    err=0; message='summa_initialize/'
-
-    ! initialize the start of the initialization
-    call date_and_time(values=startInit)
-
-    ! *****************************************************************************
-    ! *** inital priming -- get command line arguments, identify files, etc.
-    ! *****************************************************************************
-
-    ! initialize the netcdf file id
-    ncid(:) = integerMissing
-
-    ! initialize the elapsed time for cumulative quantities
-    elapsedRead=0._rkind
-    elapsedWrite=0._rkind
-    elapsedPhysics=0._rkind
-
-    ! get the command line arguments
-    call getCommandArguments(summa1_struc,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! load configuration settings from TOML file
-    call load_summa_config(trim(summaConfigFile), summa1_struc, err, cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! set directories and files -- summaFileManager used as command-line argument
-    call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! define global data (parameters, metadata)
-    call summa_defineGlobalData(err, cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! *****************************************************************************
     ! *** define spatial indexing and the run domain
@@ -375,19 +343,19 @@ subroutine summa_initialize(summa1_struc, err, message)
     do iStruct=1,size(structInfo)
       ! allocate space
       select case(trim(structInfo(iStruct)%structName))
-        case('time'  ); call allocGlobal(time_meta,    timeStruct,    err, cmessage)   ! model time data
-        case('forc'  ); call allocGlobal(forc_meta,    forcStruct,    err, cmessage)   ! model forcing data
-        case('attr'  ); call allocGlobal(attr_meta,    attrStruct,    err, cmessage)   ! local attributes for each HRU
-        case('type'  ); call allocGlobal(type_meta,    typeStruct,    err, cmessage)   ! local classification of soil veg etc. for each HRU
-        case('id'    ); call allocGlobal(id_meta,      idStruct,      err, cmessage)   ! local values of hru and gru IDs
-        case('mpar'  ); call allocGlobal(mpar_meta,    mparStruct,    err, cmessage)   ! model parameters
-        case('indx'  ); call allocGlobal(indx_meta,    indxStruct,    err, cmessage)   ! model variables
-        case('prog'  ); call allocGlobal(prog_meta,    progStruct,    err, cmessage)   ! model prognostic (state) variables
-        case('diag'  ); call allocGlobal(diag_meta,    diagStruct,    err, cmessage)   ! model diagnostic variables
-        case('flux'  ); call allocGlobal(flux_meta,    fluxStruct,    err, cmessage)   ! model fluxes
-        case('bpar'  ); call allocGlobal(bpar_meta,    bparStruct,    err, cmessage)   ! basin-average parameters
-        case('bvar'  ); call allocGlobal(bvar_meta,    bvarStruct,    err, cmessage)   ! basin-average variables
-        case('lookup'); call allocGlobal(lookup_meta,  lookupStruct,  err, cmessage)   ! lookup tables
+        case('time'  ); call allocGlobal(time_meta,   summa1_struc%timeStruct,    err, cmessage)   ! model time data
+        case('forc'  ); call allocGlobal(forc_meta,   summa1_struc%forcStruct,    err, cmessage)   ! model forcing data
+        case('attr'  ); call allocGlobal(attr_meta,   summa1_struc%attrStruct,    err, cmessage)   ! local attributes for each HRU
+        case('type'  ); call allocGlobal(type_meta,   summa1_struc%typeStruct,    err, cmessage)   ! local classification of soil veg etc. for each HRU
+        case('id'    ); call allocGlobal(id_meta,     summa1_struc%idStruct,      err, cmessage)   ! local values of hru and gru IDs
+        case('mpar'  ); call allocGlobal(mpar_meta,   summa1_struc%mparStruct,    err, cmessage)   ! model parameters
+        case('indx'  ); call allocGlobal(indx_meta,   summa1_struc%indxStruct,    err, cmessage)   ! model variables
+        case('prog'  ); call allocGlobal(prog_meta,   summa1_struc%progStruct,    err, cmessage)   ! model prognostic (state) variables
+        case('diag'  ); call allocGlobal(diag_meta,   summa1_struc%diagStruct,    err, cmessage)   ! model diagnostic variables
+        case('flux'  ); call allocGlobal(flux_meta,   summa1_struc%fluxStruct,    err, cmessage)   ! model fluxes
+        case('bpar'  ); call allocGlobal(bpar_meta,   summa1_struc%bparStruct,    err, cmessage)   ! basin-average parameters
+        case('bvar'  ); call allocGlobal(bvar_meta,   summa1_struc%bvarStruct,    err, cmessage)   ! basin-average variables
+        case('lookup'); call allocGlobal(lookup_meta, summa1_struc%lookupStruct,  err, cmessage)   ! lookup tables
         case('deriv' ); cycle ! derivatives are not stored in the data structure, but are instead computed on the fly and stored in local variables
         case default; err=20; message='unable to find structure name: '//trim(structInfo(iStruct)%structName)
       end select
@@ -400,9 +368,9 @@ subroutine summa_initialize(summa1_struc, err, message)
 
     ! allocate space for default model parameters
     ! NOTE: This is done here, rather than in the loop above, because dpar is not one of the "standard" data structures
-    call allocGlobal(mpar_meta,dparStruct,err,cmessage)   ! default model parameters
+    call allocGlobal(mpar_meta,summa1_struc%dparStruct,err,cmessage)   ! default model parameters
     if(err/=0)then
-      message=trim(message)//trim(cmessage)//' [problem allocating dparStruct]'
+      message=trim(message)//trim(cmessage)//' [problem allocating summa1_struc%dparStruct]'
       return
     endif
 
@@ -419,12 +387,12 @@ subroutine summa_initialize(summa1_struc, err, message)
 
       ! allocate space
       select case(trim(structInfo(iStruct)%structName))
-        case('forc'); call allocGlobal(statForc_meta(:)%var_info,forcStat,err,cmessage)   ! model forcing data
-        case('prog'); call allocGlobal(statProg_meta(:)%var_info,progStat,err,cmessage)   ! model prognostic (state) variables
-        case('diag'); call allocGlobal(statDiag_meta(:)%var_info,diagStat,err,cmessage)   ! model diagnostic variables
-        case('flux'); call allocGlobal(statFlux_meta(:)%var_info,fluxStat,err,cmessage)   ! model fluxes
-        case('indx'); call allocGlobal(statIndx_meta(:)%var_info,indxStat,err,cmessage)   ! index vars
-        case('bvar'); call allocGlobal(statBvar_meta(:)%var_info,bvarStat,err,cmessage)   ! basin-average variables
+        case('forc'); call allocGlobal(statForc_meta(:)%var_info,summa1_struc%forcStat,err,cmessage)   ! model forcing data
+        case('prog'); call allocGlobal(statProg_meta(:)%var_info,summa1_struc%progStat,err,cmessage)   ! model prognostic (state) variables
+        case('diag'); call allocGlobal(statDiag_meta(:)%var_info,summa1_struc%diagStat,err,cmessage)   ! model diagnostic variables
+        case('flux'); call allocGlobal(statFlux_meta(:)%var_info,summa1_struc%fluxStat,err,cmessage)   ! model fluxes
+        case('indx'); call allocGlobal(statIndx_meta(:)%var_info,summa1_struc%indxStat,err,cmessage)   ! index vars
+        case('bvar'); call allocGlobal(statBvar_meta(:)%var_info,summa1_struc%bvarStat,err,cmessage)   ! basin-average variables
         case default; cycle
       end select
 
@@ -490,6 +458,14 @@ subroutine summa_initialize(summa1_struc, err, message)
     
     if (mizuroute_active) then
 
+      ! Coupled mizuRoute currently requires the complete SUMMA domain on a single process.
+      ! River-network routing cannot be performed independently for each SUMMA domain partition.
+      if (parallel%size > 1) then
+        message=trim(message)//'Coupled mizuRoute does not support SUMMA domain parallelization; '// &
+                               'use standalone mizuRoute for parallel river routing.'
+        err=20; return
+      endif
+
       ! allocate data structure for mizuroute coupling
       allocate(summa1_struc%coupling(nGRU_local), stat=err)
       if(err/=0)then
@@ -546,5 +522,56 @@ subroutine summa_initialize(summa1_struc, err, message)
   !stop 'end of summa_initialize'
 
 end subroutine summa_initialize
+
+
+! **************************************************************************************************
+! Initialize SUMMA configuration and global metadata.
+!
+! This routine performs one-time model priming by reading command-line arguments,
+! loading TOML configuration settings, setting file paths and simulation times from
+! the file manager, and defining persistent global metadata structures.
+!
+! It is intended to be called once per process before one or more SUMMA simulations.
+! Subsequent simulations can reuse the initialized configuration without rereading
+! the command line or rebuilding global metadata.
+! **************************************************************************************************
+
+subroutine init_config(config ,err, message)
+
+  USE summa_util,       only: getCommandArguments
+  USE summaFileManager, only: summa_SetTimesDirsAndFiles
+  USE summa_globalData, only: summa_defineGlobalData
+  USE summa_config,     only: load_summa_config
+
+  implicit none
+
+  type(config_info)      , intent(inout) :: config
+  integer(i4b)           , intent(out)   :: err
+  character(*)           , intent(out)   :: message
+
+  character(len=256) :: cmessage
+
+  err=0; message='init_config/'
+
+  ! get command-line arguments
+  call getCommandArguments(config, err, cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! load configuration settings from TOML file
+  call load_summa_config(trim(config%summaConfigFile), config, &
+                         err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! set directories and files
+  call summa_SetTimesDirsAndFiles(config%summaFileManagerFile, err, cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! define global data (parameters, metadata)
+  call summa_defineGlobalData(err, cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+end subroutine init_config
+
+
 
 end module summa_init

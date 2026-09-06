@@ -25,6 +25,7 @@ program summa_driver_mpi
   ! * module access *
   ! data types
   USE nr_type, only: i4b, rkind                               ! variable types, etc.
+  USE summa_type, only: config_info                           ! summa configuration
   USE mpi, only : MPI_COMM_WORLD, MPI_SUCCESS                 ! MPI constants
   
   ! subroutines and functions: MPI 
@@ -43,6 +44,9 @@ program summa_driver_mpi
   ! MPI
   integer(i4b) :: rank = 0
   integer(i4b) :: size = 1
+
+  ! configuration info
+  type(config_info)              :: config
 
   ! parameters
   character(len=64), allocatable :: param_name(:)
@@ -72,9 +76,14 @@ program summa_driver_mpi
   call set_mpi_context(MPI_COMM_WORLD, rank, size, mpi_err, mpi_message)
   if (mpi_err /= MPI_SUCCESS) call abort_mpi(rank, trim(mpi_message)) 
 
-  call run_simulation(MPI_COMM_WORLD, rank, size,              &
+  ! no externally supplied parameter overrides
+  allocate(param_name(0))
+  allocate(param_value(0))
+
+  call run_simulation(config,                                  &
+                      MPI_COMM_WORLD, rank, size,              &
                       timeSim, flowSim, timeUnits, flowUnits,  &
-                      param_name, param_value,  &
+                      param_name, param_value,                 &
                       err, message)
   call handle_err(err, message)
 

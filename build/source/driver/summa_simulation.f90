@@ -2,6 +2,7 @@ module summa_simulation
 
 USE nr_type, only: i4b, rkind
 USE summa_type, only: summa1_type_dec
+USE summa_type, only: config_info
 
 USE summa_init, only: summa_initialize
 USE summa_setup, only: summa_paramSetup
@@ -29,6 +30,8 @@ USE summa_openwq, only: openwq_run_space_step
 USE summa_openwq, only: openwq_run_time_end
 #endif
 
+! module-level data structure to share configurations
+
 implicit none
 private
 
@@ -43,49 +46,55 @@ contains
   ! simulation, and finalization are handled internally.
   ! **************************************************************************************************
 
-  subroutine run_simulation(comm, rank, nproc,         &
+  subroutine run_simulation(config,                   &
+                            comm, rank, nproc,        &
                             timeSim, flowSim,         &
                             timeUnits, flowUnits,     &
                             param_name, param_value,  &
                             err, message)
     ! dummy arguments
    
-    integer(i4b), intent(in)                   :: comm            ! MPI communicator
-    integer(i4b), intent(in)                   :: rank            ! MPI rank
-    integer(i4b), intent(in)                   :: nproc           ! number of MPI processes
+    type(config_info)            , intent(inout)    :: config          ! configuration info
+    
+    integer(i4b)                 , intent(in)       :: comm            ! MPI communicator
+    integer(i4b)                 , intent(in)       :: rank            ! MPI rank
+    integer(i4b)                 , intent(in)       :: nproc           ! number of MPI processes
    
-    real(rkind), allocatable, intent(out)      :: timeSim(:)      ! simulation time
-    real(rkind), allocatable, intent(out)      :: flowSim(:)      ! simulated streamflow
+    real(rkind)     , allocatable, intent(out)      :: timeSim(:)      ! simulation time
+    real(rkind)     , allocatable, intent(out)      :: flowSim(:)      ! simulated streamflow
    
-    character(len=:), allocatable, intent(out) :: timeUnits       ! units and reference time for simulation time
-    character(len=:), allocatable, intent(out) :: flowUnits       ! units for simulated streamflow
+    character(len=:), allocatable, intent(out)      :: timeUnits       ! units and reference time for simulation time
+    character(len=:), allocatable, intent(out)      :: flowUnits       ! units for simulated streamflow
    
-    character(*), intent(in)                   :: param_name(:)   ! parameter names
-    real(rkind),  intent(in)                   :: param_value(:)  ! parameter values
+    character(*)                 , intent(in)       :: param_name(:)   ! parameter names
+    real(rkind)                  , intent(in)       :: param_value(:)  ! parameter values
    
-    integer(i4b), intent(out)                  :: err             ! error code
-    character(*), intent(out)                  :: message         ! error message
+    integer(i4b)                 , intent(out)      :: err             ! error code
+    character(*)                 , intent(out)      :: message         ! error message
    
     ! locals
    
-    type(summa1_type_dec), allocatable         :: summa1_struc(:)  ! master SUMMA data structure
-    integer(i4b), parameter                    :: n=1              ! n copies of the SUMMA data structure
-    character(len=256)                         :: cmessage         ! error message of downwind routine
+    type(summa1_type_dec), allocatable              :: summa1_struc(:)  ! top-level SUMMA data structure
+    integer(i4b), parameter                         :: n=1              ! n copies of the SUMMA data structure
+    character(len=256)                              :: cmessage         ! error message of downwind routine
    
     err=0
     message='run_simulation/'
    
     allocate(summa1_struc(n), stat=err)
     if (err/=0) then
-      message=trim(message)//'problem allocating master summa structure'
+      message=trim(message)//'problem allocating top-level summa structure'
       return
     endif
    
     summa1_struc(n)%parallel%comm = comm
     summa1_struc(n)%parallel%rank = rank
     summa1_struc(n)%parallel%size = nproc
-   
-    call initialize_summa(summa1_struc(n), param_name, param_value, err, cmessage)
+  
+    call initialize_summa(config,                 &
+                          summa1_struc(n),        &
+                          param_name,param_value, &
+                          err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    
     call run_summa(summa1_struc(n),      &
@@ -105,7 +114,8 @@ contains
   ! runs the model, computes the objective function, and finalizes the simulation.
   ! **************************************************************************************************
   
-  subroutine evaluate_objective(comm, rank, nproc,        &
+  subroutine evaluate_objective(config,                   &
+                                comm, rank, nproc,        &
                                 param_name, param_value,  &
                                 metric,                   &
                                 err, message)
@@ -122,23 +132,25 @@ contains
 
     use write_evaluation_module, only: write_evaluation
 
-    ! dummy arguments
-  
-    integer(i4b), intent(in)           :: comm               ! MPI communicator
-    integer(i4b), intent(in)           :: rank               ! MPI rank
-    integer(i4b), intent(in)           :: nproc              ! number of MPI processes
-  
-    character(*), intent(in)           :: param_name(:)      ! parameter names
-    real(rkind),  intent(in)           :: param_value(:)     ! parameter values
-  
-    real(rkind), intent(out)           :: metric             ! objective-function value
-  
-    integer(i4b), intent(out)          :: err                ! error code
-    character(*), intent(out)          :: message            ! error message
-  
+        ! dummy arguments
+
+    type(config_info)            , intent(inout)    :: config          ! configuration info
+
+    integer(i4b)                 , intent(in)       :: comm            ! MPI communicator
+    integer(i4b)                 , intent(in)       :: rank            ! MPI rank
+    integer(i4b)                 , intent(in)       :: nproc           ! number of MPI processes
+
+    character(*)                 , intent(in)       :: param_name(:)   ! parameter names
+    real(rkind)                  , intent(in)       :: param_value(:)  ! parameter values
+
+    real(rkind)                  , intent(out)      :: metric          ! objective function metric
+
+    integer(i4b)                 , intent(out)      :: err             ! error code
+    character(*)                 , intent(out)      :: message         ! error message
+
     ! locals
-  
-    type(summa1_type_dec), allocatable :: summa1_struc(:)    ! master SUMMA data structure
+
+    type(summa1_type_dec), allocatable :: summa1_struc(:)    ! top-level SUMMA data structure
     integer(i4b), parameter            :: n=1                ! number of SUMMA data structures
   
     integer(i4b)                       :: i                  ! looping
@@ -165,10 +177,10 @@ contains
     ! send log information to stderr
     iulog = error_unit
 
-    ! allocate master SUMMA structure
+    ! allocate top-level SUMMA structure
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then
-      message=trim(message)//'problem allocating master summa structure'
+      message=trim(message)//'problem allocating top-level summa structure'
       return
     endif
   
@@ -178,7 +190,10 @@ contains
     summa1_struc(n)%parallel%size = nproc
   
     ! initialize SUMMA
-    call initialize_summa(summa1_struc(n),param_name,param_value,err,cmessage)
+    call initialize_summa(config,                &
+                          summa1_struc(n),       &
+                          param_name,param_value,&
+                          err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   
     ! read observed streamflow
@@ -198,27 +213,27 @@ contains
     ! align simulated and observed streamflow
     call align_timeseries(timeSim,flowSim,timeSimUnits,flowSimUnits, &
                           timeObs,flowObs,timeObsUnits,flowObsUnits, &
-                          summa1_struc(n)%obj%start_date,            &
-                          summa1_struc(n)%obj%end_date,              &
+                          summa1_struc(n)%config%obj%start_date,     &
+                          summa1_struc(n)%config%obj%end_date,       &
                           timeAligned,flowSimAligned,flowObsAligned, &
                           err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    
     ! compute objective function
     call compute_metric(flowObsAligned,flowSimAligned,               &
-                        summa1_struc(n)%obj%metric,                  &
-                        summa1_struc(n)%obj%transformation,          &
+                        summa1_struc(n)%config%obj%metric,           &
+                        summa1_struc(n)%config%obj%transformation,   &
                         metric,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! write aligned evaluation time series and objective value
     call write_evaluation(ncid(iLookFREQ%timestep),                  &
-                          summa1_struc(n)%obj%write_aligned,         &
+                          summa1_struc(n)%config%obj%write_aligned,  &
                           timeAligned,                               &
                           flowObsAligned,flowSimAligned,             &
                           timeObsUnits,flowObsUnits,                 &
-                          summa1_struc(n)%obj%metric,                &
-                          summa1_struc(n)%obj%transformation,        &
+                          summa1_struc(n)%config%obj%metric,         &
+                          summa1_struc(n)%config%obj%transformation, &
                           metric,                                    &
                           err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -226,7 +241,7 @@ contains
     call finalize_summa(summa1_struc(n),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! release master SUMMA data structure
+    ! release top-level SUMMA data structure
     ! NOTE: Deallocate here because finalize_summa operates on a single array element
     if(allocated(summa1_struc)) deallocate(summa1_struc)
 
@@ -244,8 +259,9 @@ contains
   ! **************************************************************************************************
   ! initialize SUMMA
   ! **************************************************************************************************
-  subroutine initialize_summa(summa_struct, param_name, param_value, err, message)
+  subroutine initialize_summa(config, summa_struct, param_name, param_value, err, message)
 
+    type(config_info),       intent(inout)    :: config
     type(summa1_type_dec)  , intent(inout)    :: summa_struct
     character(*)           , intent(in)       :: param_name(:)
     real(rkind)            , intent(in)       :: param_value(:)
@@ -258,7 +274,7 @@ contains
     message = 'initialize_summa/'
 
     ! declare and allocate SUMMA data structures and initialize model state
-    call summa_initialize(summa_struct, err, cmessage)
+    call summa_initialize(config, summa_struct, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! initialize parameter data structures
@@ -292,7 +308,7 @@ contains
     USE globalData, only: numtim
     
     ! dummy arguments
-    type(summa1_type_dec), intent(inout)       :: summa_struct  ! master SUMMA data structure
+    type(summa1_type_dec), intent(inout)       :: summa_struct  ! top-level SUMMA data structure
     real(rkind), allocatable, intent(out)      :: timeSim(:)    ! simulation time
     real(rkind), allocatable, intent(out)      :: flowSim(:)    ! simulated streamflow
     character(len=:), allocatable, intent(out) :: timeUnits     ! units and reference time for simulation time

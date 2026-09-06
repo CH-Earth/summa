@@ -21,13 +21,18 @@
 program summa_driver
 
   USE nr_type, only: i4b, rkind
+  USE summa_type, only: config_info
+
   USE summa_simulation, only: evaluate_objective
   USE summa_util, only: handle_err, stop_program
 
   implicit none
 
+  ! configuration info
+  type(config_info)              :: config
+
   ! parallel dummy variables
-  integer(i4b), parameter :: comm=0, rank=0, nproc=1
+  integer(i4b), parameter        :: comm=0, rank=0, nproc=1
 
   ! parameter overrides
   character(len=64), allocatable :: param_name(:)
@@ -45,7 +50,8 @@ program summa_driver
   allocate(param_value(0))
 
   ! run SUMMA and evaluate the objective function
-  call evaluate_objective(comm, rank, nproc,        &
+  call evaluate_objective(config,                   &
+                          comm, rank, nproc,        &
                           param_name, param_value,  &
                           objective,                &
                           err, message)

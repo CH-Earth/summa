@@ -100,6 +100,9 @@ USE mDecisions_module,only: &
                     writePerStep,        &    ! read forcing data per time step (default)
                     writeFullSeries           ! read full forcing series
 
+! filenames
+USE globalData, only: restart_filename        ! name of the restart file
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -438,6 +441,9 @@ contains
 
   call writeRestart(restartFile,nGRU_local,nHRU_local,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ 
+  restart_filename = trim(restartFile) ! save filename in global data
+  
  end if
 
  ! *****************************************************************************
