@@ -26,6 +26,9 @@ USE nr_type                             ! high-level data types
 USE data_types, only: cli_options       ! command-line-interface options
 USE summa_type, only: config_info       ! summa configuation info
 
+! check if mizuroute is active
+use build_options, only: mizuroute_active
+
 ! named parameters
 
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
@@ -142,12 +145,12 @@ contains
        opts%show_version = .true.
        i = i + 1
 
-     case ('-m','--master')
+     case ('-m','--control')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-       opts%master_file = trim(v)
-       write(iulog,*) "master_file is '"//trim(opts%master_file)//"'."
+       opts%control_file = trim(v)
+       write(iulog,*) "control_file is '"//trim(opts%control_file)//"'."
        i = i + 2
 
      case ('-c','--config')
@@ -280,8 +283,9 @@ contains
    stop 0
  end if
 
- ! validate command-line options
+ ! ----- validate command-line options -----
 
+ ! check run mode is non-ambiguous 
  if(opts%hru_index /= integerMissing .and. &
     opts%start_gru /= integerMissing)then
       message = trim(message)// &
@@ -289,14 +293,30 @@ contains
       err = 1; return
  endif
 
+ ! check that start_gru and count_gru are valid
  if(opts%run_mode == iRunModeGRU)then
    if(opts%start_gru < 1 .or. opts%count_gru < 1)then
      message = trim(message)//'startGRU and countGRU must be at least 1'
-     err = 1;return
+     err = 1; return
     endif
-  endif
+ endif
 
- ! list parameters supplied by the CLI
+ ! check that provided control or config
+ if(.not.allocated(opts%control_file) .and. &
+    .not.allocated(opts%config_file))then
+    message = trim(message)//'either a SUMMA file manager (-m) or TOML configuration file (-c) must be provided'
+    err = 1; return
+ endif
+
+ ! warn that mizuRoute requires configuration through TOML
+ if(mizuroute_active .and. .not.allocated(opts%config_file))then
+   write(iulog,*) 'WARNING: This executable was built with mizuRoute support, but no TOML'
+   write(iulog,*) '         configuration file (-c) was provided. mizuRoute will not run.'
+   write(iulog,*) '         To run coupled mizuRoute, provide the required configuration'
+   write(iulog,*) '         in a TOML configuration file.'
+ endif
+
+ ! ----- list parameters supplied by the CLI -----
 
  if(allocated(opts%param_name))then
    write(iulog,*) 'Parameters adjusted:'
@@ -470,11 +490,11 @@ contains
 
    ! *** file names and output controls
 
-   if(allocated(opts%master_file)) &
-     config%summaFileManagerFile = opts%master_file
+   if(allocated(opts%control_file)) &
+     config%control_file = opts%control_file
 
    if(allocated(opts%config_file)) &
-     config%summaConfigFile = opts%config_file
+     config%config_file = opts%config_file
 
    if(allocated(opts%suffix)) &
      output_fileSuffix = opts%suffix
@@ -581,17 +601,24 @@ contains
  call get_arg(0, exe)
  
  ! command line usage
- print "(//A)",'Usage: '//trim(exe)//' -m master_file [-c config_file] [-s fileSuffix] [-g startGRU countGRU] [-h iHRU] [-r freqRestart] [-p freqProgress]'
+ print "(//A)",'Usage: '//trim(exe)//' [-m control_file] [-c config_file] '// &
+               '[-n newFileFreq] [-s fileSuffix] [-g startGRU countGRU] '// &
+               '[-h iHRU] [-r freqRestart] [-p freqProgress] [--param name value]'
+ 
  print "(A,/)", 'Running executable: '//trim(exe)
  print "(A)",  'Running options:'
- print "(A)",  ' -m --master        Define path/name of master file (required)'
+ print "(A)",  ' -m --control       Define path/name of legacy SUMMA control file'
  print "(A)",  ' -c --config        Define path/name of TOML configuration file'
+ print "(A)",  '                     - At least one of --control or --config is required'
+ print "(A)",  '                     - TOML values take precedence over corresponding control-file values'
+ print "(A)", '                      - Coupled mizuRoute requires a TOML configuration file'
  print "(A)",  ' -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files'
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
  print "(A)",  ' -r --restart       Define frequency [y,m,d,e,never] to write restart files'
  print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
+ print "(A)",  ' --param name value Override a model parameter; may be specified multiple times'
  print "(A)",  ' -v --version       Display version information of the current build'
  print "(A)",  ' --help             Display command-line usage'
  stop 0

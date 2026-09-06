@@ -296,7 +296,7 @@ contains
  !$omp end parallel
 
  ! ----- network routing ----------------------------------------------------
- if (mizuroute_active) then
+ if (summa1_struc%config%use_mizuroute) then
 
    ! transfer routed runoff from summa into the coupling structure to pass to mizuRoute
    do iGRU = 1,summa1_struc%nGRU_local

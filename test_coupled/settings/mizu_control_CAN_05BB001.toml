@@ -1,4 +1,35 @@
-# MizuRoute control file for CAN_05BB001
+# summa config file for CAN_05BB001
+
+[simulation]
+
+case_name  = "CAN_05BB001"
+start_time = "1981-10-01 00:00"
+end_time   = "1989-09-30 23:00"
+time_zone  = "localTime"
+
+use_mizuroute  = true
+
+[summa_files]
+
+settings_path = "test_coupled/summa_inputs/"
+forcing_path  = "test_coupled/summa_inputs/"
+output_path   = "test_coupled/work/"
+state_path    = "test_coupled/summa_inputs/"
+
+init_condition = "coldState.nc"
+attributes     = "attributes.nc"
+trial_params   = "trialParams.nc"
+forcing_list   = "forcingFileList.txt"
+decisions      = "modelDecisions.txt"
+output_control = "outputControl_short.txt"
+
+local_parameters = "localParamInfo.txt"
+basin_parameters = "basinParamInfo.txt"
+
+vegetation_table = "TBL_VEGPARM.TBL"
+soil_table       = "TBL_SOILPARM.TBL"
+general_table    = "TBL_GENPARM.TBL"
+noahmp_table     = "TBL_MPTABLE.TBL"
 
 [mizuRoute]
 

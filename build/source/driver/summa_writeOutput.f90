@@ -408,7 +408,7 @@ contains
 
   write_mizuroute = merge(modelTimeStep == numtim, .true., is_fullSeries)
  
-  if(mizuroute_active .and. write_mizuroute)then
+  if(summa1_struc%config%use_mizuroute .and. write_mizuroute)then
 
    istart_write = merge(     1, modelTimeStep, is_fullSeries)
    numtim_write = merge(numtim,             1, is_fullSeries)

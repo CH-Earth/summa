@@ -81,24 +81,54 @@ private
 
 type, public :: config_info
 
-! SUMMA configuration options from -g and -h
-integer(i4b)                     :: nGRU_user = -1             ! number of GRUs requested with CLI -g
-integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
+  ! SUMMA configuration options from the CLI (-g and -h)
+  integer(i4b)                   :: nGRU_user = -1          ! Number of GRUs requested by the user
+  integer(i4b)                   :: nHRU_check = 1          ! HRU used for diagnostic checks
 
-! parameter overrides supplied at runtime
-character(len=64), allocatable   :: param_name(:)              ! parameter names supplied through CLI
-real(rkind),       allocatable   :: param_value(:)             ! parameter values supplied through CLI
+  ! Parameter overrides
+  character(len=64), allocatable :: param_name(:)           ! Names of parameters to override
+  real(rkind),       allocatable :: param_value(:)          ! Values of parameter overrides
 
-! objective function
-type(obs_fileinfo)               :: obs                        ! observations file path/name, variable names, ...
-type(obj_info)                   :: obj                        ! choices for the objective function (transformation, metric)
+  ! Simulation
+  character(len=:), allocatable  :: case_name               ! Name of the simulation case
+  character(len=:), allocatable  :: start_time              ! Simulation start time
+  character(len=:), allocatable  :: end_time                ! Simulation end time
+  character(len=:), allocatable  :: time_zone               ! Time zone used for simulation times
 
-! file managers
-character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
-character(len=256)               :: summaConfigFile =''        ! path/name of the TOML configuration file
+  ! SUMMA files and paths
+  character(len=:), allocatable  :: settings_path           ! Path containing SUMMA settings files
+  character(len=:), allocatable  :: forcing_path            ! Path containing forcing files
+  character(len=:), allocatable  :: output_path             ! Path for SUMMA output files
+  character(len=:), allocatable  :: state_path              ! Path containing model state files
+
+  character(len=:), allocatable  :: init_condition          ! Initial-condition file
+  character(len=:), allocatable  :: attributes              ! Local attributes file
+  character(len=:), allocatable  :: trial_params            ! Trial parameter file
+  character(len=:), allocatable  :: forcing_list            ! Forcing file list
+  character(len=:), allocatable  :: decisions               ! Model decisions file
+  character(len=:), allocatable  :: output_control          ! Output control file
+
+  character(len=:), allocatable  :: local_parameters        ! Local (HRU) parameter information file
+  character(len=:), allocatable  :: basin_parameters        ! Basin (GRU) parameter information file
+
+  character(len=:), allocatable  :: vegetation_table        ! Vegetation parameter table
+  character(len=:), allocatable  :: soil_table              ! Soil parameter table
+  character(len=:), allocatable  :: general_table           ! General parameter table
+  character(len=:), allocatable  :: noahmp_table            ! Noah-MP parameter table
+
+  ! Observations and objective function
+  type(obs_fileinfo)             :: obs                     ! Observation file configuration
+  type(obj_info)                 :: obj                     ! Objective-function configuration
+
+  ! Configuration sources
+  character(len=:), allocatable  :: control_file            ! Legacy SUMMA control file
+  character(len=:), allocatable  :: config_file             ! SUMMA TOML configuration file
+
+  ! User configuration options
+  logical(lgt)                   :: use_mizuroute = .false. ! Enable coupled mizuRoute for this simulation
 
 #ifdef MIZUROUTE_ACTIVE
-type(mizuroute_info)             :: mizu_info                  ! mizuroute information structure
+  type(mizuroute_info)           :: mizu_info               ! mizuRoute configuration infirmation
 #endif
 
 end type config_info

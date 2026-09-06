@@ -177,6 +177,12 @@ contains
     ! send log information to stderr
     iulog = error_unit
 
+    ! check start_date and end_date are defined
+    if(.not.allocated(config%obj%start_date) .or. .not.allocated(config%obj%end_date) )then
+      message=trim(message)//'Objective function start_date or end_date are not defined'
+      err=20; return
+    endif
+
     ! allocate top-level SUMMA structure
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then
@@ -195,7 +201,7 @@ contains
                           param_name,param_value,&
                           err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
     ! read observed streamflow
     call read_flow_observations(summa1_struc(n),              &
                                 timeObs,flowObs,              &
@@ -349,7 +355,7 @@ contains
       if(openwq_active) call openwq_run_space_step(summa_struct)
 
       ! save streamflow time series (unavailable when mizuRoute is not active)
-      if(mizuroute_active)then
+      if(summa_struct%config%use_mizuroute)then
         timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
         call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
       endif
@@ -429,7 +435,7 @@ contains
     enddo
 
     ! deallocate mizuroute structures
-    if(mizuroute_active) then
+    if(summa_struct%config%use_mizuroute) then
       call finalize_mizuroute(err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
