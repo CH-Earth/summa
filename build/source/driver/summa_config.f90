@@ -90,7 +90,7 @@ contains
   type(toml_error),        allocatable   :: error
 
   ! locals
-  integer(i4b)       :: i, j
+  integer(i4b)       :: i,j,k
   character(len=256) :: cmessage
   logical(lgt)       :: mizuroute_config_present = .false.
 
@@ -148,6 +148,18 @@ contains
 
     ! ----- loop through the sub-table -----
     do j = 1, size(keys)
+
+
+      ! ----- parameter transformations are parsed as a complete sub-table -----
+      if(trim(sections(i)%key) == "calibration" .and. &
+         trim(keys(j)%key)     == "parameter_transformations")then
+     
+        call parse_parameter_transformations(subtable, config, err, cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        cycle
+     
+      endif
 
       ! select section
       select case (trim(sections(i)%key))
@@ -219,10 +231,10 @@ contains
     write(iulog,*) 'WARNING: objective metric not specified; using kge'
   endif
   
-  ! set default objective-function transformation
-  if(.not.allocated(config%calib%transformation))then
-    config%calib%transformation = 'none'
-    write(iulog,*) 'WARNING: objective transformation not specified; using none'
+  ! set default obs transformation
+  if(.not.allocated(config%calib%obs_transform))then
+    config%calib%obs_transform = 'none'
+    write(iulog,*) 'WARNING: observation transformation not specified; using none'
   endif
 
   end subroutine load_summa_config
@@ -303,7 +315,7 @@ contains
   
     ! ---- objective function: metrics  ----
     case ("calibration.metric"           ); call get_value(subtable, trim(key), calib%metric            , stat=istat)
-    case ("calibration.transformation"   ); call get_value(subtable, trim(key), calib%transformation    , stat=istat)
+    case ("calibration.obs_transform"    ); call get_value(subtable, trim(key), calib%obs_transform     , stat=istat)
   
     ! ---- objective function: calibration period  ----
     case ("calibration.start_date"       ); call get_value(subtable, trim(key), calib%start_date        , stat=istat)
@@ -473,6 +485,98 @@ contains
     enddo
   
   end subroutine parse_word_list
+
+
+  ! **************************************************************************************************
+  ! Parse parameter transformations.
+  !
+  ! Reads parameter transformations from a TOML key-value table where each key is a parameter name
+  ! and each value defines the transformation used for that parameter during parameter search.
+  ! **************************************************************************************************
+  
+  subroutine parse_parameter_transformations(calib_table, config, ierr, message)
+  
+    use tomlf_all, only: toml_table, toml_key, get_value
+  
+    implicit none
+  
+    type(toml_table), pointer, intent(in)    :: calib_table
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+  
+    type(toml_table), pointer    :: transform_table
+    type(toml_key), allocatable  :: keys(:)
+  
+    integer(i4b) :: i
+    integer(i4b) :: istat
+  
+    character(len=:), allocatable :: transform
+  
+    ierr = 0
+    message = 'parse_parameter_transformations/'
+  
+    ! get parameter transformation sub-table
+    call get_value(calib_table, 'parameter_transformations', &
+                   transform_table, stat=istat)
+  
+    if(istat/=0 .or. .not.associated(transform_table))then
+      message=trim(message)//'unable to read parameter_transformations table'
+      ierr=20; return
+    endif
+  
+    ! get parameter names from table keys
+    call transform_table%get_keys(keys)
+  
+    if(.not.allocated(keys))then
+      allocate(config%calib%param_transform(0))
+      return
+    endif
+  
+    ! allocate transformation information
+    allocate(config%calib%param_transform(size(keys)),stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate parameter transformations'
+      return
+    endif
+  
+    ! read parameter -> transformation mappings
+    do i=1,size(keys)
+  
+      ! check parameter-name length
+      if(len_trim(keys(i)%key) > &
+         len(config%calib%param_transform(i)%name))then
+  
+        write(message,'(A,I0)') trim(message)// &
+          'parameter name exceeds maximum character length, i = ',i
+        ierr=20; return
+      endif
+  
+      config%calib%param_transform(i)%name = trim(keys(i)%key)
+  
+      call get_value(transform_table,trim(keys(i)%key),transform,stat=istat)
+  
+      if(istat/=0)then
+        message=trim(message)//'unable to read transformation for parameter: '// &
+                trim(keys(i)%key)
+        ierr=20; return
+      endif
+  
+      ! check transformation-name length
+      if(len_trim(transform) > &
+         len(config%calib%param_transform(i)%transformation))then
+  
+        message=trim(message)//'transformation name exceeds maximum character length for parameter: '// &
+                trim(keys(i)%key)
+        ierr=20; return
+      endif
+  
+      config%calib%param_transform(i)%transformation = trim(transform)
+  
+    enddo
+  
+  end subroutine parse_parameter_transformations
+
 
   ! **************************************************************************************************
   ! Parse parameter dependency configuration.

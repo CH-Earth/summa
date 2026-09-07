@@ -162,7 +162,8 @@ set(OBJFNC
 
 # Model calibration
 set(CALIBR
-    ${CALIBR_DIR}/summa_parameter_search.f90
+    ${CALIBR_DIR}/parameter_search.f90
+    ${CALIBR_DIR}/summa_parameter_spec.f90
     CACHE INTERNAL "CALIBR")
 
 # Driver support modules

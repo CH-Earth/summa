@@ -69,7 +69,7 @@ MODULE data_types
  end type cli_options
 
  ! ***********************************************************************************************************
- ! objective function
+ ! observations file
  ! ***********************************************************************************************************
  
  ! information on the obs file
@@ -84,6 +84,15 @@ MODULE data_types
 
  end type obs_fileinfo
 
+ ! ***********************************************************************************************************
+ ! calibration configuration
+ ! ***********************************************************************************************************
+ 
+ type :: param_transform_info
+  character(len=64)              :: name               ! parameter name
+  character(len=16)              :: transformation     ! parameter transformation
+ end type param_transform_info
+
  ! -----------------------------------------------------------------------------------------------------------
 
  type :: ordered_constraint
@@ -91,18 +100,21 @@ MODULE data_types
   real(rkind)                    :: gap_fraction       ! Minimum adjacent gap as fraction of total range
  end type ordered_constraint
 
+ ! -----------------------------------------------------------------------------------------------------------
+ 
  ! calibration configuration
  type,public  :: calib_info
 
   character(len=:),  allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
-  character(len=:),  allocatable :: transformation     ! none, log, power, box-cox
+  character(len=:),  allocatable :: obs_transform      ! none, log, power, box-cox
 
   character(len=:),  allocatable :: start_date         ! start of the calibration time period
   character(len=:),  allocatable :: end_date           ! end of the calibration time period
 
   character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
 
-  type(ordered_constraint), allocatable :: ordered(:)  ! ordered parameter constraints
+  type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
+  type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
 
   logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
 

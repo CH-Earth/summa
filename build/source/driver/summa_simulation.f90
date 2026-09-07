@@ -1,3 +1,23 @@
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 module summa_simulation
 
 USE nr_type, only: i4b, rkind
@@ -228,7 +248,7 @@ contains
     ! compute objective function
     call compute_metric(flowObsAligned,flowSimAligned,                 &
                         summa1_struc(n)%config%calib%metric,           &
-                        summa1_struc(n)%config%calib%transformation,   &
+                        summa1_struc(n)%config%calib%obs_transform,    &
                         metric,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -239,7 +259,7 @@ contains
                           flowObsAligned,flowSimAligned,               &
                           timeObsUnits,flowObsUnits,                   &
                           summa1_struc(n)%config%calib%metric,         &
-                          summa1_struc(n)%config%calib%transformation, &
+                          summa1_struc(n)%config%calib%obs_transform,  &
                           metric,                                      &
                           err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

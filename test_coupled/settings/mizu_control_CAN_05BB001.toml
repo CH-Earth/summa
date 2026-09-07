@@ -86,7 +86,7 @@ vname_obsflow  = "q_obs"
 [calibration]
 
 metric         = "kge"
-transformation = "none"
+obs_transform  = "none"
 
 start_date     = "1982-10-01"
 end_date       = "1983-10-01"
@@ -110,6 +110,11 @@ param_list = [
 ]
 
 write_aligned  = false
+
+[calibration.parameter_transformations]
+
+k_soil              = "log"
+aquiferBaseflowRate = "log"
 
 [[parameter_dependencies.ordered]]
 parameters   = ["heightCanopyBottom", "heightCanopyTop"]
