@@ -173,17 +173,14 @@ contains
       spec%params(i)%name    = trim(param_names(i))
       spec%params(i)%sampled = sampled(i)
 
-      call get_summa_parameter_info(             &
-             trim(param_names(i)),               &
-             spec%params(i)%trial_value,          &
-             spec%params(i)%lower,                &
-             spec%params(i)%upper,                &
-             err,cmessage)
-
-      if(err/=0)then
-        message=trim(message)//trim(cmessage)
-        return
-      endif
+      call get_summa_parameter_info(trim(param_names(i)),                &
+                                    spec%params(i)%trial_value,          &
+                                    spec%params(i)%lower,                &
+                                    spec%params(i)%upper,                &
+                                    spec%params(i)%units,                &
+                                    spec%params(i)%long_name,            &
+                                    err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! default parameter transformation
       spec%params(i)%transformation = 'none'
@@ -375,74 +372,77 @@ contains
   ! all spatial elements by summa_paramSetup.
   ! **************************************************************************************************
 
-  subroutine get_summa_parameter_info(param_name,trial_value,lower,upper,err,message)
-
-    USE get_ixname_module, only: get_ixParam
-    USE get_ixname_module, only: get_ixBpar
-
-    USE globalData, only: localParFallback
-    USE globalData, only: basinParFallback
-
+  subroutine get_summa_parameter_info(param_name,trial_value,lower,upper, &
+                                      units,long_name,err,message)
+  
+    USE get_ixname_module, only: get_ixParam,get_ixBpar
+  
+    USE globalData, only: localParFallback,basinParFallback
+    USE globalData, only: mpar_meta,bpar_meta
+  
     implicit none
-
+  
     character(*), intent(in)  :: param_name
     real(rkind),  intent(out) :: trial_value
     real(rkind),  intent(out) :: lower
     real(rkind),  intent(out) :: upper
+    character(*), intent(out) :: units
+    character(*), intent(out) :: long_name
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-
-    integer(i4b) :: ixParam
-    integer(i4b) :: ixBasin
-
-    err = 0
-    message = 'get_summa_parameter_info/'
-
-
+  
+    integer(i4b) :: ixParam,ixBasin
+  
+    err=0
+    message='get_summa_parameter_info/'
+  
     ! local parameter
-    ixParam = get_ixParam(trim(param_name))
-
+    ixParam=get_ixParam(trim(param_name))
+  
     if(ixParam > 0)then
-
-      trial_value = localParFallback(ixParam)%default_val
-      lower       = localParFallback(ixParam)%lower_limit
-      upper       = localParFallback(ixParam)%upper_limit
-
+  
+      trial_value=localParFallback(ixParam)%default_val
+      lower      =localParFallback(ixParam)%lower_limit
+      upper      =localParFallback(ixParam)%upper_limit
+  
+      units      =trim(mpar_meta(ixParam)%varUnit)
+      long_name  =trim(mpar_meta(ixParam)%varDesc)
+  
       if(lower > upper)then
         message=trim(message)//'invalid bounds for parameter: '//trim(param_name)
         err=20; return
       endif
-
+  
       return
-
+  
     endif
-
-
+  
     ! basin parameter
-    ixBasin = get_ixBpar(trim(param_name))
-
+    ixBasin=get_ixBpar(trim(param_name))
+  
     if(ixBasin > 0)then
-
-      trial_value = basinParFallback(ixBasin)%default_val
-      lower       = basinParFallback(ixBasin)%lower_limit
-      upper       = basinParFallback(ixBasin)%upper_limit
-
+  
+      trial_value=basinParFallback(ixBasin)%default_val
+      lower      =basinParFallback(ixBasin)%lower_limit
+      upper      =basinParFallback(ixBasin)%upper_limit
+  
+      units      =trim(bpar_meta(ixBasin)%varUnit)
+      long_name  =trim(bpar_meta(ixBasin)%varDesc)
+  
       if(lower > upper)then
         message=trim(message)//'invalid bounds for parameter: '//trim(param_name)
         err=20; return
       endif
-
+  
       return
-
+  
     endif
-
-
+  
     message=trim(message)//'parameter not found: '//trim(param_name)
-    err=20
-
+    err=20; return
+  
   end subroutine get_summa_parameter_info
-
-
+  
   ! **************************************************************************************************
   ! Find a parameter in a parameter-name vector.
   !

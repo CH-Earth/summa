@@ -54,7 +54,7 @@ program summa_driver_opt
   type(config_info) :: config
 
   ! number of parameter samples
-  integer(i4b), parameter :: nSamples=10
+  integer(i4b), parameter :: nSamples=3
 
   ! error control
   integer(i4b) :: err=0,mpi_err=0
@@ -257,16 +257,25 @@ contains
     ! objective-function evaluation
     USE summa_simulation, only: evaluate_objective
 
+    ! calibration output
+    USE summaFileManager,          only: OUTPUT_PATH
+    USE calibration_output_module, only: create_calibration_output
+    USE calibration_output_module, only: write_calibration_output
+    USE calibration_output_module, only: close_calibration_output
+
     implicit none
 
     ! dummy variables
     type(config_info), intent(inout) :: config
-
     integer(i4b), intent(in)  :: comm,rank,nSample
     integer(i4b), intent(out) :: err
-
     character(*), intent(out) :: message
 
+    ! calibration output
+    integer(i4b)       :: ncid_calib
+    character(len=4)   :: rankString
+    character(len=256) :: calib_file
+    
     ! parameter-search information
     type(parameter_spec)        :: param_spec
     type(parameter_search_info) :: search
@@ -286,11 +295,12 @@ contains
     integer(i4b) :: i,j
     real(rkind)  :: objective
 
+    integer(i4b) :: startModelRun(8),endModelRun(8)
+
     character(len=256) :: cmessage
 
     err=0
     message='evaluate_parameter_samples/'
-
 
     ! -----------------------------------------------------------------------------------------------
     ! Initialize parameter search
@@ -346,10 +356,31 @@ contains
 
 
     ! -----------------------------------------------------------------------------------------------
+    ! Initialize calibration output
+    ! -----------------------------------------------------------------------------------------------
+    
+    write(rankString,'(I4.4)') rank
+    calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_calibration_rank'//rankString//'.nc'
+    
+    call create_calibration_output(calib_file,                  &
+                                   param_spec,                  &
+                                   rank,                        &
+                                   config%case_name,            &
+                                   config%calib%metric,         &
+                                   config%calib%obs_transform,  &
+                                   ncid_calib,                  &
+                                   err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+
+    ! -----------------------------------------------------------------------------------------------
     ! Sample and evaluate parameter vectors
     ! -----------------------------------------------------------------------------------------------
 
     do j=1,nSample
+
+      ! record start time for this parameter trial
+      call date_and_time(values=startModelRun)
 
       ! sample a feasible parameter vector
       call sample_parameters(search,param_value,err,cmessage)
@@ -373,10 +404,27 @@ contains
                               err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+      ! record end time for this parameter trial
+      call date_and_time(values=endModelRun)
+      
+      call write_calibration_output(ncid_calib,      &
+                                    j,               &
+                                    param_name,      &
+                                    param_override,  &
+                                    objective,       &
+                                    startModelRun,   &
+                                    endModelRun,     &
+                                    err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
       ! print sample, sampled parameters, and objective
       write(iulog,'(I6,*(1X,ES16.8))') j,param_value,objective
 
     enddo
+
+    ! close calibration output
+    call close_calibration_output(ncid_calib,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine evaluate_parameter_samples
 

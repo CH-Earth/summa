@@ -19,15 +19,17 @@ module parameter_search
 
   type, public :: parameter_info
 
-    character(len=64) :: name
+    character(len=64)  :: name
+    character(len=128) :: long_name = ''
+    character(len=32)  :: units     = '-'
 
-    real(rkind)       :: trial_value
-    real(rkind)       :: lower
-    real(rkind)       :: upper
+    real(rkind)        :: trial_value
+    real(rkind)        :: lower
+    real(rkind)        :: upper
 
-    logical(lgt)      :: sampled = .false.
+    logical(lgt)       :: sampled = .false.
 
-    character(len=16) :: transformation = 'none'
+    character(len=16)  :: transformation = 'none'
 
   end type parameter_info
 
