@@ -60,7 +60,7 @@ USE data_types,  only : &
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 
 USE data_types,      only: obs_fileinfo    ! information on the observation file
-USE data_types,      only: obj_info        ! choices for the objective function (metric, transformation)
+USE data_types,      only: calib_info      ! calibration configuration 
 
 ! mizuRoute coupling
 #ifdef MIZUROUTE_ACTIVE
@@ -118,7 +118,7 @@ type, public :: config_info
 
   ! Observations and objective function
   type(obs_fileinfo)             :: obs                     ! Observation file configuration
-  type(obj_info)                 :: obj                     ! Objective-function configuration
+  type(calib_info)               :: calib                   ! Calibration configuration
 
   ! Configuration sources
   character(len=:), allocatable  :: control_file            ! Legacy SUMMA control file

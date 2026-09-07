@@ -182,6 +182,7 @@ endif()
 set(DRIVER_DIR ${F_MASTER}/build/source/driver)
 set(OBJFNC_DIR ${F_MASTER}/build/source/objfunc)
 set(DSHARE_DIR ${F_MASTER}/build/source/dshare)
+set(CALIBR_DIR ${F_MASTER}/build/source/calibration)
 set(ENGINE_DIR ${F_MASTER}/build/source/engine)
 set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
 set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
@@ -204,7 +205,7 @@ set_source_files_properties(${NOAHMP} PROPERTIES Fortran_FORMAT FREE)
 #=========================================================================================
 
 set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
-set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${DRIVER})
+set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${CALIBR} ${DRIVER})
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 # Numerical type definitions used throughout SUMMA

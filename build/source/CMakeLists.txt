@@ -160,6 +160,11 @@ set(OBJFNC
     ${OBJFNC_DIR}/write_evaluation.f90
     CACHE INTERNAL "OBJFNC")
 
+# Model calibration
+set(CALIBR
+    ${CALIBR_DIR}/summa_parameter_search.f90
+    CACHE INTERNAL "CALIBR")
+
 # Driver support modules
 set(DRIVER
     ${DRIVER_DIR}/summa_config.f90

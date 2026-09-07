@@ -83,7 +83,7 @@ obs_file       = "CAN_05BB001_daily_flow_observations.nc"
 
 vname_obsflow  = "q_obs"
 
-[objective]
+[calibration]
 
 metric         = "kge"
 transformation = "none"
@@ -91,5 +91,30 @@ transformation = "none"
 start_date     = "1982-10-01"
 end_date       = "1983-10-01"
 
+param_list = [
+    "k_soil",
+    "theta_sat",
+    "aquiferBaseflowExp",
+    "aquiferBaseflowRate",
+    "qSurfScale",
+    "summerLAI",
+    "frozenPrecipMultip",
+    "routingGammaScale",
+    "routingGammaShape",
+    "Fcapil",
+    "tempCritRain",
+    "heightCanopyTop",
+    "heightCanopyBottom",
+    "windReductionParam",
+    "vGn_n"
+]
+
 write_aligned  = false
 
+[[parameter_dependencies.ordered]]
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.5
+
+[[parameter_dependencies.ordered]]
+parameters = ["theta_res", "fieldCapacity", "theta_mp", "theta_sat"]
+gap_fraction = 0.05

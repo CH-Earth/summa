@@ -441,8 +441,9 @@ contains
 
   call writeRestart(restartFile,nGRU_local,nHRU_local,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- 
-  restart_filename = trim(restartFile) ! save filename in global data
+
+  ! save filename in global data (strip out directory path)
+  restart_filename = restartFile(index(restartFile,'/',back=.true.)+1:)
   
  end if
 

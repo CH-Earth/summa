@@ -178,7 +178,7 @@ contains
     iulog = error_unit
 
     ! check start_date and end_date are defined
-    if(.not.allocated(config%obj%start_date) .or. .not.allocated(config%obj%end_date) )then
+    if(.not.allocated(config%calib%start_date) .or. .not.allocated(config%calib%end_date) )then
       message=trim(message)//'Objective function start_date or end_date are not defined'
       err=20; return
     endif
@@ -219,28 +219,28 @@ contains
     ! align simulated and observed streamflow
     call align_timeseries(timeSim,flowSim,timeSimUnits,flowSimUnits, &
                           timeObs,flowObs,timeObsUnits,flowObsUnits, &
-                          summa1_struc(n)%config%obj%start_date,     &
-                          summa1_struc(n)%config%obj%end_date,       &
+                          summa1_struc(n)%config%calib%start_date,   &
+                          summa1_struc(n)%config%calib%end_date,     &
                           timeAligned,flowSimAligned,flowObsAligned, &
                           err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    
     ! compute objective function
-    call compute_metric(flowObsAligned,flowSimAligned,               &
-                        summa1_struc(n)%config%obj%metric,           &
-                        summa1_struc(n)%config%obj%transformation,   &
+    call compute_metric(flowObsAligned,flowSimAligned,                 &
+                        summa1_struc(n)%config%calib%metric,           &
+                        summa1_struc(n)%config%calib%transformation,   &
                         metric,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! write aligned evaluation time series and objective value
-    call write_evaluation(ncid(iLookFREQ%timestep),                  &
-                          summa1_struc(n)%config%obj%write_aligned,  &
-                          timeAligned,                               &
-                          flowObsAligned,flowSimAligned,             &
-                          timeObsUnits,flowObsUnits,                 &
-                          summa1_struc(n)%config%obj%metric,         &
-                          summa1_struc(n)%config%obj%transformation, &
-                          metric,                                    &
+    call write_evaluation(ncid(iLookFREQ%timestep),                    &
+                          summa1_struc(n)%config%calib%write_aligned,  &
+                          timeAligned,                                 &
+                          flowObsAligned,flowSimAligned,               &
+                          timeObsUnits,flowObsUnits,                   &
+                          summa1_struc(n)%config%calib%metric,         &
+                          summa1_struc(n)%config%calib%transformation, &
+                          metric,                                      &
                           err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

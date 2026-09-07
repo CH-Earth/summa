@@ -133,6 +133,16 @@ contains
       err=10; return
     endif
 
+    ! ----- parameter dependencies are parsed as a complete section -----
+    if(trim(sections(i)%key) == "parameter_dependencies")then
+
+      call parse_parameter_dependencies(subtable, config, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      cycle
+
+    endif
+
     ! ----- get keys for a given section (sub-table) -----
     call subtable%get_keys(keys)
 
@@ -143,7 +153,7 @@ contains
       select case (trim(sections(i)%key))
 
         ! ----- parse the summa sections of the TOML table -----
-        case ("simulation", "summa_files", "observations", "objective")
+        case ("simulation", "summa_files", "observations", "calibration")
 
           call parse_summa_config(subtable,              &
                                   trim(sections(i)%key), &
@@ -204,14 +214,14 @@ contains
   ! ----- set default objective function settings -----
 
   ! set default objective-function metric
-  if(.not.allocated(config%obj%metric))then
-    config%obj%metric = 'kge'
+  if(.not.allocated(config%calib%metric))then
+    config%calib%metric = 'kge'
     write(iulog,*) 'WARNING: objective metric not specified; using kge'
   endif
   
   ! set default objective-function transformation
-  if(.not.allocated(config%obj%transformation))then
-    config%obj%transformation = 'none'
+  if(.not.allocated(config%calib%transformation))then
+    config%calib%transformation = 'none'
     write(iulog,*) 'WARNING: objective transformation not specified; using none'
   endif
 
@@ -236,11 +246,13 @@ contains
   type(config_info),         intent(inout) :: config
   integer,                   intent(out)   :: ierr
   character(*),              intent(out)   :: message
-  
-  integer(i4b)       :: istat
-  
-  associate(obs => config%obs, &
-            obj => config%obj)
+ 
+  type(toml_array), pointer     :: param_list  ! sub-table for the list of parameters to vary
+  character(len=256)            :: cmessage    ! error message from downwind routine
+  integer(i4b)                  :: istat       ! error code
+
+  associate(obs   => config%obs, &
+            calib => config%calib)
   
   ierr    = 0
   message = 'parse_summa_config/'
@@ -290,15 +302,23 @@ contains
     case ("observations.vname_obsflow"   ); call get_value(subtable, trim(key), obs%vname_obsflow       , stat=istat)
   
     ! ---- objective function: metrics  ----
-    case ("objective.metric"             ); call get_value(subtable, trim(key), obj%metric              , stat=istat)
-    case ("objective.transformation"     ); call get_value(subtable, trim(key), obj%transformation      , stat=istat)
+    case ("calibration.metric"           ); call get_value(subtable, trim(key), calib%metric            , stat=istat)
+    case ("calibration.transformation"   ); call get_value(subtable, trim(key), calib%transformation    , stat=istat)
   
     ! ---- objective function: calibration period  ----
-    case ("objective.start_date"         ); call get_value(subtable, trim(key), obj%start_date          , stat=istat)
-    case ("objective.end_date"           ); call get_value(subtable, trim(key), obj%end_date            , stat=istat)
+    case ("calibration.start_date"       ); call get_value(subtable, trim(key), calib%start_date        , stat=istat)
+    case ("calibration.end_date"         ); call get_value(subtable, trim(key), calib%end_date          , stat=istat)
   
+    ! ---- objective function: list of parameters to modify  ----
+    case ("calibration.param_list"       ); call get_value(subtable, trim(key), param_list              , stat=istat)
+ 
+      if(istat == 0)then
+        call parse_word_list(param_list, calib%param_list, ierr, cmessage)
+        if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
+      endif   
+
     ! ---- objective function: flag to write aligned sim/obs time series  ----
-    case ("objective.write_aligned"      ); call get_value(subtable, trim(key), obj%write_aligned       , stat=istat)
+    case ("calibration.write_aligned"    ); call get_value(subtable, trim(key), calib%write_aligned     , stat=istat)
     
     ! ---- default case (something in the table that is not specified above) -----
     case default
@@ -394,5 +414,151 @@ contains
     if(allocated(config%noahmp_table))     MPTABLE  = trim(config%noahmp_table)
   
   end subroutine apply_summa_config
+
+  ! **************************************************************************************************
+  ! Parse a TOML array containing a list of words.
+  ! **************************************************************************************************
+  
+  subroutine parse_word_list(word_list, words, ierr, message)
+  
+    use tomlf_all, only: toml_array, get_value, len
+  
+    implicit none
+  
+    type(toml_array), pointer, intent(in)          :: word_list
+    character(len=*), allocatable, intent(out)     :: words(:)
+    integer(i4b), intent(out)                      :: ierr
+    character(*), intent(out)                      :: message
+  
+    integer(i4b)                  :: i
+    integer(i4b)                  :: nwords
+    character(len=:), allocatable :: word
+  
+    ierr = 0
+    message = 'parse_word_list/'
+  
+    ! check that the TOML array exists
+    if(.not.associated(word_list))then
+      allocate(words(0))
+      return
+    endif
+  
+    nwords = len(word_list)
+  
+    ! allocate output array
+    allocate(words(nwords), stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate word list'
+      return
+    endif
+  
+    ! populate output array
+    do i=1,nwords
+  
+      call get_value(word_list, i, word, stat=ierr)
+      if(ierr/=0)then
+        write(message,'(A,I0)') trim(message)//'unable to read word, i = ',i
+        return
+      endif
+  
+      ! prevent silent truncation
+      if(len_trim(word) > len(words))then
+        write(message,'(A,I0,A,I0)') trim(message)// &
+          'word exceeds maximum character length, i = ', i, ', maximum length = ', len(words)
+        ierr=20; return
+      endif
+  
+      words(i) = trim(word)
+  
+    enddo
+  
+  end subroutine parse_word_list
+
+  ! **************************************************************************************************
+  ! Parse parameter dependency configuration.
+  !
+  ! Reads ordered parameter constraints from the TOML configuration. Each constraint defines
+  ! an ordered list of parameters and the minimum gap between adjacent parameters as a fraction
+  ! of the total parameter range.
+  ! **************************************************************************************************
+  
+  subroutine parse_parameter_dependencies(subtable, config, ierr, message)
+  
+    use tomlf_all, only: toml_table, toml_array, get_value, len
+  
+    implicit none
+  
+    type(toml_table), pointer, intent(in)    :: subtable
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+  
+    type(toml_array), pointer :: ordered
+    type(toml_table), pointer :: constraint
+    type(toml_array), pointer :: param_list
+  
+    integer(i4b) :: i
+    integer(i4b) :: istat
+    integer(i4b) :: nconstraints
+  
+    character(len=256) :: cmessage
+  
+    ierr = 0
+    message = 'parse_parameter_dependencies/'
+  
+    ! get array of ordered constraints
+    call get_value(subtable, 'ordered', ordered, requested=.false., stat=istat)
+  
+    if(.not.associated(ordered)) return
+  
+    nconstraints = len(ordered)
+  
+    ! allocate constraint structures
+    allocate(config%calib%ordered(nconstraints), stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate ordered parameter constraints'
+      return
+    endif
+  
+    ! parse each ordered constraint
+    do i=1,nconstraints
+  
+      call get_value(ordered, i, constraint, stat=istat)
+      if(istat/=0 .or. .not.associated(constraint))then
+        write(message,'(A,I0)') trim(message)// &
+          'unable to read ordered constraint, i = ',i
+        ierr=20; return
+      endif
+  
+      ! parameter list
+      call get_value(constraint, 'parameters', param_list, stat=istat)
+      if(istat/=0 .or. .not.associated(param_list))then
+        write(message,'(A,I0)') trim(message)// &
+          'parameter list not defined for ordered constraint, i = ',i
+        ierr=20; return
+      endif
+  
+      call parse_word_list(param_list,                         &
+                           config%calib%ordered(i)%parameters, &
+                           ierr,cmessage)
+      if(ierr/=0)then
+        message=trim(message)//trim(cmessage)
+        return
+      endif
+  
+      ! gap fraction
+      call get_value(constraint, 'gap_fraction', &
+                     config%calib%ordered(i)%gap_fraction, stat=istat)
+  
+      if(istat/=0)then
+        write(message,'(A,I0)') trim(message)// &
+          'gap_fraction not defined for ordered constraint, i = ',i
+        ierr=20; return
+      endif
+  
+    enddo
+  
+  end subroutine parse_parameter_dependencies
+
 
 end module summa_config

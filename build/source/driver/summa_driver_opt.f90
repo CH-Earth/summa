@@ -27,6 +27,7 @@ program summa_driver_opt
   USE summa_type, only: config_info
 
   ! SUMMA global data
+  USE globalData, only: iulog 
   USE globalData, only: initConfig 
   USE globalData, only: output_fileSuffix       ! modify based on context/rank
 
@@ -53,16 +54,24 @@ program summa_driver_opt
   USE error_utils, only: check_mpi, abort_mpi
 
   ! SUMMA
-  USE summa_init,       only: init_config
-  USE summa_simulation, only: run_simulation
-  USE summa_simulation, only: evaluate_objective
-  USE summa_util,       only: handle_err, stop_program
+  USE summa_init,             only: init_config
+  USE summa_simulation,       only: run_simulation
+  USE summa_simulation,       only: evaluate_objective
+  USE summa_util,             only: handle_err, stop_program
+
+  ! SUMMA parameter sampling
+  USE summa_parameter_search, only: parameter_search_info
+  USE summa_parameter_search, only: initialize_parameter_search
+  USE summa_parameter_search, only: sample_parameters
 
   implicit none
 
   ! MPI context for the ensemble
   integer(i4b) :: rank  = 0
   integer(i4b) :: nproc = 1
+
+  ! looping
+  integer(i4b) :: i,j
 
   ! configuration info
   type(config_info)              :: config
@@ -75,8 +84,14 @@ program summa_driver_opt
   integer(i4b)                   :: iyear
 
   ! parameters
+  
   character(len=64), allocatable :: param_name(:)
   real(rkind),       allocatable :: param_value(:)
+
+  type(parameter_search_info)    :: search
+
+  integer(i4b)                   :: nseed
+  integer(i4b), allocatable      :: seed(:)
 
   ! flow
   real(rkind),       allocatable :: timeSim(:)
@@ -109,11 +124,9 @@ program summa_driver_opt
   ! get the rank string for use in output files
   write(rankString,'(I4.4)') rank
 
-  ! no externally supplied parameter overrides
   allocate(param_name(0))
   allocate(param_value(0))
-
-
+  
   ! ---------------------------------------------------------------------------------------
   ! Initialize SUMMA and perform a one-year spinup from a cold start.
   ! 
@@ -170,23 +183,53 @@ program summa_driver_opt
   output_fileSuffix = outputFileSuffix_orig 
   ixRestart         = ixRestart_never
 
-  
+ 
+  ! initialize parameter search
+  call initialize_parameter_search(config,search,err,message)
+  call handle_err(err,message)
+
+  deallocate(param_name,param_value)
+
+  allocate(param_name(size(search%param_names)))
+  allocate(param_value(size(search%param_names)))
+
+  param_name = search%param_names
+
+  write(iulog,'(/,A)') 'Calibration parameter bounds:'
+  write(iulog,'(A)')   '  Parameter                         Lower              Upper'
+
+  do i=1,size(search%param_names)
+     write(iulog,'(2X,A30,2X,ES16.8,2X,ES16.8)') &
+      trim(search%param_names(i)), search%lower(i), search%upper(i)
+  enddo
+
+  ! initialize random-number generator
+  call random_seed(size=nseed)
+  allocate(seed(nseed))
+
+  seed = rank + 42
+  call random_seed(put=seed)
 
 
+  do j=1,10
 
-  ! parameter bounds are now populated on every process
-  !
-  ! localParFallback(:)%lower_limit
-  ! localParFallback(:)%upper_limit
-  ! basinParFallback(:)%lower_limit
-  ! basinParFallback(:)%upper_limit
-  !
-  ! next:
-  !   construct optimization parameter vector
-  !   sample parameter sets
-  !   evaluate independently on each rank
+    ! Sample a feasible parameter vector
+    call sample_parameters(search,param_value,err,message)
+    call handle_err(err,message)
 
-  ! -------------------------------------------------------------------
+    ! Evaluate SUMMA for this parameter vector
+    call evaluate_objective(config,                     &
+                            MPI_COMM_SELF,0,1,           &
+                            search%param_names,          &
+                            param_value,                 &
+                            objective,                   &
+                            err,message)
+    call handle_err(err,message)
+   
+  ! Print sample, parameters, and objective
+  write(iulog,'(I6,*(1X,ES16.8))') j,param_value,objective
+
+  enddo
 
   ! finalize MPI
   call MPI_Finalize(mpi_err)

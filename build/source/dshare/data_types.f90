@@ -86,18 +86,27 @@ MODULE data_types
 
  ! -----------------------------------------------------------------------------------------------------------
 
- ! choices for the objective function
- type,public  :: obj_info
+ type :: ordered_constraint
+  character(len=64), allocatable :: parameters(:)      ! Ordered parameter names
+  real(rkind)                    :: gap_fraction       ! Minimum adjacent gap as fraction of total range
+ end type ordered_constraint
 
-  character(len=:), allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
-  character(len=:), allocatable :: transformation     ! none, log, power, box-cox
+ ! calibration configuration
+ type,public  :: calib_info
 
-  character(len=:), allocatable :: start_date         ! start of the calibration time period
-  character(len=:), allocatable :: end_date           ! end of the calibration time period
+  character(len=:),  allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
+  character(len=:),  allocatable :: transformation     ! none, log, power, box-cox
 
-  logical(lgt)                  :: write_aligned = .false. ! flag to write the aligned sim/obs time series
+  character(len=:),  allocatable :: start_date         ! start of the calibration time period
+  character(len=:),  allocatable :: end_date           ! end of the calibration time period
 
- end type obj_info
+  character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
+
+  type(ordered_constraint), allocatable :: ordered(:)  ! ordered parameter constraints
+
+  logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
+
+ end type calib_info
 
  ! ***********************************************************************************************************
  ! model decisions
