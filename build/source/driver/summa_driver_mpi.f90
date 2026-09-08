@@ -26,7 +26,8 @@ program summa_driver_mpi
   ! data types
   USE nr_type, only: i4b, rkind                               ! variable types, etc.
   USE summa_type, only: config_info                           ! summa configuration
-  USE mpi, only : MPI_COMM_WORLD, MPI_SUCCESS                 ! MPI constants
+  USE summa_type, only: parallel_context_type                 ! parallel context
+  USE mpi, only : MPI_COMM_WORLD, MPI_COMM_SELF, MPI_SUCCESS  ! MPI constants
   
   ! subroutines and functions: MPI 
   USE mpi, only : MPI_Init, MPI_Finalize                      ! MPI subroutine interfaces
@@ -41,9 +42,9 @@ program summa_driver_mpi
 
   ! * driver variables *
 
-  ! MPI
-  integer(i4b) :: rank = 0
-  integer(i4b) :: size = 1
+  ! MPI contexts for domain and model-instance parallelism
+  type(parallel_context_type)    :: domain_parallel
+  type(parallel_context_type)    :: instance_parallel
 
   ! configuration info
   type(config_info)              :: config
@@ -68,33 +69,60 @@ program summa_driver_mpi
   character(len=1024) :: message = ''
   character(len=256)  :: mpi_message = ''
 
-  ! -------------------------------------------------------------------
-
+  ! ---------------------------------------------------------------------------------------
+  ! Initialize MPI
+  ! ---------------------------------------------------------------------------------------
+  
   call MPI_Init(mpi_err)
-  call check_mpi(-1, mpi_err, 'MPI_Init failed')
+  call check_mpi(-1,mpi_err,'MPI_Init failed')
+  
+  ! distribute the model domain across MPI processes
+  domain_parallel%comm=MPI_COMM_WORLD
+  
+  call set_mpi_context(domain_parallel%comm,  &
+                       domain_parallel%rank,  &
+                       domain_parallel%size,  &
+                       mpi_err,mpi_message)
+  
+  if(mpi_err/=MPI_SUCCESS)then
+    call abort_mpi(domain_parallel%rank,trim(mpi_message))
+  endif
+  
+  ! run a single model instance
+  instance_parallel%comm=MPI_COMM_SELF
+  instance_parallel%rank=0
+  instance_parallel%size=1
 
-  call set_mpi_context(MPI_COMM_WORLD, rank, size, mpi_err, mpi_message)
-  if (mpi_err /= MPI_SUCCESS) call abort_mpi(rank, trim(mpi_message)) 
+  ! ---------------------------------------------------------------------------------------
+  ! Run a SUMMA simulation
+  ! ---------------------------------------------------------------------------------------
 
   ! no externally supplied parameter overrides
   allocate(param_name(0))
   allocate(param_value(0))
 
-  call run_simulation(config,                                  &
-                      MPI_COMM_WORLD, rank, size,              &
-                      timeSim, flowSim, timeUnits, flowUnits,  &
-                      param_name, param_value,                 &
-                      err, message)
-  call handle_err(err, message)
+  call run_simulation(config,                 & ! SUMMA configuration structure
+                      domain_parallel,        & ! MPI context for domain parallelism
+                      instance_parallel,      & ! MPI context for model-instance parallelism
+                      timeSim,flowSim,        & ! simulated time and streamflow
+                      timeUnits,flowUnits,    & ! time and streamflow units
+                      param_name,param_value, & ! parameter names and values
+                      err, message)             ! error code and message
+  call handle_err(err,message)
+
+  ! ---------------------------------------------------------------------------------------
+  ! Finalize MPI
+  ! ---------------------------------------------------------------------------------------
 
   call MPI_Finalize(mpi_err)
-  if (mpi_err /= MPI_SUCCESS)then
-    write(message,'(A,I0,A)') 'ERROR [rank ', rank, ']: MPI_Finalize failed'
-    call handle_err(mpi_err, message)
-  endif
 
-  if (rank == 0) then
-    call stop_program(0, 'finished simulation successfully.')
-  end if
+  if(mpi_err/=MPI_SUCCESS)then
+    write(message,'(A,I0,A)') 'ERROR [rank ',domain_parallel%rank,']: MPI_Finalize failed'
+    call handle_err(mpi_err,message)
+  endif
+  
+  if(domain_parallel%rank==0)then
+    call stop_program(0,'finished simulation successfully.')
+  endif
 
 end program summa_driver_mpi

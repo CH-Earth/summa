@@ -22,6 +22,7 @@ program summa_driver
 
   USE nr_type, only: i4b, rkind
   USE summa_type, only: config_info
+  USE summa_type, only: parallel_context_type
 
   USE summa_simulation, only: evaluate_objective
   USE summa_util, only: handle_err, stop_program
@@ -31,8 +32,9 @@ program summa_driver
   ! configuration info
   type(config_info)              :: config
 
-  ! parallel dummy variables
-  integer(i4b), parameter        :: comm=0, rank=0, nproc=1
+  ! MPI contexts (initialize both as serial)
+  type(parallel_context_type)    :: domain_parallel
+  type(parallel_context_type)    :: instance_parallel
 
   ! parameter overrides
   character(len=64), allocatable :: param_name(:)
@@ -45,16 +47,27 @@ program summa_driver
   integer(i4b)        :: err=0
   character(len=1024) :: message=''
 
+  ! serial domain execution
+  domain_parallel%comm=0
+  domain_parallel%rank=0
+  domain_parallel%size=1
+  
+  ! single model instance
+  instance_parallel%comm=0
+  instance_parallel%rank=0
+  instance_parallel%size=1
+
   ! no externally supplied parameter overrides
   allocate(param_name(0))
   allocate(param_value(0))
 
   ! run SUMMA and evaluate the objective function
-  call evaluate_objective(config,                   &
-                          comm, rank, nproc,        &
-                          param_name, param_value,  &
-                          objective,                &
-                          err, message)
+  call evaluate_objective(config,                 & ! SUMMA configuration structure
+                          domain_parallel,        & ! MPI context for domain parallelism
+                          instance_parallel,      & ! MPI context for model-instance parallelism
+                          param_name,param_value, & ! parameter names and values
+                          objective,              & ! objective function value
+                          err, message)             ! error code and message
   call handle_err(err,message)
 
   call stop_program(0,'finished simulation successfully.')

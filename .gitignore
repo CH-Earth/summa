@@ -13,6 +13,9 @@ summa_sundials.exe
 # Regression test output
 utils/regression/logs/
 
+# NetCDF restart files
+*_restart_*.nc
+
 # temporary files
 *~
 *.swp

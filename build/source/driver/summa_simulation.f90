@@ -21,8 +21,9 @@
 module summa_simulation
 
 USE nr_type, only: i4b, rkind
-USE summa_type, only: summa1_type_dec
 USE summa_type, only: config_info
+USE summa_type, only: summa1_type_dec
+USE summa_type, only: parallel_context_type
 
 USE summa_init, only: summa_initialize
 USE summa_setup, only: summa_paramSetup
@@ -66,66 +67,66 @@ contains
   ! simulation, and finalization are handled internally.
   ! **************************************************************************************************
 
-  subroutine run_simulation(config,                   &
-                            comm, rank, nproc,        &
-                            timeSim, flowSim,         &
-                            timeUnits, flowUnits,     &
-                            param_name, param_value,  &
-                            err, message)
+  subroutine run_simulation(config,                 & ! SUMMA configuration structure
+                            domain_parallel,        & ! MPI context for domain parallelism
+                            instance_parallel,      & ! MPI context for model-instance parallelism
+                            timeSim,flowSim,        & ! simulated time and streamflow
+                            timeUnits,flowUnits,    & ! time and streamflow units
+                            param_name,param_value, & ! parameter names and values
+                            err, message)             ! error code and message
+  
     ! dummy arguments
-   
-    type(config_info)            , intent(inout)    :: config          ! configuration info
-    
-    integer(i4b)                 , intent(in)       :: comm            ! MPI communicator
-    integer(i4b)                 , intent(in)       :: rank            ! MPI rank
-    integer(i4b)                 , intent(in)       :: nproc           ! number of MPI processes
-   
-    real(rkind)     , allocatable, intent(out)      :: timeSim(:)      ! simulation time
-    real(rkind)     , allocatable, intent(out)      :: flowSim(:)      ! simulated streamflow
-   
-    character(len=:), allocatable, intent(out)      :: timeUnits       ! units and reference time for simulation time
-    character(len=:), allocatable, intent(out)      :: flowUnits       ! units for simulated streamflow
-   
-    character(*)                 , intent(in)       :: param_name(:)   ! parameter names
-    real(rkind)                  , intent(in)       :: param_value(:)  ! parameter values
-   
-    integer(i4b)                 , intent(out)      :: err             ! error code
-    character(*)                 , intent(out)      :: message         ! error message
-   
+  
+    type(config_info),           intent(inout) :: config
+    type(parallel_context_type), intent(in)    :: domain_parallel
+    type(parallel_context_type), intent(in)    :: instance_parallel
+  
+    real(rkind), allocatable, intent(out) :: timeSim(:)
+    real(rkind), allocatable, intent(out) :: flowSim(:)
+  
+    character(len=:), allocatable, intent(out) :: timeUnits
+    character(len=:), allocatable, intent(out) :: flowUnits
+  
+    character(*), intent(in) :: param_name(:)
+    real(rkind),  intent(in) :: param_value(:)
+  
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
+  
     ! locals
-   
-    type(summa1_type_dec), allocatable              :: summa1_struc(:)  ! top-level SUMMA data structure
-    integer(i4b), parameter                         :: n=1              ! n copies of the SUMMA data structure
-    character(len=256)                              :: cmessage         ! error message of downwind routine
-   
+  
+    type(summa1_type_dec), allocatable :: summa1_struc(:)
+    integer(i4b), parameter            :: n=1
+    character(len=256)                 :: cmessage
+  
     err=0
     message='run_simulation/'
-   
-    allocate(summa1_struc(n), stat=err)
-    if (err/=0) then
+  
+    allocate(summa1_struc(n),stat=err)
+    if(err/=0)then
       message=trim(message)//'problem allocating top-level summa structure'
       return
     endif
-   
-    summa1_struc(n)%parallel%comm = comm
-    summa1_struc(n)%parallel%rank = rank
-    summa1_struc(n)%parallel%size = nproc
+  
+    ! populate domain and model-instance parallel contexts
+    summa1_struc(n)%domain_parallel=domain_parallel
+    summa1_struc(n)%instance_parallel=instance_parallel
   
     call initialize_summa(config,                 &
                           summa1_struc(n),        &
                           param_name,param_value, &
                           err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   
+  
     call run_summa(summa1_struc(n),      &
                    timeSim,flowSim,      &
                    timeUnits,flowUnits,  &
                    err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   
+  
     call finalize_summa(summa1_struc(n),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   
+  
   end subroutine run_simulation
   
   ! **************************************************************************************************
@@ -133,14 +134,14 @@ contains
   ! The routine initializes SUMMA, reads the observed streamflow time series,
   ! runs the model, computes the objective function, and finalizes the simulation.
   ! **************************************************************************************************
-  
-  subroutine evaluate_objective(config,                   &
-                                comm, rank, nproc,        &
-                                param_name, param_value,  &
-                                metric,                   &
-                                err, message)
  
-    use iso_fortran_env, only: error_unit
+  subroutine evaluate_objective(config,                 & ! SUMMA configuration structure
+                                domain_parallel,        & ! MPI context for domain parallelism
+                                instance_parallel,      & ! MPI context for model-instance parallelism
+                                param_name,param_value, & ! parameter names and values
+                                metric,                 & ! objective function value
+                                err, message)             ! error code and message
+ 
     use iso_fortran_env, only: output_unit
 
     use globalData, only: ncid
@@ -152,21 +153,19 @@ contains
 
     use write_evaluation_module, only: write_evaluation
 
-        ! dummy arguments
-
-    type(config_info)            , intent(inout)    :: config          ! configuration info
-
-    integer(i4b)                 , intent(in)       :: comm            ! MPI communicator
-    integer(i4b)                 , intent(in)       :: rank            ! MPI rank
-    integer(i4b)                 , intent(in)       :: nproc           ! number of MPI processes
-
-    character(*)                 , intent(in)       :: param_name(:)   ! parameter names
-    real(rkind)                  , intent(in)       :: param_value(:)  ! parameter values
-
-    real(rkind)                  , intent(out)      :: metric          ! objective function metric
-
-    integer(i4b)                 , intent(out)      :: err             ! error code
-    character(*)                 , intent(out)      :: message         ! error message
+    ! dummy arguments
+    
+    type(config_info),           intent(inout) :: config
+    type(parallel_context_type), intent(in)    :: domain_parallel
+    type(parallel_context_type), intent(in)    :: instance_parallel
+   
+    character(*), intent(in)  :: param_name(:)
+    real(rkind),  intent(in)  :: param_value(:)
+   
+    real(rkind),  intent(out) :: metric
+   
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
 
     ! locals
 
@@ -194,9 +193,6 @@ contains
     err=0
     message='evaluate_objective/'
  
-    ! send log information to stderr
-    iulog = error_unit
-
     ! check start_date and end_date are defined
     if(.not.allocated(config%calib%start_date) .or. .not.allocated(config%calib%end_date) )then
       message=trim(message)//'Objective function start_date or end_date are not defined'
@@ -210,11 +206,10 @@ contains
       return
     endif
   
-    ! define parallel context
-    summa1_struc(n)%parallel%comm = comm
-    summa1_struc(n)%parallel%rank = rank
-    summa1_struc(n)%parallel%size = nproc
-  
+    ! populate domain and model-instance parallel contexts
+    summa1_struc(n)%domain_parallel=domain_parallel
+    summa1_struc(n)%instance_parallel=instance_parallel
+    
     ! initialize SUMMA
     call initialize_summa(config,                &
                           summa1_struc(n),       &
@@ -271,8 +266,13 @@ contains
     ! NOTE: Deallocate here because finalize_summa operates on a single array element
     if(allocated(summa1_struc)) deallocate(summa1_struc)
 
-    ! write error metric to standard output
-    write(output_unit,'(ES24.16)') metric
+    ! write objective function to standard output
+    if(instance_parallel%size == 1)then
+      write(output_unit,'(ES24.16)') metric
+    else
+      write(output_unit,'(A,A,A,I0,A,F12.9)') &
+           'case=',trim(config%case_name),', rank=',instance_parallel%rank,', objective=',metric
+    endif
 
   end subroutine evaluate_objective
 

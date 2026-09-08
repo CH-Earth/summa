@@ -2,8 +2,6 @@
 !  attributes
 ! -------------
 hruId
-latitude
-longitude     
 
 ! -----------
 ! timestep vars

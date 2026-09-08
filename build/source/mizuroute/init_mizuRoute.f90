@@ -75,12 +75,11 @@ CONTAINS
  !   - reading spatial-remapping information, when required
  !   - constructing the indices required for spatial remapping
  !-----------------------------------------------------------------------
- subroutine init_mizuroute_domain(info, domain, nSpace, n_write,& 
+ subroutine init_mizuroute_domain(instance_rank,                &
+                                  info, domain, nSpace, n_write,& 
                                   hostmodel_runoff_ids,         &
                                   length_conv_in, time_conv_in, &
                                   ierr, message)
-
-  use iso_fortran_env, only: error_unit
 
   ! shared data
   use public_var, only: ancil_dir
@@ -105,6 +104,7 @@ CONTAINS
 
   implicit none
 
+  integer(i4b),           intent(in)    :: instance_rank
   type(mizuroute_info),   intent(inout) :: info
   type(mizuroute_domain), intent(inout) :: domain
   integer(i4b),           intent(in)    :: nSpace(2)
@@ -125,12 +125,9 @@ CONTAINS
   ierr = 0
   message = 'init_mizuroute_domain/'
 
-  ! ---- set logging to standard error ----
-  iulog = error_unit
-
   ! ---- early return (not running mizuRoute) ----
   if ( .not. info%do_mizuRoute ) then
-    if (info%is_print) print*, 'mizuRoute hydrofabric file not defined: running lumped simulations'
+    if (info%is_print) write(iulog,*) 'mizuRoute hydrofabric file not defined: running lumped simulations'
     return
   endif
 
@@ -183,7 +180,8 @@ CONTAINS
   ! It is the only substantial mizuRoute routine duplicated in the compatibility layer; all other
   ! mizuRoute functionality is called from the original mizuRoute modules and subroutines.
 
-  call init_ntopo(domain%river_network%core%topology%n_hru,           &
+  call init_ntopo(instance_rank,                                      &
+                  domain%river_network%core%topology%n_hru,           &
                   domain%river_network%core%topology%n_seg,           &
                   domain%river_network%core%topology%hru,             &
                   domain%river_network%core%topology%seg,             &
@@ -472,7 +470,7 @@ CONTAINS
 
   if (dt_route > dt_land) then
     dt_route = dt_land
-    print*, 'WARNING: dt_route > dt_land; setting dt_route = dt_land'
+    write(iulog,*) 'WARNING: dt_route > dt_land; setting dt_route = dt_land'
   end if
 
   time%n_sub  = ceiling(dt_land / dt_route)

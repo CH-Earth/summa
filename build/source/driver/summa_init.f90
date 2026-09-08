@@ -165,7 +165,7 @@ contains
     ! *****************************************************************************
     ! *** inital priming -- get command line arguments, identify files, etc.
     ! *****************************************************************************
-  
+ 
     ! initialize the netcdf file id
     ncid(:) = integerMissing
   
@@ -190,10 +190,10 @@ contains
   
     ! associate to elements in the data structure
     summaVars: associate(&
-      
-      ! parallel execution context
-      parallel             => summa1_struc%parallel            , & ! x%comm, x%rank, x%size -- parallel execution context
-  
+     
+      ! domain parallel execution context
+      parallel             => summa1_struc%domain_parallel     , & ! x%comm, x%rank, x%size -- domain parallel execution context
+
       ! run time variables
       computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
       dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU

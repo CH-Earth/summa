@@ -227,7 +227,9 @@ contains
   ! Initialize mizuRoute within the SUMMA data structures
   !-----------------------------------------------------------------------
   subroutine init_mizuroute_from_summa(summaStruct, ierr, message)
- 
+
+  USE public_var,     only: iulog
+
   USE nr_utils,       only: match_index
   USE init_mizuRoute, only: init_mizuroute_domain 
 
@@ -251,12 +253,15 @@ contains
   ! -----------------------------------------------------------------------
   ! Define host-model information required by mizuRoute
   ! -----------------------------------------------------------------------
-  
+ 
   ! general info
   info%is_print     = .true.
   info%do_mizuroute = .true.
   info%do_remapping = allocated(info%remap%remap_file)
-  
+ 
+  ! logging
+  iulog = summaStruct%config%iulog_summa
+
   ! time information
   n_write           = summaStruct%n_write
   info%dt_landmodel = summaStruct%data_step
@@ -284,9 +289,10 @@ contains
   !   - constructing the indices required for spatial remapping
   ! -----------------------------------------------------------------------
   
-  call init_mizuroute_domain(info, domain, nSpace, n_write,  &
-                             summaStruct%coupling(:)%id,     &
-                             length_conv, time_conv,         &
+  call init_mizuroute_domain(summaStruct%instance_parallel%rank, &
+                             info, domain, nSpace, n_write,      &
+                             summaStruct%coupling(:)%id,         &
+                             length_conv, time_conv,             &
                              ierr, cmessage)
   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 

@@ -26,7 +26,8 @@ MODULE summa_type
 ! * higher-level derived data types
 ! *****************************************************************************
 
-USE nr_type         ! variable types, etc.
+USE nr_type                                ! variable types, etc.
+USE iso_fortran_env, only: output_unit     ! output unit (normally=6)
 
 ! general summa data types
 USE data_types,  only : &
@@ -80,6 +81,9 @@ private
 ! ***********************************************************************************************************
 
 type, public :: config_info
+
+  ! logging
+  integer(i4b)                   :: iulog_summa = output_unit ! output unit for log files
 
   ! SUMMA configuration options from the CLI (-g and -h)
   integer(i4b)                   :: nGRU_user = -1          ! Number of GRUs requested by the user
@@ -151,8 +155,9 @@ type, public :: summa1_type_dec
 ! summa/mizuroute information
 type(config_info)                :: config                     ! summa/mizuroute configuration settings
 
-! MPI communication context
-type(parallel_context_type)      :: parallel                   ! x%comm, x%rank, x%size
+! MPI communication context (x%comm, x%rank, x%size)
+type(parallel_context_type)      :: domain_parallel            ! parallelization within one model instance
+type(parallel_context_type)      :: instance_parallel          ! parallelization across model instances
 
 ! the lookup tables
 type(gru_hru_z_vLookup)          :: lookupStruct               ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables

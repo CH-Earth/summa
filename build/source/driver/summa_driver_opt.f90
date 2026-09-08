@@ -38,23 +38,30 @@ program summa_driver_opt
   USE mpi_context, only: set_mpi_context
   USE error_utils, only: check_mpi,abort_mpi
 
+  ! logging
+  USE globalData,       only: iulog
+  USE iso_fortran_env,  only: error_unit
+  
   ! data types
-  USE nr_type,    only: i4b
+  USE nr_type,    only: i4b, rkind
   USE summa_type, only: config_info
+  USE summa_type, only: parallel_context_type
 
   ! error handling
   USE summa_util, only: handle_err,stop_program
 
   implicit none
 
-  ! MPI context
-  integer(i4b) :: rank=0,nproc=1
-
   ! SUMMA configuration
   type(config_info) :: config
 
+  ! MPI contexts for domain and model-instance parallelism
+  type(parallel_context_type) :: domain_parallel
+  type(parallel_context_type) :: instance_parallel
+
   ! number of parameter samples
-  integer(i4b), parameter :: nSamples=3
+  integer(i4b), parameter :: nSamples=1000   ! total number of trials across all model instances
+  integer(i4b)            :: nLocal          ! number of trials assigned to this model instance
 
   ! error control
   integer(i4b) :: err=0,mpi_err=0
@@ -70,23 +77,58 @@ program summa_driver_opt
   call MPI_Init(mpi_err)
   call check_mpi(-1,mpi_err,'MPI_Init failed')
 
-  call set_mpi_context(MPI_COMM_WORLD,rank,nproc,mpi_err,mpi_message)
-  if(mpi_err/=MPI_SUCCESS) call abort_mpi(rank,trim(mpi_message))
+  ! get the MPI context for the optimization ensemble
+  instance_parallel%comm=MPI_COMM_WORLD
 
+  call set_mpi_context(instance_parallel%comm,  &
+                       instance_parallel%rank,  &
+                       instance_parallel%size,  &
+                       mpi_err,mpi_message)
+  if(mpi_err/=MPI_SUCCESS) &
+    call abort_mpi(instance_parallel%rank,trim(mpi_message))
+
+  ! each model instance runs independently without domain parallelism
+  domain_parallel%comm=MPI_COMM_SELF
+  domain_parallel%rank=0
+  domain_parallel%size=1
+
+  ! divide the total number of parameter trials across model instances
+  nLocal=nSamples/instance_parallel%size
+
+  if(instance_parallel%rank < mod(nSamples,instance_parallel%size))then
+    nLocal=nLocal+1
+  endif
 
   ! ---------------------------------------------------------------------------------------
   ! Initialize SUMMA
   ! ---------------------------------------------------------------------------------------
 
-  call initialize_summa(config,MPI_COMM_SELF,rank,err,message)
+  ! use stderr for logging during initialization
+  iulog = error_unit
+
+  call spinup_from_cold(config,             & ! SUMMA configuration structure
+                        domain_parallel,    & ! MPI context for domain parallelism
+                        instance_parallel,  & ! MPI context for model-instance parallelism
+                        err, message)         ! error code and error message
   call handle_err(err,message)
 
+  ! subsequent output is written to the rank-specific log
 
   ! ---------------------------------------------------------------------------------------
   ! Sample parameters and evaluate SUMMA
   ! ---------------------------------------------------------------------------------------
 
-  call evaluate_parameter_samples(config,MPI_COMM_SELF,rank,nSamples,err,message)
+  ! identify case and MPI rank in the rank-specific log
+  write(iulog,'(A)') repeat('-',80)
+  write(iulog,'(A,A,A,I0)') 'INFO: running case ',trim(config%case_name), &
+                            ' on rank ',instance_parallel%rank
+  write(iulog,'(A)') repeat('-',80)
+
+  call evaluate_parameter_samples(config,                 & ! SUMMA configuration structure
+                                  domain_parallel,        & ! MPI context for domain parallelism
+                                  instance_parallel,      & ! MPI context for model-instance parallelism
+                                  nLocal,                 & ! number of parameter trials assigned to this instance
+                                  err, message)             ! error code and message
   call handle_err(err,message)
 
 
@@ -94,56 +136,63 @@ program summa_driver_opt
   ! Finalize MPI
   ! ---------------------------------------------------------------------------------------
 
+  ! close the logging file
+  close(iulog)
+
   call MPI_Finalize(mpi_err)
 
   if(mpi_err/=MPI_SUCCESS)then
-    write(message,'(A,I0,A)') 'ERROR [rank ',rank,']: MPI_Finalize failed'
+    write(message,'(A,I0,A)') 'ERROR [rank ',instance_parallel%rank, &
+                              ']: MPI_Finalize failed'
     call handle_err(mpi_err,message)
   endif
 
-  if(rank==0) call stop_program(0,'finished parallel parameter evaluation successfully.')
+  if(instance_parallel%rank==0) call stop_program(0,'finished parallel parameter evaluation successfully.')
 
 
 contains
 
 
   ! **************************************************************************************************
-  ! Initialize SUMMA.
+  ! Spinup SUMMA from a cold state.
   !
   ! Initializes the SUMMA configuration, performs a one-year cold-start spinup, writes the resulting
   ! restart state, and configures that restart file as the initial condition for subsequent model
-  ! evaluations.
+  ! evaluations. Additional warmup will be required for individual parameters after this point.
+  !
+  ! This initial warmup also provides access to the parameter data structures.
   ! **************************************************************************************************
 
-  subroutine initialize_summa(config,comm,rank,err,message)
-
-    ! data types
-    USE nr_type,    only: i4b,rkind
-    USE summa_type, only: config_info
-
+  subroutine spinup_from_cold(config,             & ! SUMMA configuration structure
+                              domain_parallel,    & ! MPI context for domain parallelism
+                              instance_parallel,  & ! MPI context for model-instance parallelism
+                              err, message)         ! error code and error message
+   
     ! SUMMA global configuration
-    USE globalData, only: initConfig,output_fileSuffix,ixRestart
+    USE globalData, only: initConfig,ixRestart
     USE globalData, only: ixRestart_end,ixRestart_never,restart_filename
 
-    ! model control
+    ! filenames
     USE summaFileManager, only: SIM_START_TM,SIM_END_TM,MODEL_INITCOND
+    USE summaFileManager, only: OUTPUT_PATH
+    USE globalData, only: output_fileSuffix
 
     ! SUMMA initialization and simulation
     USE summa_init,       only: init_config
     USE summa_simulation, only: run_simulation
 
     implicit none
-
+   
     ! dummy variables
-    type(config_info), intent(out) :: config
-
-    integer(i4b), intent(in)  :: comm,rank
-    integer(i4b), intent(out) :: err
-
-    character(*), intent(out) :: message
+    type(config_info),           intent(out) :: config             ! SUMMA configuration structure
+    type(parallel_context_type), intent(in)  :: domain_parallel    ! MPI context for domain parallelism
+    type(parallel_context_type), intent(in)  :: instance_parallel  ! MPI context for model-instance parallelism
+    integer(i4b),                intent(out) :: err                ! error code
+    character(*),                intent(out) :: message            ! error message
 
     ! local variables
     character(len=4)   :: rankString
+    character(len=256) :: log_file
     character(len=256) :: cmessage
 
     character(len=:), allocatable :: outputFileSuffix_orig
@@ -157,9 +206,7 @@ contains
     integer(i4b) :: iyear
 
     err=0
-    message='initialize_summa/'
-
-    write(rankString,'(I4.4)') rank
+    message='spinup_from_cold/'
 
     ! zero-length parameter vectors for baseline initialization
     allocate(param_name(0),param_value(0),stat=err)
@@ -178,9 +225,23 @@ contains
 
     initConfig=.false.
 
+    ! ---------------------------------------------------------------------------------------
+    ! Configure logging files
+    ! ---------------------------------------------------------------------------------------
+
+    ! set the logging unit and log files
+    iulog = 99
+    config%iulog_summa = iulog
+ 
+    write(rankString,'(I4.4)') instance_parallel%rank
+    log_file=trim(OUTPUT_PATH)//'logs/'//trim(config%case_name)//'_rank'//rankString//'.log'
+    call execute_command_line('mkdir -p "'//trim(OUTPUT_PATH)//'logs"')
+
+    open(unit=iulog,file=trim(log_file),status='replace',action='write')
+
 
     ! -----------------------------------------------------------------------------------------------
-    ! Perform a one-year cold-start spinup
+    ! Perform a one-year cold-start spinup prior to the start of the simulation period
     ! -----------------------------------------------------------------------------------------------
 
     simStartOriginal=trim(SIM_START_TM)
@@ -194,23 +255,26 @@ contains
     SIM_START_TM=spinStart
     SIM_END_TM=simStartOriginal
 
-    outputFileSuffix_orig=trim(output_fileSuffix)
-    output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_rank'//rankString
+    outputFileSuffix_orig = trim(output_fileSuffix)
+    output_fileSuffix     = trim(outputFileSuffix_orig)//'_'//trim(config%case_name)// &
+                            '_spinup_rank'//rankString
 
     ! force writing a restart file at the end of the spinup
     ixRestart=ixRestart_end
 
-    call run_simulation(config,                 &
-                        comm,0,1,               &
-                        timeSim,flowSim,        &
-                        timeUnits,flowUnits,    &
-                        param_name,param_value, &
-                        err,cmessage)
+    ! run SUMMA for one year following the cold start
+    call run_simulation(config,                 & ! SUMMA configuration structure
+                        domain_parallel,        & ! MPI context for domain parallelism
+                        instance_parallel,      & ! MPI context for model-instance parallelism
+                        timeSim,flowSim,        & ! simulated time and streamflow
+                        timeUnits,flowUnits,    & ! time and streamflow units
+                        param_name,param_value, & ! parameter names and values
+                        err,cmessage)             ! error code and message
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
 
     ! -----------------------------------------------------------------------------------------------
-    ! Configure spinup restart state
+    ! Prepare files/settings for subsequent warm(er) starts. Additonal spinup will still be required.
     ! -----------------------------------------------------------------------------------------------
 
     if(allocated(restart_filename))then
@@ -226,7 +290,7 @@ contains
     output_fileSuffix=outputFileSuffix_orig
     ixRestart=ixRestart_never
 
-  end subroutine initialize_summa
+  end subroutine spinup_from_cold
 
 
   ! **************************************************************************************************
@@ -237,15 +301,12 @@ contains
   ! spatially uniform SUMMA override vector, and evaluates the objective function for each sample.
   ! **************************************************************************************************
 
-  subroutine evaluate_parameter_samples(config,comm,rank,nSample,err,message)
-
-    ! data types
-    USE nr_type,    only: i4b,rkind
-    USE summa_type, only: config_info
-
-    ! logging
-    USE globalData, only: iulog
-
+  subroutine evaluate_parameter_samples(config,                 & ! SUMMA configuration structure
+                                        domain_parallel,        & ! MPI context for domain parallelism
+                                        instance_parallel,      & ! MPI context for model-instance parallelism
+                                        nLocal,                 & ! parameter trials assigned to this instance
+                                        err, message)             ! error code and error message
+    
     ! model-agnostic parameter search
     USE parameter_search, only: parameter_spec,parameter_search_info
     USE parameter_search, only: initialize_parameter_search,sample_parameters
@@ -257,8 +318,11 @@ contains
     ! objective-function evaluation
     USE summa_simulation, only: evaluate_objective
 
+    ! file paths/names
+    USE summaFileManager, only: OUTPUT_PATH
+    USE globalData,       only: output_fileSuffix
+
     ! calibration output
-    USE summaFileManager,          only: OUTPUT_PATH
     USE calibration_output_module, only: create_calibration_output
     USE calibration_output_module, only: write_calibration_output
     USE calibration_output_module, only: close_calibration_output
@@ -266,16 +330,22 @@ contains
     implicit none
 
     ! dummy variables
-    type(config_info), intent(inout) :: config
-    integer(i4b), intent(in)  :: comm,rank,nSample
-    integer(i4b), intent(out) :: err
-    character(*), intent(out) :: message
+    type(config_info),           intent(inout) :: config             ! SUMMA configuration structure
+    type(parallel_context_type), intent(in)    :: domain_parallel    ! MPI context for domain parallelism
+    type(parallel_context_type), intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
+    integer(i4b),                intent(in)    :: nLocal             ! parameter trials assigned to this instance
+    integer(i4b),                intent(out)   :: err                ! error code
+    character(*),                intent(out)   :: message            ! error message
 
-    ! calibration output
+    ! ncid/name for calibration output
     integer(i4b)       :: ncid_calib
-    character(len=4)   :: rankString
     character(len=256) :: calib_file
     
+    ! strings to create unique file names
+    character(len=4)              :: rankString
+    character(len=6)              :: sampleString
+    character(len=:), allocatable :: outputFileSuffix_orig
+
     ! parameter-search information
     type(parameter_spec)        :: param_spec
     type(parameter_search_info) :: search
@@ -301,6 +371,9 @@ contains
 
     err=0
     message='evaluate_parameter_samples/'
+
+    ! save the original output file suffix to build unique filenames
+    outputFileSuffix_orig=trim(output_fileSuffix)
 
     ! -----------------------------------------------------------------------------------------------
     ! Initialize parameter search
@@ -351,20 +424,21 @@ contains
       return
     endif
 
-    seed=rank+42
+    seed = instance_parallel%rank + 42
     call random_seed(put=seed)
 
 
     ! -----------------------------------------------------------------------------------------------
     ! Initialize calibration output
     ! -----------------------------------------------------------------------------------------------
-    
-    write(rankString,'(I4.4)') rank
+   
+    ! define a rank-specific calibration output file 
+    write(rankString,'(I4.4)') instance_parallel%rank
     calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_calibration_rank'//rankString//'.nc'
     
     call create_calibration_output(calib_file,                  &
                                    param_spec,                  &
-                                   rank,                        &
+                                   instance_parallel%rank,      &
                                    config%case_name,            &
                                    config%calib%metric,         &
                                    config%calib%obs_transform,  &
@@ -377,10 +451,16 @@ contains
     ! Sample and evaluate parameter vectors
     ! -----------------------------------------------------------------------------------------------
 
-    do j=1,nSample
+    do j=1,nLocal
 
       ! record start time for this parameter trial
       call date_and_time(values=startModelRun)
+
+      ! define a unique SUMMA output suffix for this parameter trial
+      ! include the case, instance rank, and local sample index to prevent file collisions
+      write(sampleString,'(I6.6)') j
+      output_fileSuffix=trim(outputFileSuffix_orig)//'_'//trim(config%case_name)// &
+                        '_rank'//rankString//'_sample'//sampleString
 
       ! sample a feasible parameter vector
       call sample_parameters(search,param_value,err,cmessage)
@@ -397,11 +477,13 @@ contains
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! evaluate SUMMA for the complete parameter override vector
-      call evaluate_objective(config,                   &
-                              comm,0,1,                 &
-                              param_name,param_override, &
-                              objective,                 &
-                              err,cmessage)
+      call evaluate_objective(config,                 & ! SUMMA configuration structure
+                              domain_parallel,        & ! MPI context for domain parallelism
+                              instance_parallel,      & ! MPI context for model-instance parallelism
+                              param_name,             & ! parameter names
+                              param_override,         & ! parameter values
+                              objective,              & ! objective function value
+                              err,cmessage)             ! error code and message
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! record end time for this parameter trial
