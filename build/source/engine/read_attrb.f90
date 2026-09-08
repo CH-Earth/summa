@@ -29,6 +29,7 @@ USE globalData,only:int8Missing                            ! missing long intege
 implicit none
 private
 public::read_dimension
+public::read_dimensionGrid
 public::read_attrb
 
 contains
