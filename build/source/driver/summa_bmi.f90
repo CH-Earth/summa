@@ -72,6 +72,8 @@ module summabmi
   USE globalData, only: ixRestart                             ! define frequency to write restart files
   USE globalData, only: newOutputFile                         ! define option for new output files
   USE globalData, only: nHRUrun                               ! number of HRUs in the run domain
+  USE globalData, only: nGRUrun                               ! number of GRUs in the run domain
+  USE globalData, only: maxDOM                                ! maximum number of domains (every HRU may have multiple) in the run domain
   USE globalData, only: urbanVegCategory                      ! vegetation category for urban areas
 #ifndef NGEN_FORCING_ACTIVE
   USE globalData, only: ixHRUfile_min, ixHRUfile_max          ! indices of the first and last HRUs in the forcing file
@@ -121,6 +123,8 @@ module summabmi
      integer(i4b)                       :: ixRestart                         ! define frequency to write restart files
      integer(i4b)                       :: newOutputFile                     ! define option for new output files
      integer(i4b)                       :: nHRUrun                           ! number of HRUs in the run domain
+     integer(i4b)                       :: nGRUrun                           ! number of GRUs in the run domain
+     integer(i4b)                       :: maxDOM                            ! maximum number of domains (every HRU may have multiple) in the run domain
      integer(i4b)                       :: urbanVegCategory                  ! vegetation category for urban areas
 #ifndef NGEN_FORCING_ACTIVE
      integer(i4b)                       :: ixHRUfile_min, ixHRUfile_max      ! indices of the first and last HRUs in the forcing file
@@ -382,6 +386,9 @@ module summabmi
      maxGrid = this%model%maxGrid
      maxGridX = this%model%maxGridX
      maxGridY = this%model%maxGridY
+     nHRUrun = this%model%nHRUrun
+     nGRUrun = this%model%nGRUrun
+     maxDOM = this%model%maxDOM
      urbanVegCategory = this%model%urbanVegCategory
      ixProgress = this%model%ixProgress
      ixRestart = this%model%ixRestart
@@ -404,13 +411,6 @@ module summabmi
      elapsedRead = this%model%elapsedRead
      elapsedWrite = this%model%elapsedWrite
      elapsedPhysics = this%model%elapsedPhysics
-     ! initialize global variables that change during the model simulation and are not initialized before the first time step
-     if(this%model%timeStep >1)then
-       this%model%nHRUrun = nHRUrun
-#ifndef NGEN_FORCING_ACTIVE
-       this%model%nHRUrun = nHRUfile
-#endif
-     end if
 
      ! read model forcing data
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
@@ -436,6 +436,8 @@ module summabmi
      this%model%fileout = fileout
      this%model%ncid = ncid
      this%model%nHRUrun = nHRUrun
+     this%model%nGRUrun = nGRUrun
+     this%model%maxDOM = maxDOM
 #ifndef NGEN_FORCING_ACTIVE
      this%model%nHRUrun = nHRUfile
      this%model%iFile = iFile
