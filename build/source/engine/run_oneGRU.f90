@@ -645,6 +645,7 @@ subroutine run_oneGRU(&
               else
                 DOMaspect = 0._rkind
               endif
+              DOMcontourLength = attrHRU%hru(iHRU)%var(iLookATTR%contourLength) ! for now, just keep upchangint at the HRU contour length, but could be improved in the future
             else
               DOMelev = realMissing
               DOMarea = 0._rkind

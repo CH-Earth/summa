@@ -208,7 +208,7 @@ contains
                  DOMcontourLength => progData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMcontourLength)%dat(1) )
          if (typeDOM==upland) then
            DOMarea = remaining_area
-           if(remaining_area>0._rkind)then 
+           if(remaining_area>0._rkind)then
              DOMelev = remaining_elev/remaining_area
              DOMtan_slope = remaining_tan_slope/remaining_area
              if(remaining_aspect_sin**2 + remaining_aspect_cos**2 > aspect_tol)then
@@ -216,6 +216,7 @@ contains
              else
                DOMaspect = 0._rkind
              endif
+             DOMcontourLength = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%contourLength) ! for now, just set to the HRU contour length, but could be improved in the future
            else
              if (remaining_area<-xTol) write(*,'(A,E22.16,A)') 'WARNING: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
              DOMelev = realMissing
