@@ -211,7 +211,7 @@ contains
            if(remaining_area>0._rkind)then
              ! default: upland domain inherits the HRU attributes verbatim
              DOMelev = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
-             DOMtan_slope = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%tan_slope
+             DOMtan_slope = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%tan_slope)
              DOMaspect = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%aspect)
              DOMcontourLength = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%contourLength) ! for now, just set to the HRU contour length, but could be improved in the future
              ! other domains took part of the HRU, so re-derive the upland residual by area weighting
