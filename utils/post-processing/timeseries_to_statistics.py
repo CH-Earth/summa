@@ -162,20 +162,24 @@ def run_loop(file,bench,processed_files_path0):
     # get rid of gru dimension, assuming hru and gru are one to one (everything now as hruId)
     # get rid of dom dimension, assuming one dom per hru
     dat = dat.drop_vars(['hruId','gruId','domType'])
-    m = dat.drop_dims('hru','dom')
+    if 'dom' in dat.dims:
+        dat = dat.isel(dom=0, drop=True)
+    m = dat.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
-    dat = dat.drop_dims('gru','dom')
-    dat = xr.merge([dat,m])  
+    dat = dat.drop_dims('gru')
+    dat = xr.merge([dat,m])
     dat = dat.isel(time=slice(skip, None)) #skip first timesteps
     
     if do_vars:
         ben = ben.where(ben!=-9999)
         #ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0) 
         ben = ben.drop_vars(['hruId','gruId','domType'])
-        m = ben.drop_dims('hru','dom')
+        if 'dom' in ben.dims:
+            ben = ben.isel(dom=0, drop=True)
+        m = ben.drop_dims('hru')
         m = m.rename({'gru': 'hru'})
-        ben = ben.drop_dims('gru','dom')
-        ben = xr.merge([ben,m])  
+        ben = ben.drop_dims('gru')
+        ben = xr.merge([ben,m])
         ben = ben.isel(time=slice(skip, None)) #skip first timesteps
 
         # Align coordinates of ben with dat
