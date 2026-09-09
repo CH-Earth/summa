@@ -555,7 +555,7 @@ contains
     err=0; message='init_config/'
   
     ! get command-line arguments
-    ! command line establishes where configuration files are located
+    ! command line arguments establish where configuration files are located
     call getCommandArguments(config, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   

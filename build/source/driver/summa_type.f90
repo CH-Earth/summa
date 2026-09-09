@@ -130,6 +130,7 @@ type, public :: config_info
 
   ! User configuration options
   logical(lgt)                   :: use_mizuroute = .false. ! Enable coupled mizuRoute for this simulation
+  logical(lgt)                   :: write_timeseries = .true.  ! Write SUMMA time-series output file
 
 #ifdef MIZUROUTE_ACTIVE
   type(mizuroute_info)           :: mizu_info               ! mizuRoute configuration infirmation

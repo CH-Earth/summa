@@ -242,17 +242,22 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! write aligned evaluation time series and objective value
-    call write_evaluation(ncid(iLookFREQ%timestep),                    &
-                          summa1_struc(n)%config%calib%write_aligned,  &
-                          timeAligned,                                 &
-                          flowObsAligned,flowSimAligned,               &
-                          timeObsUnits,flowObsUnits,                   &
-                          summa1_struc(n)%config%calib%metric,         &
-                          summa1_struc(n)%config%calib%obs_transform,  &
-                          metric,                                      &
-                          err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(summa1_struc(n)%config%write_timeseries)then
 
+      call write_evaluation(ncid(iLookFREQ%timestep),                    &
+                            summa1_struc(n)%config%calib%write_aligned,  &
+                            timeAligned,                                 &
+                            flowObsAligned,flowSimAligned,               &
+                            timeObsUnits,flowObsUnits,                   &
+                            summa1_struc(n)%config%calib%metric,         &
+                            summa1_struc(n)%config%calib%obs_transform,  &
+                            metric,                                      &
+                            err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif
+
+    ! finalize SUMMA and release model resources
     call finalize_summa(summa1_struc(n),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

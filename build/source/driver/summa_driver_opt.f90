@@ -34,7 +34,8 @@
 program summa_driver_opt
 
   ! MPI
-  USE mpi, only: MPI_COMM_WORLD,MPI_COMM_SELF,MPI_SUCCESS,MPI_Init,MPI_Finalize
+  USE mpi, only: MPI_COMM_WORLD,MPI_COMM_SELF,MPI_SUCCESS,MPI_CHARACTER
+  USE mpi, only: MPI_Init,MPI_Finalize, MPI_Bcast
   USE mpi_context, only: set_mpi_context
   USE error_utils, only: check_mpi,abort_mpi
 
@@ -256,11 +257,10 @@ contains
     SIM_END_TM=simStartOriginal
 
     outputFileSuffix_orig = trim(output_fileSuffix)
-    output_fileSuffix     = trim(outputFileSuffix_orig)//'_'//trim(config%case_name)// &
-                            '_spinup_rank'//rankString
+    output_fileSuffix     = trim(outputFileSuffix_orig)//'_rank'//rankString
 
-    ! force writing a restart file at the end of the spinup
-    ixRestart=ixRestart_end
+    ! write the common restart state on rank 0 only
+    ixRestart = merge(ixRestart_end, ixRestart_never, instance_parallel%rank == 0)
 
     ! run SUMMA for one year following the cold start
     call run_simulation(config,                 & ! SUMMA configuration structure
@@ -272,17 +272,22 @@ contains
                         err,cmessage)             ! error code and message
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    ! broadcast the rank-0 restart filename to all model instances
+    call MPI_Bcast(restart_filename, len(restart_filename), MPI_CHARACTER, 0, &
+                   instance_parallel%comm, mpi_err)  
 
-    ! -----------------------------------------------------------------------------------------------
-    ! Prepare files/settings for subsequent warm(er) starts. Additonal spinup will still be required.
-    ! -----------------------------------------------------------------------------------------------
-
-    if(allocated(restart_filename))then
-      MODEL_INITCOND=trim(restart_filename)
-    else
-      message=trim(message)//'restart filename not defined'
+    if(mpi_err/=MPI_SUCCESS)then
+      message=trim(message)//'unable to broadcast restart filename'
       err=20; return
     endif
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Prepare files/settings for subsequent restarts. Parameter-specific spinup is still required.
+    ! -----------------------------------------------------------------------------------------------
+
+    ! use the common cold-start spinup state as the initial conditions
+    !  -- parameter-specific warmup follows
+    MODEL_INITCOND=trim(restart_filename)
 
     ! restore original simulation settings
     SIM_START_TM=simStartOriginal

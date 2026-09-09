@@ -281,6 +281,7 @@ contains
     ! ---- simulation: settings ----
     case ("simulation.case_name"         ); call get_value(subtable, trim(key), config%case_name        , stat=istat)
     case ("simulation.use_mizuroute"     ); call get_value(subtable, trim(key), config%use_mizuroute    , stat=istat)
+    case ("simulation.write_timeseries"  ); call get_value(subtable, trim(key), config%write_timeseries , stat=istat)
 
     ! ---- SUMMA files: paths ----
     case ("summa_files.settings_path"    ); call get_value(subtable, trim(key), config%settings_path    , stat=istat)

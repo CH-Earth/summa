@@ -7,7 +7,8 @@ start_time = "1981-10-01 00:00"
 end_time   = "1989-09-30 23:00"
 time_zone  = "localTime"
 
-use_mizuroute  = true
+use_mizuroute    = true
+write_timeseries = true
 
 [summa_files]
 
@@ -89,7 +90,7 @@ metric         = "kge"
 obs_transform  = "none"
 
 start_date     = "1982-10-01"
-end_date       = "1983-10-01"
+end_date       = "1989-09-30"
 
 param_list = [
     "k_soil",

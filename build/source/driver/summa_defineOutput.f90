@@ -100,6 +100,9 @@ contains
  ! initialize error control
  err=0; message='summa_defineOutputFiles/'
 
+ ! time-series output disabled
+ if(.not.summa1_struc%config%write_timeseries) return
+
  ! *****************************************************************************
  ! *** define the name of the model output file
  ! *****************************************************************************

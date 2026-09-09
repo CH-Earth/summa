@@ -287,8 +287,8 @@ contains
 
  ! identify the need to write output file
  select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)
-  case(writePerStep);    is_writingOutput = .true.
-  case(writeFullSeries); is_writingOutput = (modelTimeStep == numtim)
+  case(writePerStep);    is_writingOutput = summa1_struc%config%write_timeseries
+  case(writeFullSeries); is_writingOutput = summa1_struc%config%write_timeseries .and. (modelTimeStep == numtim)
   case default
    err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
  end select
@@ -431,22 +431,22 @@ contains
  ! *** write restart file
  ! *****************************************************************************
 
+ ! define restart filename on all ranks so it is available after rank 0 writes the restart file
+ write(timeString,'(i4,3(i2.2))') timeStruct%var(iLookTIME%iyyy),timeStruct%var(iLookTIME%im),timeStruct%var(iLookTIME%id),timeStruct%var(iLookTIME%ih)
+ restart_filename = trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+
  ! print a restart file if requested
  if(printRestart)then
-  write(timeString,'(i4,3(i2.2))') timeStruct%var(iLookTIME%iyyy),timeStruct%var(iLookTIME%im),timeStruct%var(iLookTIME%id),timeStruct%var(iLookTIME%ih)
   
   if(STATE_PATH == '') then
-    restartFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+    restartFile=trim(OUTPUT_PATH)//restart_filename
   else
-    restartFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+    restartFile=trim(STATE_PATH)//restart_filename
   endif
 
   call writeRestart(restartFile,nGRU_local,nHRU_local,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-  ! save filename in global data (strip out directory path)
-  restart_filename = restartFile(index(restartFile,'/',back=.true.)+1:)
-  
  end if
 
  ! *****************************************************************************

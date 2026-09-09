@@ -128,15 +128,16 @@ subroutine summa_setWriteAlarms(modelTimeStep,                   &   ! time inde
   ! *** define the need to create a restart file
   ! *****************************************************************************
   select case(ixRestart)
-    case(ixRestart_iy);    printRestart = (newTime(iLookTIME%im) == 1 .and. newTime(iLookTIME%id) == 1 .and. &
-                                          newTime(iLookTIME%ih) == 0 .and. newTime(iLookTIME%imin) == 0)
-    case(ixRestart_im);    printRestart = (newTime(iLookTIME%id) == 1 .and. newTime(iLookTIME%ih) == 0 .and. &
-                                          newTime(iLookTIME%imin) == 0)
-    case(ixRestart_id);    printRestart = (newTime(iLookTIME%ih) == 0 .and. newTime(iLookTIME%imin) == 0)
-    case(ixRestart_end);   printRestart = (newTime(iLookTIME%im)   == endTime(iLookTIME%im) .and. &
-                                          newTime(iLookTIME%id)   == endTime(iLookTIME%id) .and. &
-                                          newTime(iLookTIME%ih)   == endTime(iLookTIME%ih) .and. &
-                                          newTime(iLookTIME%imin) == endTime(iLookTIME%imin))    ! newTime does not have a '24h', won't write ending state if end_h=24
+    case(ixRestart_iy);    printRestart = newTime(iLookTIME%im) == 1 .and. newTime(iLookTIME%id) == 1 .and. &
+                                          newTime(iLookTIME%ih) == 0 .and. newTime(iLookTIME%imin) == 0
+    case(ixRestart_im);    printRestart = newTime(iLookTIME%id) == 1 .and. newTime(iLookTIME%ih) == 0 .and. &
+                                          newTime(iLookTIME%imin) == 0
+    case(ixRestart_id);    printRestart = newTime(iLookTIME%ih) == 0 .and. newTime(iLookTIME%imin) == 0
+    case(ixRestart_end);   printRestart = newTime(iLookTIME%iyyy) == endTime(iLookTIME%iyyy) .and. &
+                                          newTime(iLookTIME%im)   == endTime(iLookTIME%im)   .and. &
+                                          newTime(iLookTIME%id)   == endTime(iLookTIME%id)   .and. &
+                                          newTime(iLookTIME%ih)   == endTime(iLookTIME%ih)   .and. &
+                                          newTime(iLookTIME%imin) == endTime(iLookTIME%imin)    ! newTime does not have a '24h', won't write ending state if end_h=24
     case(ixRestart_never); printRestart = .false.
     case default; err=20; message=trim(message)//'unable to identify option for the restart file'; return
   end select
