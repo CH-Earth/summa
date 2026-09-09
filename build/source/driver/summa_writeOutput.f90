@@ -407,21 +407,23 @@ contains
   ! ----- write mizuRoute output ------------------------------------------------
 
   write_mizuroute = merge(modelTimeStep == numtim, .true., is_fullSeries)
- 
-  if(summa1_struc%config%use_mizuroute .and. write_mizuroute)then
 
-   istart_write = merge(     1, modelTimeStep, is_fullSeries)
-   numtim_write = merge(numtim,             1, is_fullSeries)
+  if(mizuroute_active)then ! build-time capabilty 
+    if(summa1_struc%config%use_mizuroute .and. write_mizuroute)then
 
-   call write_mizuroute_output_from_summa(  &
-        ncid(iLookFREQ%timestep),           &
-        istart_write,                       &
-        numtim_write,                       &
-        summa1_struc,                       &
-        err, cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-  endif  ! (if writing mizuRoute)
+      istart_write = merge(     1, modelTimeStep, is_fullSeries)
+      numtim_write = merge(numtim,             1, is_fullSeries)
+    
+      call write_mizuroute_output_from_summa(  &
+           ncid(iLookFREQ%timestep),           &
+           istart_write,                       &
+           numtim_write,                       &
+           summa1_struc,                       &
+           err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    endif  ! (if writing mizuRoute)
+  endif   ! (if mizuroute was built)
 
  endif  ! (if writing output)
 

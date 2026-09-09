@@ -451,8 +451,9 @@ contains
       ! *****************************************************************************
       ! *** initialize mizuRoute (if mizuRoute is active)
       ! *****************************************************************************
-      
-      if (summa1_struc%config%use_mizuroute) then
+     
+      if(mizuroute_active)then ! build-time capability (parameter)
+       if (summa1_struc%config%use_mizuroute) then ! run-time choice
   
         ! Coupled mizuRoute currently requires the complete SUMMA domain on a single process.
         ! River-network routing cannot be performed independently for each SUMMA domain partition.
@@ -475,6 +476,7 @@ contains
         call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   
+       endif
       endif
   
       ! *****************************************************************************

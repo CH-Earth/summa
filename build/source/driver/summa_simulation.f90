@@ -375,9 +375,11 @@ contains
       if(openwq_active) call openwq_run_space_step(summa_struct)
 
       ! save streamflow time series (unavailable when mizuRoute is not active)
-      if(summa_struct%config%use_mizuroute)then
+      if(mizuroute_active)then ! build-time capability
+       if(summa_struct%config%use_mizuroute)then
         timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
         call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
+       endif
       endif
 
       ! write the model output
@@ -455,9 +457,11 @@ contains
     enddo
 
     ! deallocate mizuroute structures
-    if(summa_struct%config%use_mizuroute) then
+    if(mizuroute_active)then ! build-time capability
+     if(summa_struct%config%use_mizuroute) then
       call finalize_mizuroute(err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     endif
     endif
 
 

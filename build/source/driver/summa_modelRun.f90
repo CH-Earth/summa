@@ -296,7 +296,8 @@ contains
  !$omp end parallel
 
  ! ----- network routing ----------------------------------------------------
- if (summa1_struc%config%use_mizuroute) then
+ if(mizuroute_active)then ! build-time capability
+  if (summa1_struc%config%use_mizuroute) then
 
    ! transfer routed runoff from summa into the coupling structure to pass to mizuRoute
    do iGRU = 1,summa1_struc%nGRU_local
@@ -306,7 +307,8 @@ contains
    call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    
- endif  ! (if mizuRoute is active)
+  endif  ! (if mizuRoute is selected)
+ endif  ! (if mizuroute was built)
 
  ! identify the end of the physics
  call date_and_time(values=endPhysics)
