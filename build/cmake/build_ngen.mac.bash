@@ -3,8 +3,7 @@
 # Build nextgen on Mac, from ngen directory put this one directory up and run this as ../build_ngen.mac.bash
 # Environment variables may be set within this script (see examples below) or in the terminal environment before executing this script
 # activate correct python environment, here is an example with conda environment named ngen
-# NOTE: ngen does not support numpy>=2.0, so this env must have numpy<2 (e.g. numpy 1.26.x)
-: "${PYNGEN_CONDA_ENV:=ngen}"
+: "${NGEN_CONDA_ENV:=ngen}"
 # try common conda install locations; adjust if your conda is elsewhere
 if [ -f "${HOME}/opt/anaconda3/etc/profile.d/conda.sh" ]; then
   . "${HOME}/opt/anaconda3/etc/profile.d/conda.sh"
@@ -15,15 +14,15 @@ elif command -v conda >/dev/null 2>&1; then
 fi
 # activate env if possible (non-fatal)
 if command -v conda >/dev/null 2>&1; then
-  conda activate "${PYNGEN_CONDA_ENV}" || true
+  conda activate "${NGEN_CONDA_ENV}" || true
 fi
 # fallback: allow overriding python executable explicitly
 : "${NGEN_PYTHON_EXECUTABLE:=$(which python 2>/dev/null || echo /usr/bin/python3)}"
 # root of the active python environment (asked of the interpreter itself so a stale
 # VIRTUAL_ENV/CONDA_PREFIX can't mislead it); used as a hint for find_package(Python)
 : "${NGEN_PYTHON_ROOT:=$("${NGEN_PYTHON_EXECUTABLE}" -c 'import sys; print(sys.prefix)' 2>/dev/null || dirname "$(dirname "${NGEN_PYTHON_EXECUTABLE}")")}"
-# ngen does not support numpy>=2.0; verify the active env has numpy<2
-"${NGEN_PYTHON_EXECUTABLE}" - <<'PY' || { echo "ERROR: need numpy<2 in the '${PYNGEN_CONDA_ENV}' env (e.g. conda install 'numpy<2')"; exit 1; }
+# Next Gen does not support numpy>=2.0; verify the active env has numpy<2
+"${NGEN_PYTHON_EXECUTABLE}" - <<'PY' || { echo "ERROR: need numpy<2 in the '${NGEN_CONDA_ENV}' env (e.g. conda install 'numpy<2')"; exit 1; }
 import sys
 from packaging.version import Version
 import numpy as np

@@ -15,8 +15,8 @@ module load sqlite/3.46.0-ayg27dg
 
 # Environment variables may be set within this script (see examples below) or in the terminal environment before executing this script
 # activate correct python environment, here is an example with conda environment named venv installed from SYMFLUENCE
-: "${PYNGEN_CONDA_ENV:=venv}"
-source ${HOME}/Symfluence/SYMFLUENCE/${PYNGEN_CONDA_ENV}/bin/activate
+: "${NGEN_CONDA_ENV:=venv}"
+source ${HOME}/Symfluence/SYMFLUENCE/${NGEN_CONDA_ENV}/bin/activate
 # fallback: allow overriding python executable explicitly
 : "${NGEN_PYTHON_EXECUTABLE:=$(which python 2>/dev/null || echo /usr/bin/python3)}"
 # root of the active python environment (asked of the interpreter itself so a stale
@@ -24,7 +24,7 @@ source ${HOME}/Symfluence/SYMFLUENCE/${PYNGEN_CONDA_ENV}/bin/activate
 : "${NGEN_PYTHON_ROOT:=$("${NGEN_PYTHON_EXECUTABLE}" -c 'import sys; print(sys.prefix)' 2>/dev/null || dirname "$(dirname "${NGEN_PYTHON_EXECUTABLE}")")}"
 export PYTHONNOUSERSITE=1
 python -m pip install --upgrade "pip<24.1" >/dev/null 2>&1 || true
-# ngen does not support numpy>=2.0; make sure the active env has numpy<2
+# Next Gen does not support numpy>=2.0; make sure the active env has numpy<2
 python - <<'PY' || (python -m pip install "numpy<2" "setuptools<70" && true)
 from packaging.version import Version
 import numpy as np

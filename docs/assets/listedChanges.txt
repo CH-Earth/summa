@@ -25,7 +25,7 @@ BEFORE tag of v4.0.0-exp-Sundials
       New decision choices in num_method
       num_method                    [numrec or kinsol or ida]        ! (07) choice of numerical method
      Choice 'itertive' is backwards compatible to numrec
-     For compilation under NexGen, main driver is BMIed and the code is able to read NexGen forcing
+     For compilation under Next Gen, main driver is BMIed and the code is able to read Next Gen forcing
  14) Added possible parameters for adding more steps for BEXX and Sundials tolerances, commit 0619a403 May 31, 2023
       be_steps                  |       1.0000 |       1.0000 |     512.0000
       relTolTempCas             |     (1.0d-5) |       1.0d-10|       1.0d-1 **
@@ -158,7 +158,7 @@ AFTER tag of v4.0.0-exp-Sundials
 -37) Infiltration now changes during the timestep and all derivatives are computed (in FUSE commits, January 2026)
  38) Removal of debugging commented out lines as well as debugging subroutines, and globalPrintFlux now only prints Jacobian, residual, states, and related items, commit 1b12a62a Sep 13, 2025
  39) Simplify Jacobian routines so no repeated code for banded vs full matrix and flux Jacobian terms are separated out from diagonal (and cross-derivatives between nrg and hyd of same layer) terms, end on commit c5dd721f Sep 24, 2025
- 40) Works for NexGen submodule inclusion, and now has NexGen test_case for Provo and other basin in folder test_ngen, commits Oct 31, 2025 to Nov 18, 2025
+ 40) Works for Next Gen submodule inclusion, and now has Next Gen test_case for Provo and other basin in folder test_ngen, commits Oct 31, 2025 to Nov 18, 2025
 -41) Fix soil input for non Rosetta choice, commit 4c1e0808 Oct 30, 2025
  42) Documentation updates from Wouter, commits around Oct 30, 2025
 -43) Fix bug in rooting depth computation if it is set larger than the soil depth, caps it, commit fe80aa86 Dec 4, 2025
