@@ -1326,7 +1326,7 @@ module summabmi
      character (len=*), intent(in) :: name
      real, intent(in)    :: src_arr(sum(gru_struc(:)%hruCount))
      integer, intent(in) :: isrc_arr
-     integer ::  iGRU, jHRU, i
+     integer ::  iGRU, jHRU, i, iDOM
 
      summaVars: associate(&
       timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                          -- model time data
@@ -1353,9 +1353,13 @@ module summabmi
             case('atmosphere_air_water~vapor__relative_saturation')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum) = src_arr(i)
             case('land_surface_wind__x_component_of_velocity')
-              diagStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookDIAG%windspd_x)%dat(1) = src_arr(i) ! same for all domains for now
+              do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount ! same for all domains for now
+                diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%windspd_x)%dat(1) = src_arr(i)
+              end do
             case('land_surface_wind__y_component_of_velocity')
-              diagStruct%gru(iGRU)%hru(jHRU)%dom(:)%var(iLookDIAG%windspd_y)%dat(1) = src_arr(i) ! same for all domains for now
+              do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount ! same for all domains for now
+                diagStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookDIAG%windspd_y)%dat(1) = src_arr(i)
+              end do
             case('land_surface_wind__speed')
               forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd) = src_arr(i)
             case('land_surface_radiation~incoming~shortwave__energy_flux')
