@@ -98,9 +98,14 @@ if (USE_MPI)
 
     find_package(MPI REQUIRED COMPONENTS Fortran)
 
-    add_subdirectory(
-        ${F_MASTER}/external/parallel-utils
-        ${CMAKE_BINARY_DIR}/parallel-utils
+    add_library(PARALLEL_UTILS STATIC
+        source/parallel/mpi_context.f90
+        source/parallel/error_utils.f90
+    )
+
+    target_link_libraries(PARALLEL_UTILS PUBLIC
+        SUMMA_NRTYPE
+        MPI::MPI_Fortran
     )
 endif()
 
@@ -382,7 +387,7 @@ else()
     add_executable(${EXEC_NAME_MPI} ${MAIN_SUMMA_MPI})
     target_compile_options(${EXEC_NAME_MPI} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_MPI} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa parallel_utils)
+    target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa PARALLEL_UTILS)
   endif()
 
   # Parallel optimization SUMMA executable
@@ -390,7 +395,7 @@ else()
     add_executable(${EXEC_NAME_OPT} ${MAIN_SUMMA_OPT})
     target_compile_options(${EXEC_NAME_OPT} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_OPT} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa parallel_utils)
+    target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa PARALLEL_UTILS)
   endif()
 
 endif()
