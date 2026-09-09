@@ -1,4 +1,4 @@
-name: pyngen
+name: ngen
 channels:
   - conda-forge
   - defaults
@@ -22,4 +22,3 @@ dependencies:
   - pyarrow
   - deprecated
   - wheel
-prefix: /Users/amedin/opt/anaconda3/envs/pyngen
