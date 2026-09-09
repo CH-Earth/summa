@@ -536,6 +536,8 @@ contains
   
   subroutine init_config(config ,err, message)
   
+    USE summaFileManager, only: OUTPUT_PATH
+
     USE summa_util,       only: getCommandArguments
     USE summaFileManager, only: summa_SetTimesDirsAndFiles
     USE summa_globalData, only: summa_defineGlobalData
@@ -547,6 +549,7 @@ contains
     integer(i4b)           , intent(out)   :: err
     character(*)           , intent(out)   :: message
   
+    logical(lgt)       :: exists
     character(len=256) :: cmessage
   
     err=0; message='init_config/'
@@ -570,10 +573,18 @@ contains
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
+    ! check that the output directory exists
+    inquire(file=trim(OUTPUT_PATH), exist=exists)
+    if(.not.exists)then
+      message=trim(message)//'output directory does not exist: '//trim(OUTPUT_PATH)
+      err=20; return
+    endif
+
     ! define global data (parameters, metadata)
     call summa_defineGlobalData(err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+ 
+
   end subroutine init_config
 
 
