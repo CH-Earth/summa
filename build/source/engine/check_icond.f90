@@ -209,14 +209,23 @@ contains
          if (typeDOM==upland) then
            DOMarea = remaining_area
            if(remaining_area>0._rkind)then
-             DOMelev = remaining_elev/remaining_area
-             DOMtan_slope = remaining_tan_slope/remaining_area
-             if(remaining_aspect_sin**2 + remaining_aspect_cos**2 > aspect_tol)then
-               DOMaspect = modulo(atan2(remaining_aspect_sin,remaining_aspect_cos)*rad2deg,360._rkind)
-             else
-               DOMaspect = 0._rkind
-             endif
+             ! default: upland domain inherits the HRU attributes verbatim
+             DOMelev = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%elevation)
+             DOMtan_slope = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%tan_slope
+             DOMaspect = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%aspect)
              DOMcontourLength = attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%contourLength) ! for now, just set to the HRU contour length, but could be improved in the future
+             ! other domains took part of the HRU, so re-derive the upland residual by area weighting
+             if(remaining_area /= attrData%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea))then
+               DOMelev = remaining_elev/remaining_area
+               DOMtan_slope = remaining_tan_slope/remaining_area
+               if(DOMaspect /= realMissing)then ! aspect is optional, when it is absent it is realMissing
+                 if(remaining_aspect_sin**2 + remaining_aspect_cos**2 > aspect_tol)then
+                   DOMaspect = modulo(atan2(remaining_aspect_sin,remaining_aspect_cos)*rad2deg,360._rkind)
+                 else
+                   DOMaspect = 0._rkind
+                 endif
+               endif
+             endif
            else
              if (remaining_area<-xTol) write(*,'(A,E22.16,A)') 'WARNING: area of upland HRU (=', remaining_area, ') < 0. Resetting to 0.0'
              DOMelev = realMissing

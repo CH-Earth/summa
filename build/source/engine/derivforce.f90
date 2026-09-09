@@ -227,9 +227,11 @@ contains
   adjMeasHeight = scalarSnowDepth+minMeasHeight  ! measurement height at least minMeasHeight above the snow surface
  endif
  
- ! Air pressure is assumed to be at the HRU mean elevation, so adjust to the domain mean elevation
- airpres_base = AIRP2MSLP(airpres, elevation)
- airpres = MSLP2AIRP(airpres_base, DOMelev)
+ ! Air pressure is assumed to be at the HRU mean elevation, so adjust to the domain mean elevation.
+ if(DOMelev /= elevation)then
+  airpres_base = AIRP2MSLP(airpres, elevation)
+  airpres = MSLP2AIRP(airpres_base, DOMelev)
+ endif
 
  ! compute the partial pressure of o2 and co2
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)

@@ -637,15 +637,24 @@ subroutine run_oneGRU(&
                   DOMcontourLength => progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMcontourLength)%dat(1) )
           if(typeDOM==upland)then
             DOMarea = remaining_area
-            if(remaining_area>0._rkind)then 
-              DOMelev = remaining_elev/remaining_area
-              DOMtan_slope = remaining_tan_slope/remaining_area
-              if(remaining_aspect_sin**2 + remaining_aspect_cos**2 > aspect_tol)then
-                DOMaspect = modulo(atan2(remaining_aspect_sin,remaining_aspect_cos)*rad2deg,360._rkind)
-              else
-                DOMaspect = 0._rkind
+            if(remaining_area>0._rkind)then
+              ! default: upland domain inherits the HRU attributes verbatim
+              DOMelev = attrHRU%hru(iHRU)%var(iLookATTR%elevation)
+              DOMtan_slope = attrHRU%hru(iHRU)%var(iLookATTR%tan_slope)
+              DOMaspect = attrHRU%hru(iHRU)%var(iLookATTR%aspect)
+              DOMcontourLength = attrHRU%hru(iHRU)%var(iLookATTR%contourLength) ! for now, just keep at the HRU contour length, but could be improved in the future
+              ! other domains took part of the HRU, so re-derive the upland residual by area weighting
+              if(remaining_area /= attrHRU%hru(iHRU)%var(iLookATTR%HRUarea))then
+                DOMelev = remaining_elev/remaining_area
+                DOMtan_slope = remaining_tan_slope/remaining_area
+                if(DOMaspect /= realMissing)then ! aspect is optional, when it is absent it is realMissing
+                  if(remaining_aspect_sin**2 + remaining_aspect_cos**2 > aspect_tol)then
+                    DOMaspect = modulo(atan2(remaining_aspect_sin,remaining_aspect_cos)*rad2deg,360._rkind)
+                  else
+                    DOMaspect = 0._rkind
+                  endif
+                endif
               endif
-              DOMcontourLength = attrHRU%hru(iHRU)%var(iLookATTR%contourLength) ! for now, just keep upchangint at the HRU contour length, but could be improved in the future
             else
               DOMelev = realMissing
               DOMarea = 0._rkind
