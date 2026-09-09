@@ -35,6 +35,15 @@ PY
 export CC=/opt/local/bin/gcc
 export CXX=/opt/local/bin/g++
 export FC=/opt/local/bin/gfortran
+# C/C++ compiler to use for the ngen framework itself (set below, before the ngen
+# cmake call).  MacPorts/Homebrew GCC cannot compile against the macOS >=15 / 26 SDK
+# system headers from C++ (the <mach/*> headers fail with
+# "expected constructor, destructor, or type conversion before '(' token"), so ngen
+# and its C/C++ extern modules are built with Apple clang.  Fortran stays on gfortran.
+# SUMMA and iso_c_fortran_bmi are plain Fortran/C and still build with GCC above; they
+# connect to ngen only through the C-ABI BMI interface, so the mix is safe.
+: "${NGEN_CC:=/usr/bin/clang}"
+: "${NGEN_CXX:=/usr/bin/clang++}"
 
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
 export C_INCLUDE_PATH=/opt/local/include
@@ -49,7 +58,13 @@ cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON -DUSE_SUNDIALS=OFF -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build extern/summa/cmake_build --target all -j
 
+# Build the ngen framework and its C/C++ extern modules with Apple clang (see note above).
+export CC="${NGEN_CC}"
+export CXX="${NGEN_CXX}"
 cmake -S . -B cmake_build -DBoost_INCLUDE_DIR=/opt/local/libexec/boost/1.81/include \
+    -DCMAKE_C_COMPILER="${NGEN_CC}"              \
+    -DCMAKE_CXX_COMPILER="${NGEN_CXX}"           \
+    -DCMAKE_Fortran_COMPILER="${FC}"             \
     -DPython_EXECUTABLE="${NGEN_PYTHON_EXECUTABLE}" \
     -DPython_ROOT_DIR="${NGEN_PYTHON_ROOT}"      \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo            \
