@@ -193,12 +193,6 @@ contains
     err=0
     message='evaluate_objective/'
  
-    ! check start_date and end_date are defined
-    if(.not.allocated(config%calib%start_date) .or. .not.allocated(config%calib%end_date) )then
-      message=trim(message)//'Objective function start_date or end_date are not defined'
-      err=20; return
-    endif
-
     ! allocate top-level SUMMA structure
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then

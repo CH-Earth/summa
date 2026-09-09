@@ -11,10 +11,10 @@ use_mizuroute  = true
 
 [summa_files]
 
-settings_path = "test_coupled/summa_inputs/"
-forcing_path  = "test_coupled/summa_inputs/"
+settings_path = "test_coupled/case/summa_inputs/"
+forcing_path  = "test_coupled/case/summa_inputs/"
 output_path   = "test_coupled/work/"
-state_path    = "test_coupled/summa_inputs/"
+state_path    = "test_coupled/case/summa_state/"
 
 init_condition = "coldState.nc"
 attributes     = "attributes.nc"
@@ -33,7 +33,7 @@ noahmp_table     = "TBL_MPTABLE.TBL"
 
 [mizuRoute]
 
-namelist_path = "test_coupled/mizuroute_inputs/"
+namelist_path = "test_coupled/case/mizuroute_inputs/"
 namelist_file = "mizuroute.param"
 
 methods = "3"
@@ -45,7 +45,7 @@ write_Qreach = false
 
 [hydrofabric]
 
-hfabric_path    = "test_coupled/mizuroute_inputs/"
+hfabric_path    = "test_coupled/case/mizuroute_inputs/"
 hfabric_file    = "topology.nc"
 hfabric_newfile = "topology_new.nc"
 
@@ -65,7 +65,7 @@ seg_outlet = 710285850
 
 [remapping]
 
-remap_path     = "test_coupled/mizuroute_inputs/"
+remap_path     = "test_coupled/case/mizuroute_inputs/"
 remap_file     = "lumped_to_hru.nc"
 
 dname_hru      = "polyid"
@@ -78,7 +78,7 @@ vname_qhruid   = "qhru_id"
 
 [observations]
 
-obs_path       = "test_coupled/mizuroute_inputs/"
+obs_path       = "test_coupled/case/mizuroute_inputs/"
 obs_file       = "CAN_05BB001_daily_flow_observations.nc"
 
 vname_obsflow  = "q_obs"

@@ -52,7 +52,14 @@ contains
     err = 0
     message = 'read_flow_observations/'
 
-    associate(obs => summaStruc%config%obs)
+    associate(obs   => summaStruc%config%obs, &
+              calib => summaStruc%config%calib)
+
+    ! check calibration period is defined
+    if(.not.allocated(calib%start_date) .or. .not.allocated(calib%end_date))then
+      message=trim(message)//'calibration start_date or end_date are not defined'
+      err=20; return
+    endif
 
     ! check that the observation file information is defined
     if(.not.allocated(obs%obs_path) .or. &
