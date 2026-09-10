@@ -8,7 +8,7 @@ end_time   = "1989-09-30 23:00"
 time_zone  = "localTime"
 
 use_mizuroute    = true
-write_timeseries = true
+write_timeseries = false
 
 [summa_files]
 
