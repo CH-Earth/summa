@@ -29,11 +29,11 @@ USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)
 
 ! named variables to write restart files
-USE globalData, only: ixRestart_iy            ! named variable to print a re-start file once per year
-USE globalData, only: ixRestart_im            ! named variable to print a re-start file once per month
-USE globalData, only: ixRestart_id            ! named variable to print a re-start file once per day
-USE globalData, only: ixRestart_end           ! named variable to print a re-start file at the end of a run
-USE globalData, only: ixRestart_never         ! named variable to print a re-start file never
+USE globalData, only: ixRestart_iy            ! named variable to write a re-start file once per year
+USE globalData, only: ixRestart_im            ! named variable to write a re-start file once per month
+USE globalData, only: ixRestart_id            ! named variable to write a re-start file once per day
+USE globalData, only: ixRestart_end           ! named variable to write a re-start file at the end of a run
+USE globalData, only: ixRestart_never         ! named variable to write a re-start file never
 
 ! named variables to print progress
 USE globalData, only: ixProgress_im           ! named variable to print progress once per month
@@ -128,15 +128,16 @@ subroutine summa_setWriteAlarms(modelTimeStep,                   &   ! time inde
   ! *** define the need to create a restart file
   ! *****************************************************************************
   select case(ixRestart)
-    case(ixRestart_iy);    printRestart = (newTime(iLookTIME%im) == 1 .and. newTime(iLookTIME%id) == 1 .and. &
-                                          newTime(iLookTIME%ih) == 0 .and. newTime(iLookTIME%imin) == 0)
-    case(ixRestart_im);    printRestart = (newTime(iLookTIME%id) == 1 .and. newTime(iLookTIME%ih) == 0 .and. &
-                                          newTime(iLookTIME%imin) == 0)
-    case(ixRestart_id);    printRestart = (newTime(iLookTIME%ih) == 0 .and. newTime(iLookTIME%imin) == 0)
-    case(ixRestart_end);   printRestart = (newTime(iLookTIME%im)   == endTime(iLookTIME%im) .and. &
-                                          newTime(iLookTIME%id)   == endTime(iLookTIME%id) .and. &
-                                          newTime(iLookTIME%ih)   == endTime(iLookTIME%ih) .and. &
-                                          newTime(iLookTIME%imin) == endTime(iLookTIME%imin))    ! newTime does not have a '24h', won't write ending state if end_h=24
+    case(ixRestart_iy);    printRestart = newTime(iLookTIME%im) == 1 .and. newTime(iLookTIME%id) == 1 .and. &
+                                          newTime(iLookTIME%ih) == 0 .and. newTime(iLookTIME%imin) == 0
+    case(ixRestart_im);    printRestart = newTime(iLookTIME%id) == 1 .and. newTime(iLookTIME%ih) == 0 .and. &
+                                          newTime(iLookTIME%imin) == 0
+    case(ixRestart_id);    printRestart = newTime(iLookTIME%ih) == 0 .and. newTime(iLookTIME%imin) == 0
+    case(ixRestart_end);   printRestart = newTime(iLookTIME%iyyy) == endTime(iLookTIME%iyyy) .and. &
+                                          newTime(iLookTIME%im)   == endTime(iLookTIME%im)   .and. &
+                                          newTime(iLookTIME%id)   == endTime(iLookTIME%id)   .and. &
+                                          newTime(iLookTIME%ih)   == endTime(iLookTIME%ih)   .and. &
+                                          newTime(iLookTIME%imin) == endTime(iLookTIME%imin)    ! newTime does not have a '24h', won't write ending state if end_h=24
     case(ixRestart_never); printRestart = .false.
     case default; err=20; message=trim(message)//'unable to identify option for the restart file'; return
   end select

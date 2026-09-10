@@ -25,9 +25,11 @@ endif()
 set(CMAKE_CONFIGURATION_TYPES Release Debug)
 
 # Options: Enable each with cmake -DOPTION=ON
+option(USE_MIZUROUTE "Enable mizuRoute coupling" OFF)
 option(USE_SUNDIALS "Use IDA solver from SUNDIALS suite" OFF)
 option(USE_NEXTGEN "Use NextGen Framework" OFF)
 option(USE_OPENWQ "Use OpenWQ Framework" OFF)
+option(USE_MPI "Use MPI parallelization" OFF)
 set(EXT_TARGETS) # list of external targets to link to
 
 # Set Default Executable Name
@@ -42,7 +44,18 @@ endif()
 set(PARENT_DIR "${F_MASTER}")
 set(EXEC_DIR "${F_MASTER}/bin")
 
+# TOML parser
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../external/toml-f
+    ${CMAKE_BINARY_DIR}/toml-f
+)
+
 # Handle optional external libraries
+
+# SUNDIALS
 if (USE_SUNDIALS)
     message("ENABLING SUNDIALS")
     find_package(SUNDIALS REQUIRED)
@@ -52,6 +65,7 @@ if (USE_SUNDIALS)
     set(EXEC_NAME summa_sundials.exe)
 endif()
 
+# NextGen
 if (USE_NEXTGEN)
     message("ENABLING NEXTGEN")
     add_compile_definitions(NGEN_ACTIVE BMI_ACTIVE NGEN_FORCING_ACTIVE
@@ -78,6 +92,37 @@ if (USE_OPENWQ)
     endif()
 endif()
 
+# MPI
+if (USE_MPI)
+    message("ENABLING MPI")
+
+    find_package(MPI REQUIRED COMPONENTS Fortran)
+
+    add_library(PARALLEL_UTILS STATIC
+        source/parallel/mpi_context.f90
+        source/parallel/error_utils.f90
+    )
+
+    target_link_libraries(PARALLEL_UTILS PUBLIC
+        SUMMA_NRTYPE
+        MPI::MPI_Fortran
+    )
+endif()
+
+# mizuRoute
+if (USE_MIZUROUTE)
+    message("ENABLING MIZUROUTE")
+
+    set(MIZU_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/../external/mizuRoute/route/build/src
+    )
+
+    set(SUMMA_MIZU_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/mizuroute
+    )
+
+    include(${SUMMA_MIZU_DIR}/CMakeLists.txt)
+endif()
 
 get_filename_component(F_MASTER "${F_MASTER}" REALPATH)
 get_filename_component(PARENT_DIR "${PARENT_DIR}" REALPATH)
@@ -140,7 +185,9 @@ endif()
 
 # Define directories that contains source code
 set(DRIVER_DIR ${F_MASTER}/build/source/driver)
+set(OBJFNC_DIR ${F_MASTER}/build/source/objfunc)
 set(DSHARE_DIR ${F_MASTER}/build/source/dshare)
+set(CALIBR_DIR ${F_MASTER}/build/source/calibration)
 set(ENGINE_DIR ${F_MASTER}/build/source/engine)
 set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
 set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
@@ -163,8 +210,34 @@ set_source_files_properties(${NOAHMP} PROPERTIES Fortran_FORMAT FREE)
 #=========================================================================================
 
 set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
-set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${DRIVER})
+set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${CALIBR} ${DRIVER})
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
+
+# Numerical type definitions used throughout SUMMA
+add_library(SUMMA_NRTYPE STATIC ${NRTYPE})
+target_compile_options(SUMMA_NRTYPE PRIVATE ${FLAGS_ALL})
+set_target_properties(SUMMA_NRTYPE PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/summa_nrtype_mod)
+target_include_directories(SUMMA_NRTYPE PUBLIC ${CMAKE_BINARY_DIR}/summa_nrtype_mod)
+
+# Core SUMMA data type definitions
+add_library(SUMMA_DATA_TYPES STATIC ${SUMMA_DATA_TYPES})
+target_compile_options(SUMMA_DATA_TYPES PRIVATE ${FLAGS_ALL})
+target_link_libraries(SUMMA_DATA_TYPES PUBLIC SUMMA_NRTYPE)
+set_target_properties(SUMMA_DATA_TYPES PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/summa_data_types_mod)
+target_include_directories(SUMMA_DATA_TYPES PUBLIC ${CMAKE_BINARY_DIR}/summa_data_types_mod)
+
+if (USE_MPI)
+    set(MAIN_SUMMA_MPI ${DRIVER_DIR}/summa_driver_mpi.f90)
+    set(MAIN_SUMMA_OPT ${DRIVER_DIR}/summa_driver_opt.f90)
+
+    if (USE_SUNDIALS)
+        set(EXEC_NAME_MPI summa_sundials_mpi.exe)
+        set(EXEC_NAME_OPT summa_sundials_opt.exe)
+    else()
+        set(EXEC_NAME_MPI summa_mpi.exe)
+        set(EXEC_NAME_OPT summa_opt.exe)
+    endif()
+endif()
 
 if (USE_NEXTGEN)
     set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_NEXTGEN})
@@ -175,6 +248,34 @@ if (USE_SUNDIALS)
     set(SUMMA_ALL ${SUMMA_ALL} ${MODRUN_SUNDIALS} ${SOLVER_SUNDIALS})
 endif()
 
+if (USE_MIZUROUTE)
+
+    # mizuRoute type and interface definitions
+    add_library(MIZUROUTE_TYPES STATIC ${MIZU_TYPE})
+    target_compile_options(MIZUROUTE_TYPES PRIVATE ${FLAGS_ALL})
+    target_link_libraries(MIZUROUTE_TYPES PUBLIC SUMMA_NRTYPE)
+    set_target_properties(MIZUROUTE_TYPES PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_types_mod)
+    target_include_directories(MIZUROUTE_TYPES PUBLIC ${CMAKE_BINARY_DIR}/mizuroute_types_mod)
+
+    # Core mizuRoute implementation
+    add_library(MIZUROUTE STATIC ${MIZU_BASE} ${MIZU_SHIM} ${MIZU_TOPO}
+      ${MIZU_INIT} ${MIZU_RMAP} ${MIZU_ROUTE} ${MIZU_OUTPUT})
+    target_compile_options(MIZUROUTE PRIVATE ${FLAGS_ALL})
+    target_link_libraries(MIZUROUTE PUBLIC MIZUROUTE_TYPES NetCDF::NetCDF)
+    set_target_properties(MIZUROUTE PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_mod)
+
+    # SUMMA-facing mizuRoute coupling layer
+    add_library(MIZUROUTE_COUPLING STATIC ${MIZU_COUPLING})
+    target_compile_options(MIZUROUTE_COUPLING PRIVATE ${FLAGS_ALL})
+    target_link_libraries(MIZUROUTE_COUPLING PUBLIC MIZUROUTE)
+    add_dependencies(MIZUROUTE_COUPLING SUMMA_TYPES toml-f-lib)
+    set_target_properties(MIZUROUTE_COUPLING PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_coupling_mod)
+    target_include_directories(MIZUROUTE_COUPLING PRIVATE ${CMAKE_BINARY_DIR}/summa_types_mod ${CMAKE_BINARY_DIR}/mizuroute_mod ${CMAKE_BINARY_DIR}/toml-f/include)
+    target_include_directories(MIZUROUTE_COUPLING PUBLIC ${CMAKE_BINARY_DIR}/mizuroute_coupling_mod)
+
+endif()
+
+# OpenWQ coupling
 if (USE_OPENWQ)
     add_subdirectory(${F_MASTER}/build/source/openwq)
     if (DEFINED OPENWQ_ERROR)
@@ -182,8 +283,7 @@ if (USE_OPENWQ)
     endif()
     set(SUMMA_ALL ${SUMMA_ALL} ${OPENWQ_COUPLER})
     list(APPEND EXT_TARGETS openWQ)
-endif ()
-
+endif()
 
 # Define version number
 set(VERSIONFILE     ${DRIVER_DIR}/summaversion.inc)
@@ -221,15 +321,32 @@ file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GIT
 # Build SUMMA_NOAHMP Object
 add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
 target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
+target_link_libraries(SUMMA_NOAHMP PUBLIC SUMMA_NRTYPE)
 
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
-target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${EXT_TARGETS} ${LIBRARY_LINKS})
+set_target_properties(SUMMA_COMM PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/summa_comm_mod)
+target_include_directories(SUMMA_COMM PUBLIC ${CMAKE_BINARY_DIR}/summa_comm_mod)
+target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP SUMMA_DATA_TYPES ${EXT_TARGETS} ${LIBRARY_LINKS})
+
+# Main SUMMA model type used by the driver and coupling layers
+add_library(SUMMA_TYPES STATIC ${SUMMA_TYPE})
+target_compile_options(SUMMA_TYPES PRIVATE ${FLAGS_ALL})
+target_link_libraries(SUMMA_TYPES PUBLIC SUMMA_COMM)
+set_target_properties(SUMMA_TYPES PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/summa_types_mod)
+target_include_directories(SUMMA_TYPES PUBLIC ${CMAKE_BINARY_DIR}/summa_types_mod)
+
+if (USE_MIZUROUTE)
+    target_compile_definitions(SUMMA_TYPES PRIVATE MIZUROUTE_ACTIVE)
+    target_compile_definitions(SUMMA_COMM PRIVATE MIZUROUTE_ACTIVE)
+    target_link_libraries(SUMMA_TYPES PUBLIC MIZUROUTE_TYPES)
+endif()
 
 # For NextGen, build SUMMA Shared Library and add the outside BMI libraries
 if(USE_NEXTGEN)
-	if(WIN32)
+
+  if(WIN32)
 		add_library(summabmi ${SUMMA_ALL})
 	else()
 		add_library(summabmi SHARED ${SUMMA_ALL})
@@ -245,12 +362,40 @@ if(USE_NEXTGEN)
                 PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 	configure_file(summabmi.pc.in summabmi.pc @ONLY)
 	install(FILES ${CMAKE_BINARY_DIR}/summabmi.pc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
+
 else()
-	add_library(summa SHARED ${SUMMA_ALL})
-	target_compile_options(summa PRIVATE ${FLAGS_ALL})
-	target_link_libraries(summa PUBLIC ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
-	add_executable(${EXEC_NAME} ${MAIN_SUMMA})
-	target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
-	set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-	target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS} ${LIBRARY_LINKS})
+
+  # SUMMA shared library
+  add_library(summa SHARED ${SUMMA_ALL})
+  target_compile_options(summa PRIVATE ${FLAGS_ALL})
+  target_link_libraries(summa PRIVATE toml-f-lib PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+
+  # Optional mizuRoute coupling
+  if (USE_MIZUROUTE)
+    target_compile_definitions(summa PRIVATE MIZUROUTE_ACTIVE)
+    target_link_libraries(summa PRIVATE MIZUROUTE_COUPLING)
+  endif()
+
+  # Serial SUMMA executable
+  add_executable(${EXEC_NAME} ${MAIN_SUMMA})
+  target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
+  set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
+  target_link_libraries(${EXEC_NAME} PRIVATE summa)
+
+  # MPI SUMMA executable
+  if (USE_MPI)
+    add_executable(${EXEC_NAME_MPI} ${MAIN_SUMMA_MPI})
+    target_compile_options(${EXEC_NAME_MPI} PRIVATE ${FLAGS_ALL})
+    set_property(TARGET ${EXEC_NAME_MPI} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa PARALLEL_UTILS)
+  endif()
+
+  # Parallel optimization SUMMA executable
+  if (USE_MPI)
+    add_executable(${EXEC_NAME_OPT} ${MAIN_SUMMA_OPT})
+    target_compile_options(${EXEC_NAME_OPT} PRIVATE ${FLAGS_ALL})
+    set_property(TARGET ${EXEC_NAME_OPT} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa PARALLEL_UTILS)
+  endif()
+
 endif()

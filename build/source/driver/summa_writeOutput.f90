@@ -20,6 +20,19 @@
 
 module summa_writeOutput ! used to define/write output files
 
+! check if mizuroute is active
+use build_options, only: mizuroute_active
+
+#ifdef MIZUROUTE_ACTIVE
+USE mizuroute_coupling, only: write_mizuroute_output_from_summa
+#endif
+
+! global data
+USE globalData, only: iulog                   ! I/O unit for logging messages
+
+! NetCDF file ids
+USE globalData, only: ncid                    ! vector of ncids for NetCDF files (different aggregation periods) 
+
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
 USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every year (start of the USA water year)
@@ -86,6 +99,9 @@ USE data_types,only:struct_info               ! summary information on all data 
 USE mDecisions_module,only: &
                     writePerStep,        &    ! read forcing data per time step (default)
                     writeFullSeries           ! read full forcing series
+
+! filenames
+USE globalData, only: restart_filename        ! name of the restart file
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -156,7 +172,11 @@ contains
  logical(lgt)                          :: printProgress=.false.        ! flag to print simulation progress
  logical(lgt)                          :: defNewOutputFile=.false.     ! flag to define new output files
  logical(lgt)                          :: is_writingOutput=.false.     ! flag to write model output
+ logical(lgt)                          :: is_fullSeries=.false.        ! flag for full time series
  logical(lgt)                          :: is_bufferedWrite=.false.     ! flag for buffered write
+ logical(lgt)                          :: write_mizuroute=.false.      ! flag to write mizuroute output
+ integer(i4b)                          :: istart_write                 ! start file index for time series write
+ integer(i4b)                          :: numtim_write                 ! count for time series write
  integer(i4b)                          :: iGRU,iHRU                    ! indices of GRUs and HRUs
  integer(i4b)                          :: iVar                         ! index of variable in the data structure
  integer(i4b)                          :: iStruct                      ! index of model structure
@@ -186,9 +206,9 @@ contains
   fluxStruct           => summa1_struc%fluxStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
   bvarStruct           => summa1_struc%bvarStruct  , & ! x%gru(:)%var(:)%dat        -- basin-average variables
 
-  ! miscellaneous variables
-  nGRU                 => summa1_struc%nGRU        , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU          & ! number of global hydrologic response units
+  ! GRU and HRU dimensions for local rank
+  nGRU_local           => summa1_struc%nGRU_local,   & ! number of grouped response units in the local rank
+  nHRU_local           => summa1_struc%nHRU_local    & ! number of hydrologic response units in the local rank
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -217,8 +237,8 @@ contains
   finalizeStats(iLookFREQ%timestep)=.true.
 
   ! initialize number of hru and gru in global data
-  nGRUrun = nGRU
-  nHRUrun = nHRU
+  nGRUrun = nGRU_local
+  nHRUrun = nHRU_local
 
  endif  ! if the first time step
 
@@ -267,8 +287,8 @@ contains
 
  ! identify the need to write output file
  select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)
-  case(writePerStep);    is_writingOutput = .true.
-  case(writeFullSeries); is_writingOutput = (modelTimeStep == numtim)
+  case(writePerStep);    is_writingOutput = summa1_struc%config%write_timeseries
+  case(writeFullSeries); is_writingOutput = summa1_struc%config%write_timeseries .and. (modelTimeStep == numtim)
   case default
    err=10; message=trim(message)//"unknown option for method used to write model output [option="//trim(model_decisions(iLookDECISIONS%write_buff)%cDecision)//"]"; return
  end select
@@ -278,10 +298,11 @@ contains
  if(allowRoutingOutput) maxLengthAll = max(maxLengthAll, nTimeDelay)
 
  ! check if the buffered write
- is_bufferedWrite = (model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries .and. modelTimeStep == numtim)
+ is_fullSeries    = model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries
+ is_bufferedWrite = (is_fullSeries .and. modelTimeStep == numtim)
 
  ! print progress
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var(1:5)
+ if(printProgress) write(iulog,'(i4,1x,5(i2,1x))') timeStruct%var(1:5)
 
  ! *****************************************************************************
  ! *** define summa output files
@@ -305,7 +326,7 @@ contains
 
  if(model_decisions(iLookDECISIONS%write_buff)%iDecision == writePerStep)then
   ! loop through GRUs and HRUs
-  do iGRU=1,nGRU
+  do iGRU=1,nGRU_local
    do iHRU=1,gru_struc(iGRU)%hruCount
   
     ! calculate output statistics
@@ -350,6 +371,7 @@ contains
  ! *** write model output to the NetCDF file
  ! ****************************************************************************
  if(is_writingOutput)then
+  
   do iStruct=1,size(structInfo)  ! loop means we can apply error code at the end
 
    ! ----- write buffered data --------------------------------------------------
@@ -381,24 +403,50 @@ contains
    endif ! (if buffered write)
 
   end do  ! (looping through data structures)
+  
+  ! ----- write mizuRoute output ------------------------------------------------
+
+  write_mizuroute = merge(modelTimeStep == numtim, .true., is_fullSeries)
+
+  if(mizuroute_active)then ! build-time capabilty 
+    if(summa1_struc%config%use_mizuroute .and. write_mizuroute)then
+
+      istart_write = merge(     1, modelTimeStep, is_fullSeries)
+      numtim_write = merge(numtim,             1, is_fullSeries)
+    
+      call write_mizuroute_output_from_summa(  &
+           ncid(iLookFREQ%timestep),           &
+           istart_write,                       &
+           numtim_write,                       &
+           summa1_struc,                       &
+           err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    endif  ! (if writing mizuRoute)
+  endif   ! (if mizuroute was built)
+
  endif  ! (if writing output)
 
  ! *****************************************************************************
  ! *** write restart file
  ! *****************************************************************************
 
+ ! define restart filename on all ranks so it is available after rank 0 writes the restart file
+ write(timeString,'(i4,3(i2.2))') timeStruct%var(iLookTIME%iyyy),timeStruct%var(iLookTIME%im),timeStruct%var(iLookTIME%id),timeStruct%var(iLookTIME%ih)
+ restart_filename = trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+
  ! print a restart file if requested
  if(printRestart)then
-  write(timeString,'(i4,3(i2.2))') timeStruct%var(iLookTIME%iyyy),timeStruct%var(iLookTIME%im),timeStruct%var(iLookTIME%id),timeStruct%var(iLookTIME%ih)
   
   if(STATE_PATH == '') then
-    restartFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+    restartFile=trim(OUTPUT_PATH)//restart_filename
   else
-    restartFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+    restartFile=trim(STATE_PATH)//restart_filename
   endif
 
-  call writeRestart(restartFile,nGRU,nHRU,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,err,cmessage)  
+  call writeRestart(restartFile,nGRU_local,nHRU_local,prog_meta,progStruct,bvar_meta,bvarStruct,indx_meta,indxStruct,err,cmessage)  
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
  end if
 
  ! *****************************************************************************
@@ -545,7 +593,7 @@ contains
   diagStruct           => summaStruct%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
   fluxStruct           => summaStruct%fluxStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
   bvarStruct           => summaStruct%bvarStruct  , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-  nGRU                 => summaStruct%nGRU          &
+  nGRU_local           => summaStruct%nGRU_local    &
   ) ! assignment to variables in the data structures
  ! -------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -578,7 +626,7 @@ contains
    end select
 
    ! loop through GRUs and HRUs
-   do iGRU=1,nGRU
+   do iGRU=1,nGRU_local
     do iHRU=1,gru_struc(iGRU)%hruCount
      ! populate GRU+HRU+DOM structures
      select case(trim(structInfo(iStruct)%structName))

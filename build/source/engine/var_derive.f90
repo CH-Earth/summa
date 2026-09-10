@@ -26,14 +26,15 @@ USE nr_type
 ! derived types to define the data structures
 USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
 USE data_types,only:var_dlength    ! x%var(:)%dat (rkind)
+
 ! named variables for snow and soil
 USE globalData,only:iname_snow     ! named variables for snow
 USE globalData,only:iname_soil     ! named variables for soil
-! named variables
-USE globalData,only:data_step      ! time step of forcing data
+
 ! named variables
 USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookDIAG,iLookFLUX        ! HRU: named variables for structure elements
 USE var_lookup,only:iLookBVAR,iLookBPAR                                        ! GRU: named variables for structure elements
+
 ! model decision structures
 USE globalData,only:model_decisions        ! model decision structure
 USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -57,6 +58,12 @@ USE mDecisions_module,only: &
 USE mDecisions_module,only: &
  timeDelay,                 & ! time-delay histogram
  qInstant                     ! instantaneous routing
+
+! logging
+USE globalData,only:iulog
+
+! forcing data step
+USE globalData,only:data_step      ! time step of forcing data
 
 ! privacy
 implicit none
@@ -369,9 +376,9 @@ contains
  do iLayer=nSnow+1,nLayers
    iSoil = iLayer - nSnow
    if( mLayerSatHydCondMP(iSoil) < mLayerSatHydCond(iSoil) )then
-     write(*,'(2(a,e12.6),a,i0)')trim(message)//'WARNING: hydraulic conductivity for macropores [', mLayerSatHydCondMP(iSoil), &
-                                              '] is less than the hydraulic conductivity for micropores [', mLayerSatHydCond(iSoil), &
-                                              ']: resetting macropore conductivity to equal micropore value. Layer = ', iLayer
+     write(iulog,'(2(a,e12.6),a,i0)')trim(message)//'WARNING: hydraulic conductivity for macropores [', mLayerSatHydCondMP(iSoil), &
+                                                    '] is less than the hydraulic conductivity for micropores [', mLayerSatHydCond(iSoil), &
+                                                    ']: resetting macropore conductivity to equal micropore value. Layer = ', iLayer
      mLayerSatHydCondMP(iSoil) = mLayerSatHydCond(iSoil)
    endif  ! if mLayerSatHydCondMP < mLayerSatHydCond
  end do

@@ -11,13 +11,24 @@ set(NOAHMP
     ${NOAHMP_DIR}/module_sf_noahmplsm.F
     CACHE INTERNAL "NOAHMP")
 
-# Free versions of numerical recipes utilities for NOAH-MP modules
+set(NRTYPE
+    ${NUMREC_DIR}/nr_type.f90
+    CACHE INTERNAL "NRTYPE")
+
+set(SUMMA_DATA_TYPES
+    ${DSHARE_DIR}/var_lookup.f90
+    ${DSHARE_DIR}/data_types.f90
+    CACHE INTERNAL "SUMMA_DATA_TYPES")
+
+set(SUMMA_TYPE
+    ${DRIVER_DIR}/summa_type.f90
+    CACHE INTERNAL "SUMMA_TYPE")
+
 set(NRUTIL
     ${NUMREC_DIR}/f2008_funcs.f90
     ${NUMREC_DIR}/nr_utils.f90
-    ${NUMREC_DIR}/nr_type.f90
     CACHE INTERNAL "NRUTIL")
-
+  
 # Free versions of numerical recipes procedures for SUMMA modules
 set(NRPROC
     ${NUMREC_DIR}/expIntegral.f90
@@ -29,18 +40,17 @@ set(NRPROC
 set(HOOKUP
     ${HOOKUP_DIR}/ascii_util.f90
     ${HOOKUP_DIR}/summaFileManager.f90
+    ${DRIVER_DIR}/build_options.F90
     CACHE INTERNAL "HOOKUP")
 
 # Data modules
 set(DATAMS
-    ${DSHARE_DIR}/data_types.f90
     ${DSHARE_DIR}/fluxMapping.f90
     ${DSHARE_DIR}/get_ixname.f90
     ${DSHARE_DIR}/globalData.f90
     ${DSHARE_DIR}/multiconst.f90
     ${DSHARE_DIR}/outpt_stat.f90
     ${DSHARE_DIR}/popMetadat.f90
-    ${DSHARE_DIR}/var_lookup.f90
     CACHE INTERNAL "DATAMS")
 set(DATAMS_SUNDIALS
     ${DSHARE_DIR}/type4ida.f90
@@ -82,7 +92,7 @@ set(PRELIM
     ${ENGINE_DIR}/paramCheck.f90
     ${ENGINE_DIR}/pOverwrite.f90
     ${ENGINE_DIR}/sunGeomtry.f90
-    ${ENGINE_DIR}/read_param.f90
+    ${ENGINE_DIR}/param_override.f90
     CACHE INTERNAL "PRELIM")
 
 # Model run support modules
@@ -142,19 +152,37 @@ set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/summaSolv4kinsol.f90
     CACHE INTERNAL "SOLVER_SUNDIALS")
 
+# Objective function
+set(OBJFNC
+    ${OBJFNC_DIR}/read_flowobs.f90
+    ${OBJFNC_DIR}/time_align.f90
+    ${OBJFNC_DIR}/metrics.f90
+    ${OBJFNC_DIR}/write_evaluation.f90
+    CACHE INTERNAL "OBJFNC")
+
+# Model calibration
+set(CALIBR
+    ${CALIBR_DIR}/parameter_search.f90
+    ${CALIBR_DIR}/summa_parameter_spec.f90
+    ${CALIBR_DIR}/summa_parameter_evaluation.f90
+    ${CALIBR_DIR}/calibration_output.f90
+    CACHE INTERNAL "CALIBR")
+
 # Driver support modules
 set(DRIVER
-    ${DRIVER_DIR}/summa_type.f90
+    ${DRIVER_DIR}/summa_config.f90
     ${DRIVER_DIR}/summa_setup.f90
     ${DRIVER_DIR}/summa_restart.f90
     ${DRIVER_DIR}/summa_alarms.f90
     ${DRIVER_DIR}/summa_globalData.f90
     ${DRIVER_DIR}/summa_util.f90
     ${DRIVER_DIR}/summa_defineOutput.f90
+    ${DRIVER_DIR}/summa_work_balance.f90
     ${DRIVER_DIR}/summa_init.f90
     ${DRIVER_DIR}/summa_forcing.f90
     ${DRIVER_DIR}/summa_modelRun.f90
     ${DRIVER_DIR}/summa_writeOutput.f90
+    ${DRIVER_DIR}/summa_simulation.f90
     CACHE INTERNAL "DRIVER")
 set(DRIVER_NEXTGEN
     ${DRIVER_DIR}/summa_bmi.f90

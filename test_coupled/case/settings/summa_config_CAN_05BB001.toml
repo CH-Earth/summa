@@ -1,0 +1,126 @@
+# summa config file for CAN_05BB001
+
+[simulation]
+
+case_name  = "CAN_05BB001"
+start_time = "1981-10-01 00:00"
+end_time   = "1989-09-30 23:00"
+time_zone  = "localTime"
+
+use_mizuroute    = true
+write_timeseries = false
+
+[summa_files]
+
+settings_path = "test_coupled/case/summa_inputs/"
+forcing_path  = "test_coupled/case/summa_inputs/"
+output_path   = "test_coupled/work/"
+state_path    = "test_coupled/case/summa_state/"
+
+init_condition = "coldState.nc"
+attributes     = "attributes.nc"
+trial_params   = "trialParams.nc"
+forcing_list   = "forcingFileList.txt"
+decisions      = "modelDecisions.txt"
+output_control = "outputControl_short.txt"
+
+local_parameters = "localParamInfo.txt"
+basin_parameters = "basinParamInfo.txt"
+
+vegetation_table = "TBL_VEGPARM.TBL"
+soil_table       = "TBL_SOILPARM.TBL"
+general_table    = "TBL_GENPARM.TBL"
+noahmp_table     = "TBL_MPTABLE.TBL"
+
+[mizuRoute]
+
+namelist_path = "test_coupled/case/mizuroute_inputs/"
+namelist_file = "mizuroute.param"
+
+methods = "3"
+
+dt = 3600
+
+write_qbasin = false
+write_Qreach = false
+
+[hydrofabric]
+
+hfabric_path    = "test_coupled/case/mizuroute_inputs/"
+hfabric_file    = "topology.nc"
+hfabric_newfile = "topology_new.nc"
+
+dname_seg = "seg"
+dname_hru = "hru"
+
+varname_HRUid     = "hruId"
+varname_segId     = "segId"
+varname_hruSegId  = "hruToSegId"
+varname_downSegId = "downSegId"
+
+varname_area   = "area"
+varname_slope  = "slope"
+varname_length = "length"
+
+seg_outlet = 710285850
+
+[remapping]
+
+remap_path     = "test_coupled/case/mizuroute_inputs/"
+remap_file     = "lumped_to_hru.nc"
+
+dname_hru      = "polyid"
+dname_data     = "data"
+
+vname_hruid    = "polyid"
+vname_weight   = "weight"
+vname_num_qhru = "nOverlaps"
+vname_qhruid   = "qhru_id"
+
+[observations]
+
+obs_path       = "test_coupled/case/mizuroute_inputs/"
+obs_file       = "CAN_05BB001_daily_flow_observations.nc"
+
+vname_obsflow  = "q_obs"
+
+[calibration]
+
+metric         = "kge"
+obs_transform  = "none"
+
+start_date     = "1982-10-01"
+end_date       = "1989-09-30"
+
+param_list = [
+    "k_soil",
+    "theta_sat",
+    "aquiferBaseflowExp",
+    "aquiferBaseflowRate",
+    "qSurfScale",
+    "summerLAI",
+    "frozenPrecipMultip",
+    "routingGammaScale",
+    "routingGammaShape",
+    "Fcapil",
+    "tempCritRain",
+    "heightCanopyTop",
+    "heightCanopyBottom",
+    "windReductionParam",
+    "vGn_n"
+]
+
+write_aligned  = false
+
+[calibration.parameter_transformations]
+
+k_soil              = "log"
+aquiferBaseflowRate = "log"
+
+[[parameter_dependencies.ordered]]
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.5
+
+[[parameter_dependencies.ordered]]
+parameters = ["theta_res", "fieldCapacity", "theta_mp", "theta_sat"]
+gap_fraction = 0.05
