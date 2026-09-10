@@ -1293,7 +1293,7 @@ subroutine coupled_em(&
                 iLayer = jLayer + nSoil
                 frz_scale_use = snowfrz_scale*icefrz_mult
               end if
-              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
+              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*iden_ice/iden_water
               ! recompute enthalpy of layers if changed water and ice content
               if(enthalpyStateVec .or. computeEnthalpy)then
                  call T2enthTemp_snLaGl(&
