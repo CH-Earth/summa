@@ -281,6 +281,7 @@ subroutine computBaseflow(&
   real(rkind)                        :: activePorosity        ! "active" porosity associated with storage above a threshold (-)
   real(rkind)                        :: drainableWater        ! drainable water in each layer (m)
   real(rkind)                        :: tran0                 ! maximum transmissivity (m2 s-1)
+  real(rkind)                        :: surfaceHydCond_use    ! macropore conductivity at the soil surface (m s-1)
   integer(i4b)                       :: ix_hc_profile         ! index for the choice of the hydraulic conductivity profile
   real(rkind),dimension(nSoil)       :: xTrans                ! dimensionless transmissivity profile, trTotal = tran0*xTrans (-)
   real(rkind),dimension(nSoil)       :: zActive               ! water table thickness associated with storage below and including the given layer (m)
@@ -303,7 +304,9 @@ subroutine computBaseflow(&
     soilDepth               => prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake+nSoil),             & ! intent(in):  [dp]    total soil depth (m)
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nSoil),& ! intent(in):  [dp(:)] depth of each soil layer (m)
     ! input: diagnostic variables
-    surfaceHydCond          => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat(1),       & ! intent(in):  [dp]    saturated hydraulic conductivity at the surface (m s-1)
+    surfaceHydCond          => flux_data%var(iLookFLUX%mLayerSatHydCondMP)%dat(1),       & ! intent(in):  [dp]    macropore conductivity at the first soil layer midpoint (m s-1)
+    mLayerSatHydCond        => flux_data%var(iLookFLUX%mLayerSatHydCond)%dat,            & ! intent(in):  [dp(:)] micropore conductivity at the mid-point of each layer (m s-1)
+    iLayerSatHydCond        => flux_data%var(iLookFLUX%iLayerSatHydCond)%dat,            & ! intent(in):  [dp(:)] micropore conductivity at layer interfaces, index 0 is the soil surface (m s-1)
     mLayerColumnInflow      => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,          & ! intent(in):  [dp(:)] inflow into each soil layer (m3/s)
     ! input: local attributes
     area                    => prog_data%var(iLookPROG%DOMarea)%dat(1),                  & ! intent(in):  [dp]    Domain area in HRU (m2)
@@ -337,6 +340,12 @@ subroutine computBaseflow(&
     ix_hc_profile = model_decisions(iLookDECISIONS%hc_profile)%iDecision
     if(nGlce>0) ix_hc_profile = expLaw_profile ! must match the override in satHydCond
 
+    ! the transmissivity integrals below are written in terms of the conductivity at the soil surface, but
+    ! mLayerSatHydCondMP(1) is the macropore value at the first layer midpoint, already scaled by the depth
+    ! profile. satHydCond applies that same scaling to the micropore conductivity, and evaluates it at both
+    ! the midpoint and the surface interface, so their ratio recovers the surface value for any profile.
+    surfaceHydCond_use = surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1)
+
     ! compute the water table thickness (m) in each layer, working from the bottom of the profile up
     do iLayer=nSoil,ixSaturation,-1  ! loop through "active" soil layers, from lowest to highest
       ! define drainable water in each layer (m)
@@ -361,14 +370,14 @@ subroutine computBaseflow(&
       !  T(s) = (K_0/f)*[exp(-f*(D-s)) - exp(-f*D)], for saturated thickness s and soil depth D
       ! NOTE: written so that no exponential ever takes a positive argument
       case(expLaw_profile)
-        tran0 = kAnisotropic_use*surfaceHydCond/f_hydCond
+        tran0 = kAnisotropic_use*surfaceHydCond_use/f_hydCond
         xTrans(1:nSoil) = exp(-f_hydCond*(soilDepth - zActive(1:nSoil))) - exp(-f_hydCond*soilDepth)
         dXdS(1:nSoil)   = soilDepth*f_hydCond*exp(-f_hydCond*(soilDepth - zActive(1:nSoil)))
 
       ! power-law transmissivity, the original TOPMODEL-ish form
       ! NOTE: constant is grouped here only for completeness, mDecisions does not allow it with qbaseTopmodel
       case(constant, powerLaw_profile)
-        tran0 = kAnisotropic_use*surfaceHydCond*soilDepth/zScale_TOPMODEL
+        tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth/zScale_TOPMODEL
         xTrans(1:nSoil) = (zActive(1:nSoil)/soilDepth)**zScale_TOPMODEL
         dXdS(1:nSoil)   = zScale_TOPMODEL*(zActive(1:nSoil)/soilDepth)**(zScale_TOPMODEL - 1._rkind)
 
@@ -458,6 +467,17 @@ subroutine computBaseflow(&
         dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       end do  ! end looping through soil layers
     end do  ! end looping through soil layers
+
+    ! trSoil is clamped to zero above the saturated zone, so the outflow of those layers does not respond to
+    ! the state at all and their derivative rows must be zero to match. Without this the rows depend on the
+    ! shape of xTrans near zActive=0, which differs between profiles (and is non-zero for the exponential,
+    ! and for the power law whenever zScale_TOPMODEL=1).
+    ! NOTE: this is done before the exfiltration derivative, which is a real flux and still belongs in row 1
+    if (ixSaturation>1) then
+      dBaseflow_dVolLiq(1:ixSaturation-1,:) = 0._rkind
+      dBaseflow_dWat(1:ixSaturation-1,:)    = 0._rkind
+      dBaseflow_dTk(1:ixSaturation-1,:)     = 0._rkind
+    end if
 
     ! compute the derivative in the exfiltration flux and add to the baseflow derivative matrix
     if (totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._rkind)) then
