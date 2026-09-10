@@ -34,12 +34,16 @@ USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the
 USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for layers
+USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
+USE globalData,only:iname_watSnow    ! named variable defining the total water in the snowpack
+USE globalData,only:iname_watLake    ! named variable defining the total water in the lake
+USE globalData,only:iname_watGlce    ! named variable defining the total water in the glacier ice
+USE globalData,only:iname_watIce     ! named variable defining the total water in the lake or glacier ice
 
 ! global metadata
 USE globalData,only:flux_meta        ! metadata on the model fluxes
@@ -96,8 +100,12 @@ integer(i4b),parameter  :: massSplit=2                ! order in sequence for th
 ! named variables for the domain type split
 integer(i4b),parameter  :: vegSplit=1                 ! order in sequence for the vegetation split
 integer(i4b),parameter  :: snowSplit=2                ! order in sequence for the snow split
-integer(i4b),parameter  :: soilSplit=3                ! order in sequence for the soil split
-integer(i4b),parameter  :: aquiferSplit=4             ! order in sequence for the aquifer split
+integer(i4b),parameter  :: lakeSplit=3                ! order in sequence for the lake split
+integer(i4b),parameter  :: soilSplit=4                ! order in sequence for the soil split
+integer(i4b),parameter  :: glceSplit=5                ! order in sequence for the ice split
+integer(i4b),parameter  :: aquiferSplit=6             ! order in sequence for the aquifer split
+integer(i4b),parameter  :: iDomainSplit_nrg_map(6) =(/vegSplit,snowSplit,lakeSplit,soilSplit,glceSplit,aquiferSplit/) ! mapping of the energy split order
+integer(i4b),parameter  :: iDomainSplit_mass_map(6)=(/vegSplit,glceSplit,lakeSplit,snowSplit,soilSplit,aquiferSplit/) ! mapping of the mass split order
 
 ! named variables for the solution method
 integer(i4b),parameter  :: vector=1                   ! vector solution method
@@ -105,12 +113,12 @@ integer(i4b),parameter  :: scalar=2                   ! scalar solution method
 integer(i4b),parameter  :: nSolutions=2               ! number of solution methods
 
 ! named variables for the switch between states and domains
-integer(i4b),parameter  :: fullDomain=1               ! full domain (veg+snow+soil)
-integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, soil, and aquifer separately)
+integer(i4b),parameter  :: fullDomain=1               ! full domain (veg+snow+lake+soil+glce+aquifer)
+integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, soil, lake, glce, and aquifer separately)
 
 ! maximum number of possible splits
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
-integer(i4b),parameter  :: nDomains=4                 ! number of domains (vegetation, snow, soil, and aquifer)
+integer(i4b),parameter  :: nDomains=6                 ! number of domains (vegetation, snow, lake, soil, glce, and aquifer), but no more than 4 exist in one domain
 
 ! class definitions
 
@@ -182,7 +190,9 @@ contains
 subroutine opSplittin(&
                       ! input: model control
                       nSnow,                & ! intent(in):    number of snow layers
+                      nLake,                & ! intent(in):    number of lake layers
                       nSoil,                & ! intent(in):    number of soil layers
+                      nGlce,                & ! intent(in):    number of glacier ice layers
                       nLayers,              & ! intent(in):    total number of layers
                       nState,               & ! intent(in):    total number of state variables
                       dt,                   & ! intent(in):    time step (s)
@@ -192,7 +202,6 @@ subroutine opSplittin(&
                       computeVegFlux,       & ! intent(in):    flag to denote if computing energy flux over vegetation
                        ! input/output: data structures
                       type_data,            & ! intent(in):    type of vegetation and soil
-                      attr_data,            & ! intent(in):    spatial attributes
                       forc_data,            & ! intent(in):    model forcing data
                       mpar_data,            & ! intent(in):    model parameters
                       indx_data,            & ! intent(inout): index data
@@ -221,7 +230,9 @@ subroutine opSplittin(&
   ! ---------------------------------------------------------------------------------------
   ! input: model control
   integer(i4b),intent(in)         :: nSnow                          ! number of snow layers
+  integer(i4b),intent(in)         :: nLake                          ! number of lake layers
   integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
+  integer(i4b),intent(in)         :: nGlce                          ! number of glacier ice layers
   integer(i4b),intent(in)         :: nLayers                        ! total number of layers
   integer(i4b),intent(in)         :: nState                         ! total number of state variables
   real(rkind),intent(in)          :: dt                             ! time step (seconds)
@@ -231,7 +242,6 @@ subroutine opSplittin(&
   logical(lgt),intent(in)         :: computeVegFlux                 ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   ! input/output: data structures
   type(var_i),intent(in)          :: type_data                      ! type of vegetation and soil
-  type(var_d),intent(in)          :: attr_data                      ! spatial attributes
   type(var_d),intent(in)          :: forc_data                      ! model forcing data
   type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
   type(var_ilength),intent(inout) :: indx_data                      ! indices for a local HRU
@@ -289,7 +299,7 @@ subroutine opSplittin(&
   integer(i4b)                    :: nStateSplit                    ! number of splits for the states within a given domain
   ! indices for the state type and the domain split
   integer(i4b)                    :: iStateTypeSplit                ! index of the state type split
-  integer(i4b)                    :: iDomainSplit                   ! index of the domain split
+  integer(i4b)                    :: iDomainSplit, iDomainSplit_use ! index of the domain split
   integer(i4b)                    :: iStateSplit                    ! index of the state split
   ! flux masks
   logical(lgt)                    :: neededFlux(nFlux)              ! .true. if flux is needed at all
@@ -319,7 +329,7 @@ subroutine opSplittin(&
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
-
+  ! -------------------------------------------------------------------------------------------------------------------------
   ! set up split_select object and prepare for split_select_loop
   call initialize_opSplittin; if (return_flag) return
  
@@ -336,7 +346,7 @@ subroutine opSplittin(&
    ! set splitting parameters
    dtmin_coupled = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/10._rkind)
    dtmin_split   = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/40._rkind)
-   dtmin_scalar  = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/60._rkind) 
+   dtmin_scalar  = max(1._rkind, mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))/60._rkind)
    call initialize_split_select;   if (return_flag) return ! initialize split selector object (split_select)
    call initialize_split_coupling; if (return_flag) return ! prep for first iteration of update_opSplittin 
   end subroutine initialize_opSplittin
@@ -526,7 +536,7 @@ subroutine opSplittin(&
    if (split_select % logic_initialize_solution()) then; call split_select % initialize_ixSolution; split_select % solution=.true.; end if
    if (split_select % logic_exit_solution()) then
     ixSolution=split_select % ixSolution
-    if (split_select % ixSolution > nsolutions) split_select % solution=.false.            
+    if (split_select % ixSolution > nSolutions) split_select % solution=.false.            
    end if
   end subroutine initialize_split_solution
 
@@ -632,7 +642,7 @@ subroutine opSplittin(&
    ! initialize the state check
    stateCheck(:) = 0
 
-   ! allocate local structures based on the number of snow and soil layers
+   ! allocate local structures based on the number of layers
    call allocate_memory
    if (return_flag) return ! return if an error occurs during memory allocation 
 
@@ -672,57 +682,58 @@ subroutine opSplittin(&
    return_flag=.false. ! initialize flag
 
    ! allocate space for the flux mask (used to define when fluxes are updated)
-   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),fluxMask,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
-   call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),fluxCount,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary prognostic variable structure
-   call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
+   call allocLocal(prog_meta(:),prog_temp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary diagnostic variable structure
-   call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,err,cmessage)
+   call allocLocal(diag_meta(:),diag_temp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary flux variable structure
-   call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),flux_temp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mean,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary mean flux variable structure
-   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,err,cmessage)
+   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the derivative structure
-   call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
+   call allocLocal(deriv_meta(:),deriv_data,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 
   subroutine finalize_coupling
-   ! *** final operations for coupling split method ***
-   ! check that all state variables were updated
-   if (any(stateCheck==0)) then
-    message=trim(message)//'some state variables were not updated!'
-    err=20; return_flag=.true.; return
-   endif
-
-   ! check that the desired fluxes were computed
-   do iVar=1,size(flux_meta)
-    if (neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0)) then
-     print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
-     message=trim(message)//'flux '//trim(flux_meta(iVar)%varName)//' was not computed'
+   associate(ixStateType     => indx_data%var(iLookINDEX%ixStateType)%dat) ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
+    ! *** final operations for coupling split method ***
+    ! check that all state variables were updated and not a noThetaChange
+    if (any(stateCheck==0 .and. ixStateType/=integerMissing)) then
+     message=trim(message)//'some state variables were not updated!'
      err=20; return_flag=.true.; return
-    end if
-   end do
+    endif
 
-   ! use step halving if unable to complete the fully coupled solution in one substep
-   if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
+    ! check that the desired fluxes were computed
+    do iVar=1,size(flux_meta)
+     if (neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0)) then
+      message=trim(message)//'flux '//trim(flux_meta(iVar)%varName)//' was not computed'
+      err=20; return_flag=.true.; return
+     end if
+    end do
+
+    ! use step halving if unable to complete the fully coupled solution in one substep
+    if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
+   end associate
   end subroutine finalize_coupling
 
   subroutine initialize_stateTypeSplitting
@@ -772,17 +783,22 @@ subroutine opSplittin(&
    ! *** Identify state-specific variables for a given state split ***
    doAdjustTemp = (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) ! flag to adjust the temperature
    associate(&
-    ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat, & ! intent(in): [i4b(:)] indices defining the type of the state
-    ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat, & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+    nSnow          => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b] number of snow layers
+    nLake          => indx_data%var(iLookINDEX%nLake)%dat(1)         ,& ! intent(in): [i4b] number of lake layers
+    nSoil          => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b] number of soil layers
+    nGlce          => indx_data%var(iLookINDEX%nGlce)%dat(1)         ,& ! intent(in): [i4b] number of glacier ice layers
+    noThetaChange  => indx_data%var(iLookINDEX%noThetaChange)%dat(1) ,& ! intent(in): [i4b] number of layers with no change in total water content (bottom layers)  
+    ixStateType    => indx_data%var(iLookINDEX%ixStateType)%dat,      & ! intent(in): [i4b(:)] indices defining the type of the state
+    ixHydCanopy    => indx_data%var(iLookINDEX%ixHydCanopy)%dat,      & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+    ixHydLayer     => indx_data%var(iLookINDEX%ixHydLayer)%dat        ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
 
     ! modify the state type names associated with the state vector
     if (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) then ! if modifying state variables for the mass split
       if (computeVegFlux) then
         where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
       end if
-      where(ixStateType(ixHydLayer)==iname_watLayer) ixStateType(ixHydLayer)=iname_liqLayer
-      where(ixStateType(ixHydLayer)==iname_matLayer) ixStateType(ixHydLayer)=iname_lmpLayer
+      where(ixStateType(ixHydLayer(1:nLayers-noThetaChange))==iname_watLayer) ixStateType(ixHydLayer(1:nLayers-noThetaChange))=iname_liqLayer
+      where(ixStateType(ixHydLayer(1:nLayers-noThetaChange))==iname_matLayer) ixStateType(ixHydLayer(1:nLayers-noThetaChange))=iname_lmpLayer
     end if
    end associate
   end subroutine initialize_stateThenDomain
@@ -790,16 +806,16 @@ subroutine opSplittin(&
   subroutine finalize_stateThenDomain
    ! *** Final steps following the stateThenDomain split method ***
    ! sum the mean steps for the time step over each state type split
-   !if (ixStateThenDomain == 2+tryDomainSplit) ixStateThenDomain=1+tryDomainSplit ! correct index value if stateThenDomain method is completed fully 
    select case(ixStateThenDomain) 
      case(fullDomain); mean_step_dt = mean_step_dt + mean_step_solution/nStateTypeSplit
      case(subDomain);  mean_step_dt = mean_step_dt + mean_step_state/nStateTypeSplit
      case default; err=20; message=trim(message)//'ixStateThenDomain case not found'; return_flag=.true.; return
    end select
    associate(&
-    ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat, & ! intent(in): [i4b(:)] indices defining the type of the state
-    ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat, & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+    noThetaChange  => indx_data%var(iLookINDEX%noThetaChange)%dat(1),& ! intent(in): [i4b] intent(in): [i4b] number of layers with no change in total water content (bottom layers)  
+    ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat,  & ! intent(in): [i4b(:)] indices defining the type of the state
+    ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat,  & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat    ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
 
     ! * reset state variables for the mass split...
     ! modify the state type names associated with the state vector
@@ -807,8 +823,8 @@ subroutine opSplittin(&
       if (computeVegFlux) then
         where(ixStateType(ixHydCanopy)==iname_liqCanopy) ixStateType(ixHydCanopy)=iname_watCanopy
       end if
-      where(ixStateType(ixHydLayer)==iname_liqLayer) ixStateType(ixHydLayer)=iname_watLayer
-      where(ixStateType(ixHydLayer)==iname_lmpLayer) ixStateType(ixHydLayer)=iname_matLayer
+      where(ixStateType(ixHydLayer(1:nLayers-noThetaChange))==iname_liqLayer) ixStateType(ixHydLayer(1:nLayers-noThetaChange))=iname_watLayer
+      where(ixStateType(ixHydLayer(1:nLayers-noThetaChange))==iname_lmpLayer) ixStateType(ixHydLayer(1:nLayers-noThetaChange))=iname_matLayer
     end if
    end associate  
   end subroutine finalize_stateThenDomain
@@ -890,7 +906,7 @@ subroutine opSplittin(&
 
   ! **** indexSplit ****
   subroutine initialize_indexSplit
-   call in_indexSplit % initialize(nSnow,nSoil,nLayers,nSubset)
+    call in_indexSplit % initialize(nSnow,nLake,nSoil,nGlce,nLayers,nSubset)
   end subroutine initialize_indexSplit
 
   subroutine finalize_indexSplit
@@ -912,15 +928,11 @@ subroutine opSplittin(&
   subroutine solve_subset 
    ! *** Solve variable subset for one time step ***
    return_flag=.false. ! initialize flag
-   ! keep track of the number of scalar solutions
-   associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
-    if (ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
-   end associate
 
    ! solve variable subset for one full time step
    call initialize_varSubstep
    call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control
-                   model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
+                   model_decisions,lookup_data,type_data,forc_data,mpar_data,&              ! intent(inout): data structures for model properties
                    indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
                    out_varSubstep)                                                          ! intent(out): class object for model control
    call finalize_varSubstep
@@ -989,6 +1001,12 @@ subroutine opSplittin(&
        case(subDomain)
         if (failure) then
          call split_select % advance_ixSolution; split_select % stateSplit=.false.; ! prep for next iteration 
+          if (split_select % ixSolution==scalar)then
+          ! keep track of the number of times splits a nrg/mass domain into further into a scalar solution
+          associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
+           numberScalarSolutions = numberScalarSolutions + 1
+          end associate
+          endif
          cycle_solution=.true.; return ! return required to execute cycle statement in opSplittin
         end if
        case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
@@ -1019,7 +1037,7 @@ subroutine opSplittin(&
     return 
    end if
 
-   ! avoid redundant case where vector solution is of length 1
+   ! avoid redundant case where vector solution is of length 1 so already a scalar solution
    if (ixSolution==vector .and. count(stateMask)==1) then
     call split_select % advance_ixSolution; 
     split_select % stateSplit=.false.; 
@@ -1126,8 +1144,12 @@ subroutine opSplittin(&
    do iVar=1,size(flux_meta) ! loop through flux variables
 
     if (ixCoupling==fullyCoupled) then ! * identify flux mask for the fully coupled solution
-     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in): [i4b(:)] indices of state types
+     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
       desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+      if(nSnow==0 .and. flux2state_orig(iVar)%state1 == iname_watSnow) desiredFlux=.false.
+      if(nLake==0 .and. flux2state_orig(iVar)%state1 == iname_watLake) desiredFlux=.false.
+      if(nGlce==0 .and. flux2state_orig(iVar)%state1 == iname_watGlce) desiredFlux=.false.
+      if((nGlce==0 .and. nLake==0) .and. flux2state_orig(iVar)%state1 == iname_watIce) desiredFlux=.false.
      end associate
 
      ! make sure firstFluxCall fluxes are included in the mask
@@ -1143,10 +1165,15 @@ subroutine opSplittin(&
 
     else ! * identify flux mask for the split solution
 
-     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in): [i4b(:)] indices of state types
+     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
       select case(iStateTypeSplit) ! identify the flux mask for a given state split
        case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
-       case(massSplit); desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
+       case(massSplit)
+        desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
+        if(nSnow==0 .and. flux2state_liq(iVar)%state1 == iname_watSnow) desiredFlux=.false.
+        if(nLake==0 .and. flux2state_liq(iVar)%state1 == iname_watLake) desiredFlux=.false.
+        if(nGlce==0 .and. flux2state_liq(iVar)%state1 == iname_watGlce) desiredFlux=.false.
+        if((nGlce==0 .and. nLake==0) .and. flux2state_orig(iVar)%state1 == iname_watIce) desiredFlux=.false.
        case default; err=20; message=trim(message)//'unable to identify split based on state type'; return_flag=.true.; return
       end select
      end associate
@@ -1160,12 +1187,14 @@ subroutine opSplittin(&
       if (iVar==iLookFLUX%scalarPhotosynthesisShaded) desiredFlux = .true.
      end if
 
-     if (nDomains==1) then ! no domain splitting
+     if (nDomainSplit==1) then ! was "if (nDomains==1)" but if no veg present, could cause problems if not splitting to domains, might need to be changed in base code also? FIX
       fluxMask%var(iVar)%dat = desiredFlux
      else ! domain splitting
+      if (iStateTypeSplit==massSplit) iDomainSplit_use = iDomainSplit_mass_map(iDomainSplit)
+      if (iStateTypeSplit==nrgSplit)  iDomainSplit_use = iDomainSplit_nrg_map(iDomainSplit)
       fluxMask%var(iVar)%dat = .false. ! initialize to .false.
       if (desiredFlux) then ! only need to proceed if the flux is desired
-       select case(iDomainSplit) ! different domain splitting operations
+       select case(iDomainSplit_use) ! different domain splitting operations
         case(vegSplit) ! canopy fluxes -- (:1) gets the upper boundary(0) if it exists
          if (ixSolution==vector) then ! vector solution (should only be present for energy)
           fluxMask%var(iVar)%dat(:1) = desiredFlux
@@ -1176,45 +1205,72 @@ subroutine opSplittin(&
          else                         ! scalar solution
           fluxMask%var(iVar)%dat(:1) = desiredFlux
          end if
-        case(snowSplit,soilSplit) ! fluxes through snow and soil
+        case(snowSplit,lakeSplit,soilSplit,glceSplit) ! fluxes through layers
 
          do iLayer=1,nLayers! loop through layers
           associate(ixLayerActive => indx_data%var(iLookINDEX%ixLayerActive)%dat) ! intent(in): [i4b(:)] indices for all active layers (inactive=integerMissing)
            if (ixLayerActive(iLayer)/=integerMissing) then
 
-            ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+1, nSnow+2, ..., nLayers)
-            iOffset = merge(nSnow, 0, flux_meta(iVar)%varType==iLookVarType%midSoil .or. flux_meta(iVar)%varType==iLookVarType%ifcSoil)
+            ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+nLake+1, nSnow+nLake+2, ..., nSnow+nLake+nSoil)
+            iOffset = 0 ! initialize offset, true for snow
+            if(flux_meta(iVar)%varType==iLookVarType%midLake .or. flux_meta(iVar)%varType==iLookVarType%ifcLake) iOffset = nSnow
+            if(flux_meta(iVar)%varType==iLookVarType%midSoil .or. flux_meta(iVar)%varType==iLookVarType%ifcSoil) iOffset = nSnow+nLake
+            if(flux_meta(iVar)%varType==iLookVarType%midGlce .or. flux_meta(iVar)%varType==iLookVarType%ifcGlce) iOffset = nSnow+nLake+nSoil
             jLayer  = iLayer-iOffset
 
             ! identify the minimum layer
             select case(flux_meta(iVar)%varType)
-             case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcSoil); minLayer=merge(jLayer-1, jLayer, jLayer==1)
-             case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midSoil); minLayer=jLayer
+             case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcLake, iLookVarType%ifcSoil, iLookVarType%ifcGlce); minLayer=merge(jLayer-1, jLayer, jLayer==1)
+             case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midLake, iLookVarType%midSoil, iLookVarType%midGlce); minLayer=jLayer
              case default; minLayer=integerMissing
             end select
 
             ! set desired layers
             select case(flux_meta(iVar)%varType)
-             case(iLookVarType%midToto,iLookVarType%ifcToto);                    fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-             case(iLookVarType%midSnow,iLookVarType%ifcSnow); if (iLayer<=nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-             case(iLookVarType%midSoil,iLookVarType%ifcSoil); if (iLayer> nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midToto,iLookVarType%ifcToto);                                                               fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midSnow,iLookVarType%ifcSnow); if (iLayer<=nSnow)                                            fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midLake,iLookVarType%ifcLake); if (iLayer<=nSnow+nLake       .and. iLayer>nSnow)             fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midSoil,iLookVarType%ifcSoil); if (iLayer<=nSnow+nLake+nSoil .and. iLayer>nSnow+nLake)       fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midGlce,iLookVarType%ifcGlce); if (iLayer<=nLayers           .and. iLayer>nSnow+nLake+nSoil) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
             end select
 
             ! add hydrology states for scalar variables
             if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%varType==iLookVarType%scalarv) then
-             select case(iDomainSplit)
-              case(snowSplit) ! snow scalar variables change with the bottom layer
-                if(nSnow>0 .and. iLayer==nSnow) fluxMask%var(iVar)%dat = desiredFlux
+             select case(iDomainSplit_use) ! need to list all the snow, lake, glce variables (not all soil)
+              case(snowSplit) 
+                ! snow scalar variables change with the bottom layer
+                if(nSnow>0 .and. iLayer==nSnow)then
+                  if((iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nLake+nSoil==0) .or. iname_watSnow==flux2state_liq(iVar)%state1) &
+                     fluxMask%var(iVar)%dat = desiredFlux 
+                end if
+              case(lakeSplit)
+                if(nLake>0)then
+                  ! variables that change with the bottom layer 
+                  if(iVar==iLookFLUX%scalarLakeDrainage .or. (iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0 .and. nSoil==0))then 
+                    if(iLayer==nSnow+nLake) fluxMask%var(iVar)%dat = desiredFlux
+                  ! other scalar variables in the lake domain change with the surface layer
+                  elseif(iLayer==nSnow+1 .and. iname_watLake==flux2state_liq(iVar)%state1 .or. iname_watIce==flux2state_liq(iVar)%state1)then
+                    fluxMask%var(iVar)%dat = desiredFlux
+                  end if
+                end if
               case(soilSplit)
                 if(nSoil>0)then
                   ! variables that change with the bottom layer 
                   if(iVar==iLookFLUX%scalarSoilDrainage .or. iVar==iLookFLUX%scalarAquiferRecharge &
-                    .or. iVar==iLookFLUX%scalarSoilBaseflow)then ! baseflow changes with all layers so compute after the bottom layer
-                    if(iLayer==nSnow+nSoil) fluxMask%var(iVar)%dat = desiredFlux
+                    .or. iVar==iLookFLUX%scalarSoilBaseflow & ! baseflow changes with all layers so compute after the bottom layer
+                    .or. (iVar==iLookFLUX%scalarGlacierMelt .and. nGlce>0))then
+                    if(iLayer==nSnow+nLake+nSoil) fluxMask%var(iVar)%dat = desiredFlux
                   ! other scalar variables in the soil domain change with the surface layer
-                  elseif(iLayer==nSnow+1)then
+                  elseif(iLayer==nSnow+nLake+1)then
                     fluxMask%var(iVar)%dat = desiredFlux
                   end if
+                end if
+              case(glceSplit) 
+                ! glacier scalar variables change with the surface layer
+                if(nGlce>0 .and. iLayer==nSnow+nLake+nSoil+1)then
+                  if(iVar==iLookFLUX%scalarGlacierMelt .or. iname_watGlce==flux2state_liq(iVar)%state1 .or. &
+                     iname_watGlce==flux2state_liq(iVar)%state2 .or. iname_watIce==flux2state_liq(iVar)%state1) &
+                     fluxMask%var(iVar)%dat = desiredFlux
                 end if
              end select
             end if  ! if hydrology split and scalar
@@ -1464,6 +1520,7 @@ end subroutine split_select_compute_stateMask
  ! output
  type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
  ! local
+ integer(i4b)                           :: iDomainSplit_use          ! index of the domain split
  integer(i4b),allocatable               :: ixSubset(:)               ! list of indices in the state subset
  character(len=256)                     :: cmessage                  ! error message
  logical(lgt)                           :: return_flag               ! flag to indicate a return 
@@ -1501,7 +1558,11 @@ contains
 
  subroutine fullyCoupled_stateMask
   ! *** Get fully coupled stateMask ***
-  split_select % stateMask(:) = .true. ! use all state variables
+  associate(ixStateType     => indx_data%var(iLookINDEX%ixStateType)%dat) ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
+   split_select % stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer .or. & 
+                            &  ixStateType==iname_liqCanopy .or. ixStateType==iname_watCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_watLayer .or. &
+                            &  ixStateType==iname_matLayer  .or. ixStateType==iname_lmpLayer  .or. ixStateType==iname_watAquifer)
+  end associate
  end subroutine fullyCoupled_stateMask
 
  subroutine stateTypeSplit_stateMask
@@ -1580,11 +1641,14 @@ contains
    iDomainSplit    => split_select % iDomainSplit,& ! intent(in): [i4b] index of the domain split
    err             => out_stateFilter % err      ,& ! intent(out): error code
    message         => out_stateFilter % cmessage  ) ! intent(out): error message
-   select case(iDomainSplit)
-    case(vegSplit);  call stateTypeSplit_subDomain_nrgSplit_vegSplit_stateMask       ! vegetation subdomain
-    case(snowSplit); call stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask      ! snow subdomain
-    case(soilSplit); call stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask      ! soil subdomain
-    case(aquiferSplit) ! do nothing: no energy state variable for the aquifer domain ! aquifer subdomain 
+   iDomainSplit_use = iDomainSplit_nrg_map(iDomainSplit)
+   select case(iDomainSplit_use)
+   case(vegSplit);  call stateTypeSplit_subDomain_nrgSplit_vegSplit_stateMask       ! vegetation subdomain
+   case(snowSplit); call stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask      ! snow subdomain
+   case(lakeSplit); call stateTypeSplit_subDomain_nrgSplit_lakeSplit_stateMask      ! lake subdomain
+   case(soilSplit); call stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask      ! soil subdomain
+   case(glceSplit); call stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask      ! glce subdomain
+   case(aquiferSplit) ! do nothing: no energy state variable for the aquifer domain ! aquifer subdomain 
     case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return_flag=.true.; return
    end select
   end associate
@@ -1595,31 +1659,54 @@ contains
   associate(&
    ixNrgCanair => indx_data%var(iLookINDEX%ixNrgCanair)%dat,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
    ixNrgCanopy => indx_data%var(iLookINDEX%ixNrgCanopy)%dat,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
-   ixNrgLayer  => indx_data%var(iLookINDEX%ixNrgLayer)%dat  ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
+   ixNrgLayer  => indx_data%var(iLookINDEX%ixNrgLayer)%dat  ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layers
      if (ixNrgCanair(1)/=integerMissing) split_select % stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
      if (ixNrgCanopy(1)/=integerMissing) split_select % stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
-     split_select % stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
+     split_select % stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the layers
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_vegSplit_stateMask
 
  subroutine stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask
   associate(&
    nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
-   ixNrgLayer => indx_data%var(iLookINDEX%ixNrgLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
+   ixNrgLayer => indx_data%var(iLookINDEX%ixNrgLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layers
   ! *** Get state type subdomain energy snow split ***
-   if (nSnow>1) split_select % stateMask(ixNrgLayer(2:nSnow)) = .true. ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
+   if (nSnow>1) split_select % stateMask(ixNrgLayer(2:nSnow)) = .true. ! NOTE: (2:) because the top layer in the layers included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_snowSplit_stateMask
+
+ subroutine stateTypeSplit_subDomain_nrgSplit_lakeSplit_stateMask
+  ! *** Get state type subdomain energy soil split ***
+  associate(&
+   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
+   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
+   ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
+   split_select % stateMask(ixNrgLayer(max(2,nSnow+1):nSnow+nLake)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+  end associate
+ end subroutine stateTypeSplit_subDomain_nrgSplit_lakeSplit_stateMask
 
  subroutine stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask
   ! *** Get state type subdomain energy soil split ***
   associate(&
-   nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
-   nLayers    => indx_data%var(iLookINDEX%nLayers)%dat(1),& ! intent(in): [i4b] total number of layers
-   ixNrgLayer => indx_data%var(iLookINDEX%ixNrgLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
-   split_select % stateMask(ixNrgLayer(max(2,nSnow+1):nLayers)) = .true. ! NOTE: max(2,nSnow+1) gives second layer unless more than 2 snow layers
+   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
+   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
+   nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
+   ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
+   split_select % stateMask(ixNrgLayer(max(2,nSnow+nLake+1):nSnow+nLake+nSoil)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
   end associate
  end subroutine stateTypeSplit_subDomain_nrgSplit_soilSplit_stateMask
+
+ subroutine stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask
+  ! *** Get state type subdomain energy soil split ***
+  associate(&
+   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
+   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
+   nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
+   nLayers         => indx_data%var(iLookINDEX%nLayers)%dat(1)  ,& ! intent(in): [i4b] number of layers
+   ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the layer domain
+   split_select % stateMask(ixNrgLayer(max(2,nSnow+nLake+nSoil+1):nLayers)) = .true. ! NOTE: (2:) because the top layer in the layer domain included in vegSplit
+  end associate
+ end subroutine stateTypeSplit_subDomain_nrgSplit_glceSplit_stateMask
 
  subroutine stateTypeSplit_subDomain_massSplit_stateMask
   ! *** Get subdomain mass split stateMask ***
@@ -1628,10 +1715,13 @@ contains
    iDomainSplit => split_select % iDomainSplit,& ! intent(in): [i4b] index of the domain split
    err          => out_stateFilter % err      ,& ! intent(out): error code
    message      => out_stateFilter % cmessage  ) ! intent(out): error message
-   select case(iDomainSplit)
+   iDomainSplit_use = iDomainSplit_mass_map(iDomainSplit)
+   select case(iDomainSplit_use)
     case(vegSplit);     call stateTypeSplit_subDomain_massSplit_vegSplit_stateMask     ! vegetation subdomain
     case(snowSplit);    call stateTypeSplit_subDomain_massSplit_snowSplit_stateMask    ! snow subdomain
+    case(lakeSplit);    call stateTypeSplit_subDomain_massSplit_lakeSplit_stateMask    ! lake subdomain
     case(soilSplit);    call stateTypeSplit_subDomain_massSplit_soilSplit_stateMask    ! soil subdomain
+    case(glceSplit);    call stateTypeSplit_subDomain_massSplit_glceSplit_stateMask    ! glce subdomain
     case(aquiferSplit); call stateTypeSplit_subDomain_massSplit_aquiferSplit_stateMask ! aquifer subdomain 
     case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return_flag=.true.; return
    end select
@@ -1649,20 +1739,44 @@ contains
   ! *** Get mass state snow subdomain split stateMask  ***
   associate(&
    nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
-   ixHydLayer => indx_data%var(iLookINDEX%ixHydLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+   ixHydLayer => indx_data%var(iLookINDEX%ixHydLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layers
    split_select % stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_snowSplit_stateMask
 
+ subroutine stateTypeSplit_subDomain_massSplit_lakeSplit_stateMask
+  ! *** Get mass state lake subdomain split stateMask  ***
+  associate(&
+   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
+   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
+   ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domain
+   split_select % stateMask(ixHydLayer(nSnow+1:nSnow+nLake)) = .true.  ! lake hydrology
+  end associate
+ end subroutine stateTypeSplit_subDomain_massSplit_lakeSplit_stateMask
+
  subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
   ! *** Get mass state soil subdomain split stateMask  ***
   associate(&
-   nSnow      => indx_data%var(iLookINDEX%nSnow)%dat(1)  ,& ! intent(in): [i4b] number of snow layers
-   nLayers    => indx_data%var(iLookINDEX%nLayers)%dat(1),& ! intent(in): [i4b] total number of layers
-   ixHydLayer => indx_data%var(iLookINDEX%ixHydLayer)%dat ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
-   split_select % stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
+   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
+   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b] number of lake layers
+   nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b] number of soil layers
+   ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the layer domain
+   split_select % stateMask(ixHydLayer(nSnow+nLake+1:nSnow+nLake+nSoil)) = .true.  ! soil hydrology
   end associate
  end subroutine stateTypeSplit_subDomain_massSplit_soilSplit_stateMask
+
+ subroutine stateTypeSplit_subDomain_massSplit_glceSplit_stateMask
+  ! *** Get mass state glce subdomain split stateMask  ***
+  associate(&
+   nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b] number of snow layers
+   nLake           => indx_data%var(iLookINDEX%nLake)%dat(1)         ,& ! intent(in): [i4b] number of lake layers
+   nSoil           => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b] number of soil layers
+   nLayers         => indx_data%var(iLookINDEX%nLayers)%dat(1)       ,& ! intent(in): [i4b] number of layers
+   noThetaChange   => indx_data%var(iLookINDEX%noThetaChange)%dat(1) ,& ! intent(in): [i4b] number of layers with no change in total water content (bottom layers)  
+   ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat        ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the lake domain
+   split_select % stateMask(ixHydLayer(nSnow+nLake+nSoil+1:nLayers-noThetaChange)) = .true.  ! soil hydrology
+  end associate
+ end subroutine stateTypeSplit_subDomain_massSplit_glceSplit_stateMask
 
  subroutine stateTypeSplit_subDomain_massSplit_aquiferSplit_stateMask
   ! *** Get mass state aquifer subdomain split stateMask  ***

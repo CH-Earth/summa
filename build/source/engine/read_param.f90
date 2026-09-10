@@ -40,7 +40,7 @@ USE netcdf_util_module,only:netcdf_err     ! netcdf error handling function
 ! data types
 USE data_types,only:gru_double             ! spatial double data type:  x%gru(:)%var(:)
 USE data_types,only:gru_hru_int8           ! spatial integer data type: x%gru(:)%hru(:)%var(:)
-USE data_types,only:gru_hru_doubleVec      ! spatial double data type:  x%gru(:)%hru(:)%var(:)%dat(:)
+USE data_types,only:gru_hru_dom_doubleVec  ! spatial double data type:  x%gru(:)%hru(:)%dom(:)%var(:)%dat(:)
 
 implicit none
 private
@@ -51,7 +51,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
+ subroutine read_param(iRunMode,checkHRU,startGRU,maxDOM,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETTINGS_PATH             ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
@@ -60,42 +60,47 @@ contains
  USE var_lookup,only:iLookPARAM,iLookTYPE,iLookID    ! named variables to index elements of the data vectors
  implicit none
  ! define input
- integer(i4b),        intent(in)       :: iRunMode         ! run mode
- integer(i4b),        intent(in)       :: checkHRU         ! index of single HRU if runMode = checkHRU
- integer(i4b),        intent(in)       :: startGRU         ! index of single GRU if runMode = startGRU
- integer(i4b),        intent(in)       :: nHRU             ! number of global HRUs
- integer(i4b),        intent(in)       :: nGRU             ! number of global GRUs
- type(gru_hru_int8),  intent(in)       :: idStruct         ! local labels for hru and gru IDs
+ integer(i4b),        intent(in)           :: iRunMode         ! run mode
+ integer(i4b),        intent(in)           :: checkHRU         ! index of single HRU if runMode = checkHRU
+ integer(i4b),        intent(in)           :: startGRU         ! index of single GRU if runMode = startGRU
+ integer(i4b),        intent(in)           :: maxDOM           ! maximum number of domains in any HRU
+ integer(i4b),        intent(in)           :: nHRU             ! number of global HRUs
+ integer(i4b),        intent(in)           :: nGRU             ! number of global GRUs
+ type(gru_hru_int8),  intent(in)           :: idStruct         ! local labels for hru and gru IDs
  ! define output
- type(gru_hru_doubleVec),intent(inout) :: mparStruct       ! model parameters
- type(gru_double)    ,intent(inout)    :: bparStruct       ! basin parameters
- integer(i4b),        intent(out)      :: err              ! error code
- character(*),        intent(out)      :: message          ! error message
+ type(gru_hru_dom_doubleVec),intent(inout) :: mparStruct       ! model parameters
+ type(gru_double),    intent(inout)        :: bparStruct       ! basin parameters
+ integer(i4b),        intent(out)          :: err              ! error code
+ character(*),        intent(out)          :: message          ! error message
  ! define local variables
- character(len=1024)                   :: cmessage         ! error message for downwind routine
- character(LEN=1024)                   :: infile           ! input filename
- integer(i4b)                          :: iHRU             ! index of HRU within data vector
- integer(i4b)                          :: localHRU_ix,iGRU ! index of HRU and GRU within data structure
- integer(i4b)                          :: ixParam          ! index of the model parameter in the data structure
+ character(len=1024)                       :: cmessage         ! error message for downwind routine
+ character(LEN=1024)                       :: infile           ! input filename
+ integer(i4b)                              :: iHRU             ! index of HRU within data vector
+ integer(i4b)                              :: iDOM             ! index of domain within data vector
+ integer(i4b)                              :: localHRU_ix,iGRU ! index of HRU and GRU within data structure
+ integer(i4b)                              :: ixParam          ! index of the model parameter in the data structure
+ integer(i4b)                              :: nSoil            ! number of soil layers in the domain
  ! indices/metadata in the NetCDF file
- integer(i4b)                          :: ncid             ! netcdf id
- integer(i4b)                          :: nDims            ! number of dimensions
- integer(i4b)                          :: nVars            ! number of variables
- integer(i4b)                          :: iDimId           ! dimension index
- integer(i4b)                          :: iVarId           ! variable index
- character(LEN=64)                     :: dimName          ! dimension name
- character(LEN=64)                     :: parName          ! parameter name
- integer(i4b)                          :: dimLength        ! dimension length
- integer(i4b)                          :: nHRU_file        ! number of HRUs in the parafile
- integer(i4b)                          :: nGRU_file        ! number of GRUs in the parafile
- integer(i4b)                          :: nSoil_file       ! number of soil layers in the file
- integer(i4b)                          :: idim_list(2)     ! list of dimension ids
+ integer(i4b)                              :: ncid             ! netcdf id
+ integer(i4b)                              :: nDims            ! number of dimensions
+ integer(i4b)                              :: nVars            ! number of variables
+ integer(i4b)                              :: iDimId           ! dimension index
+ integer(i4b)                              :: iVarId           ! variable index
+ character(LEN=64)                         :: dimName          ! dimension name
+ character(LEN=64)                         :: parName          ! parameter name
+ integer(i4b)                              :: dimLength        ! dimension length
+ integer(i4b)                              :: nDOM_file        ! number of domains in the param file
+ integer(i4b)                              :: nDOM             ! number of domains in the model for the HRU
+ integer(i4b)                              :: nHRU_file        ! number of HRUs in the param file
+ integer(i4b)                              :: nGRU_file        ! number of GRUs in the param file
+ integer(i4b)                              :: nSoil_file       ! number of soil layers in the file (maximum in all domains)
+ integer(i4b)                              :: idim_list(3)     ! list of dimension ids
  ! data in the netcdf file
- integer(i4b)                          :: parLength        ! length of the parameter data
- integer(i8b),allocatable              :: hruId(:)         ! HRU identifier in the file
- real(rkind),allocatable               :: parVector(:)     ! model parameter vector
- logical                               :: fexist           ! inquire whether the paramTrial file exists
- integer(i4b)                          :: fHRU             ! index of HRU in input file
+ integer(i4b)                              :: parLength        ! length of the parameter data
+ integer(i8b),allocatable                  :: hruId(:)         ! HRU identifier in the file
+ real(rkind),allocatable                   :: parVector(:)     ! model parameter vector
+ logical                                   :: fexist           ! inquire whether the paramTrial file exists
+ integer(i4b)                              :: fHRU             ! index of HRU in input file
 
  ! Start procedure here
  err=0; message="read_param/"
@@ -122,7 +127,8 @@ contains
  err=nf90_inquire(ncid, nDimensions=nDims, nVariables=nVars)
  call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
 
- ! initialize the number of HRUs
+ ! initialize the number of GRUs, HRUs, and domains in the file
+ nDOM_file=integerMissing
  nHRU_file=integerMissing
  nGRU_file=integerMissing
 
@@ -131,9 +137,10 @@ contains
   ! get the dimension name and length
   err=nf90_inquire_dimension(ncid, iDimId, name=dimName, len=dimLength)
   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
-  ! get the number of HRUs
-  if(trim(dimName)=='hru') nHRU_file=dimLength
-  if(trim(dimName)=='gru') nGRU_file=dimLength
+  ! get the number
+  if(dimName=='dom') nDOM_file=dimLength
+  if(dimName=='hru') nHRU_file=dimLength
+  if(dimName=='gru') nGRU_file=dimLength
  end do
 
  ! allocate hruID vector
@@ -143,6 +150,11 @@ contains
  if(nHRU_file==integerMissing)then
   message=trim(message)//'unable to identify HRU dimension in file '//trim(infile)
   err=20; return
+ endif
+
+ ! check DOM dimension exists, repeat params for each domain if not
+ if(nDOM_file==integerMissing .and. maxDOM>nHRU)then
+   write(*,*) 'WARNING: will replicate domain parameters since unable to identify DOM dimension in file '//trim(infile)
  endif
 
  ! check have the correct number of HRUs
@@ -235,10 +247,11 @@ contains
 
   ! get the local parameters
   ixParam = get_ixParam( trim(parName) )
+
   if(ixParam/=integerMissing)then
 
    ! **********************************************************************************************
-   ! * read the local parameters
+   ! * read the local parameters, may or may not have a domain and depth dimension, depth parameters at maximum size possible
    ! **********************************************************************************************
 
    ! get the variable shape
@@ -246,15 +259,14 @@ contains
    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
    ! get the length of the depth dimension (if it exists)
-   if(nDims==2)then
-
+   if(nDOM_file==integerMissing .and. nDims==2)then
     ! get the information on the 2nd dimension for 2-d variables
     err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
     if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
     ! check that it is the depth dimension
     if(trim(dimName)/='depth')then
-     message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
+     message=trim(message)//'expect 2nd dimension of 2-d variable to be depth with no domain (dimension name = '//trim(dimName)//')'
      err=20; return
     endif
 
@@ -267,9 +279,29 @@ contains
     ! define parameter length
     parLength = nSoil_file
 
+   else if(nDOM_file.ne.integerMissing .and. nDims==3)then
+    ! get the information on the 3nd dimension for 2-d variables
+    err=nf90_inquire_dimension(ncid, idim_list(3), dimName, nSoil_file)
+    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
+
+    ! check that it is the depth dimension
+    if(trim(dimName)/='depth')then
+     message=trim(message)//'expect 3nd dimension of 2-d variable to be depth with domain (dimension name = '//trim(dimName)//')'
+     err=20; return
+    endif
+
+    ! check that the dimension length is correct
+    if(maxSoilLayers /= nSoil_file)then
+     message=trim(message)//'unexpected number of soil layers in parameter file'
+     err=20; return
+    endif
+    
+    ! define parameter length
+    parLength = nSoil_file
+
    else
     parLength = 1
-   endif  ! if two dimensions
+   endif  ! if depth dimension
 
    ! allocate space for model parameters
    allocate(parVector(parLength),stat=err)
@@ -278,31 +310,48 @@ contains
     err=20; return
    endif
 
-   ! loop through HRUs
+   ! loop through HRUs and domains
    do iHRU=1,nHRU
+    do iDOM=1,maxDOM
 
-    ! map to the GRUs and HRUs
-    iGRU=index_map(iHRU)%gru_ix
-    localHRU_ix=index_map(iHRU)%localHRU_ix
-    fHRU = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
+     ! map to the GRUs and HRUs
+     iGRU=index_map(iHRU)%gru_ix
+     localHRU_ix=index_map(iHRU)%localHRU_ix
+     fHRU = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
+     nDOM = gru_struc(iGRU)%hruInfo(localHRU_ix)%domCount
+     if (iDOM>nDOM) cycle ! skip if domain does not exist
 
-    ! read parameter data
-    select case(nDims)
-     case(1); err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU/), count=(/1/) )
-     case(2); err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
-     case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
-    end select
+     ! read parameter data
+     select case(nDims)
+      case(1); err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU/), count=(/1/) )
+      case(2)
+       if(nDOM_file==integerMissing)then
+        err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU,1/), count=(/1,nSoil_file/) )
+       else
+        err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU,iDOM/), count=(/1,1/) )
+       endif
+      case(3); err=nf90_get_var(ncid, iVarId, parVector, start=(/fHRU,1,iDOM/), count=(/1,nSoil_file,1/) )
+      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
+     end select
 
-    ! error check for the parameter read
-    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
+     ! error check for the parameter read
+     if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
-    ! populate parameter structures
-    select case(nDims)
-     case(1); mparStruct%gru(iGRU)%hru(localHRU_ix)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension
-     case(2); mparStruct%gru(iGRU)%hru(localHRU_ix)%var(ixParam)%dat(:) = parVector(:)
-     case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
-    end select
+     ! populate parameter structures with the data using the appropriate size of nSoil, and repeating if necessary
+     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil
+     select case(nDims)
+      case(1); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension
+      case(2)
+       if(nDOM_file==integerMissing)then 
+        mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(:)
+       else
+        mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1)
+       endif
+      case(3); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(:)
+      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
+     end select
 
+    end do ! looping through domains
    end do  ! looping through HRUs
 
    ! deallocate space for model parameters
@@ -360,7 +409,7 @@ contains
 
  end do ! (looping through the parameters in the NetCDF file)
 
-  ! close the NetCDF file
+ ! close the NetCDF file
  call nc_file_close(ncid,err,cmessage)
  if(err/=nf90_noerr)then
   message=trim(message)//'problem closing parameter file '//trim(infile)//': '//trim(cmessage)

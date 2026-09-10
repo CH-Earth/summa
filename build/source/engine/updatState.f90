@@ -29,16 +29,17 @@ USE multiconst,only:&
                     LH_fus         ! latent heat of fusion         (J kg-1)
 implicit none
 private
-public::updatSnow
+public::updatSnLaGl
 public::updatSoil
 contains
 
 
 ! *************************************************************************************************************
-! public subroutine updatSnow: compute phase change impacts on volumetric liquid water and ice (veg or soil)
+! public subroutine updatSnLaGl: compute phase change impacts on volumetric liquid water and ice (veg, snow, lake, ice domain)
 ! *************************************************************************************************************
-subroutine updatSnow(&
+subroutine updatSnLaGl(&
                   ! input
+                  noLiq            ,& ! intent(in): flag to indicate if the input has no liquid water
                   mLayerTemp       ,& ! intent(in): temperature (K)
                   mLayerTheta      ,& ! intent(in): volume fraction of total water (-)
                   snowfrz_scale    ,& ! intent(in): scaling parameter for the snow freezing curve (K-1)
@@ -51,6 +52,7 @@ subroutine updatSnow(&
   USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
   implicit none
   ! input variables
+  logical, intent(in)           :: noLiq                   ! flag to indicate if the input has no liquid water (default: .false.)
   real(rkind),intent(in)        :: mLayerTemp              ! temperature (K)
   real(rkind),intent(in)        :: mLayerTheta             ! volume fraction of total water (-)
   real(rkind),intent(in)        :: snowfrz_scale           ! scaling parameter for the snow freezing curve (K-1)
@@ -62,13 +64,13 @@ subroutine updatSnow(&
   integer(i4b),intent(out)      :: err                     ! error code
   character(*),intent(out)      :: message                 ! error message
   ! initialize error control
-  err=0; message="updatSnow/"
+  err=0; message="updatSnLaGl/"
 
   ! compute the volumetric fraction of liquid water and ice (-)
-  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
+  fLiq = fracliquid(mLayerTemp,snowfrz_scale,noLiq)
   mLayerVolFracLiq = fLiq*mLayerTheta
   mLayerVolFracIce = (1._rkind - fLiq)*mLayerTheta*(iden_water/iden_ice)
-end subroutine updatSnow
+end subroutine updatSnLaGl
 
 ! *************************************************************************************************************
 ! public subroutine updatSoil: compute phase change impacts on matric head and volumetric liquid water and ice

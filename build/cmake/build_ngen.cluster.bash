@@ -15,13 +15,16 @@ module load sqlite/3.46.0-ayg27dg
 
 # Environment variables may be set within this script (see examples below) or in the terminal environment before executing this script
 # activate correct python environment, here is an example with conda environment named venv installed from SYMFLUENCE
-: "${PYNGEN_CONDA_ENV:=venv}"
-source ${HOME}/Symfluence/SYMFLUENCE/${PYNGEN_CONDA_ENV}/bin/activate
+: "${NGEN_CONDA_ENV:=venv}"
+source ${HOME}/Symfluence/SYMFLUENCE/${NGEN_CONDA_ENV}/bin/activate
 # fallback: allow overriding python executable explicitly
-: "${DPython3_EXECUTABLE:=$(which python 2>/dev/null || echo /usr/bin/python3)}"
-export DPython3_EXECUTABLE
+: "${NGEN_PYTHON_EXECUTABLE:=$(which python 2>/dev/null || echo /usr/bin/python3)}"
+# root of the active python environment (asked of the interpreter itself so a stale
+# VIRTUAL_ENV/CONDA_PREFIX can't mislead it); used as a hint for find_package(Python)
+: "${NGEN_PYTHON_ROOT:=$("${NGEN_PYTHON_EXECUTABLE}" -c 'import sys; print(sys.prefix)' 2>/dev/null || dirname "$(dirname "${NGEN_PYTHON_EXECUTABLE}")")}"
 export PYTHONNOUSERSITE=1
 python -m pip install --upgrade "pip<24.1" >/dev/null 2>&1 || true
+# Next Gen does not support numpy>=2.0; make sure the active env has numpy<2
 python - <<'PY' || (python -m pip install "numpy<2" "setuptools<70" && true)
 from packaging.version import Version
 import numpy as np
@@ -31,8 +34,6 @@ python - <<'PY'
 import numpy as np
 print("Using NumPy:", np.__version__)
 PY
-: "${DPython_NumPy_INCLUDE_DIR:=$(python -c 'import numpy; print(numpy.get_include())')}"
-export DPython_NumPy_INCLUDE_DIR
 
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
 
@@ -45,7 +46,9 @@ cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON -DUSE_SUNDIALS=OFF -DSPECIFY_LAPACK_LINKS=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build extern/summa/cmake_build --target all -j
 
-cmake -S . -B cmake_build -DPython_NumPy_INCLUDE_DIR=${DPython_NumPy_INCLUDE_DIR} -DPython_EXECUTABLE=${DPython3_EXECUTABLE} \
+cmake -S . -B cmake_build \
+    -DPython_EXECUTABLE="${NGEN_PYTHON_EXECUTABLE}" \
+    -DPython_ROOT_DIR="${NGEN_PYTHON_ROOT}"      \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo            \
     -DNGEN_IS_MAIN_PROJECT=ON                    \
     -DNGEN_WITH_MPI:BOOL=ON                      \

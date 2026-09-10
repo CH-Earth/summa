@@ -58,8 +58,8 @@ USE data_types,only:&
                     var_dlength,                  & ! data vector with variable length dimension (rkind)
                     zLookup,                      & ! lookup tables
                     model_options,                & ! defines the model decisions
-                    in_type_computJacob,          & ! class for computJacob arguments
-                    out_type_computJacob,         & ! class for computJacob arguments
+                    in_type_computJacob,         & ! class for computJacob arguments
+                    out_type_computJacob,        & ! class for computJacob arguments
                     in_type_lineSearchRefinement, & ! class for lineSearchRefinement arguments
                     out_type_lineSearchRefinement,& ! class for lineSearchRefinement arguments
                     in_type_summaSolv4homegrown, & ! class for summaSolv4homegrown arguments
@@ -102,7 +102,6 @@ contains
                        model_decisions,         & ! intent(in):    model decisions
                        lookup_data,             & ! intent(in):    lookup tables
                        type_data,               & ! intent(in):    type of vegetation and soil
-                       attr_data,               & ! intent(in):    spatial attributes
                        mpar_data,               & ! intent(in):    model parameters
                        forc_data,               & ! intent(in):    model forcing data
                        bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -124,8 +123,8 @@ contains
                        tooMuchMelt,             & ! intent(inout): flag to denote that ice is insufficient to support melt (used in step refinement)
                        out_SS4HG)                 ! intent(out):   new function evaluation, convergence flag, and error control  
  USE computJacob_module, only: computJacob
- USE matrixOper_module,  only: lapackSolv
- USE matrixOper_module,  only: scaleMatrices
+ USE matrixOper_module,   only: lapackSolv
+ USE matrixOper_module,   only: scaleMatrices
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  type(in_type_summaSolv4homegrown),intent(in)    :: in_SS4HG ! model control variables and previous function evaluation
@@ -141,7 +140,6 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
  type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
  type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
- type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
  type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
  type(var_d),        intent(in)  :: forc_data                 ! model forcing data
  type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -229,13 +227,13 @@ contains
 
   subroutine update_summaSolv4homegrown
    ! *** Update steps for the summaSolv4homegrown algorithm (computing the Newton step) ***
-   call solve_linear_system;             if (return_flag) return ! solve the linear system for the Newton step -- return if error
-  
+   call solve_linear_system; if (return_flag) return ! solve the linear system for the Newton step -- return if error
+
    ! refine Newton step if needed
-   call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&       ! input
-                          model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
-                          sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
-                          stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)           ! output
+   call refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&    ! input
+                           model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&      ! input
+                           sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                           stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)       ! output
    if (return_flag) return ! return if error
   end subroutine update_summaSolv4homegrown
 
@@ -310,12 +308,14 @@ contains
     ixGroundwater  => model_decisions(iLookDECISIONS%groundwatr)%iDecision,&  ! intent(in): [i4b] groundwater parameterization
     dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
     nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
     &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
    end associate
   end subroutine initialize_computJacob_summaSolv4homegrown
 
@@ -331,10 +331,10 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine refine_Newton_step: refine the Newton step if necessary
  ! *********************************************************************************************************
- subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&        ! input
-                               model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
-                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
-                               stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)           ! output
+ subroutine refine_Newton_step(in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&    ! input
+                               model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&      ! input
+                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                               stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SS4HG,return_flag)       ! output
   ! provide access to the external procedures
   USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
@@ -351,7 +351,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
   type(zLookup),      intent(in)  :: lookup_data                   ! lookup tables
   type(var_i),        intent(in)  :: type_data                     ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                     ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                     ! model parameters
   type(var_d),        intent(in)  :: forc_data                     ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                     ! model variables for the local basin
@@ -415,9 +414,9 @@ contains
      case(ixLineSearch)  
       call in_LSR % initialize(doRefine,fOld)    
       call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&! input
-                               model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
-                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
-                               stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                           ! output
+                                model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&         ! input
+                                sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&   ! input-output
+                                stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                          ! output
       call out_LSR % finalize(fNew,converged,err,cmessage)
      case(ixTrustRegion)
       call in_TRR % initialize(doRefine,fOld)
@@ -431,17 +430,17 @@ contains
     if (err<0) then
      doRefine=.false.;
      call in_LSR % initialize(doRefine,fOld)    
-     call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,& ! input
-                              model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
-                              sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
-                              stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                           ! output
+     call lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&! input
+                               model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&         ! input
+                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&   ! input-output
+                               stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                          ! output
      call out_LSR % finalize(fNew,converged,err,cmessage)
     end if
  
    ! * case 2: scalar
    else
     call safeRootfinder(mSoil,stateVecTrial,rVecScaled,newtStepScaled,fScale,xScale,in_SS4HG,model_decisions,&! input
-                        lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&             ! input
+                        lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&                       ! input
                         sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,& ! input-output
                         out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF)            ! output
     call out_SRF % finalize(fNew,converged,err,cmessage)
@@ -456,10 +455,10 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine lineSearchRefinement: refine the iteration increment using line searches
  ! *********************************************************************************************************
- subroutine lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,& ! input
-                                 model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&! input
-                                 sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
-                                 stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                           ! output
+ subroutine lineSearchRefinement(in_LSR,in_SS4HG,mSoil,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fScale,xScale,&! input
+                                 model_decisions,lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&         ! input
+                                 sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&   ! input-output
+                                 stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4HG,out_LSR)                          ! output
   ! provide access to the external procedures
   USE matrixOper_module, only: computGradient
   USE eval8summa_module, only: imposeConstraints
@@ -477,7 +476,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)           ! model decisions
   type(zLookup),      intent(in)  :: lookup_data                  ! lookup tables
   type(var_i),        intent(in)  :: type_data                    ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                    ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                    ! model parameters
   type(var_d),        intent(in)  :: forc_data                    ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                    ! model variables for the local basin
@@ -522,7 +520,9 @@ contains
    fOld         => in_LSR % fOld                ,& ! old function value
    ! local variables
    nSnow        => in_SS4HG % nSnow             ,& ! number of snow layers
+   nLake        => in_SS4HG % nLake             ,& ! number of lake layers
    nSoil        => in_SS4HG % nSoil             ,& ! number of soil layers
+   nGlce        => in_SS4HG % nGlce             ,& ! number of glacier ice layers
    nState       => in_SS4HG % nState            ,& ! total number of state variables
    ixMatrix     => in_SS4HG % ixMatrix          ,& ! type of matrix (full or band diagonal)
    ! intent(out) variables
@@ -559,20 +559,20 @@ contains
 
     ! re-scale the iteration increment
     xInc(:) = xInc(:)*xScale(:)
-   
+
     ! state vector with proposed iteration increment
     stateVecNew = stateVecTrial + xInc
 
     ! impose solution constraints adjusting state vector and iteration increment
     ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSnow,nLake,nSoil,nGlce,cmessage,err)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
     xInc = stateVecNew - stateVecTrial
 
     ! compute the residual vector and function
     ! NOTE: This calls eval8summa in a wrapper subroutine
     call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&                                        ! input
-                            lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&            ! input
+                            lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&                      ! input
                             sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
                             fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)                          ! output
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
@@ -591,14 +591,14 @@ contains
 
     ! check convergence
     ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
-    converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
+    converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
     if (converged) return
 
     ! early return if not computing the line search
     if (.not.doLineSearch) return
 
     ! check if the function is accepted
-    if (fNew < fOld + alpha*slopeInit*xLambda) return
+    if(fNew < fOld + alpha*slopeInit*xLambda) return
 
     ! ***
     ! *** IF GET TO HERE WE BACKTRACK
@@ -737,7 +737,7 @@ contains
  ! * module subroutine safeRootfinder: refine the 1-d iteration increment using brackets
  ! *********************************************************************************************************
  subroutine safeRootfinder(mSoil,stateVecTrial,rVecscaled,newtStepScaled,fScale,xScale,in_SS4HG,model_decisions,&! input
-                           lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&             ! input
+                           lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&                       ! input                   
                            sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,& ! input-output
                            out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,tooMuchMelt,out_SRF)            ! output
   USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan            ! IEEE arithmetic (check NaN)
@@ -755,7 +755,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
   type(var_d),        intent(in)  :: forc_data                 ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -793,7 +792,9 @@ contains
   associate(&
    iter           => in_SS4HG % iter           ,& ! intent(in): iteration index
    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+   nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+   nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
    nState         => in_SS4HG % nState         ,& ! intent(in): total number of state
    xMin           => io_SS4HG % xMin           ,& ! intent(inout): bracket of the root   
    xMax           => io_SS4HG % xMax           ,& ! intent(inout): bracket of the root  
@@ -837,7 +838,7 @@ contains
 
     ! get brackets if they do not exist
     if ( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) ) then
-     call getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&     ! input
+     call getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,&               ! input
                       mpar_data,forc_data,bvar_data,prog_data,&                                                ! input
                       sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&    ! input-output
                       out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,cmessage)! output
@@ -855,7 +856,7 @@ contains
     stateVecNew = stateVecTrial + xInc
      
     ! impose solution constraints adjusting state vector and iteration increment
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSnow,nLake,nSoil,nGlce,cmessage,err)
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
     xInc = stateVecNew - stateVecTrial
 
@@ -871,7 +872,7 @@ contains
 
    ! evaluate summa
    call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&                                        ! input
-                           lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&            ! input
+                           lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&                      ! input
                            sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
                            fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)                          ! output
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
@@ -887,7 +888,7 @@ contains
    if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
 
    ! check convergence
-   converged = checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
+   converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
 
   end associate
 
@@ -896,7 +897,7 @@ contains
  ! *********************************************************************************************************
  ! * module subroutine getBrackets: get the brackets for safeRootfinder
  ! *********************************************************************************************************
- subroutine getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,attr_data,&    ! input
+ subroutine getBrackets(stateVecTrial,rVec,fScale,in_SS4HG,model_decisions,lookup_data,type_data,&              ! input
                         mpar_data,forc_data,bvar_data,prog_data,&                                               ! input
                         sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&   ! input-output
                         out_SS4HG,stateVecNew,fluxVecNew,resSinkNew,resVecNew,xMin,xMax,tooMuchMelt,err,message)! output
@@ -911,7 +912,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)              ! model decisions
   type(zLookup),      intent(in)  :: lookup_data                     ! lookup tables
   type(var_i),        intent(in)  :: type_data                       ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                       ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                       ! model parameters
   type(var_d),        intent(in)  :: forc_data                       ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                       ! model variables for the local basin
@@ -962,10 +962,12 @@ contains
    ! impose solution constraints adjusting state vector and iteration increment
    associate(&
     nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+    nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
     nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+    nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
     nState         => in_SS4HG % nState          & ! intent(in): total number of state variables
     &)
-    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSoil,nSnow,cmessage,err)
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSnow,nLake,nSoil,nGlce,cmessage,err)
    end associate
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
    xIncrement = stateVecNew - stateVecPrev
@@ -973,9 +975,9 @@ contains
    ! evaluate summa
    associate(fNew => out_SS4HG % fNew)
     call eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&                                        ! input
-                           &lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&            ! input
-                           &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
-                           &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)                          ! output
+                            lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&                      ! input
+                            sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                            fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,cmessage)                          ! output
    end associate
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
@@ -994,8 +996,8 @@ contains
 
    ! check that we found the brackets
    if (iCheck==nCheck) then
-    ! check if we have too much energy going into a snow layer, which could be the reason for not finding the brackets
-    if (indx_data%var(iLookINDEX%nSnowOnlyNrg)%dat(1)>0 .and. rVec(1)<0._rkind) then
+    ! check if we have too much energy going into a snow or ice layer, which could be the reason for not finding the brackets
+    if ((indx_data%var(iLookINDEX%nSnowOnlyNrg)%dat(1)>0 .or. indx_data%var(iLookINDEX%nGlceOnlyNrg)%dat(1)>0) .and. rVec(1)<0._rkind) then
       tooMuchMelt = .true.
       err=-20; return ! negative error code to denote a warning
     else
@@ -1016,9 +1018,9 @@ contains
  ! *********************************************************************************************************
  ! NOTE: This is simply a wrapper routine for eval8summa, to reduce the number of calling arguments
  subroutine eval8summa_wrapper(stateVecNew,fScale,in_SS4HG,model_decisions,&                                        ! input
-                               lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,&            ! input
-                               sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
-                               fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)                           ! output
+                              &lookup_data,type_data,mpar_data,forc_data,bvar_data,prog_data,&                      ! input
+                              &sMul,io_SS4HG,indx_data,diag_data,flux_data,deriv_data,dBaseflow_dWat,dBaseflow_dTk,&! input-output
+                              &fluxVecNew,resSinkNew,resVecNew,fNew,feasible,err,message)                           ! output
   USE eval8summa_module,only:eval8summa                        ! simulation of fluxes and residuals given a trial state vector
   implicit none
   ! input
@@ -1028,7 +1030,6 @@ contains
   type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
   type(zLookup),      intent(in)  :: lookup_data               ! lookup tables
   type(var_i),        intent(in)  :: type_data                 ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data                 ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                 ! model parameters
   type(var_d),        intent(in)  :: forc_data                 ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data                 ! model variables for the local basin
@@ -1061,7 +1062,9 @@ contains
    dt_cur         => in_SS4HG % dt_cur         ,& ! intent(in): current stepsize
    dt             => in_SS4HG % dt             ,& ! intent(in): entire time step for drainage pond rate
    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
+   nLake          => in_SS4HG % nLake          ,& ! intent(in): number of lake layers
    nSoil          => in_SS4HG % nSoil          ,& ! intent(in): number of soil layers
+   nGlce          => in_SS4HG % nGlce          ,& ! intent(in): number of glacier ice layers
    nLayers        => in_SS4HG % nLayers        ,& ! intent(in): total number of layers
    nState         => in_SS4HG % nState         ,& ! intent(in): total number of state variables
    firstSubStep   => in_SS4HG % firstSubStep   ,& ! intent(in): flag to indicate if we are processing the first sub-step
@@ -1076,7 +1079,9 @@ contains
                    dt_cur,                  & ! intent(in):    current stepsize
                    dt,                      & ! intent(in):    length of the time step (seconds)
                    nSnow,                   & ! intent(in):    number of snow layers
+                   nLake,                   & ! intent(in):    number of lake layers
                    nSoil,                   & ! intent(in):    number of soil layers
+                   nGlce,                   & ! intent(in):    number of glacier ice layers
                    nLayers,                 & ! intent(in):    total number of layers
                    nState,                  & ! intent(in):    total number of state variables
                    .false.,                 & ! intent(in):    not inside Sundials solver
@@ -1093,7 +1098,6 @@ contains
                    model_decisions,         & ! intent(in):    model decisions
                    lookup_data,             & ! intent(in):    lookup tables
                    type_data,               & ! intent(in):    type of vegetation and soil
-                   attr_data,               & ! intent(in):    spatial attributes
                    mpar_data,               & ! intent(in):    model parameters
                    forc_data,               & ! intent(in):    model forcing data
                    bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -1123,11 +1127,12 @@ contains
  ! *********************************************************************************************************
  ! module function checkConv: check convergence based on the residual vector
  ! *********************************************************************************************************
- function checkConv(mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
+ function checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
   implicit none
   ! result
   logical(lgt)                 :: checkConv                   ! flag to denote convergence
   ! dummies
+  integer(i4b),intent(in)      :: nState                      ! number of states
   integer(i4b),intent(in)      :: mSoil                       ! number of soil layers in solution vector
   type(in_type_summaSolv4homegrown),intent(in) :: in_SS4HG    ! model control variables and previous function evaluation
   type(var_dlength),intent(in) :: mpar_data                   ! model parameters
@@ -1139,8 +1144,11 @@ contains
   type(out_type_summaSolv4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
   ! locals
   real(rkind),dimension(mSoil) :: psiScale                    ! scaling factor for matric head
+  real(rkind),dimension(nState):: rVecScaled                  ! scaled rVec for saturated soil
   real(rkind),parameter        :: xSmall=1.e-0_rkind          ! a small offset
   real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
+  real(rkind),parameter        :: saturatedLoosen=1.e3_rkind  ! scaling factor for saturated glacier debris or lake soil 
+  real(rkind)                  :: loosen                      ! scaling factor for loosening convergence criteria
   real(rkind)                  :: soilWatBalErr               ! error in the soil water balance
   real(rkind)                  :: canopy_max                  ! absolute value of the residual in canopy water (kg m-2)
   real(rkind),dimension(1)     :: energy_max                  ! maximum absolute value of the energy residual (J m-3)
@@ -1159,13 +1167,16 @@ contains
    ! model control
    iter                    => in_SS4HG % iter                                   ,& ! intent(in): iteration index
    nSnow                   => in_SS4HG % nSnow                                  ,& ! intent(in): number of snow layers
+   nLake                   => in_SS4HG % nLake                                  ,& ! intent(in): number of lake layers
+   nSoil                   => in_SS4HG % nSoil                                  ,& ! intent(in): number of soil layers
+   nGlce                   => in_SS4HG % nGlce                                  ,& ! intent(in): number of glce layers
    scalarSolution          => in_SS4HG % scalarSolution                         ,& ! intent(in): flag to denote if implementing the scalar solution
    ! convergence parameters
    absConvTol_liquid       => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
    absConvTol_matric       => mpar_data%var(iLookPARAM%absConvTol_matric)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
    absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
    ! layer depth
-   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat          ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
+   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat          ,&  ! intent(in): [dp(:)] depth of each layer in the layer domains (m)
    ! model indices
    ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)          ,&  ! intent(in): [i4b]    index of aquifer storage state variable
    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy air space energy state variable
@@ -1197,7 +1208,9 @@ contains
 
    ! check convergence based on the residuals for volumetric liquid water content (-)
    if (size(ixHydOnly)>0) then
-    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), rkind)
+    rVecScaled = rVec
+    if(size(ixMatOnly)>0 .and. nGlce+nLake>0) rVecScaled(ixMatOnly) = rVec(ixMatOnly)/saturatedLoosen ! for saturated glacier debris or lake soil convergence criteria is too strict
+    liquid_max = real(maxval(abs( rVecScaled(ixHydOnly) ) ), rkind) ! included ixMatOnly
     ! (tighter convergence for the scalar solution)
     if (scalarSolution) then
      liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
@@ -1222,7 +1235,7 @@ contains
 
    ! check convergence based on the soil water balance error (m)
    if (size(ixMatOnly)>0) then
-    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+ixMatricHead) )
+    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+nLake+ixMatricHead) )
     ! (tighter convergence for the scalar solution)
     if (scalarSolution) then
       watbalConv = (abs(soilWatBalErr) < absConvTol_liquid*scalarTighten)  ! absolute error in total soil water balance (m)

@@ -37,23 +37,23 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
 ! access matrix information
-USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
-USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
-USE globalData,only: ku             ! number of super-diagonal bands
-USE globalData,only: kl             ! number of sub-diagonal bands
+USE globalData,only:ixFullMatrix    ! named variable for the full Jacobian matrix
+USE globalData,only:ixBandMatrix    ! named variable for the band diagonal matrix
+USE globalData,only:ku              ! number of super-diagonal bands
+USE globalData,only:kl              ! number of sub-diagonal bands
 
 ! global metadata
 USE globalData,only:flux_meta       ! metadata on the model fluxes
 
 ! constants
-USE multiconst,only:Tfreeze        ! temperature at freezing              (K)
+USE multiconst,only:Tfreeze         ! temperature at freezing (K)
 USE globalData,only:verySmall       ! a small number
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
-USE var_lookup,only:iLookDERIV     ! named variables for structure elements
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
@@ -62,7 +62,7 @@ USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE mDecisions_module,only:       &
   qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
   bigBucket,                      & ! a big bucket (lumped aquifer model)
-  noExplicit                         ! no explicit groundwater parameterization
+  noExplicit                        ! no explicit groundwater parameterization
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
 USE mDecisions_module,only:       &
@@ -96,7 +96,9 @@ subroutine summaSolv4ida(&
                       atol,                    & ! intent(in):    absolute tolerance
                       rtol,                    & ! intent(in):    relative tolerance
                       nSnow,                   & ! intent(in):    number of snow layers
+                      nLake,                   & ! intent(in):    number of lake layers
                       nSoil,                   & ! intent(in):    number of soil layers
+                      nGlce,                   & ! intent(in):    number of glacier ice layers
                       nLayers,                 & ! intent(in):    total number of layers
                       nStat,                   & ! intent(in):    total number of state variables
                       ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
@@ -113,7 +115,6 @@ subroutine summaSolv4ida(&
                       model_decisions,         & ! intent(in):    model decisions
                       lookup_data,             & ! intent(in):    lookup data
                       type_data,               & ! intent(in):    type of vegetation and soil
-                      attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
                       forc_data,               & ! intent(in):    model forcing data
                       bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -162,7 +163,9 @@ subroutine summaSolv4ida(&
   real(qp),intent(inout)          :: atol(:)                ! vector of absolute tolerances
   real(qp),intent(inout)          :: rtol(:)                ! vector of relative tolerances
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
+  integer(i4b),intent(in)         :: nLake                  ! number of lake layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
+  integer(i4b),intent(in)         :: nGlce                  ! number of glacier ice layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
   integer(i4b),intent(in)         :: nStat                  ! total number of state variables
   integer(i4b),intent(in)         :: ixMatrix               ! form of matrix (dense or banded)
@@ -179,7 +182,6 @@ subroutine summaSolv4ida(&
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
   type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
   type(var_d),        intent(in)  :: forc_data              ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
@@ -235,16 +237,16 @@ subroutine summaSolv4ida(&
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)           ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: resVecPrev(:)                          ! previous value for residuals
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
-  integer(c_long)                   :: nStepsSun(1)
-  integer(c_long)                   :: nREvals(1)
-  integer(c_long)                   :: nLinSetups(1)
-  integer(c_long)                   :: netFails(1)
-  integer(c_int)                    :: qLast(1)
-  integer(c_int)                    :: qCur(1)
-  real(c_double)                    :: hInitUsed(1)
-  real(c_double)                    :: hLast(1)
-  real(c_double)                    :: hCur(1)
-  real(c_double)                    :: tCur(1)
+  integer(c_long)                   :: nStepsSun(1)                           ! number of steps taken by the integrator
+  integer(c_long)                   :: nREvals(1)                             ! number of residual evaluations
+  integer(c_long)                   :: nLinSetups(1)                          ! number of linear solver setups
+  integer(c_long)                   :: netFails(1)                            ! number of error test failures
+  integer(c_int)                    :: qLast(1)                               ! method order used on the last internal step
+  integer(c_int)                    :: qCur(1)                                ! method order to be used on the next internal step
+  real(c_double)                    :: hInitUsed(1)                           ! step size used on the first internal step
+  real(c_double)                    :: hLast(1)                               ! step size used on the last internal step
+  real(c_double)                    :: hCur(1)                                ! step size to be used on the next internal step
+  real(c_double)                    :: tCur(1)                                ! current time reached by the integrator
   ! flags
   logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn IDA warnings off, default true
@@ -253,19 +255,21 @@ subroutine summaSolv4ida(&
   ! link to the necessary variables
   associate(&
     ! number of state variables of a specific type
-    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
+    nSnLaSoGlNrg            => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the layers
+    nSnLaSoGlHyd            => indx_data%var(iLookINDEX%nSnLaSoGlHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the layers
+    nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the soil
     ! model indices
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy air space energy state variable
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy energy state variable
     ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)      ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
     ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)       ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
-    ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
-    ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the soil subdomain
-    ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat         & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
+    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the layers
+    ixSnLaSoGlHyd           => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the layers
+    ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow
+    ixGlceOnlyNrg           => indx_data%var(iLookINDEX%ixGlceOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the glacier ice
+    ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the soil
+    ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat         & ! intent(in): [i4b(:)] named variables defining the type of layer 
     ) ! association to necessary variables for the residual computations
 
     ! initialize error control
@@ -284,7 +288,9 @@ subroutine summaSolv4ida(&
     ! fill eqns_data which will be required later to call eval8summa4ida
     eqns_data%dt             = dt
     eqns_data%nSnow          = nSnow
+    eqns_data%nLake          = nLake
     eqns_data%nSoil          = nSoil
+    eqns_data%nGlce          = nGlce
     eqns_data%nLayers        = nLayers
     eqns_data%nState         = int(nState,i4b)
     eqns_data%ixMatrix       = ixMatrix
@@ -294,7 +300,6 @@ subroutine summaSolv4ida(&
     eqns_data%deriv_data     = deriv_data
     eqns_data%lookup_data    = lookup_data
     eqns_data%type_data      = type_data
-    eqns_data%attr_data      = attr_data
     eqns_data%mpar_data      = mpar_data
     eqns_data%forc_data      = forc_data
     eqns_data%bvar_data      = bvar_data
@@ -312,11 +317,11 @@ subroutine summaSolv4ida(&
     allocate( eqns_data%dMat(int(nState,i4b)) ); eqns_data%dMat = dMat
     
     ! allocate space for the to save previous fluxes
-    call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,cmessage)
+    call allocLocal(flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
     ! allocate space for other variables
-    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
+    if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
       allocate(eqns_data%dBaseflow_dWat(nSoil,nSoil),eqns_data%dBaseflow_dTk(nSoil,nSoil),stat=err)
     else
       allocate(eqns_data%dBaseflow_dWat(0,0),eqns_data%dBaseflow_dTk(0,0),stat=err)
@@ -389,13 +394,16 @@ subroutine summaSolv4ida(&
     if(detect_events)then
       nRoot = 0
       if(ixVegNrg/=integerMissing) nRoot = nRoot+1
-      do i = 1,nSnow
-        if(ixSnowOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
-      enddo
-      do i = 1,nSoil
-        if(ixSoilOnlyHyd(i)/=integerMissing) nRoot = nRoot+1
-        if(ixSoilOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
-      enddo
+      if (nSnLaSoGlNrg>0)then
+        do i = 1,nLayers
+          if(ixSnLaSoGlNrg(i)/=integerMissing) nRoot = nRoot+1
+        enddo
+      endif
+      if(nSoilOnlyHyd>0)then
+        do i = 1,nSoil
+          if(ixSoilOnlyNrg(i)/=integerMissing) nRoot = nRoot+1
+        enddo
+      endif
       allocate( rootsfound(nRoot) )
       allocate( rootdir(nRoot) )
       rootdir = 0
@@ -497,6 +505,17 @@ subroutine summaSolv4ida(&
           if (stateVec(ixSnowOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
         endif
       enddo
+      ! for lakes, will need to merge if an ice layer completely melts, not implemented yet
+      if (nGlce>0) then
+        ! loop through non-missing energy state variables in the glacier domain to see if need to merge 
+        do concurrent (i=1:nGlce,ixGlceOnlyNrg(i)/=integerMissing)
+          if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm)then !using enthalpy as state variable
+            if (stateVec(ixGlceOnlyNrg(i)) > 0._rkind) tooMuchMelt = .true. !need to merge
+          else
+            if (stateVec(ixGlceOnlyNrg(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+          endif
+        enddo
+      endif
       if(tooMuchMelt)exit
     
       ! get the last stepsize and difference from previous end time, not necessarily the same
@@ -557,9 +576,9 @@ subroutine summaSolv4ida(&
         ! note, if needCm and/or updateCp are false in eval8summaWithPrime, then the energy balance is not accurate
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_mult/dt
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_mult/dt
-        if(nSnowSoilNrg>0)then
-          do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing) 
-            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_mult/dt
+        if(nSnLaSoGlNrg>0)then
+          do concurrent (i=1:nLayers,ixSnLaSoGlNrg(i)/=integerMissing) 
+            balance(ixSnLaSoGlNrg(i)) = balance(ixSnLaSoGlNrg(i)) + ( eqns_data%resVec(ixSnLaSoGlNrg(i)) + resVecPrev(ixSnLaSoGlNrg(i)) )*dt_mult/dt
           enddo
         endif
       endif
@@ -571,9 +590,9 @@ subroutine summaSolv4ida(&
     
         ! compute mass balance mean, resVec is the instantaneous residual vector from the solver
         if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_mult/dt
-        if(nSnowSoilHyd>0)then
-          do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing) 
-            balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + ( eqns_data%resVec(ixSnowSoilHyd(i)) + resVecPrev(ixSnowSoilHyd(i)) )*dt_mult/dt
+        if(nSnLaSoGlHyd>0)then
+          do concurrent (i=1:nLayers,ixSnLaSoGlHyd(i)/=integerMissing) 
+            balance(ixSnLaSoGlHyd(i)) = balance(ixSnLaSoGlHyd(i)) + ( eqns_data%resVec(ixSnLaSoGlHyd(i)) + resVecPrev(ixSnLaSoGlHyd(i)) )*dt_mult/dt
           enddo
         endif
         if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + ( eqns_data%resVec(ixAqWat) + resVecPrev(ixAqWat) )*dt_mult/dt
@@ -798,17 +817,21 @@ subroutine find_rootdir(eqns_data,rootdir)
   integer(i4b),intent(inout) :: rootdir(:) ! root function directions to search
 
   ! local variables
-  integer(i4b)               :: i,ind     ! indices
+  integer(i4b)               :: i,j,ind   ! indices
   integer(i4b)               :: nState    ! number of states
   integer(i4b)               :: nSnow     ! number of snow layers
+  integer(i4b)               :: nLake     ! number of lake layers
   integer(i4b)               :: nSoil     ! number of soil layers
+  integer(i4b)               :: nGlce     ! number of glacier ice layers
   real(rkind)                :: xPsi      ! matric head at layer (m)
   real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
 
   ! get equations data variables
   nState = eqns_data%nState
   nSnow = eqns_data%nSnow
+  nLake = eqns_data%nLake
   nSoil = eqns_data%nSoil
+  nGlce = eqns_data%nGlce
  
   ! initialize
   ind = 0
@@ -820,9 +843,14 @@ subroutine find_rootdir(eqns_data,rootdir)
     if(eqns_data%scalarCanopyTempPrev > Tfreeze) rootdir(ind) = -1
   endif
 
-  do i = 1,nSnow
-    ! identify the critical point when the snow layer begins to freeze
-    if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
+  do j = 1,nSnow+nLake+nGlce
+    if (j<=nSnow+nLake)then
+      i = j
+    else 
+      i = j + nSoil
+    endif
+    ! identify the critical point when the snow lake glce layer begins to freeze
+    if(eqns_data%indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat(i)/=integerMissing)then
       ind = ind+1
       rootdir(ind) = 1
       if(eqns_data%mLayerTempPrev(i) > Tfreeze) rootdir(ind) = -1
@@ -876,14 +904,16 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   real(c_double), value      :: t         ! current time
   type(N_Vector)             :: sunvec_u  ! solution N_Vector
   type(N_Vector)             :: sunvec_up ! derivative N_Vector
-  real(c_double)             :: gout(999) ! root function values, if (nVeg + nSnow + 2*nSoil)>999, problem
+  real(c_double)             :: gout(999) ! root function values, if (nVeg + nSnow + nLake + 2*nSoil + nGlce)>999, problem
   type(c_ptr),    value      :: user_data ! user-defined data
 
   ! local variables
-  integer(i4b)               :: i,ind     ! indices
+  integer(i4b)               :: i,j,ind   ! indices
   integer(i4b)               :: nState    ! number of states
   integer(i4b)               :: nSnow     ! number of snow layers
+  integer(i4b)               :: nLake     ! number of lake layers
   integer(i4b)               :: nSoil     ! number of soil layers
+  integer(i4b)               :: nGlce     ! number of glacier ice layers
   logical(lgt)               :: enthalpyStateVec ! flag to indicate if we are using enthalpy as state variable
   real(rkind)                :: xPsi      ! matric head at layer (m)
   real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
@@ -897,9 +927,10 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
   call c_f_pointer(user_data, eqns_data)
   nState = eqns_data%nState
   nSnow = eqns_data%nSnow
+  nLake = eqns_data%nLake
   nSoil = eqns_data%nSoil
+  nGlce = eqns_data%nGlce
   enthalpyStateVec = eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm
-
 
   ! get data array from SUNDIALS vector
   uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
@@ -917,14 +948,19 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
     end if
   endif
 
-  do i = 1,nSnow
-    ! identify the critical point when the snow layer begins to freeze
-    if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
+  do j = 1,nSnow+nLake+nGlce
+    if (j<=nSnow+nLake)then
+      i = j
+    else 
+      i = j + nSoil
+    endif
+    ! identify the critical point when the snow lake glce layer begins to freeze
+    if(eqns_data%indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat(i)/=integerMissing)then
       ind = ind+1
       if(enthalpyStateVec)then
-        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i))
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat(i))
       else
-        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat(i)) - Tfreeze
       end if
     endif
   end do

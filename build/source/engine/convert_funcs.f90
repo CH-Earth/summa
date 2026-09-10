@@ -19,11 +19,12 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module convert_funcs_module
-USE nr_type                                 ! variable types
-USE multiconst                              ! fixed parameters (lh vapzn, etc.)
+USE nr_type                                ! variable types
+USE multiconst                             ! fixed parameters (lh vapzn, etc.)
 implicit none
 private
 public::RELHM2SPHM,SPHM2RELHM,WETBULBTMP,satVapPress,vapPress,getLatentHeatValue
+public::MSLP2AIRP,AIRP2MSLP
 contains
 
 ! ----------------------------------------------------------------------
@@ -83,6 +84,40 @@ else
  dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2_i4b)
 end if
 end subroutine satVapPress
+
+! ***************************************************************************************************************
+! public function MSLP2AIRP: compute air pressure using mean sea level pressure and elevation
+! ***************************************************************************************************************
+! (after Shuttleworth, 1993)
+!
+! -- actually returns MSLP2AIRP in the same units as MSLP, because
+!    ( (293.-0.0065*ELEV) / 293. )**5.256 is dimensionless
+! ***************************************************************************************************************
+function MSLP2AIRP(MSLP, ELEV)
+implicit none
+real(rkind),intent(in)        :: MSLP      ! base pressure (Pa)
+real(rkind),intent(in)        :: ELEV      ! elevation difference from base (m)
+real(rkind)                   :: MSLP2AIRP ! Air pressure (Pa)
+!---------------------------------------------------------------------------------------------------
+MSLP2AIRP = MSLP * ( (293.-0.0065*ELEV) / 293. )**5.256
+end function MSLP2AIRP
+
+! ***************************************************************************************************************
+! public function AIRP2MSLP: compute mean sea level pressure using air pressure and elevation
+! ***************************************************************************************************************
+! (after Shuttleworth, 1993)
+!
+! -- actually returns AIRP2MSLP in the same units as AIRP, because
+!    ( (293.-0.0065*ELEV) / 293. )**5.256 is dimensionless
+! ***************************************************************************************************************
+function AIRP2MSLP(AIRP, ELEV)
+implicit none
+real(rkind),intent(in)        :: AIRP      ! air pressure (Pa)
+real(rkind),intent(in)        :: ELEV      ! elevation difference from base (m)
+real(rkind)                   :: AIRP2MSLP ! base pressure (Pa)
+!---------------------------------------------------------------------------------------------------
+AIRP2MSLP = AIRP / ( (293.-0.0065*ELEV) / 293. )**5.256
+end function AIRP2MSLP
 
 ! ***************************************************************************************************************
 ! private function RLHUM2DEWPT: compute dewpoint temperature from relative humidity

@@ -89,7 +89,9 @@ subroutine summaSolv4kinsol(&
                       fScale,                  & ! intent(in):    characteristic scale of the function evaluations (mixed units)
                       xScale,                  & ! intent(in):    characteristic scale of the state vector (mixed units)
                       nSnow,                   & ! intent(in):    number of snow layers
+                      nLake,                   & ! intent(in):    number of lake layers
                       nSoil,                   & ! intent(in):    number of soil layers
+                      nGlce,                   & ! intent(in):    number of glacier ice layers
                       nLayers,                 & ! intent(in):    total number of layers
                       nStat,                   & ! intent(in):    total number of state variables
                       ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
@@ -104,7 +106,6 @@ subroutine summaSolv4kinsol(&
                       model_decisions,         & ! intent(in):    model decisions
                       lookup_data,             & ! intent(in):    lookup tables
                       type_data,               & ! intent(in):    type of vegetation and soil
-                      attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
                       forc_data,               & ! intent(in):    model forcing data
                       bvar_data,               & ! intent(in):    average model variables for the entire basin
@@ -132,7 +133,6 @@ subroutine summaSolv4kinsol(&
   USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
   USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
   USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
-  USE allocspace_module,only:allocLocal           ! allocate local data structures
   USE getVectorz_module,only:checkFeas            ! check feasibility of state vector
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
   USE eval8summa_module,only:eval8summa           ! residual of DAE
@@ -151,7 +151,9 @@ subroutine summaSolv4kinsol(&
   real(rkind),intent(inout)       :: fScale(:)              ! characteristic scale of the function evaluations (mixed units)
   real(rkind),intent(inout)       :: xScale(:)              ! characteristic scale of the state vector (mixed units)
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
+  integer(i4b),intent(in)         :: nLake                  ! number of lake layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
+  integer(i4b),intent(in)         :: nGlce                  ! number of glacier ice layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
   integer(i4b),intent(in)         :: nStat                  ! total number of state variables
   integer(i4b),intent(in)         :: ixMatrix               ! form of matrix (dense or banded)
@@ -166,7 +168,6 @@ subroutine summaSolv4kinsol(&
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
   type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
-  type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
   type(var_d),        intent(in)  :: forc_data              ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
@@ -224,7 +225,9 @@ subroutine summaSolv4kinsol(&
   eqns_data%dt_cur              = dt_cur
   eqns_data%dt                  = dt
   eqns_data%nSnow               = nSnow
+  eqns_data%nLake               = nLake
   eqns_data%nSoil               = nSoil
+  eqns_data%nGlce               = nGlce
   eqns_data%nLayers             = nLayers
   eqns_data%nState              = int(nState,i4b)
   eqns_data%ixMatrix            = ixMatrix
@@ -236,7 +239,6 @@ subroutine summaSolv4kinsol(&
   eqns_data%deriv_data          = deriv_data
   eqns_data%lookup_data         = lookup_data
   eqns_data%type_data           = type_data
-  eqns_data%attr_data           = attr_data
   eqns_data%mpar_data           = mpar_data
   eqns_data%forc_data           = forc_data
   eqns_data%bvar_data           = bvar_data
@@ -256,7 +258,7 @@ subroutine summaSolv4kinsol(&
   allocate( eqns_data%stateVecPrev(int(nState,i4b)) ); eqns_data%stateVecPrev = stateVecInit  
 
   ! allocate space for other variables
-  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
+  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
     allocate(eqns_data%dBaseflow_dWat(nSoil,nSoil),eqns_data%dBaseflow_dTk(nSoil,nSoil),stat=err)
   else
     allocate(eqns_data%dBaseflow_dWat(0,0),eqns_data%dBaseflow_dTk(0,0),stat=err)
@@ -341,6 +343,7 @@ subroutine summaSolv4kinsol(&
 
   !****************************** Main Solver **********************************************
   ! Call KINSol to solve problem with choice of solver, linesearch or Picard
+  ! NOTE: Picard works better, but can not use with numerical Jacobian
   !retvalr = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
   retvalr = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
 

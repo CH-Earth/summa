@@ -123,7 +123,7 @@ subroutine liquidHead(&
   real(rkind)                       :: effSat                                    ! effective saturation (-)
   real(rkind)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
   real(rkind)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
-  ! ------------------------------------------------------------------------------------------------------------------------------
+   ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHead/'
 
@@ -263,7 +263,7 @@ function volFracLiq(psi,alpha,theta_res,theta_sat,n,m)
   real(rkind)            :: volFracLiq  ! volumetric liquid water content (-)
 
   if(psi<0._rkind)then
-  volFracLiq = theta_res + (theta_sat - theta_res)*(1._rkind + (alpha*psi)**n)**(-m)
+    volFracLiq = theta_res + (theta_sat - theta_res)*(1._rkind + (alpha*psi)**n)**(-m)
   else
     volFracLiq = theta_sat
   end if

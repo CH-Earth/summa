@@ -273,7 +273,7 @@ def run_loop(i,var,mx,rep,stat):
     s_rel = summa[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
-        if do_rel and var != 'wallClockTime': s = s/s_rel      
+        if do_rel and var != 'wallClockTime': s = s/s_rel  
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
         plot_range = (0,mx)
         if stat=='kgem' and var!='wallClockTime': 

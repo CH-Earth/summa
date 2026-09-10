@@ -36,13 +36,13 @@ contains
  ! summary of data structures
  USE globalData,only:structInfo
  ! metadata structures
- USE globalData,only:time_meta,forc_meta,attr_meta,type_meta,id_meta     ! metadata structures
- USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta,indx_meta   ! metadata structures
- USE globalData,only:bpar_meta,bvar_meta,deriv_meta,lookup_meta          ! metadata structures
+ USE globalData,only:time_meta,forc_meta,attr_meta,type_meta,id_meta      ! metadata structures
+ USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta,indx_meta    ! metadata structures
+ USE globalData,only:bpar_meta,bvar_meta,deriv_meta,lookup_meta,grid_meta ! metadata structures
   ! named variables defining strructure elements
- USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID    ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookBPAR,iLookBVAR,iLookDERIV,iLookLOOKUP          ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID     ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookPARAM,iLookINDEX  ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookBPAR,iLookBVAR,iLookDERIV,iLookLOOKUP,iLookGRID ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -82,6 +82,7 @@ contains
    case('flux');   write(longString,*) iLookFLUX
    case('deriv');  write(longString,*) iLookDERIV
    case('lookup'); write(longString,*) iLookLOOKUP
+   case('grid');   write(longString,*) iLookGRID
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   ! check that the length of the lookup structure matches the number of variables in the data structure
@@ -114,6 +115,7 @@ contains
    case('mpar');   call checkPopulated(iStruct,mpar_meta,err,cmessage)
    case('bpar');   call checkPopulated(iStruct,bpar_meta,err,cmessage)
    case('bvar');   call checkPopulated(iStruct,bvar_meta,err,cmessage)
+   case('grid');   call checkPopulated(iStruct,grid_meta,err,cmessage)
    case('indx');   call checkPopulated(iStruct,indx_meta,err,cmessage)
    case('prog');   call checkPopulated(iStruct,prog_meta,err,cmessage)
    case('diag');   call checkPopulated(iStruct,diag_meta,err,cmessage)

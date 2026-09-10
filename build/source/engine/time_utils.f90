@@ -46,9 +46,9 @@ contains
  ! dummy variables
  character(*),intent(in)    :: refdate             ! units string (time since...)
  integer(i4b),intent(out)   :: iyyy,im,id,ih,imin  ! time (year/month/day/hour/minute)
- real(rkind),intent(out)       :: dsec                ! seconds
+ real(rkind),intent(out)    :: dsec                ! seconds
  integer(i4b),intent(out)   :: ih_tz,imin_tz       ! time zone information (hour/minute)
- real(rkind),intent(out)       :: dsec_tz             ! time zone information (seconds)
+ real(rkind),intent(out)    :: dsec_tz             ! time zone information (seconds)
  integer(i4b),intent(out)   :: err                 ! error code
  character(*),intent(out)   :: message             ! error message
  ! local variables
@@ -272,16 +272,16 @@ contains
  ! input variables
  integer(i4b),intent(in)   :: iyyy,mm,id   ! year, month, day
  integer(i4b),intent(in)   :: ih,imin      ! hour, minute
- real(rkind),intent(in)       :: dsec         ! seconds
+ real(rkind),intent(in)    :: dsec         ! seconds
  ! output
- real(rkind),intent(out)      :: juldayss
-  integer(i4b),intent(out) :: err          ! error code
-  character(*),intent(out) :: message      ! error message
+ real(rkind),intent(out)   :: juldayss
+ integer(i4b),intent(out)  :: err          ! error code
+ character(*),intent(out)  :: message      ! error message
  ! local variables
  integer(i4b)              :: julday       ! julian day
  integer(i4b),parameter    :: igreg=15+31*(10+12*1582)  !IGREG = 588829
  integer(i4b)              :: ja,jm,jy
- real(rkind)                  :: jfrac        ! fraction of julian day
+ real(rkind)               :: jfrac        ! fraction of julian day
 
  ! initialize errors
  err=0; message="juldayss"
@@ -345,14 +345,14 @@ contains
  integer(i4b),parameter       :: w = 2
  integer(i4b),parameter       :: b = 274277
  integer(i4b),parameter       :: c = -38
- real(rkind),parameter           :: hr_per_day = 24.0_rkind
- real(rkind),parameter           :: min_per_hour = 60.0_rkind
+ real(rkind),parameter        :: hr_per_day = 24.0_rkind
+ real(rkind),parameter        :: min_per_hour = 60.0_rkind
 
  ! local variables
- integer(i4b)          :: f,e,g,h                            ! various step variables from wikipedia
- integer(i4b)          :: step_1a,step_1b,step_1c,step_1d    ! temporary variables for calendar calculations
- real(rkind)              :: frac_day  ! fractional day
- real(rkind)              :: remainder ! remainder of modulus operation
+ integer(i4b)                 :: f,e,g,h                          ! various step variables from wikipedia
+ integer(i4b)                 :: step_1a,step_1b,step_1c,step_1d  ! temporary variables for calendar calculations
+ real(rkind)                  :: frac_day                         ! fractional day
+ real(rkind)                  :: remainder                        ! remainder of modulus operation
 
  ! initialize errors
  err=0; message="compcalday"
@@ -387,9 +387,9 @@ contains
  ! now find hour,min,second
 
  frac_day = julday - floor(julday)
- ih = floor((frac_day+1e-9)*hr_per_day)
+ ih = floor((frac_day+1.e-9_rkind)*hr_per_day)
 
- remainder = (frac_day+1e-9)*hr_per_day - ih
+ remainder = (frac_day+1.e-9_rkind)*hr_per_day - ih
  imin = floor(remainder*min_per_hour)
 
  remainder = remainder*min_per_hour - imin

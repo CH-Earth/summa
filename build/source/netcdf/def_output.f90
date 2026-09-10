@@ -32,42 +32,60 @@ USE globalData, only: outputCompressionLevel  ! netcdf deflate level
 implicit none
 private
 public :: def_output
-public :: write_hru_info
+public :: write_id_info
+public :: write_gridid_info
 
 ! define dimension names
 character(len=32),parameter :: gru_DimName      = 'gru'              ! dimension name for the GRUs
 character(len=32),parameter :: hru_DimName      = 'hru'              ! dimension name for the HRUs
+character(len=32),parameter :: dom_DimName      = 'dom'              ! dimension name for the domains
 character(len=32),parameter :: depth_DimName    = 'depth'            ! dimension name for soil depth
 character(len=32),parameter :: scalar_DimName   = 'scalarv'          ! dimension name for scalar variables
-character(len=32),parameter :: wLength_dimName  = 'spectral'         ! dimension name for the number of spectral bands
+character(len=32),parameter :: wLength_DimName  = 'spectral'         ! dimension name for the number of spectral bands
 character(len=32),parameter :: timestep_DimName = 'time'             ! dimension name for the time step
 character(len=32),parameter :: routing_DimName  = 'tdh'              ! dimension name for the time delay routing vectors
+character(len=32),parameter :: glacier_DimName  = 'glac'             ! dimension name for the number of glaciers
+character(len=32),parameter :: grid_DimName     = 'grid'             ! dimension name for the grid
+character(len=32),parameter :: xDimName         = 'xgrid'            ! dimension name for the x grid
+character(len=32),parameter :: yDimName         = 'ygrid'            ! dimension name for the y grid
 character(len=32),parameter :: midSnow_DimName  = 'midSnow'          ! dimension name for midSnow
+character(len=32),parameter :: midLake_DimName  = 'midLake'          ! dimension name for midLake
 character(len=32),parameter :: midSoil_DimName  = 'midSoil'          ! dimension name for midSoil
+character(len=32),parameter :: midGlce_DimName  = 'midGlce'          ! dimension name for midGlce
 character(len=32),parameter :: midToto_DimName  = 'midToto'          ! dimension name for midToto
 character(len=32),parameter :: ifcSnow_DimName  = 'ifcSnow'          ! dimension name for ifcSnow
+character(len=32),parameter :: ifcLake_DimName  = 'ifcLake'          ! dimension name for ifcLake
 character(len=32),parameter :: ifcSoil_DimName  = 'ifcSoil'          ! dimension name for ifcSoil
+character(len=32),parameter :: ifcGlce_DimName  = 'ifcGlce'          ! dimension name for ifcGlce
 character(len=32),parameter :: ifcToto_DimName  = 'ifcToto'          ! dimension name for ifcToto
 
 ! define the dimension IDs
 integer(i4b)                :: gru_DimID                             ! dimension name for the GRUs
 integer(i4b)                :: hru_DimID                             ! dimension name for the HRUs
+integer(i4b)                :: dom_DimID                             ! dimension name for the domains
 integer(i4b)                :: depth_DimID                           ! dimension name for the soil depth
 integer(i4b)                :: scalar_DimID                          ! dimension name for scalar variables
 integer(i4b)                :: wLength_dimID                         ! dimension name for the number of spectral bands
 integer(i4b)                :: timestep_DimID                        ! dimension name for the time step
-integer(i4b)                :: routing_DimID                         ! dimension name for thetime delay routing vectors
+integer(i4b)                :: routing_DimID                         ! dimension name for the time delay routing vectors
+integer(i4b)                :: glacier_DimID                         ! dimension name for the number of glaciers
+integer(i4b)                :: grid_DimID                            ! dimension name for the grid
+integer(i4b)                :: xDimID                                ! dimension name for the x grid
+integer(i4b)                :: yDimID                                ! dimension name for the y grid
 integer(i4b)                :: midSnow_DimID                         ! dimension name for midSnow
+integer(i4b)                :: midLake_DimID                         ! dimension name for midLake
 integer(i4b)                :: midSoil_DimID                         ! dimension name for midSoil
+integer(i4b)                :: midGlce_DimID                         ! dimension name for midGlce
 integer(i4b)                :: midToto_DimID                         ! dimension name for midToto
 integer(i4b)                :: ifcSnow_DimID                         ! dimension name for ifcSnow
+integer(i4b)                :: ifcLake_DimID                         ! dimension name for ifcLake
 integer(i4b)                :: ifcSoil_DimID                         ! dimension name for ifcSoil
+integer(i4b)                :: ifcGlce_DimID                         ! dimension name for ifcGlce
 integer(i4b)                :: ifcToto_DimID                         ! dimension name for ifcToto
 
 ! define named variables to specify dimensions
-integer(i4b),parameter  :: needGRU=0,needHRU=1,noHRU=2    ! define if there is an HRU dimension
-integer(i4b),parameter  :: needTime=1,noTime=2            ! define if there is a time dimension
-
+integer(i4b),parameter      :: needGRU=0,needHRU=1,noHRU=2,needDOM=3 ! define if there is an HRU or DOM dimension
+integer(i4b),parameter      :: needTime=1,noTime=2                   ! define if there is a time dimension    
 
 contains
 
@@ -78,10 +96,11 @@ contains
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta  ! metadata structures
- USE globalData,only:indx_meta,bpar_meta,bvar_meta            ! metadata structures
+ USE globalData,only:indx_meta,bpar_meta,bvar_meta,grid_meta  ! metadata structures
  USE globalData,only:model_decisions                          ! model decisions
- USE globalData,only:ncid
+ USE globalData,only:ncid                                     ! netcdf file id
  USE globalData,only:outFreq                                  ! output frequencies
+ USE globalData,only:maxGrid                                  ! maximum number of grids in a GRU
  USE var_lookup,only:maxvarFreq                               ! # of available output frequencies
  USE get_ixname_module,only:get_freqName                      ! get name of frequency from frequency index
  ! declare dummy variables
@@ -102,6 +121,7 @@ contains
  character(len=32)           :: fstring                       ! string to hold model output freuqnecy
  character(len=1024)         :: fname                         ! temporary filename
  character(len=256)          :: cmessage                      ! temporary error message
+ logical(lgt)                :: needGrid                      ! if might use grid variables
 
  ! initialize errors
  err=0; message="def_output/"
@@ -132,8 +152,10 @@ contains
   endif
 
   ! create file
+  needGrid = .false.
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
-  call ini_create(nGRU,nHRU,trim(fname),ncid(iFreq),err,cmessage)
+  if(trim(fstring)=='annual') needGrid = .true.
+  call ini_create(nGRU,nHRU,trim(fname),needGrid,ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print*,'Created output file: '//trim(fname)
 
@@ -161,26 +183,31 @@ contains
    select case (trim(structInfo(iStruct)%structName))
     case('attr'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, outputPrecision, err,cmessage)  ! local attributes HRU
     case('type'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,        err,cmessage)  ! local classification
-    case('mpar'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, outputPrecision, err,cmessage)  ! model parameters
+    case('mpar'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,  noTime,mpar_meta, outputPrecision, err,cmessage)  ! model parameters
     case('bpar'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, outputPrecision, err,cmessage)  ! basin-average param
-    case('indx'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,        err,cmessage)  ! model variables
+    case('indx'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,needTime,indx_meta, nf90_int,        err,cmessage)  ! model variables
     case('deriv' ); cycle                                                                              ! model derivatives -- for internal use only, not written to output files
-    case('time'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,        err,cmessage)  ! model derivatives
+    case('time'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,        err,cmessage)  ! model time data
     case('forc'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,needTime,forc_meta, outputPrecision, err,cmessage)  ! model forcing data
-    case('prog'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,needTime,prog_meta, outputPrecision, err,cmessage)  ! model prognostics
-    case('diag'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
-    case('flux'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needHRU,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
+    case('prog'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,needTime,prog_meta, outputPrecision, err,cmessage)  ! model prognostics
+    case('diag'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
+    case('flux'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needDOM,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
     case('bvar'  ); call def_variab(using_buffer,ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, outputPrecision, err,cmessage)  ! basin-average variables
     case('id'    ); cycle                                                                                         ! ids -- see write_hru_info()
     case('lookup'); cycle                                                                                         ! lookup structures -- for internal use only, not written to output files
-    case default; err=20; message=trim(message)//'unable to identify lookup structure';
+    case('grid'  )                                                                                                ! grid information
+     if(needGrid.and.maxGrid>0)then;call def_variab(using_buffer,ncid(iFreq),iFreq,needGRU,needTime,grid_meta,outputPrecision, err,cmessage);else;cycle;endif
+    case default; err=20;message=trim(message)//'unable to identify lookup structure '//trim(structInfo(iStruct)%structName);return
    end select
    ! error handling
    if(err/=0)then;err=20;message=trim(message)//'[structure =  '//trim(structInfo(iStruct)%structName);return;end if
   end do ! iStruct
 
   ! write HRU dimension and ID for each output file
-  call write_hru_info(ncid(iFreq), gru_DimID, hru_DimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+  call write_id_info(ncid(iFreq), gru_DimID, hru_DimID, dom_DimID, glacier_DimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+  ! write grid dimension and ID for each output file if needed
+  if(needGrid.and.maxGrid>0) call write_gridid_info(ncid(iFreq), gru_DimID, grid_DimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  end do ! iFreq
 
@@ -189,26 +216,36 @@ contains
  ! **********************************************************************************************************
  ! private subroutine ini_create: initial create
  ! **********************************************************************************************************
- subroutine ini_create(nGRU,nHRU,infile,ncid,err,message)
+ subroutine ini_create(nGRU,nHRU,infile,needGrid,ncid,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
- ! vector lengths
+! vector lengths
  USE globalData,only:maxLayers          ! maximum number of layers
- USE globalData,only:nSpecBand          ! number of spectral bands
- USE globalData,only:nTimeDelay         ! number of timesteps in the time delay histogram
  USE globalData,only:maxSoilLayers      ! maximum number of soil layers
  USE globalData,only:maxSnowLayers      ! maximum number of snow layers
+ USE globalData,only:maxGlceLayers      ! maximum number of glacier ice layers
+ USE globalData,only:maxLakeLayers      ! maximum number of lake layers
+ USE globalData,only:maxGlaciers        ! maximum number of glaciers in a GRU
+ USE globalData,only:nTimeDelay         ! number of timesteps in the time delay histogram
+ USE globalData,only:nSpecBand          ! maximum number of spectral bands
+ USE globalData,only:maxDOM             ! maximum number of domains in any HRU
+ USE globalData,only:maxGrid            ! maximum number of grids in a GRU
+ USE globalData,only:maxGridX           ! maximum number of grid cells in x direction
+ USE globalData,only:maxGridY           ! maximum number of grid cells in y direction
  USE globalData,only:allowRoutingOutput ! flag to allow routing variable output
+
  implicit none
  ! declare dummy variables
  integer(i4b),intent(in)     :: nGRU            ! number of GRUs
  integer(i4b),intent(in)     :: nHRU            ! number of HRUs
  character(*),intent(in)     :: infile          ! filename
+ logical(lgt),intent(in)     :: needGrid        ! if might use grid variables
  integer(i4b),intent(out)    :: ncid            ! netcdf file id
  integer(i4b),intent(out)    :: err             ! error code
  character(*),intent(out)    :: message         ! error message
  ! define local variables
  integer(i4b),parameter      :: scalarLength=1  ! length of scalar variable
+
  ! initialize error control
  err=0;message="ini_create/"
 
@@ -218,19 +255,28 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
-                        err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
- if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,     depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,     scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
- if(allowRoutingOutput) err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,      routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
- if(maxSnowLayers>0)    err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,   midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
- if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,   midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,       midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
- if(maxSnowLayers>0)    err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1, ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
- if(maxSoilLayers>0)    err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers+1, ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
-                        err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim(     dom_DimName), maxDOM,              dom_DimID); message='iCreate[dom]';      call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
+ if(maxSoilLayers>0)         err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,     depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,     scalar_DimID); message='iCreate[scalarv]';  call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim( wLength_DimName), nSpecBand,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
+ if(allowRoutingOutput)      err = nf90_def_dim(ncid, trim( routing_DimName), nTimeDelay,      routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxGlaciers>0)           err = nf90_def_dim(ncid, trim( glacier_DimName), maxGlaciers,     glacier_DimID); message='iCreate[glac]';     call netcdf_err(err,message); if (err/=0) return
+ if(maxSnowLayers>0)         err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,   midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxLakeLayers>0)         err = nf90_def_dim(ncid, trim( midLake_DimName), maxLakeLayers,   midLake_DimID); message='iCreate[midLake]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxSoilLayers>0)         err = nf90_def_dim(ncid, trim( midSoil_DimName), maxSoilLayers,   midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxGlceLayers>0)         err = nf90_def_dim(ncid, trim( midGlce_DimName), maxGlceLayers,   midGlce_DimID); message='iCreate[midGlce]';  call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim( midToto_DimName), maxLayers,       midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxSnowLayers>0)         err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1, ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxLakeLayers>0)         err = nf90_def_dim(ncid, trim( ifcLake_DimName), maxLakeLayers+1, ifcLake_DimID); message='iCreate[ifcLake]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxSoilLayers>0)         err = nf90_def_dim(ncid, trim( ifcSoil_DimName), maxSoilLayers+1, ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
+ if(maxGlceLayers>0)         err = nf90_def_dim(ncid, trim( ifcGlce_DimName), maxGlceLayers+1, ifcGlce_DimID); message='iCreate[ifcGlce]';  call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim( ifcToto_DimName), maxLayers+1,     ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
+ if(needGrid.and.maxGrid>0)  err = nf90_def_dim(ncid, trim(    grid_DimName), maxGrid,            grid_DimID); message='iCreate[grid]';     call netcdf_err(err,message); if (err/=0) return
+ if(needGrid.and.maxGridX>0) err = nf90_def_dim(ncid, trim(        xDimName), maxGridX,               xDimID); message='iCreate[xgrid]';    call netcdf_err(err,message); if (err/=0) return
+ if(needGrid.and.maxGridY>0) err = nf90_def_dim(ncid, trim(        yDimName), maxGridY,               yDimID); message='iCreate[ygrid]';    call netcdf_err(err,message); if (err/=0) return
 
  ! Leave define mode of NetCDF files
  err = nf90_enddef(ncid);  message='nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
@@ -272,9 +318,17 @@ contains
  USE get_ixname_module,only:get_statName            ! statistics names for variable defs in output file
  USE globalData,only:nHRUrun                        ! number of HRUs in the current run
  USE globalData,only:nGRUrun                        ! number of GRUs in the current run
- USE globalData,only:maxSnowLayers                  ! maximum number of snow layers
+ USE globalData,only:maxDOM                         ! maximum number of domains
+ USE globalData,only:maxGrid                        ! maximum number of grids in a GRU
+ USE globalData,only:maxGridX                       ! maximum number of grid cells in the x-direction
+ USE globalData,only:maxGridY                       ! maximum number of grid cells in the y-direction
  USE globalData,only:maxSoilLayers                  ! maximum number of soil layers
+ USE globalData,only:maxSnowLayers                  ! maximum number of snow layers
+ USE globalData,only:maxGlceLayers                  ! maximum number of glacier ice layers
+ USE globalData,only:maxLakeLayers                  ! maximum number of lake layers
+ USE globalData,only:maxGlaciers                    ! maximum number of glaciers in a GRU
  USE globalData,only:allowRoutingOutput             ! flag to allow routing variable output
+ USE globalData,only:realMissing                    ! missing value for real variables
 
  implicit none
  ! input
@@ -296,8 +350,10 @@ contains
  integer(i4b),allocatable      :: writechunk(:)     ! size of chunks to be written
  integer(i4b)                  :: timePosition      ! extrinsic variable to hold substring index
  integer(i4b)                  :: timeChunk         ! size of time chunks to try to use
+ integer(i4b)                  :: domChunk          ! size of domain chunk to try to use
  integer(i4b)                  :: hruChunk          ! size of hru chunk to try to use
  integer(i4b)                  :: gruChunk          ! size of gru chunk to try to use
+ integer(i4b)                  :: gridChunk         ! size of grid chunk to try to use
  integer(i4b)                  :: layerChunk        ! size of layer chunk to try to use
  character(LEN=256)            :: cmessage          ! error message of downwind routine
  character(LEN=256)            :: catName           ! full variable name
@@ -315,8 +371,10 @@ contains
   if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. trim(metaData(iVar)%varName)/='time') cycle
 
   ! ---------- get the dimension IDs (use cloneStruc, given source) ----------
-  gruChunk  = min(nGRUrun, chunkSize)
-  hruChunk  = min(nHRUrun, chunkSize)
+  gruChunk = min(nGRUrun, chunkSize)
+  hruChunk = min(nHRUrun, chunkSize)
+  domChunk = min(maxDOM,  chunkSize)
+  gridChunk = min(maxGrid, chunkSize)
   timeChunk = chunkSize
   layerChunk = 1
   timeChunk = min(numtim,chunkSize)
@@ -333,28 +391,46 @@ contains
 
     ! (scalar variable -- many different types)
     case(iLookVarType%scalarv)
-     if(spatialDesire==needGRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, int(timeChunk/gruChunk)+1 /); endif
-     if(spatialDesire==needGRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID/),                err=err, message=cmessage); writechunk=(/ gruChunk /); endif
-     if(spatialDesire==needHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /); endif
-     if(spatialDesire==needHRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage); writechunk=(/ hruChunk /); endif
-     if(spatialDesire==  noHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/) , err=err, message=cmessage);               writechunk=(/ gruChunk /); endif
-     if(spatialDesire==  noHRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/) , err=err, message=cmessage);               writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /); endif
+     if(spatialDesire==needGRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID     /), err=err, message=cmessage); writechunk=(/ gruChunk, int(timeChunk/gruChunk)+1 /); endif
+     if(spatialDesire==needGRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID                    /), err=err, message=cmessage); writechunk=(/ gruChunk /); endif
+     if(spatialDesire==needHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID     /), err=err, message=cmessage); writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /); endif
+     if(spatialDesire==needHRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID                    /), err=err, message=cmessage); writechunk=(/ hruChunk /); endif
+     if(spatialDesire==  noHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID                    /), err=err, message=cmessage); writechunk=(/ gruChunk /); endif
+     if(spatialDesire==  noHRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID                    /), err=err, message=cmessage); writechunk=(/ hruChunk, int(timeChunk/domChunk)+1 /); endif
+     if(spatialDesire==needDOM .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID,hru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk,hruChunk, int(timeChunk/domChunk)+1 /); endif
+     if(spatialDesire==needDOM .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID,hru_DimID/)               , err=err, message=cmessage); writechunk=(/ domChunk,hruChunk/); endif
 
     ! (other variables)
-    case(iLookVarType%wLength);  call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookVarType%wLength);  call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /)
     case(iLookVarType%midSnow)
-     if(   maxSnowLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /); else; cycle; endif
+     if(   maxSnowLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /); else; cycle; endif
+    case(iLookVarType%midLake)
+     if(   maxLakeLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, midLake_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /); else; cycle; endif
     case(iLookVarType%midSoil)
-      if(  maxSoilLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /); else; cycle; endif
-    case(iLookVarType%midToto);  call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+     if(   maxSoilLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /); else; cycle; endif
+    case(iLookVarType%midGlce)
+     if(   maxGlceLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, midGlce_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /); else; cycle; endif
+    case(iLookVarType%midToto);  call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /)
     case(iLookVarType%ifcSnow)
-     if(   maxSnowLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /); else; cycle; endif
+     if(   maxSnowLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /); else; cycle; endif
+    case(iLookVarType%ifcLake)
+     if(   maxLakeLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, ifcLake_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /); else; cycle; endif    
     case(iLookVarType%ifcSoil)
-      if(  maxSoilLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /); else; cycle; endif
-    case(iLookVarType%ifcToto);  call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
-    case(iLookVarType%parSoil);  call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk/) ! soil parameters have no time dimension
+     if(   maxSoilLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /); else; cycle; endif
+    case(iLookVarType%ifcGlce)
+     if(   maxGlceLayers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, ifcGlce_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /); else; cycle; endif
+    case(iLookVarType%ifcToto);  call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk, int(timeChunk/domChunk)+1 /)
+    case(iLookVarType%parSoil);  call cloneStruc(dimensionIDs, lowerBound=1, source=(/dom_DimID, hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ domChunk, hruChunk, layerChunk/) ! soil parameters have no time dimension
     case(iLookVarType%routing)
-     if(allowRoutingOutput)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, routing_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /); else; cycle; endif
+     if(allowRoutingOutput)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/           gru_DimID, routing_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/           gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /); else; cycle; endif
+    case(iLookVarType%glacier)
+     if(     maxGlaciers>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/           gru_DimID, glacier_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/           gruChunk, layerChunk, int(timeChunk/gruChunk)+1 /); else; cycle; endif
+    case(iLookVarType%gridvar)
+     if(trim(metaData(iVar)%varName)=='surface_elev' .or. trim(metaData(iVar)%varName)=='debris_thick') then ! only grid vars curently that change with time
+      if(        maxGrid>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, gridChunk, maxGridX, maxGridY, 1 /); else; cycle; endif
+     else
+      if(        maxGrid>0)then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/gru_DimID, grid_DimID,xDimID,yDimID                /), err=err, message=cmessage); writechunk=(/ gruChunk, gridChunk, maxGridX, maxGridY /); else; cycle; endif
+     endif
    end select
    ! check errors
    if(err/=0)then
@@ -421,6 +497,12 @@ contains
   err = nf90_put_att(ncid,iVarId,'units',trim(catName))
   call netcdf_err(err,message); if (err/=0) return
 
+  ! add fill value for grid variables (spatial extents vary per tile; unwritten cells must carry realMissing)
+  if(metaData(iVar)%varType==iLookVarType%gridvar) then
+   err = nf90_put_att(ncid,iVarId,'_FillValue',realMissing)
+   call netcdf_err(err,message); if (err/=0) return
+  end if
+
   ! add NetCDF variable ID to metadata structure
   metaData(iVar)%ncVarID(iFreq) = iVarId
 
@@ -432,53 +514,81 @@ contains
  end subroutine def_variab
 
  ! **********************************************************************************************************
- ! public subroutine write_hru_info: write HRU dimension and IDs
+ ! public subroutine write_id_info: write GRU HRU DOM glac dimension and IDs
  ! **********************************************************************************************************
- subroutine write_hru_info(ncid, gruDimID, hruDimID, err, message)
- use globalData,only:gru_struc                    ! gru-hru mapping structures
+ subroutine write_id_info(ncid, gruDimID, hruDimID, domDimID, glacDimID, err, message)
+ USE globalData,only:gru_struc                        ! gru-hru mapping structures
+ USE globalData,only:maxGlaciers                      ! maximum number of glaciers in a GRU
  ! input
- integer(i4b),intent(in)     :: ncid              ! netcdf file id
- integer(i4b),intent(in)     :: gruDimID          ! GRU dimension ID
- integer(i4b),intent(in)     :: hruDimID          ! HRU dimension ID
+ integer(i4b),intent(in)     :: ncid                  ! netcdf file id
+ integer(i4b),intent(in)     :: gruDimID              ! dimension name for the GRUs
+ integer(i4b),intent(in)     :: hruDimID              ! dimension name for the HRUs
+ integer(i4b),intent(in)     :: domDimID              ! dimension name for the domains
+ integer(i4b),intent(in)     :: glacDimID             ! dimension name for the number of glaciers
  ! output
- integer(i4b),intent(out)    :: err               ! error code
- character(*),intent(out)    :: message           ! error message
+ integer(i4b),intent(out)    :: err                   ! error code
+ character(*),intent(out)    :: message               ! error message
  ! define local variables
- integer(i4b)                :: iHRU              ! local HRU index
- integer(i4b)                :: iGRU              ! GRU index
- integer(i4b)                :: hruVarID          ! hru varID in netcdf file
- integer(i4b)                :: gruVarID          ! gru varID in netcdf file
- integer(i4b)                :: hruIdVarID        ! hruId varID in netcdf file, non-sequential HRU ID
- integer(i4b)                :: gruIdVarID        ! gruId varID in netcdf file, non-sequential GRU ID
+ integer(i4b)                :: iDOM,iHRU,iGRU,iGlac  ! loop indices
+ integer(i4b)                :: domVarID              ! dom varID in netcdf file
+ integer(i4b)                :: hruVarID              ! hru varID in netcdf file
+ integer(i4b)                :: gruVarID              ! gru varID in netcdf file
+ integer(i4b)                :: glacVarID             ! glacier varID in netcdf file
+ integer(i4b)                :: domIdVarID            ! domId varID == domType in netcdf file
+ integer(i4b)                :: hruIdVarID            ! hruId varID in netcdf file
+ integer(i4b)                :: gruIdVarID            ! gruId varID in netcdf file
+ integer(i4b)                :: glacIdVarID           ! glacierId varID in netcdf file
 
  ! initialize error control
- err=0; message='write_hru_info/'
+ err=0; message='write_id_info/'
 
  ! allow re-definition of variables
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
 
+ ! define DOM var
+ err = nf90_def_var(ncid, trim(dom_DimName), nf90_int, (/domDimID/), domVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_domVar' ;  call netcdf_err(err,message); return; end if
+ err = nf90_put_att(ncid, domVarID, 'long_name', 'domId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_domVar_longname'; call netcdf_err(err,message); return; end if
+ err = nf90_put_att(ncid, domVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_domVar_unit';     call netcdf_err(err,message); return; end if
+
  ! define HRU var
- err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, (/hruDimID/), hruVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, (/hruDimID/), hruVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar' ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'long_name', 'hruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if
 
  ! define GRU var
- err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, (/gruDimID/), gruVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, (/gruDimID/), gruVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar' ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruVarID, 'long_name', 'gruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_unit';     call netcdf_err(err,message); return; end if
 
+ ! define domId var
+ err = nf90_def_var(ncid, 'domType', nf90_int, (/domDimID,hruDimID/), domIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_domIdVar' ; call netcdf_err(err,message); return; end if
+ err = nf90_put_att(ncid, domIdVarID, 'long_name', 'Type defining the domain response unit type'); if (err/=nf90_NoErr) then; message=trim(message)//'write_domIdVar_longname'; call netcdf_err(err,message); return; end if
+ err = nf90_put_att(ncid, domIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_domIdVar_unit';   call netcdf_err(err,message); return; end if
+
 ! define hruId var
- err = nf90_def_var(ncid, 'hruId', nf90_int64, (/hruDimID/), hruIdVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
+ err = nf90_def_var(ncid, 'hruId', nf90_int64, (/hruDimID/), hruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
  err = nf90_put_att(ncid, hruIdVarID, 'long_name', 'ID defining the hydrologic response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_unit';   call netcdf_err(err,message); return; end if
 
  ! define gruId var
- err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gruDimID/), gruIdVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, 'gruId', nf90_int64, (/gruDimID/), gruIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'long_name', 'ID defining the grouped (basin) response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_unit';   call netcdf_err(err,message); return; end if
 
+ if (maxGlaciers>0) then
+  ! define glac var
+  err = nf90_def_var(ncid, "glac", nf90_int, (/glacDimID/), glacVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_glacVar' ; call netcdf_err(err,message); return; end if
+  err = nf90_put_att(ncid, glacVarID, 'long_name', 'glacId  in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacVar_longname'; call netcdf_err(err,message); return; end if
+  err = nf90_put_att(ncid, glacVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacVar_unit';     call netcdf_err(err,message); return; end if
+  
+  ! define glacId  var
+  err = nf90_def_var(ncid, 'glacId ', nf90_int64, (/gruDimID,glacDimID/), glacIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_glacIdVar' ; call netcdf_err(err,message); return; end if 
+  err = nf90_put_att(ncid, glacIdVarID, 'long_name', 'ID defining the glaciers (RGI ID)'); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacIdVar_longname'; call netcdf_err(err,message); return; end if
+  err = nf90_put_att(ncid, glacIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_glacIdVar_unit';   call netcdf_err(err,message); return; end if
+ endif
+
  ! Leave define mode of NetCDF files
- err = nf90_enddef(ncid);  message=trim(message)//'nf90_enddef'; call netcdf_err(err,message); if (err/=nf90_NoErr) return
+ err = nf90_enddef(ncid); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_enddef'; call netcdf_err(err,message); return; end if
 
  ! write the 'hru' and 'gru' records from the input netcdf file, and hruId and gruId
  do iGRU = 1, size(gru_struc)
@@ -489,16 +599,82 @@ contains
   err = nf90_put_var(ncid, gruIdVarID, gru_struc(iGRU)%gru_id, start=(/iGRU/))
   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gruIdVar'; call netcdf_err(err,message); return; end if
 
+  if (gru_struc(iGRU)%nGlac>0)then
+    ! Glacier info
+    do iGlac = 1, gru_struc(iGRU)%nGlac
+      err = nf90_put_var(ncid, glacVarID, iGlac, start=(/iGlac/))
+      if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_glacVar'; call netcdf_err(err,message); return; end if
+      err = nf90_put_var(ncid, glacIdVarID, gru_struc(iGRU)%glacInfo(iGlac)%glac_id, start=(/iGRU,iGlac/))
+      if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_glacIdVar'; call netcdf_err(err,message); return; end if
+     end do
+  endif
+
   ! HRU info
   do iHRU = 1, gru_struc(iGRU)%hruCount
    err = nf90_put_var(ncid, hruVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_nc, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruVar'; call netcdf_err(err,message); return; end if
    err = nf90_put_var(ncid, hruIdVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_id, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruIdVar'; call netcdf_err(err,message); return; end if
-  end do
 
+    ! DOM info
+    do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+     err = nf90_put_var(ncid, domVarID, iDOM, start=(/iDOM/))
+     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_domVar'; call netcdf_err(err,message); return; end if
+     err = nf90_put_var(ncid, domIdVarID, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type, start=(/iDOM,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
+     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_domTypeVar'; call netcdf_err(err,message); return; end if
+    end do
+  end do
  end do
 
- end subroutine
+ end subroutine write_id_info
+
+
+ ! **********************************************************************************************************
+ ! public subroutine write_gridid_info: write grid dimensions and ids
+ ! **********************************************************************************************************
+ subroutine write_gridid_info(ncid,gruDimID,gridDimID,err, message)
+  USE globalData,only:gru_struc                    ! gru-hru mapping structures
+  ! input
+  integer(i4b),intent(in)     :: ncid              ! netcdf file id
+  integer(i4b),intent(in)     :: gruDimID          ! GRU dimension ID
+  integer(i4b),intent(in)     :: gridDimID         ! grid dimension ID
+  ! output
+  integer(i4b),intent(out)    :: err               ! error code
+  character(*),intent(out)    :: message           ! error message
+  ! define local variables
+  integer(i4b)                :: iGrid,iGRU        ! loop indices
+  integer(i4b)                :: gridVarID         ! glac varID in netcdf file
+  integer(i4b)                :: gridIdVarID       ! gridId varID in netcdf file
+ 
+  ! initialize error control
+  err=0; message='write_gridid_info/'
+ 
+  ! allow re-definition of variables
+  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
+ 
+  ! define grid var
+  err = nf90_def_var(ncid, trim(grid_DimName), nf90_int, (/gridDimID/), gridVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gridVar' ; call netcdf_err(err,message); return; end if
+  err = nf90_put_att(ncid, gridVarID, 'long_name', 'gridId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gridVar_longname'; call netcdf_err(err,message); return; end if
+  err = nf90_put_att(ncid, gridVarID, 'units', '-'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gridVar_unit'; call netcdf_err(err,message); return; end if
+
+ ! define gridId var
+  err = nf90_def_var(ncid, 'gridId', nf90_int64, (/gruDimID,gridDimID/), gridIdVarID, deflate_level=outputCompressionLevel); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gridIdVar' ; call netcdf_err(err,message); return; end if 
+  err = nf90_put_att(ncid, gridIdVarID, 'long_name', 'ID defining the grid (RGI ID for glaciers)'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gridIdVar_longname'; call netcdf_err(err,message); return; end if
+  err = nf90_put_att(ncid, gridIdVarID, 'units', '-'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gridIdVar_unit'; call netcdf_err(err,message); return; end if
+
+  ! Leave define mode of NetCDF files
+  err = nf90_enddef(ncid); if (err/=nf90_NoErr) then; message=trim(message)//'nf90_enddef'; call netcdf_err(err,message); return; end if
+ 
+  ! write the 'grid' records from the input netcdf file and gridId
+  do iGRU = 1, size(gru_struc)
+   do iGrid = 1, gru_struc(iGRU)%nGrid
+    err = nf90_put_var(ncid, gridVarID, iGrid, start=(/iGrid/))
+    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gridVar'; call netcdf_err(err,message); return; end if
+    err = nf90_put_var(ncid, gridIdVarID, gru_struc(iGRU)%gridInfo(iGrid)%grid_id, start=(/iGRU,iGrid/))
+    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gridIdVar'; call netcdf_err(err,message); return; end if
+   end do
+  end do
+ 
+  end subroutine write_gridid_info
 
 end module def_output_module

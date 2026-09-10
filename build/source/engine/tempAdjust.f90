@@ -25,7 +25,6 @@ USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,        & ! data vector (rkind)
                     var_dlength     ! data vector with variable length dimension (rkind)
 
 ! named variables defining elements in the data structures

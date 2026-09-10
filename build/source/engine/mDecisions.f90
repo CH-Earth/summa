@@ -79,6 +79,7 @@ integer(i4b),parameter,public :: noExplicit           = 133    ! no explicit gro
 ! look-up values for the choice of hydraulic conductivity profile
 integer(i4b),parameter,public :: constant             = 141    ! constant hydraulic conductivity with depth
 integer(i4b),parameter,public :: powerLaw_profile     = 142    ! power-law profile
+integer(i4b),parameter,public :: expLaw_profile       = 143    ! exponential profile, K(z) = K_0*exp(-f*z), finite at the base of the soil
 ! look-up values for the choice of boundary conditions for thermodynamics
 integer(i4b),parameter,public :: prescribedTemp       = 151    ! prescribed temperature
 integer(i4b),parameter,public :: energyFlux           = 152    ! energy flux
@@ -182,6 +183,7 @@ subroutine mDecisions(err,message)
   USE multiconst,only:secprday               ! number of seconds in a day
   USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
   USE globalData,only:refTime,refJulDay      ! reference time
+  USE globalData,only:realMissing            ! missing value for real numbers
   USE globalData,only:oldTime                ! time from the previous time step
   USE globalData,only:startTime,finshTime    ! start/end time of simulation
   USE globalData,only:dJulianStart           ! julian day of start time of simulation
@@ -435,9 +437,9 @@ subroutine mDecisions(err,message)
   ! for backward Euler solution, enthalpyFormAN has better coincidence of energy conservation
   ! in IDA solution, enthalpyFormAN makes the state variables to be enthalpy and the residual is computed in enthalpy space
   select case(trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision))
-    case('closedForm'    ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm       ! use temperature with closed form heat capacity
-    case('enthalpyForm'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyForm       ! use enthalpy with soil temperature-enthalpy lookup tables
-    case('enthalpyFormAN'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFormAN ! use enthalpy with soil temperature-enthalpy analytical solution
+    case('closedForm'    ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm     ! use temperature with closed form heat capacity
+    case('enthalpyForm'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyForm   ! use enthalpy with soil temperature-enthalpy lookup tables
+    case('enthalpyFormAN'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFormAN ! use enthalpy with soil temperature-enthalpy analytical solution
     case default
       if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
         model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility
@@ -503,6 +505,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision))
     case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
     case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
+    case('exp_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = expLaw_profile      ! exponential profile
     case default
       err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
   end select
@@ -738,11 +741,13 @@ subroutine mDecisions(err,message)
       end if
   end select
 
-  ! check power-law profile is selected when using topmodel baseflow option
+  ! check a depth-varying conductivity profile is selected when using topmodel baseflow option
+  ! NOTE: the baseflow transmissivity is the vertical integral of the conductivity profile, so both are supported
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
-      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
-        message=trim(message)//'power-law hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" in model decisions input file)'
+      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile .and. &
+         model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
+        message=trim(message)//'a power-law or exponential hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" or "exp_prof" in model decisions input file)'
         err=20; return
       end if
   end select

@@ -13,16 +13,17 @@ USE globalData,only:realMissing    ! missing real number
 
 implicit none
 private
-public::updatSnowPrime
+public::updatSnLaGlPrime
 public::updatSoilPrime
 contains
 
 
 ! *************************************************************************************************************
-! public subroutine updatSnowPrime: compute phase change impacts on volumetric liquid water and ice
+! public subroutine updatSnLaGlPrime: compute phase change impacts on volumetric liquid water and ice (veg, snow, lake, ice domain)
 ! *************************************************************************************************************
-subroutine updatSnowPrime(&
+subroutine updatSnLaGlPrime(&
                       ! input
+                      noLiq                  ,& ! intent(in):  flag if no liquid water in layer
                       mLayerTemp             ,& ! intent(in):  temperature (K)
                       mLayerTheta            ,& ! intent(in):  volume fraction of total water (-)
                       snowfrz_scale          ,& ! intent(in):  scaling parameter for the snow freezing curve (K-1)
@@ -40,6 +41,7 @@ subroutine updatSnowPrime(&
   USE snow_utils_module,only:dFracLiq_dTk       ! differentiate the freezing curve w.r.t. temperature (snow)
   implicit none
   ! input variables
+  logical(lgt),intent(in)       :: noLiq                 ! flag if no liquid water in layer
   real(rkind),intent(in)        :: mLayerTemp            ! temperature (K)
   real(rkind),intent(in)        :: mLayerTheta           ! volume fraction of total water (-)
   real(rkind),intent(in)        :: snowfrz_scale         ! scaling parameter for the snow freezing curve (K-1)
@@ -55,13 +57,13 @@ subroutine updatSnowPrime(&
   integer(i4b),intent(out)      :: err                   ! error code
   character(*),intent(out)      :: message               ! error message
   ! initialize error control
-  err=0; message="updatSnowPrime/"
+  err=0; message="updatSnLaGlPrime/"
 
   ! compute the volumetric fraction of liquid water and ice (-)
-  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
+  fLiq = fracliquid(mLayerTemp,snowfrz_scale,noLiq)
   mLayerVolFracLiq = fLiq*mLayerTheta
   mLayerVolFracIce = (1._rkind - fLiq)*mLayerTheta*(iden_water/iden_ice)
-  mLayerVolFracLiqPrime = fLiq * mLayerThetaPrime + dFracLiq_dTk(mLayerTemp,snowfrz_scale) * mLayerTheta * mLayerTempPrime
+  mLayerVolFracLiqPrime = fLiq * mLayerThetaPrime + dFracLiq_dTk(mLayerTemp,snowfrz_scale,noLiq) * mLayerTheta * mLayerTempPrime
   mLayerVolFracIcePrime = ( mLayerThetaPrime - mLayerVolFracLiqPrime ) * (iden_water/iden_ice)
 
   ! set primes to missing if the temperature prime is missing (enthalpy is state variable)
@@ -70,7 +72,7 @@ subroutine updatSnowPrime(&
     mLayerVolFracIcePrime=realMissing
   end if
 
-end subroutine updatSnowPrime
+end subroutine updatSnLaGlPrime
 
 ! ***********************************************************************************************************************************
 ! public subroutine updatSoilPrime: compute phase change impacts on matric head and volumetric liquid water and ice (veg or soil)

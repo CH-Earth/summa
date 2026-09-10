@@ -38,6 +38,9 @@ USE summa_util,only:handle_err
 USE globalData,only:fracJulDay       ! fractional julian days since the start of year
 USE globalData,only:yearLength       ! number of days in the current year
 
+! access domain types
+USE globalData,only:upland           ! horizontal domain type for upland areas
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -50,7 +53,7 @@ contains
  ! * desired modules
  ! ---------------------------------------------------------------------------------------
  ! data types
- USE nr_type                                                    ! variable types, etc.
+ USE nr_type                                                   ! variable types, etc.
  USE summa_type, only:summa1_type_dec                           ! master summa data type
  ! subroutines and functions
  USE nr_utils_module,only:indexx                                ! sort vectors in ascending order
@@ -62,7 +65,7 @@ contains
  USE globalData,only:model_decisions                            ! model decision structure
  USE globalData,only:startPhysics,endPhysics                    ! date/time for the start and end of the initialization
  USE globalData,only:elapsedPhysics                             ! elapsed time for the initialization
- USE globalData,only:fracJulDay,yearLength
+ USE globalData,only:elapsedUpdateArea                          ! elapsed time for updating glacier and wetland area
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -76,8 +79,10 @@ contains
  ! local variables: general
  character(LEN=512)                    :: cmessage              ! error message of downwind routine
  integer(i4b)                          :: iHRU                  ! HRU index
+ integer(i4b)                          :: iDOM                  ! domain index
  integer(i4b)                          :: iGRU,jGRU,kGRU        ! GRU indices
  ! local variables: veg phenology
+ logical(lgt)                          :: noVeg                 ! flag to indicate if there is no vegetation (glacier or lake)
  logical(lgt)                          :: computeVegFluxFlag    ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(rkind)                           :: notUsed_canopyDepth   ! NOT USED: canopy depth (m)
  real(rkind)                           :: notUsed_exposedVAI    ! NOT USED: exposed vegetation area index (m2 m-2)
@@ -92,71 +97,77 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
-
   ! primary data structures (scalars)
-  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                   -- model time data
-  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-
+  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)               -- model time data
+  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:) -- model forcing data
+  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:) -- local attributes for each HRU
+  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
   ! primary data structures (variable length vectors)
-  indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
-  progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-  diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-  fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-
+  indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model indices
+  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
+  progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model prognostic (state) variables
+  diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model diagnostic variables
+  fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model fluxes
   ! basin-average structures
-  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
-  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-
+  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                   -- basin-average parameters
+  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat               -- basin-average variables
+  gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
   ! run time variables
   computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
   nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
-
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summa_runPhysics/'
 
- ! *******************************************************************************************
- ! *** initialize computeVegFlux (flag to indicate if we are computing fluxes over vegetation)
- ! *******************************************************************************************
+ ! *****************************************************************************************************
+ ! *** initialize computeVegFlux (flag to indicate if we are computing fluxes over vegetation) over land
+ ! *****************************************************************************************************
+
  ! if computeVegFlux changes, then the number of state variables changes, and we need to reorganize the data structures
  if(modelTimeStep==1)then
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
+    ! initialize the flag to compute the vegetation fluxes and the green vegetation fraction
+    computeVegFlux%gru(iGRU)%hru(iHRU) = no
+    do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
-    ! get vegetation phenology
-    ! (compute the exposed LAI and SAI and whether veg is buried by snow)
-    call vegPhenlgy(&
-                    ! model control
-                    gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! intent(in):    number of snow layers in the HRU
-                    model_decisions,                     & ! intent(in):    model decisions
-                    fracJulDay,                          & ! intent(in):    fractional julian days since the start of year
-                    yearLength,                          & ! intent(in):    number of days in the current year
-                    ! input/output: data structures      
-                    typeStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    type of vegetation and soil
-                    attrStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    spatial attributes
-                    mparStruct%gru(iGRU)%hru(iHRU),      & ! intent(in):    model parameters
-                    progStruct%gru(iGRU)%hru(iHRU),      & ! intent(inout): model prognostic variables for a local HRU
-                    diagStruct%gru(iGRU)%hru(iHRU),      & ! intent(inout): model diagnostic variables for a local HRU
-                    ! output
-                    computeVegFluxFlag,                  & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-                    notUsed_canopyDepth,                 & ! intent(out): NOT USED: canopy depth (m)
-                    notUsed_exposedVAI,                  & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
-                    err,cmessage)                          ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     noVeg = .true.
+     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) noVeg = .false.
 
-    ! save the flag for computing the vegetation fluxes
-    if(computeVegFluxFlag)      computeVegFlux%gru(iGRU)%hru(iHRU) = yes
-    if(.not.computeVegFluxFlag) computeVegFlux%gru(iGRU)%hru(iHRU) = no
+     ! get vegetation phenology or set things to missing
+     ! (compute the exposed LAI and SAI and whether veg is buried by snow)
+     call vegPhenlgy(&
+                     ! model control
+                     gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow, & ! intent(in):    number of snow layers in the HRU
+                     model_decisions,                                   & ! intent(in):    model decisions
+                     fracJulDay,                                        & ! intent(in):    fractional julian days since the start of year
+                     yearLength,                                        & ! intent(in):    number of days in the current year
+                     noVeg,                                             & ! intent(in):    flag to indicate if there is no vegetation
+                     ! input/output: data structures        
+                     typeStruct%gru(iGRU)%hru(iHRU),                    & ! intent(in):    type of vegetation and soil
+                     attrStruct%gru(iGRU)%hru(iHRU),                    & ! intent(in):    spatial attributes
+                     mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          & ! intent(in):    model parameters
+                     progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          & ! intent(inout): model prognostic variables for a local HRU
+                     diagStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),          & ! intent(inout): model diagnostic variables for a local HRU
+                     ! output
+                     computeVegFluxFlag,                                & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                     notUsed_canopyDepth,                               & ! intent(out): NOT USED: canopy depth (m)
+                     notUsed_exposedVAI,                                & ! intent(out): NOT USED: exposed vegetation area index (m2 m-2)
+                     err,cmessage)                                        ! intent(out): error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland) then
+      ! save the flag for computing the vegetation fluxes
+      if(computeVegFluxFlag)      computeVegFlux%gru(iGRU)%hru(iHRU) = yes
+      if(.not.computeVegFluxFlag) computeVegFlux%gru(iGRU)%hru(iHRU) = no 
+     endif
 
-   end do  ! looping through HRUs
-  end do  ! looping through GRUs
- end if  ! if the first time step
+    end do ! looping through domains
+   end do ! looping through HRUs
+  end do ! looping through GRUs
+ end if ! if the first time step
 
  ! ****************************************************************************
  ! *** model simulation
@@ -179,7 +190,9 @@ contains
  do jGRU=1,nGRU
   totalFluxCalls(jGRU) = 0._rkind
   do iHRU=1,gru_struc(jGRU)%hruCount
-   totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
+    do iDOM=1,gru_struc(jGRU)%hruInfo(iHRU)%domCount
+      totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%numberFluxCalc)%dat(1)
+    end do
   end do
  end do
 
@@ -203,36 +216,31 @@ contains
   !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
   !$omp          shared(summa1_struc, gru_struc) &
   !$omp          private(err, cmessage)
- ! associate to elements in the data structur, gru_struce
+ ! associate to elements in the data structure, gru_struc
  ! need to associate again for the parallelism to work
  summaVars2: associate(&
-
   ! primary data structures (scalars)
-  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                   -- model time data
-  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
-  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
-
+  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)               -- model time data
+  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:) -- model forcing data
+  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:) -- local attributes for each HRU
+  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:) -- local classification of soil veg etc. for each HRU
   ! primary data structures (variable length vectors)
-  indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
-  progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-  diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-  fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-
+  indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model indices
+  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model parameters
+  progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model prognostic (state) variables
+  diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model diagnostic variables
+  fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%dom{:}%var(:)%dat -- model fluxes
   ! basin-average structures
-  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
-  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-
+  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)                   -- basin-average parameters
+  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat               -- basin-average variables
+  gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
   ! lookup table structure
   lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup    -- lookup-tables
-
   ! run time variables
   computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-  dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
+  dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU and DOM
   nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
-
  ) ! assignment to variables in the data structures
 
  !$omp do schedule(dynamic, 1)
@@ -250,24 +258,27 @@ contains
   !----- run simulation for a single GRU ----------------------------------------
   call run_oneGRU(&
                   ! model control
-                  gru_struc(iGRU),              & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers)
-                  dt_init%gru(iGRU)%hru,        & ! intent(inout): used to initialize the length of the sub-step for each HRU
-                  computeVegFlux%gru(iGRU)%hru, & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
+                  gru_struc(iGRU),              & ! intent(inout): HRU information for given GRU (# HRUs, #layers)
+                  dt_init%gru(iGRU),            & ! intent(inout): used to initialize the length of the sub-step for each HRU
+                  computeVegFlux%gru(iGRU),     & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                   ! data structures (input)
-                  timeStruct%var,               & ! intent(in):    model time data
+                  timeStruct,                   & ! intent(in):    model time data
                   typeStruct%gru(iGRU),         & ! intent(in):    local classification of soil veg etc. for each HRU
                   idStruct%gru(iGRU),           & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrStruct%gru(iGRU),         & ! intent(in):    local attributes for each HRU
                   lookupStruct%gru(iGRU),       & ! intent(in):    local lookup tables for each HRU
                   ! data structures (input-output)
-                  mparStruct%gru(iGRU),         & ! intent(inout): local model parameters
+                  mparStruct%gru(iGRU),         & ! intent(in):    local model parameters
+                  bparStruct%gru(iGRU),         & ! intent(in):    basin-average parameters
                   indxStruct%gru(iGRU),         & ! intent(inout): model indices
                   forcStruct%gru(iGRU),         & ! intent(inout): model forcing data
                   progStruct%gru(iGRU),         & ! intent(inout): prognostic variables for a local HRU
                   diagStruct%gru(iGRU),         & ! intent(inout): diagnostic variables for a local HRU
                   fluxStruct%gru(iGRU),         & ! intent(inout): model fluxes for a local HRU
                   bvarStruct%gru(iGRU),         & ! intent(inout): basin-average variables
+                  gridStruct%gru(iGRU),         & ! intent(inout): basin grid parameters and variables
                   ! error control
+                  elapsedUpdateArea,            & ! intent(inout): elapsed time for updating glacier and wetland area for all GRUs (s)
                   err,cmessage)                   ! intent(out):   error control
 
   ! check errors
@@ -289,7 +300,7 @@ contains
  ! identify the end of the physics
  call date_and_time(values=endPhysics)
 
- ! aggregate the elapsed time for the physics
+ ! aggregate the elapsed time for the physics (includes the update area time here)
  elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics)
 
  ! deallocate space used to determine the GRU computational expense

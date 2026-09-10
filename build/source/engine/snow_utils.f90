@@ -23,9 +23,11 @@ module snow_utils_module
 ! data types
 USE nr_type
 
-! model constants
-USE multiconst,only:Tfreeze
-USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice
+! constants
+USE multiconst,only:&
+                    Tfreeze,      & ! temperature at freezing              (K)
+                    lambda_air,   & ! thermal conductivity of air          (J s-1 m-1)
+                    lambda_ice      ! thermal conductivity of ice          (J s-1 m-1)
 
 ! model decisions
 USE globalData,only:model_decisions        ! model decision structure
@@ -45,31 +47,41 @@ contains
 ! ***********************************************************************************************************
 ! public function fracliquid: compute fraction of liquid water
 ! ***********************************************************************************************************
-function fracliquid(Tk,fc_param)
+function fracliquid(Tk,fc_param,noLiq)
   implicit none
   real(rkind),intent(in) :: Tk         ! temperature (K)
   real(rkind),intent(in) :: fc_param   ! freezing curve parameter (K-1)
   real(rkind)            :: fracliquid ! fraction of liquid water (-)
+  logical,optional       :: noLiq      ! flag to indicate if the input has no liquid water (default: .false.)
   ! compute fraction of liquid water (-)
   fracliquid = 1._rkind / ( 1._rkind + (fc_param*( Tfreeze - min(Tk,Tfreeze) ))**2_i4b )
+  ! if the input is noLiq, then return 0
+  if (present(noLiq)) then
+    if (noLiq) fracliquid = 0._rkind
+  end if
 end function fracliquid
 
 ! ***********************************************************************************************************
 ! public function templiquid: invert the fraction of liquid water function
 ! ***********************************************************************************************************
-function templiquid(fracliquid,fc_param)
+function templiquid(fracliquid,fc_param,noLiq)
   implicit none
   real(rkind),intent(in) :: fracliquid ! fraction of liquid water (-)
   real(rkind),intent(in) :: fc_param   ! freezing curve parameter (K-1)
   real(rkind)            :: templiquid ! temperature (K)
+  logical,optional       :: noLiq      ! flag to indicate if the input has no liquid water (default: .false.)
   ! compute temperature based on the fraction of liquid water (K)
   templiquid = Tfreeze - ((1._rkind/fracliquid - 1._rkind)/fc_param**2_i4b)**(0.5_rkind)
+  ! if the input is noLiq, then return Tfreeze
+  if (present(noLiq)) then
+    if (noLiq) templiquid = Tfreeze
+  end if
 end function templiquid
 
 ! ***********************************************************************************************************
 ! public function dFracLiq_dTk: differentiate the freezing curve
 ! ***********************************************************************************************************
-function dFracLiq_dTk(Tk,fc_param)
+function dFracLiq_dTk(Tk,fc_param,noLiq)
   implicit none
   ! dummies
   real(rkind),intent(in) :: Tk           ! temperature (K)
@@ -78,11 +90,16 @@ function dFracLiq_dTk(Tk,fc_param)
   ! locals
   real(rkind)            :: Tdep         ! temperature depression (K)
   real(rkind)            :: Tdim         ! dimensionless temperature (-)
+  logical,optional       :: noLiq        ! flag to indicate if the input has no liquid water (default: .false.)
   ! compute local variables (just to make things more efficient)
   Tdep = Tfreeze - min(Tk,Tfreeze)
   Tdim = fc_param*Tdep
   ! differentiate the freezing curve w.r.t temperature
   dFracLiq_dTk = (fc_param*2._rkind*Tdim) / ( ( 1._rkind + Tdim**2_i4b)**2_i4b )
+  ! if the input is noLiq, then return 0
+  if (present(noLiq)) then
+    if (noLiq) dFracLiq_dTk = 0._rkind
+  end if
 end function dFracLiq_dTk
 
 ! ***********************************************************************************************************

@@ -83,7 +83,7 @@ contains
                  ! output
                  timeStruct%var,     & ! intent(out):   time data structure (integer)
                  forcStruct,         & ! intent(out):   forcing data structure (double precision)
-                 err, cmessage)         ! intent(out):   error control
+                 err, cmessage)        ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! identify the end of the data read

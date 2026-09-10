@@ -32,12 +32,11 @@ USE var_lookup,only:maxvarDiag      ! diagnostic variables:     maximum number v
 USE var_lookup,only:maxvarFlux      ! model fluxes:             maximum number variables
 USE var_lookup,only:maxvarIndx      ! model indices:            maximum number variables
 USE var_lookup,only:maxvarBvar      ! basin-average variables:  maximum number variables
+USE var_lookup,only:maxvarGrid      ! grid variables:           maximum number variables
 
 ! metadata structures
-USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
-USE globalData,only:prog_meta,diag_meta,flux_meta           ! metadata structures
-USE globalData,only:mpar_meta,indx_meta                     ! metadata structures
-USE globalData,only:bpar_meta,bvar_meta                     ! metadata structures
+USE globalData,only:forc_meta,prog_meta,diag_meta           ! metadata structures
+USE globalData,only:flux_meta,indx_meta,bvar_meta,grid_meta ! metadata structures
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 
 ! statistics metadata structures
@@ -47,6 +46,7 @@ USE globalData,only:statDiag_meta                           ! child metadata for
 USE globalData,only:statFlux_meta                           ! child metadata for stats
 USE globalData,only:statIndx_meta                           ! child metadata for stats
 USE globalData,only:statBvar_meta                           ! child metadata for stats
+USE globalData,only:statGrid_meta                           ! child metadata for stats
 
 ! mapping from original to child structures
 USE globalData,only:forcChild_map                           ! index of the child data structure: stats forc
@@ -55,6 +55,7 @@ USE globalData,only:diagChild_map                           ! index of the child
 USE globalData,only:fluxChild_map                           ! index of the child data structure: stats flux
 USE globalData,only:indxChild_map                           ! index of the child data structure: stats indx
 USE globalData,only:bvarChild_map                           ! index of the child data structure: stats bvar
+USE globalData,only:gridChild_map                           ! index of the child data structure: stats grid
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -97,6 +98,7 @@ subroutine summa_defineGlobalData(err, message)
   logical(lgt), dimension(maxvarFlux)   :: statFlux_mask      ! mask defining flux stats
   logical(lgt), dimension(maxvarIndx)   :: statIndx_mask      ! mask defining indx stats
   logical(lgt), dimension(maxvarBvar)   :: statBvar_mask      ! mask defining bvar stats
+  logical(lgt), dimension(maxvarGrid)   :: statGrid_mask      ! mask defining grid stats
   integer(i4b)                          :: iStruct            ! index of data structure
   ! ---------------------------------------------------------------------------------------
   ! initialize error control
@@ -132,6 +134,7 @@ subroutine summa_defineGlobalData(err, message)
   statFlux_mask = (flux_meta(:)%varType==iLookVarType%scalarv.and.flux_meta(:)%varDesire)
   statIndx_mask = (indx_meta(:)%varType==iLookVarType%scalarv.and.indx_meta(:)%varDesire)
   statBvar_mask = (bvar_meta(:)%varType==iLookVarType%scalarv.and.bvar_meta(:)%varDesire)
+  statGrid_mask = (grid_meta(:)%varType==iLookVarType%scalarv.and.grid_meta(:)%varDesire)
 
   ! create the stats metadata structures
   do iStruct=1,size(structInfo)
@@ -142,6 +145,7 @@ subroutine summa_defineGlobalData(err, message)
       case('flux'); call childStruc(flux_meta,statFlux_mask,statFlux_meta,fluxChild_map,err,cmessage)
       case('indx'); call childStruc(indx_meta,statIndx_mask,statIndx_meta,indxChild_map,err,cmessage)
       case('bvar'); call childStruc(bvar_meta,statBvar_mask,statBvar_meta,bvarChild_map,err,cmessage)
+      case('grid'); call childStruc(grid_meta,statGrid_mask,statGrid_meta,gridChild_map,err,cmessage)
     end select
     ! check errors
     if(err/=0)then; message=trim(message)//trim(cmessage)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']'; return; endif
@@ -154,6 +158,7 @@ subroutine summa_defineGlobalData(err, message)
   statFlux_meta(:)%varType = iLookVarType%outstat
   statIndx_meta(:)%varType = iLookVarType%outstat
   statBvar_meta(:)%varType = iLookVarType%outstat
+  statGrid_meta(:)%varType = iLookVarType%outstat
 
 end subroutine summa_defineGlobalData
 

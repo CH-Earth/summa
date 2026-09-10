@@ -20,11 +20,12 @@ MODULE nr_type
  REAL(SP),     PARAMETER :: TWOPI=6.283185307179586476925286766559005768394_sp
  REAL(SP),     PARAMETER :: SQRT2=1.41421356237309504880168872420969807856967_sp
  REAL(SP),     PARAMETER :: EULER=0.5772156649015328606065120900824024310422_sp
- real(rkind),     PARAMETER :: PI_D=3.141592653589793238462643383279502884197_rkind
- real(rkind),     PARAMETER :: PIO2_D=1.57079632679489661923132169163975144209858_rkind
- real(rkind),     PARAMETER :: TWOPI_D=6.283185307179586476925286766559005768394_rkind
+ real(rkind),  PARAMETER :: PI_D=3.141592653589793238462643383279502884197_rkind
+ real(rkind),  PARAMETER :: PIO2_D=1.57079632679489661923132169163975144209858_rkind
+ real(rkind),  PARAMETER :: TWOPI_D=6.283185307179586476925286766559005768394_rkind
  ! missing values
- real(rkind),     parameter :: nr_quadMissing=-9999._qp   ! missing quadruple precision number
- real(rkind),     parameter :: nr_realMissing=-9999._rkind   ! missing real number
- integer(i4b), parameter :: nr_integerMissing=-9999    ! missing integer
+ real(rkind),  parameter :: nr_quadMissing=-9999._qp     ! missing quadruple precision number
+ real(rkind),  parameter :: nr_realMissing=-9999._rkind  ! missing real number
+ integer(i4b), parameter :: nr_integerMissing=-9999_i4b  ! missing integer
+ integer(i8b), parameter :: nr_int8Missing=-9999_i8b     ! missing long integer
 END MODULE nr_type

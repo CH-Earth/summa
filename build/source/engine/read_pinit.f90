@@ -24,7 +24,8 @@ USE nr_type
 USE mDecisions_module,only: unDefined
 USE globalData,only:model_decisions
 USE globalData,only:realMissing
-USE var_lookup,only:iLookDECISIONS,iLookPARAM
+USE multiconst,only:secprhour  ! number of seconds in an hour
+USE var_lookup,only:iLookDECISIONS,iLookPARAM,iLookBPAR
 implicit none
 private
 public::read_pinit
@@ -134,18 +135,70 @@ contains
   end if
  end do  ! (looping through lines in the file)
 
- ! add these defaults for backwards compatibility with existing parameter input files
+ ! add these defaults for backwards compatibility pre Sundials, FUSE, and glacier and lake domains
  if (isLocal) then ! dealing with parameters for local column
-  ! add these defaults for backwards compatibility pre Sundials
+  ! BE solver parameters
   if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
+  ! IDA solver parameters
   call set_ida_defaults(absEnergyFac, parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
-
-  ! set FUSE parameter defaults (if not already set) for backwards compatibility
+  ! set FUSE parameter defaults
   call set_FUSE_defaults(parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+  ! glacier and lake parameters
+  if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoFrznWatVisible)%default_val = 0.6_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val = 0.4_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoOpenWatVisible)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoOpenWatVisible)%default_val = 0.06_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val = 0.06_rkind
+  end if
+  if (parFallback(iLookPARAM%z0Water)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%z0Water)%default_val = 0.0005_rkind
+  end if
+  if (parFallback(iLookPARAM%z0Ice)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%z0Ice)%default_val = 0.0010_rkind
+  end if
+  if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind ! 
+  end if
+  if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
+  end if
+  ! exponential hydraulic conductivity profile
+  if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%f_hydCond)%default_val = 3._rkind ! 1-5 m-1 for supraglacial debris and weathered shallow till
+  end if
+ else
+  ! glacier parameters
+  if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then ! 5-29
+   parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind*secprhour! convert from hours to seconds
+  end if
+  if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then ! 30-149
+   parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind*secprhour ! convert from hours to seconds
+  end if
+  if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then ! 150-1000
+    parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind*secprhour ! convert from hours to seconds
+  endif
+  if (parFallback(iLookBPAR%debrisConc)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 to 6.4 kg/m3 following Anderson and Anderson (2018)
+  endif
+  if (parFallback(iLookBPAR%wallErosionRate)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%wallErosionRate)%default_val = 8.0_rkind ! 1 to 15 mm yr-1 following Anderson and Anderson (2016)
+  endif
+  if (parFallback(iLookBPAR%debrisCritStress)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%debrisCritStress)%default_val = 80000 ! 20000-100000 Pa follow Mayer and Licciulli (2021)
+  endif
+  if (parFallback(iLookBPAR%latMoraineWidth)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%latMoraineWidth)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
+  endif
  end if
 
  ! check we have populated all variables

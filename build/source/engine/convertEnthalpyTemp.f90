@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module convertEnthalpyTemp_module
-
+  
 ! data types
 USE nr_type
 USE data_types,only:var_iLength                    ! var(:)%dat(:)
@@ -27,12 +27,12 @@ USE data_types,only:var_dLength                    ! var(:)%dat(:)
 USE data_types,only:zLookup                        ! z(:)%var(:)%lookup(:)
 
 ! constants
-USE multiconst,only:gravity, &                          ! gravitational acceleration (m s-1)
-                    Tfreeze, &                          ! freezing point of water (K)
-                    Cp_soil,Cp_water,Cp_ice,Cp_air,&    ! specific heat of soil, water and ice (J kg-1 K-1)
-                    iden_water,iden_ice,iden_air,&      ! intrinsic density of water and ice (kg m-3)
-                    LH_fus                              ! latent heat of fusion (J kg-1)
-USE globalData,only:verySmall                           ! a small number
+USE multiconst, only: gravity, &                          ! gravitational acceleration (m s-1)
+                      Tfreeze, &                          ! freezing point of water (K)
+                      Cp_soil,Cp_water,Cp_ice,Cp_air,&    ! specific heat of soil, water and ice (J kg-1 K-1)
+                      iden_water,iden_ice,iden_air,&      ! intrinsic density of water and ice (kg m-3)
+                      LH_fus                              ! latent heat of fusion (J kg-1)
+USE globalData,only: verySmall                            ! a small number
 
 ! indices within parameter structure
 USE var_lookup,only:iLookPARAM                     ! named variables to define structure element
@@ -48,38 +48,42 @@ USE globalData,only:iname_cas                      ! named variables for canopy 
 USE globalData,only:iname_veg                      ! named variables for vegetation canopy
 USE globalData,only:iname_snow                     ! named variables for snow
 USE globalData,only:iname_soil                     ! named variables for soil
+USE globalData,only:iname_glce                     ! named variables for glacier ice
+USE globalData,only:iname_lake                     ! named variables for lake
 USE globalData,only:iname_aquifer                  ! named variables for the aquifer
 
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair                ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy                ! named variable defining the energy of the vegetation canopy
-USE globalData,only:iname_nrgLayer                 ! named variable defining the energy state variable for snow+soil layers
+USE globalData,only:iname_nrgLayer                 ! named variable defining the energy state variable for layers
 
 ! missing values
 USE globalData,only:integerMissing                 ! missing integer
 USE globalData,only:realMissing                    ! missing real number
 
+USE globalData,only:icefrz_mult                    ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
+
 implicit none
 public::T2H_lookup_snWat
 public::T2L_lookup_soil
-public::enthalpy2T_snwWat
-public::T2enthalpy_snwWat
+public::enthalpy2T_snLaGlWat
+public::T2enthalpy_snLaGlWat
 public::T2enthTemp_cas
 public::T2enthTemp_veg
-public::T2enthTemp_snow
+public::T2enthTemp_snLaGl
 public::T2enthTemp_soil
 public::enthTemp_or_enthalpy
 public::enthalpy2T_cas
 public::enthalpy2T_veg
-public::enthalpy2T_snow
+public::enthalpy2T_snLaGl
 public::enthalpy2T_soil
 private::hyp_2F1_real
-private::brent, brent0, diff_H_veg, diff_H_snow, diff_H_soil
+private::brent, brent0, diff_H_veg, diff_H_snLaGl, diff_H_soil
 
 ! define the snow look-up table used to compute temperature based on enthalpy
-integer(i4b),parameter               :: nlook=10001       ! number of elements in the lookup table
-real(rkind),dimension(nlook),public  :: H_lookup          ! enthalpy values (J kg-1)
-real(rkind),dimension(nlook),public  :: T_lookup          ! temperature values (K)
+integer(i4b),parameter                 :: nlook=10001       ! number of elements in the lookup table
+real(rkind),dimension(nlook,2),public  :: H_lookup          ! enthalpy values (J kg-1)
+real(rkind),dimension(nlook,2),public  :: T_lookup          ! temperature values (K)
 contains
 
 
@@ -87,7 +91,7 @@ contains
 ! public subroutine T2H_lookup_snWat: define a look-up table to liquid + ice enthalpy based on temperature
 !                                     appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
-subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    parameter data structure
+subroutine T2H_lookup_snWat(mpar_data,needLookup_ice,        &  ! intent(in):    parameter data structure
                            err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines 
@@ -97,11 +101,12 @@ subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    p
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare dummy variables
   type(var_dlength),intent(in)  :: mpar_data            ! model parameters
+  logical(lgt),intent(in)       :: needLookup_ice       ! flag to compute enthalpy lookup table for ice
   integer(i4b),intent(out)      :: err                  ! error code
   character(*),intent(out)      :: message              ! error message
   ! declare local variables
   character(len=128)            :: cmessage             ! error message in downwind routine
-  real(rkind),parameter         :: T_start=260.0_rkind  ! start temperature value where all liquid water is assumed frozen (K)
+  real(rkind),parameter         :: T_start=260._rkind   ! start temperature value where all liquid water is assumed frozen (K)
   real(rkind)                   :: T_incr,H_incr        ! temperature/enthalpy increments
   real(rkind),dimension(nlook)  :: Tk                   ! initial temperature vector
   real(rkind),dimension(nlook)  :: Hy                   ! initial enthalpy vector
@@ -109,6 +114,8 @@ subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    p
   real(rkind),dimension(nlook)  :: H2                   ! 2nd derivatives of the interpolating function at tabulated points
   real(rkind)                   :: dT                   ! derivative of temperature with enthalpy at H_lookup
   integer(i4b)                  :: ilook                ! loop through lookup table
+  integer(i4b)                  :: i                    ! loop through snow/ice
+  real(rkind)                   :: frz_scale_use        ! freezing curve scaling parameter (K-1)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="T2H_lookup_snWat/"
@@ -116,27 +123,43 @@ subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    p
   ! associate
   associate( snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) )
 
-    ! define initial temperature vector
-    T_incr = (Tfreeze - T_start) / real(nlook-1, kind(rkind))  ! temperature increment
-    Tk     = arth(T_start,T_incr,nlook)
-    ! ***** compute specific enthalpy (NOTE: J m-3 --> J kg-1) *****
+   ! define initial temperature vector
+   T_incr = (Tfreeze - T_start) / real(nlook-1, kind(rkind))  ! temperature increment
+   Tk     = arth(T_start,T_incr,nlook)
 
-    do ilook=1,nlook
-      Hy(ilook) = T2enthalpy_snwWat(Tk(ilook),waterWght,snowfrz_scale)/waterWght  ! (J m-3 --> J kg-1)
-    end do
+   do i = 1, 2
+     ! ***** compute specific enthalpy for snow and ice(NOTE: J m-3 --> J kg-1) *****
 
-    ! define the final enthalpy vector
-    H_incr   = (-Hy(1)) / real(nlook-1, kind(rkind))  ! enthalpy increment
-    H_lookup = arth(Hy(1),H_incr,nlook)
+     if (i==1)then
+       frz_scale_use = snowfrz_scale
+     elseif (i==2)then
+       if (.not. needLookup_ice)then
+         H_lookup(:,i) = realMissing  ! set to missing values if not computing enthalpy lookup table for ice
+         T_lookup(:,i) = realMissing  ! set to missing values if not computing enthalpy lookup table for ice
+         cycle  ! skip ice if not computing enthalpy lookup table for ice
+       else
+         frz_scale_use = snowfrz_scale*icefrz_mult
+       endif
+     end if
 
-    ! use cubic spline interpolation to obtain temperature values at the desired values of enthalpy
-    call spline(Hy,Tk,1.e30_rkind,1.e30_rkind,H2,err,cmessage)  ! get the second derivatives
-    if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+     do ilook=1,nlook
+       Hy(ilook) = T2enthalpy_snLaGlWat(Tk(ilook),waterWght,frz_scale_use)/waterWght  ! (J m-3 --> J kg-1)
+     end do
 
-    do ilook=1,nlook
-      call splint(Hy,Tk,H2,H_lookup(ilook),T_lookup(ilook),dT,err,cmessage)
-      if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-    end do
+     ! define the final enthalpy vector
+     H_incr   = (-Hy(1)) / real(nlook-1, kind(rkind))  ! enthalpy increment
+     H_lookup(:,i) = arth(Hy(1),H_incr,nlook)
+
+     ! use cubic spline interpolation to obtain temperature values at the desired values of enthalpy
+     call spline(Hy,Tk,1.e30_rkind,1.e30_rkind,H2,err,cmessage)  ! get the second derivatives
+     if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+     do ilook=1,nlook
+       call splint(Hy,Tk,H2,H_lookup(ilook,i),T_lookup(ilook,i),dT,err,cmessage)
+       if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+     end do
+
+   enddo ! (i=1,2)
 
   end associate
 
@@ -167,7 +190,7 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
   character(len=128)            :: cmessage             ! error message in downwind routine
   integer(i4b),parameter        :: nLook=500            ! number of elements in the lookup table
   integer(i4b),parameter        :: nIntegr8=10000       ! number of points used in the numerical integration
-  real(rkind),parameter         :: T_lower=260.0_rkind  ! lowest temperature value where all liquid water is assumed frozen (K)
+  real(rkind),parameter         :: T_lower=260._rkind  ! lowest temperature value where all liquid water is assumed frozen (K)
   real(rkind),dimension(nLook)  :: xTemp                ! temporary vector
   real(rkind)                   :: xIncr                ! temporary increment
   real(rkind)                   :: T_incr               ! temperature increment
@@ -215,20 +238,16 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
     ! ---------------------------------------------------------
 
     associate(&
-
       ! associate model parameters
-      snowfrz_scale  => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)           , & ! scaling parameter for freezing     (K-1)
       soil_dens_intr => mpar_data%var(iLookPARAM%soil_dens_intr)%dat(iSoil)      , & ! intrinsic soil density             (kg m-3)
       theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat(iSoil)           , & ! soil porosity                      (-)
       theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat(iSoil)           , & ! volumetric residual water content  (-)
       vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat(iSoil)           , & ! van Genuchten "alpha" parameter    (m-1)
       vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(iSoil)               , & ! van Genuchten "n" parameter        (-)
-
       ! associate values in the lookup table
       Tk            => lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
       Ly            => lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
       L2            => lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
-
       ) ! end associate statement
 
       ! compute vGn_m
@@ -281,10 +300,10 @@ end subroutine T2L_lookup_soil
 
 
 ! ************************************************************************************************************************
-! public subroutine enthalpy2T_snwWat: compute temperature based on specific temperature component of liquid + ice enthalpy 
-!                                      appropriate when no dry mass, as in snow. Uses look-up table for enthalpy
+! public subroutine enthalpy2T_snLaGlWat: compute temperature based on specific temperature component of liquid + ice enthalpy 
+!                                      appropriate when no dry mass, as in snow/ice. Uses look-up table for enthalpy
 ! ************************************************************************************************************************
-subroutine enthalpy2T_snwWat(Hy,BulkDenWater,fc_param,Tk,err,message)
+subroutine enthalpy2T_snLaGlWat(Hy,BulkDenWater,fc_param,Tk,do_snow,err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -293,6 +312,7 @@ subroutine enthalpy2T_snwWat(Hy,BulkDenWater,fc_param,Tk,err,message)
   real(rkind),intent(in)      :: BulkDenWater  ! bulk density of water (kg m-3)
   real(rkind),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
   real(rkind),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)
+  logical(lgt),intent(in)     :: do_snow       ! flag to compute enthalpy lookup table for snow (otherwise for ice)
   integer(i4b),intent(out)    :: err           ! error code
   character(*),intent(out)    :: message       ! error message
   ! declare local variables
@@ -308,20 +328,27 @@ subroutine enthalpy2T_snwWat(Hy,BulkDenWater,fc_param,Tk,err,message)
   real(rkind)                 :: f0,f1         ! function evaluations (difference between enthalpy guesses)
   real(rkind)                 :: dh            ! enthalpy derivative
   real(rkind)                 :: dT            ! temperature increment
+  integer(i4b)                :: ind           ! index for the lookup table
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="enthalpy2T_snwWat/"
+  err=0; message="enthalpy2T_snLaGlWat/"
   ! convert input of total enthalpy (J m-3) to total specific enthalpy (J kg-1)
   H_spec = Hy/BulkDenWater ! (NOTE: no soil)
+  
+  if(do_snow)then
+    ind = 1  ! index for snow lookup table
+  else
+    ind = 2  ! index for ice lookup table
+  end if
  
   ! ***** get initial guess and derivative assuming all water is frozen
-  if(H_spec<H_lookup(1))then ! process cases below the limit of the look-up table
+  if(H_spec<H_lookup(1,ind))then ! process cases below the limit of the look-up table
     ! get temperature guess
-    Tg0 = (H_spec - H_lookup(1))/Cp_ice + T_lookup(1)
+    Tg0 = (H_spec - H_lookup(1,ind))/Cp_ice + T_lookup(1,ind)
     Tg1 = Tg0+dx
     ! compute enthalpy
-    Ht0 = T2enthalpy_snwWat(Tg0,1._rkind,fc_param)
-    Ht1 = T2enthalpy_snwWat(Tg1,1._rkind,fc_param)
+    Ht0 = T2enthalpy_snLaGlWat(Tg0,1._rkind,fc_param)
+    Ht1 = T2enthalpy_snLaGlWat(Tg1,1._rkind,fc_param)
     ! compute function evaluations
     f0  = Ht0 - H_spec
     f1  = Ht1 - H_spec
@@ -329,20 +356,20 @@ subroutine enthalpy2T_snwWat(Hy,BulkDenWater,fc_param,Tk,err,message)
   ! ***** get initial guess and derivative from the look-up table
   else
     ! get enthalpy increment
-    H_incr = H_lookup(2) - H_lookup(1)
+    H_incr = H_lookup(2,ind) - H_lookup(1,ind)
     ! get position in lookup table
-    i0 = ceiling( (H_spec - H_lookup(1)) / H_incr, kind(i4b) )
+    i0 = ceiling( (H_spec - H_lookup(1,ind)) / H_incr, kind(i4b) )
     ! check found the appropriate value in the look-up table
-    if(H_spec < H_lookup(i0) .or. H_spec > H_lookup(i0+1) .or. &
+    if(H_spec < H_lookup(i0,ind) .or. H_spec > H_lookup(i0+1,ind) .or. &
        i0 < 1 .or. i0+1 > nlook)then
      err=10; message=trim(message)//'problem finding appropriate value in lookup table'; return
     end if
     ! get temperature guess
-    Tg0 = T_lookup(i0)
-    Tg1 = T_lookup(i0+1)
+    Tg0 = T_lookup(i0,ind)
+    Tg1 = T_lookup(i0+1,ind)
     ! compute function evaluations
-    f0  = H_lookup(i0) - H_spec
-    f1  = H_lookup(i0+1) - H_spec
+    f0  = H_lookup(i0,ind) - H_spec
+    f1  = H_lookup(i0+1,ind) - H_spec
   end if
 
   ! compute initial derivative
@@ -360,7 +387,7 @@ subroutine enthalpy2T_snwWat(Hy,BulkDenWater,fc_param,Tk,err,message)
     ! comute new value of Tg
     Tg1 = Tg0+dT
     ! get new function evaluation
-    Ht1 = T2enthalpy_snwWat(Tg1,1._rkind,fc_param)
+    Ht1 = T2enthalpy_snLaGlWat(Tg1,1._rkind,fc_param)
     f1  = Ht1 - H_spec
     ! compute derivative of dT
     dh  = (f1 - f0)/dT
@@ -378,22 +405,22 @@ subroutine enthalpy2T_snwWat(Hy,BulkDenWater,fc_param,Tk,err,message)
     ! and check for convergence
     if(iter==niter)then; err=20; message=trim(message)//"failedToConverge"; return; end if
   end do  ! (iteration loop)
-end subroutine enthalpy2T_snwWat
+end subroutine enthalpy2T_snLaGlWat
 
 
 ! ************************************************************************************************************************
-! public function T2enthalpy_snwWat: compute liquid and ice mixture enthalpy based on temperature and mass (J m-3) for a
+! public function T2enthalpy_snLaGlWat: compute liquid and ice mixture enthalpy based on temperature and mass (J m-3) for a
 !                                    layer only where the layer has no dry mass, as in snow.
 !                                    NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
 ! ************************************************************************************************************************
-function T2enthalpy_snwWat(Tk,BulkDenWater,fc_param)
+function T2enthalpy_snLaGlWat(Tk,BulkDenWater,fc_param)
   ! -------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! declare dummy variables
   real(rkind),intent(in)  :: Tk                ! layer temperature (K)
   real(rkind),intent(in)  :: BulkDenWater      ! bulk density of water (kg m-3)
   real(rkind),intent(in)  :: fc_param          ! freezing curve parameter (K-1)
-  real(rkind)             :: T2enthalpy_snwWat ! return value of the function, total specific enthalpy (J m-3)
+  real(rkind)             :: T2enthalpy_snLaGlWat ! return value of the function, total specific enthalpy (J m-3)
   ! declare local variables
   real(rkind)             :: frac_liq          ! fraction of liquid water
   real(rkind)             :: enthTempWater     ! temperature component of specific enthalpy for total water (liquid and ice) (J kg-1)
@@ -412,8 +439,8 @@ function T2enthalpy_snwWat(Tk,BulkDenWater,fc_param)
   enthMass = -LH_fus*(1._rkind - frac_liq)
 
   ! finally, compute the total enthalpy (J m-3)
-  T2enthalpy_snwWat = BulkDenWater*(enthTempWater + enthMass) !+ BulkDenSoil*enthTempSoil
-end function T2enthalpy_snwWat
+  T2enthalpy_snLaGlWat = BulkDenWater*(enthTempWater + enthMass) !+ BulkDenSoil*enthTempSoil
+end function T2enthalpy_snLaGlWat
 
 
 ! ************************************************************************************************************************
@@ -485,23 +512,25 @@ subroutine T2enthTemp_veg(&
 end subroutine T2enthTemp_veg
 
 ! ************************************************************************************************************************
-! public subroutine T2enthTemp_snow: compute temperature component of enthalpy from temperature and total water content, snow layer
+! public subroutine T2enthTemp_snLaGl: compute temperature component of enthalpy from temperature and total water content, snow, lake, or glce layer
 ! ************************************************************************************************************************
-subroutine T2enthTemp_snow(&
+subroutine T2enthTemp_snLaGl(&
+                      noLiq,                  & ! intent(in):  flag to indicate no liquid water in the layer
                       snowfrz_scale,          & ! intent(in):  scaling parameter for the snow freezing curve  (K-1)
                       mLayerTemp,             & ! intent(in):  layer temperature (K)
                       mLayerVolFracWat,       & ! intent(in):  volumetric total water content (-)
-                      mLayerEnthTemp)           ! intent(out): temperature component of enthalpy of each snow layer (J m-3)
+                      mLayerEnthTemp)           ! intent(out): temperature component of enthalpy of each snow, lake, or glce layer (J m-3)
   ! -------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
+  logical(lgt),intent(in)          :: noLiq                 ! flag to indicate no liquid water in the layer
   real(rkind),intent(in)           :: snowfrz_scale         ! scaling parameter for the snow freezing curve  (K-1)
   ! input: variables for the snow domain
   real(rkind),intent(in)           :: mLayerTemp            ! layer temperature (K)
   real(rkind),intent(in)           :: mLayerVolFracWat      ! volumetric total water content (-)
   ! output: enthalpy
-  real(rkind),intent(out)          :: mLayerEnthTemp        ! temperature component of enthalpy of each snow layer (J m-3)
+  real(rkind),intent(out)          :: mLayerEnthTemp        ! temperature component of enthalpy of each snow, lake, or glce layer (J m-3)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   real(rkind)                      :: diffT                 ! temperature difference of temp from Tfreeze
@@ -511,14 +540,15 @@ subroutine T2enthTemp_snow(&
   real(rkind)                      :: enthIce               ! enthalpy of the ice region (J m-3)
   real(rkind)                      :: enthAir               ! enthalpy of air (J m-3)
   ! --------------------------------------------------------------------------------------------------------------------------------
-  diffT    = mLayerTemp - Tfreeze  ! diffT<0._rkind because snow is frozen
+  diffT    = mLayerTemp - Tfreeze
 
-  if(diffT>=0._rkind)then ! diffT<0._rkind if in snow, but keep for generality and temporary upper bound violations
+  if(diffT>=0._rkind)then ! diffT<0._rkind if in snow or ice, but may use for lake
     enthLiq = iden_water * Cp_water * mLayerVolFracWat * diffT
     enthIce = 0._rkind
     enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWat ) * diffT
   else
     integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+    if(noLiq) integral = 0._rkind ! if no liquid water, then integral is zero
     enthLiq  = iden_water * Cp_water * mLayerVolFracWat * integral
     enthIce  = iden_water * Cp_ice * mLayerVolFracWat * ( diffT - integral )
     enthAir  = iden_air * Cp_air * ( diffT - mLayerVolFracWat * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
@@ -526,7 +556,7 @@ subroutine T2enthTemp_snow(&
 
   mLayerEnthTemp = enthLiq + enthIce + enthAir
 
-end subroutine T2enthTemp_snow
+end subroutine T2enthTemp_snLaGl
 
 
 ! ************************************************************************************************************************
@@ -686,7 +716,7 @@ subroutine enthTemp_or_enthalpy(&
                       mLayerVolFracIce,        & ! intent(in):    vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
                       ! input/output: enthalpy
                       scalarCanopyH,           & ! intent(inout): enthTemp to enthalpy of the vegetation canopy (J m-3), or vice versa if do_enthTemp2enthalpy false
-                      mLayerH,                 & ! intent(inout): enthTemp to enthalpy of each snow+soil layer (J m-3), or vice versa if do_enthTemp2enthalpy false
+                      mLayerH,                 & ! intent(inout): enthTemp to enthalpy of each layer (J m-3), or vice versa if do_enthTemp2enthalpy false
                       ! output: error control
                       err,message)               ! intent(out): error control
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -702,7 +732,7 @@ subroutine enthTemp_or_enthalpy(&
   real(rkind),intent(in)           :: mLayerVolFracIce(:)        ! vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
   ! input output: enthalpy
   real(rkind),intent(inout)        :: scalarCanopyH              ! enthTemp to enthalpy of the vegetation canopy (J m-3), or vice versa if do_enthTemp2enthalpy false
-  real(rkind),intent(inout)        :: mLayerH(:)                 ! enthTemp to enthalpy of each snow+soil layer (J m-3), or vice versa if do_enthTemp2enthalpy false
+  real(rkind),intent(inout)        :: mLayerH(:)                 ! enthTemp to enthalpy of each layer (J m-3), or vice versa if do_enthTemp2enthalpy false
   ! output: error control
   integer(i4b),intent(out)         :: err                        ! error code
   character(*),intent(out)         :: message                    ! error message
@@ -718,6 +748,8 @@ subroutine enthTemp_or_enthalpy(&
   associate(&
     ! number of model layers, and layer type
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)            ,& ! intent(in): [i4b]    total number of snow layers
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1)            ,& ! intent(in): [i4b]    total number of lake layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)            ,& ! intent(in): [i4b]    total number of soil layers
     ! mapping between the full state vector and the state subset
     ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat    ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
     ! type of domain, type of state variable, and index of control volume within domain
@@ -749,22 +781,31 @@ subroutine enthTemp_or_enthalpy(&
 
         ! get the layer index
         select case(ixDomainType)
-          case(iname_cas); cycle ! canopy air space: do nothing (no water stored in canopy air space)
+          case(iname_cas);     cycle ! canopy air space, do nothing (no water stored in canopy air space)
+          case(iname_veg);     iLayer = integerMissing
+          case(iname_snow);    iLayer = ixControlIndex
+          case(iname_lake);    iLayer = ixControlIndex + nSnow
+          case(iname_soil);    iLayer = ixControlIndex + nSnow + nLake
+          case(iname_glce);    iLayer = ixControlIndex + nSnow + nLake + nSoil
+          case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
+          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_lake, iname_soil, iname_glce, iname_soil, or iname_aquifer'; return
+        end select
+
+        ! get the layer index
+        select case(ixDomainType)
           case(iname_veg)
             if (do_enthTemp2enthalpy)then
               scalarCanopyH = scalarCanopyH - LH_fus * scalarCanopyIce/ canopyDepth
             else 
               scalarCanopyH = scalarCanopyH + LH_fus * scalarCanopyIce/ canopyDepth
             end if
-          case(iname_snow)
-            iLayer = ixControlIndex
+          case(iname_snow, iname_lake, iname_glce)
             if (do_enthTemp2enthalpy)then
               mLayerH(iLayer) = mLayerH(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
             else
               mLayerH(iLayer) = mLayerH(iLayer) + iden_ice * LH_fus * mLayerVolFracIce(iLayer)
             end if
           case(iname_soil)
-            iLayer = ixControlIndex + nSnow
             if (do_enthTemp2enthalpy)then
               mLayerH(iLayer) = mLayerH(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
             else
@@ -785,7 +826,7 @@ end subroutine enthTemp_or_enthalpy
 ! public subroutine enthalpy2T_cas: compute temperature from enthalpy, canopy air space
 ! ************************************************************************************************************************
 subroutine enthalpy2T_cas(&
-                      computJac,              & ! intent(in):    flag if computing for Jacobian update
+                      computeJac,             & ! intent(in):    flag if computing for Jacobian update
                       scalarCanairEnthalpy,   & ! intent(in):    enthalpy of the canopy air space (J m-3)
                       scalarCanairTemp,       & ! intent(out):   canopy air temperature (K)
                       dCanairTemp_dEnthalpy,  & ! intent(inout): derivative of canopy air temperature with enthalpy
@@ -794,7 +835,7 @@ subroutine enthalpy2T_cas(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computJac             ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac             ! flag if computing for Jacobian update
   ! input: enthalpy state variables
   real(rkind),intent(in)           :: scalarCanairEnthalpy  ! enthalpy of the canopy air space (J m-3)
   ! output: temperature diagnostic variables
@@ -809,7 +850,7 @@ subroutine enthalpy2T_cas(&
   err=0; message="enthalpy2T_cas/"
 
   scalarCanairTemp = scalarCanairEnthalpy / ( Cp_air*iden_air ) + Tfreeze
-  if(computJac) dCanairTemp_dEnthalpy = 1._rkind / ( Cp_air*iden_air )
+  if(computeJac) dCanairTemp_dEnthalpy = 1._rkind / ( Cp_air*iden_air )
 
 end subroutine enthalpy2T_cas
 
@@ -818,7 +859,7 @@ end subroutine enthalpy2T_cas
 ! public subroutine enthalpy2T_veg: compute temperature from enthalpy and total water content, canopy
 ! ************************************************************************************************************************
 subroutine enthalpy2T_veg(&
-                      computJac,              & ! intent(in):    flag if computing for Jacobian update
+                      computeJac,             & ! intent(in):    flag if computing for Jacobian update
                       canopyDepth,            & ! intent(in):    canopy depth (m)
                       specificHeatVeg,        & ! intent(in):    specific heat of vegetation (J kg-1 K-1)
                       maxMassVegetation,      & ! intent(in):    maximum mass of vegetation (kg m-2)
@@ -836,7 +877,7 @@ subroutine enthalpy2T_veg(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computJac             ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac             ! flag if computing for Jacobian update
   ! input: data structures
   real(rkind),intent(in)           :: canopyDepth           ! canopy depth (m)
   real(rkind),intent(in)           :: specificHeatVeg       ! specific heat of vegetation (J kg-1 K-1)
@@ -881,7 +922,7 @@ subroutine enthalpy2T_veg(&
   ! ***** get temperature if unfrozen vegetation
   if (scalarCanopyEnthalpy>=0)then
     T            = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat ) + Tfreeze
-    if(computJac)then  
+    if(computeJac)then  
       dT_dEnthalpy = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )
       dT_dWat      = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat )**2_i4b
     endif
@@ -898,11 +939,11 @@ subroutine enthalpy2T_veg(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! compute Jacobian terms
-    if(computJac)then
+    if(computeJac)then
     ! NOTE: dintegral_dT = fLiq
       diffT    = T - Tfreeze
       integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-      fLiq     = fracLiquid(T, snowfrz_scale)
+      fLiq     = fracliquid(T, snowfrz_scale)
 
       ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
       dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
@@ -925,7 +966,7 @@ subroutine enthalpy2T_veg(&
 
   ! update temperature and derivatives
   scalarCanopyTemp = T
-  if(computJac)then
+  if(computeJac)then
     dCanopyTemp_dEnthalpy = dT_dEnthalpy
     dCanopyTemp_dCanWat   = dT_dWat
   endif
@@ -933,12 +974,14 @@ subroutine enthalpy2T_veg(&
 end subroutine enthalpy2T_veg
 
 ! ************************************************************************************************************************
-! public subroutine enthalpy2T_snow: compute temperature from enthalpy and total water content, snow layer
+! public subroutine enthalpy2T_snLaGl: compute temperature from enthalpy and total water content, snow, lake, ice layer
 ! ************************************************************************************************************************
-subroutine enthalpy2T_snow(&
-                      computJac,         & ! intent(in):    flag if computing for Jacobian update
+subroutine enthalpy2T_snLaGl(&
+                      computeJac,        & ! intent(in):    flag if computing for Jacobian update
+                      isLake,            & ! intent(in):    flag if is lake layer
+                      noLiq,             & ! intent(in):    flag if no liquid water in the layer, i.e. if frozen
                       snowfrz_scale,     & ! intent(in):    scaling parameter for the snow freezing curve (K-1)
-                      mLayerEnthalpy,    & ! intent(in):    enthalpy of snow+soil layer (J m-3)
+                      mLayerEnthalpy,    & ! intent(in):    enthalpy of layer (J m-3)
                       mLayerVolFracWat,  & ! intent(in):    volumetric total water content (-)
                       mLayerTemp,        & ! intent(inout): layer temperature (K)
                       dTemp_dEnthalpy,   & ! intent(inout): derivative of layer temperature with enthalpy
@@ -952,11 +995,13 @@ subroutine enthalpy2T_snow(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computJac          ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac         ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: isLake             ! flag if is lake layer
+  logical(lgt),intent(in)          :: noLiq              ! flag if no liquid water in the layer, i.e. if frozen
   ! input: data structures
   real(rkind),intent(in)           :: snowfrz_scale      ! scaling parameter for the snow freezing curve  (K-1)
   ! input: enthalpy state variables
-  real(rkind),intent(in)           :: mLayerEnthalpy     ! enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(in)           :: mLayerEnthalpy     ! enthalpy of each layer (J m-3)
   ! input: water state variables
   real(rkind),intent(in)           :: mLayerVolFracWat   ! volumetric total water content (-)
   ! output: temperature diagnostic variables
@@ -975,6 +1020,7 @@ subroutine enthalpy2T_snow(&
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
   real(rkind)                      :: vec(9)             ! vector of parameters for the enthalpy function
+  real(rkind)                      :: real_noLiq         ! real value of noLiq for the vector of parameters
    ! variable derivatives
   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
@@ -989,12 +1035,12 @@ subroutine enthalpy2T_snow(&
   real(rkind)                      :: denthAir_dWat      ! derivative of enthalpy of air with water state variable
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="enthalpy2T_snow/"
+  err=0; message="enthalpy2T_snLaGl/"
 
-  ! ***** get temperature if unfrozen snow (only happens in temporary upper bound violations)
+  ! ***** get temperature if unfrozen lake (will not happen in snow or ice)
   if (mLayerEnthalpy>=0)then
     T = mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) ) + Tfreeze
-    if(computJac)then  
+    if(computeJac)then  
       dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )
       dT_dWat      = -( iden_water * Cp_water - iden_air * Cp_air ) &
                       * mLayerEnthalpy / ( iden_water * Cp_water * mLayerVolFracWat + iden_air * Cp_air * (1._rkind - mLayerVolFracWat) )**2_i4b
@@ -1002,30 +1048,31 @@ subroutine enthalpy2T_snow(&
 
   ! ***** iterate to find temperature if ice exists
   else
-    T = min(mLayerTemp, Tfreeze)  ! initial guess
-
     ! find the root of the function
-    ! inputs = function, lower bound, upper bound, initial point, tolerance, integer flag if want detail
-    ! and the vector of parameters, snow_layer
+    ! inputs = function, initial point, out point, lower bound, upper bound, and the vector of parameters
+    T = min(mLayerTemp, Tfreeze)  ! initial guess
     vec = 0._rkind
-    vec(1:3) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat/)
-    if(mLayerEnthalpy>0._rkind)then
+    real_noLiq = 0._rkind
+    if(noLiq) real_noLiq = 1._rkind
+    vec(1:4) = (/mLayerEnthalpy, snowfrz_scale, mLayerVolFracWat,real_noLiq/)
+    if(mLayerEnthalpy>0._rkind .and. .not.(isLake))then
       T = Tfreeze - verySmall ! need to merge layers, don't iterate to find the temperature
     else
-      call brent(diff_H_snow, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
+      call brent(diff_H_snLaGl, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       T = T_out
     endif
-    
+
     ! compute Jacobian terms
-    if(computJac)then
+    if(computeJac)then
       ! NOTE: dintegral_dT = fLiq
-      diffT    = T - Tfreeze
+      diffT = T - Tfreeze
       integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-      fLiq     = fracLiquid(T, snowfrz_scale)
+      if(noLiq) integral = 0._rkind ! no liquid water, so integral is zero
+      fLiq = fracliquid(T, snowfrz_scale, noLiq)
     
       ! w.r.t. temperature, NOTE: dintegral_dT = fLiq
-      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale)
+      dfLiq_dT    = dFracLiq_dTk(T,snowfrz_scale,noLiq)
       denthLiq_dT = iden_water * Cp_water * mLayerVolFracWat * fLiq
       denthIce_dT = iden_water * Cp_ice * mLayerVolFracWat * (1._rkind - fLiq)
       denthAir_dT = iden_air * Cp_air * (1._rkind - mLayerVolFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) )
@@ -1036,26 +1083,27 @@ subroutine enthalpy2T_snow(&
       denthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
       denthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
       dH_dWat       = denthLiq_dWat + denthIce_dWat + denthAir_dWat - iden_water * LH_fus * (1._rkind - fLiq)
+      if (noLiq) dH_dWat = 0._rkind ! no liquid water change, so no derivative w.r.t. water content
 
-      dT_dEnthalpy = 1._rkind / dH_dT
+      dT_dEnthalpy = 1._rkind / dH_dT 
       dT_dWat      = -dH_dWat / dH_dT  ! NOTE, while it is not generally appropriate to cancel partial derivatives, here this is true if it is multiplied by -1
     endif
   endif ! (if ice exists)
 
   ! update temperature and derivatives
   mLayerTemp = T
-  if(computJac)then  
+  if(computeJac)then  
     dTemp_dEnthalpy = dT_dEnthalpy
     dTemp_dTheta    = dT_dWat
   endif
 
-end subroutine enthalpy2T_snow
+end subroutine enthalpy2T_snLaGl
 
 ! ************************************************************************************************************************
 ! public subroutine enthalpy2T_soil: compute temperature from enthalpy and total water content, soil layer
 ! ************************************************************************************************************************
 subroutine enthalpy2T_soil(&
-                      computJac,                & ! intent(in):    flag if computing for Jacobian update
+                      computeJac,               & ! intent(in):    flag if computing for Jacobian update
                       use_lookup,               & ! intent(in):    flag to use the lookup table for soil enthalpy
                       soil_dens_intr,           & ! intent(in):    intrinsic soil density (kg m-3)
                       vGn_alpha,                & ! intent(in):    van Genutchen "alpha" parameter
@@ -1065,7 +1113,7 @@ subroutine enthalpy2T_soil(&
                       vGn_m,                    & ! intent(in):    van Genutchen "m" parameter (-)
                       ixControlIndex,           & ! intent(in):    index of the control volume within the domain
                       lookup_data,              & ! intent(in):    lookup table data structure
-                      mLayerEnthalpy,           & ! intent(in):    enthalpy of each snow+soil layer (J m-3)
+                      mLayerEnthalpy,           & ! intent(in):    enthalpy of each layer (J m-3)
                       mLayerMatricHead,         & ! intent(in):    total water matric potential (m)
                       mLayerTemp,               & ! intent(inout): layer temperature (K)
                       dTemp_dEnthalpy,          & ! intent(inout): derivative of layer temperature with enthalpy
@@ -1083,7 +1131,7 @@ subroutine enthalpy2T_soil(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
-  logical(lgt),intent(in)          :: computJac              ! flag if computing for Jacobian update
+  logical(lgt),intent(in)          :: computeJac              ! flag if computing for Jacobian update
   logical(lgt),intent(in)          :: use_lookup             ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
   ! input: data structures
   real(rkind),intent(in)           :: soil_dens_intr         ! intrinsic soil density (kg m-3)
@@ -1095,7 +1143,7 @@ subroutine enthalpy2T_soil(&
   integer(i4b),intent(in)          :: ixControlIndex         ! index within a given model domain
   type(zLookup),intent(in)         :: lookup_data            ! lookup tables
   ! input: enthalpy state variables
-  real(rkind),intent(in)           :: mLayerEnthalpy         ! enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(in)           :: mLayerEnthalpy         ! enthalpy of each layer (J m-3)
   ! input: water state variables
   real(rkind),intent(in)           :: mLayerMatricHead       ! total water matric potential (m)
   ! output: temperature diagnostic variables
@@ -1159,9 +1207,9 @@ subroutine enthalpy2T_soil(&
 
   ! ***** get temperature if unfrozen soil
   if (mLayerEnthalpy>=entCrit )then
-    T            = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
-                                     + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
-    if(computJac)then  
+    T  = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
+                           + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
+    if(computeJac)then  
       dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) &
                                  + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
       dT_dWat      = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat &
@@ -1173,7 +1221,7 @@ subroutine enthalpy2T_soil(&
     ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
     ! get the unfrozen water content of enthalpy
     integral_unf = diff0 * volFracWat ! unfrozen water content
-    if(computJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + diff0 * dvolFracWat_dPsi0
+    if(computeJac) dintegral_unf_dWat = dTcrit_dPsi0 * volFracWat + diff0 * dvolFracWat_dPsi0
 
     ! get the frozen water content of enthalpy, start with lower limit of the integral
     if (diff0<0._rkind)then
@@ -1188,7 +1236,7 @@ subroutine enthalpy2T_soil(&
 
           call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
           if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-          if(computJac) dintegral_frz_low_dWat = dL * dTcrit_dPsi0
+          if(computeJac) dintegral_frz_low_dWat = dL * dTcrit_dPsi0
 
         end associate lookVars
 
@@ -1196,7 +1244,7 @@ subroutine enthalpy2T_soil(&
         arg              = (vGn_alpha * mLayerMatricHead)**vGn_n
         gauss_hg_T       = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
         integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
-        if(computJac) dintegral_frz_low_dWat = volFracWat * dTcrit_dPsi0
+        if(computeJac) dintegral_frz_low_dWat = volFracWat * dTcrit_dPsi0
       endif
     else ! Tcrit=Tfreeze, i.e. mLayerMatricHead>0
       integral_frz_low       = 0._rkind 
@@ -1216,7 +1264,7 @@ subroutine enthalpy2T_soil(&
     T = T_out
 
     ! compute Jacobian terms
-    if(computJac)then
+    if(computeJac)then
       ! NOTE: here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
       xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
       diffT        = T - Tfreeze
@@ -1268,7 +1316,7 @@ subroutine enthalpy2T_soil(&
 
   ! update temperature and derivatives
   mLayerTemp = T
-  if(computJac)then  
+  if(computeJac)then  
     dTemp_dEnthalpy = dT_dEnthalpy
     dTemp_dTheta    = realMissing ! do not use
     dTemp_dPsi0     = dT_dWat
@@ -1421,7 +1469,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
       end if
       
       ! accept if q is not too small to stay in bound
-      if (p > 0.0_rkind) q = -q
+      if (p > 0._rkind) q = -q
       p = abs(p)                
       if (2.0 * p < min(3.0 * xm * q - abs(tol1* q), abs(e *q))) then 
         e = d
@@ -1533,9 +1581,9 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     ! set initial change dx
     if (abs(x0)<240._rkind) then ! a very cold temperature
-      dx = 2.0_rkind/50.0_rkind * Tfreeze
+      dx = 2.0_rkind/50._rkind * Tfreeze
     else
-      dx = 1.0_rkind/50.0_rkind * Tfreeze
+      dx = 1.0_rkind/50._rkind * Tfreeze
     end if
     
     if (disp == 1) then 
@@ -1646,27 +1694,30 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   
     call T2enthTemp_veg(canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyTemp, &
                         scalarCanopyWat, scalarCanopyEnthTemp)
-    fLiq  = fracliquid(scalarCanopyTemp, snowfrz_scale)
+    fLiq       = fracliquid(scalarCanopyTemp, snowfrz_scale)
     diff_H_veg = scalarCanopyEnthTemp - LH_fus * scalarCanopyWat* (1._rkind - fLiq)/ canopyDepth - scalarCanopyEnthalpy
   
   end function diff_H_veg
   !----------------------------------------------------------------------
-  function diff_H_snow ( mLayerTemp, vec)
+  function diff_H_snLaGl ( mLayerTemp, vec)
     USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
     implicit none
-    real(rkind) :: diff_H_snow
+    real(rkind) :: diff_H_snLaGl
     real(rkind) , intent(IN) :: mLayerTemp, vec(9) 
     real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, snowfrz_scale, fLiq
+    logical(lgt) :: noLiq
   
     mLayerEnthalpy   = vec(1)
     snowfrz_scale    = vec(2)
     mLayerVolFracWat = vec(3)
+    noLiq = .false. ! assume liquid water exists
+    if(vec(4) == 1._rkind) noLiq = .true.! no liquid water, ice only
   
-    call T2enthTemp_snow(snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
-    fLiq   = fracliquid(mLayerTemp, snowfrz_scale)
-    diff_H_snow = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
+    call T2enthTemp_snLaGl(noLiq, snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
+    fLiq          = fracliquid(mLayerTemp, snowfrz_scale, noLiq)
+    diff_H_snLaGl = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
   
-  end function diff_H_snow
+  end function diff_H_snLaGl
   !----------------------------------------------------------------------
   function diff_H_soil ( mLayerTemp, vec, use_lookup, lookup_data, ixControlIndex)
     USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head

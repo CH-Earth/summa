@@ -18,21 +18,20 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module snowSoilNrgFlux_module
+module snowLakeSoilGlceNrgFlux_module
 
 ! data types
 USE nr_type
 
 ! data types
-USE data_types,only:var_d               ! x%var(:)     [rkind]
 USE data_types,only:var_dlength         ! x%var(:)%dat [rkind]
 USE data_types,only:var_ilength         ! x%var(:)%dat [i4b]
-USE data_types,only:in_type_snowSoilNrgFlux  ! intent(in) arguments for snowSoilNrgFlux
-USE data_types,only:io_type_snowSoilNrgFlux  ! intent(inout) arguments for snowSoilNrgFlux
-USE data_types,only:out_type_snowSoilNrgFlux ! intent(out) arguments for snowSoilNrgFlux
+USE data_types,only:in_type_snowLakeSoilGlceNrgFlux  ! intent(in) arguments for snowLakeSoilGlceNrgFlux
+USE data_types,only:io_type_snowLakeSoilGlceNrgFlux  ! intent(inout) arguments for snowLakeSoilGlceNrgFlux
+USE data_types,only:out_type_snowLakeSoilGlceNrgFlux ! intent(out) arguments for snowLakeSoilGlceNrgFlux
 
 ! physical constants
-USE multiconst,only:&
+USE multiconst,only:Tfreeze,     &  ! freezing point of pure water (K)
                     iden_water,  &  ! intrinsic density of water    (kg m-3)
                     Cp_water        ! specific heat of liquid water (J kg-1 K-1)
 
@@ -43,6 +42,8 @@ USE globalData,only:realMissing     ! missing real number
 ! named variables for snow and soil
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_glce      ! named variables for glacier ice
+USE globalData,only:iname_lake      ! named variables for lake
 
 ! named variables
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -67,28 +68,28 @@ USE mDecisions_module,only:      &
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
-public :: snowSoilNrgFlux
+public :: snowLakeSoilGlceNrgFlux
 
 contains
 ! **********************************************************************************************************
-! public subroutine snowSoilNrgFlux: compute energy fluxes and derivatives at layer interfaces
+! public subroutine snowLakeSoilGlceNrgFlux: compute energy fluxes and derivatives at layer interfaces
 ! **********************************************************************************************************
-subroutine snowSoilNrgFlux(&
+subroutine snowLakeSoilGlceNrgFlux(&
                       ! input: model control, fluxes, trial variables, and  derivatives
-                      in_snowSoilNrgFlux,                 & ! intent(in):     model control, fluxes, trial variables, and  derivatives
+                      in_snowLakeSoilGlceNrgFlux,                      & ! intent(in):     model control, fluxes, trial variables, and  derivatives
                       ! input-output: data structures and derivatives
                       mpar_data,                          & ! intent(in):    model parameters
                       indx_data,                          & ! intent(in):    model indices
                       prog_data,                          & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
                       flux_data,                          & ! intent(inout): model fluxes for a local HRU
-                      io_snowSoilNrgFlux,                 & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+                      io_snowLakeSoilGlceNrgFlux,         & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
                       ! output: fluxes and derivatives at all layer interfaces and error control
-                      out_snowSoilNrgFlux)                  ! intent(out):   derivatives and error control
+                      out_snowLakeSoilGlceNrgFlux)          ! intent(out):   derivatives and error control
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control, fluxes, trial variables, and  derivatives
-  type(in_type_snowSoilNrgFlux),intent(in)     :: in_snowSoilNrgFlux          ! input snowSoilNrgFlux arguments
+  type(in_type_snowLakeSoilGlceNrgFlux),intent(in)     :: in_snowLakeSoilGlceNrgFlux          ! input snowLakeSoilGlceNrgFlux arguments
   ! input-output: data structures
   type(var_dlength),intent(in)            :: mpar_data              ! model parameters
   type(var_ilength),intent(in)            :: indx_data              ! state vector geometry
@@ -96,9 +97,9 @@ subroutine snowSoilNrgFlux(&
   type(var_dlength),intent(in)            :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)         :: flux_data              ! model fluxes for a local HRU
   ! input-output: derivatives
-  type(io_type_snowSoilNrgFlux),intent(inout)  :: io_snowSoilNrgFlux          ! input-output snowSoilNrgFlux arguments
+  type(io_type_snowLakeSoilGlceNrgFlux),intent(inout)  :: io_snowLakeSoilGlceNrgFlux          ! input-output snowLakeSoilGlceNrgFlux arguments
   ! output: fluxes and derivatives at all layer interfaces
-  type(out_type_snowSoilNrgFlux),intent(inout) :: out_snowSoilNrgFlux         ! output snowSoilNrgFlux arguments
+  type(out_type_snowLakeSoilGlceNrgFlux),intent(inout) :: out_snowLakeSoilGlceNrgFlux         ! output snowLakeSoilGlceNrgFlux arguments
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   integer(i4b)                        :: nLayers                    ! number of model layers
@@ -108,70 +109,77 @@ subroutine snowSoilNrgFlux(&
   integer(i4b)                        :: ixBot                      ! bottom layer in subroutine call
   real(rkind)                         :: qFlux                      ! liquid flux at layer interfaces (m s-1)
   real(rkind)                         :: dz                         ! height difference (m)
+  logical(lgt)                        :: zeroFlux_noThetaBdry       ! flag to denote if zero flux at noThetaChange boundary
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! allocate intent(out) data structure components
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
   allocate(&
-    out_snowSoilNrgFlux % iLayerNrgFlux(0:nLayers),                          & ! energy flux at the layer interfaces (W m-2)
-    out_snowSoilNrgFlux % dNrgFlux_dTempAbove(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
-    out_snowSoilNrgFlux % dNrgFlux_dTempBelow(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
-    out_snowSoilNrgFlux % dNrgFlux_dWatAbove(0:nLayers),                     & ! derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
-    out_snowSoilNrgFlux % dNrgFlux_dWatBelow(0:nLayers))                       ! derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+    out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux(0:nLayers),                          & ! energy flux at the layer interfaces (W m-2)
+    out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+    out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+    out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove(0:nLayers),                     & ! derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
+    out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow(0:nLayers))                       ! derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
   ! make association of local variables with information in the data structures
   associate(&
     ! input: model control
-    scalarSolution             => in_snowSoilNrgFlux % scalarSolution,             & ! intent(in):    flag to denote if implementing the scalar solution
+    scalarSolution             => in_snowLakeSoilGlceNrgFlux % scalarSolution,             & ! intent(in):    flag to denote if implementing the scalar solution
     ! input: fluxes and derivatives at the upper boundary
-    groundNetFlux              => in_snowSoilNrgFlux % scalarGroundNetNrgFlux,     & ! intent(in):    net energy flux for the ground surface (W m-2)
-    dGroundNetFlux_dGroundTemp => io_snowSoilNrgFlux % dGroundNetFlux_dGroundTemp, & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+    groundNetFlux              => in_snowLakeSoilGlceNrgFlux % scalarGroundNetNrgFlux,     & ! intent(in):    net energy flux for the ground surface (W m-2)
+    dGroundNetFlux_dGroundTemp => io_snowLakeSoilGlceNrgFlux % dGroundNetFlux_dGroundTemp, & ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
     ! input: liquid water fluxes
-    iLayerLiqFluxSnow          => in_snowSoilNrgFlux % iLayerLiqFluxSnow,          & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
-    iLayerLiqFluxSoil          => in_snowSoilNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
+    scalarGlceMelt             => in_snowLakeSoilGlceNrgFlux % scalarGlceMelt,             & ! intent(in):    glacier ice melt (m s-1)
+    iLayerLiqFluxSnLaGl        => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSnLaGl,        & ! intent(in):    liquid flux at the interface of each snow, lake, glce layer (m s-1)
+    scalarSurfaceIceMelt       => in_snowLakeSoilGlceNrgFlux % scalarSurfaceIceMelt,       & ! intent(in):    liquid flux at the top of ice layer (m s-1)
+    iLayerLiqFluxSoil          => in_snowLakeSoilGlceNrgFlux % iLayerLiqFluxSoil,          & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
     ! input: trial model state variables
-    mLayerTempTrial            => in_snowSoilNrgFlux % mLayerTempTrial,            & ! intent(in):    temperature in each layer at the current iteration (m)
+    mLayerTempTrial            => in_snowLakeSoilGlceNrgFlux % mLayerTempTrial,            & ! intent(in):    temperature in each layer at the current iteration (m)
     ! input: derivatives
-    dThermalC_dWatAbove        => in_snowSoilNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dWatBelow        => in_snowSoilNrgFlux % dThermalC_dWatBelow,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dTempAbove       => in_snowSoilNrgFlux % dThermalC_dTempAbove, & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
-    dThermalC_dTempBelow       => in_snowSoilNrgFlux % dThermalC_dTempBelow, & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+    dThermalC_dWatAbove        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatAbove,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+    dThermalC_dWatBelow        => in_snowLakeSoilGlceNrgFlux % dThermalC_dWatBelow,  & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+    dThermalC_dTempAbove       => in_snowLakeSoilGlceNrgFlux % dThermalC_dTempAbove, & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+    dThermalC_dTempBelow       => in_snowLakeSoilGlceNrgFlux % dThermalC_dTempBelow, & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
     ! input: boundary conditions
     ix_bcUpprTdyn           => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision, & ! intent(in):  method used to calculate the upper boundary condition for thermodynamics
     ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in):  method used to calculate the lower boundary condition for thermodynamics
     ! input: coordinate variables
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in):  number of snow layers
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type (iname_soil or iname_snow)
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),               & ! intent(in):  number of lake layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),               & ! intent(in):  number of soil layers
+    nGlce                   => indx_data%var(iLookINDEX%nGlce)%dat(1),               & ! intent(in):  number of glacier ice layers
+    noThetaChange           => indx_data%var(iLookINDEX%noThetaChange)%dat(1),       & ! intent(in):  number of layers with no change in total water content (bottom layers)
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in):  list of indices for all model layers
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the snow+soil domain
+    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the layer domains
     mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in):  depth of each layer (m)
     mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in):  height at the mid-point of each layer (m)
     ! input: thermal properties
     upperBoundTemp          => mpar_data%var(iLookPARAM%upperBoundTemp)%dat(1),      & ! intent(in):  temperature of the upper boundary (K)
     lowerBoundTemp          => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in):  temperature of the lower boundary (K)
     iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in):  thermal conductivity at the interface of each layer (W m-1 K-1)
-     ! output: diagnostic fluxes
+    ! output: diagnostic fluxes
     iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,       & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
     iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat,        & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
     ! output: fluxes and derivatives at all layer interfaces
-    iLayerNrgFlux        => out_snowSoilNrgFlux % iLayerNrgFlux,          & ! intent(out): energy flux at the layer interfaces (W m-2)
-    dFlux_dTempAbove     => out_snowSoilNrgFlux % dNrgFlux_dTempAbove,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
-    dFlux_dTempBelow     => out_snowSoilNrgFlux % dNrgFlux_dTempBelow,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
-    dFlux_dWatAbove      => out_snowSoilNrgFlux % dNrgFlux_dWatAbove,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
-    dFlux_dWatBelow      => out_snowSoilNrgFlux % dNrgFlux_dWatBelow,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+    iLayerNrgFlux        => out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux,          & ! intent(out): energy flux at the layer interfaces (W m-2)
+    dFlux_dTempAbove     => out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+    dFlux_dTempBelow     => out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow,    & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+    dFlux_dWatAbove      => out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
+    dFlux_dWatBelow      => out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow,     & ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
     ! output: error control
-    err                  => out_snowSoilNrgFlux % err,                    & ! intent(out): error code
-    message              => out_snowSoilNrgFlux % cmessage                & ! intent(out): error message
+    err                  => out_snowLakeSoilGlceNrgFlux % err,                    & ! intent(out): error code
+    message              => out_snowLakeSoilGlceNrgFlux % cmessage                & ! intent(out): error message
     )  ! end association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='snowSoilNrgFlux/'
+    err=0; message='snowLakeSoilGlceNrgFlux/'
 
     ! set conductive and advective fluxes to missing in the upper boundary
     iLayerConductiveFlux(0) = realMissing
     iLayerAdvectiveFlux(0)  = realMissing  !included in the ground heat flux
 
-    ! get the indices for the snow+soil layers
+    ! get the indices for the layers
     if (scalarSolution) then
-      ixLayerDesired = pack(ixLayerState, ixSnowSoilNrg/=integerMissing)
+      ixLayerDesired = pack(ixLayerState, ixSnLaSoGlNrg/=integerMissing)
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
     else
@@ -182,8 +190,14 @@ subroutine snowSoilNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
+    zeroFlux_noThetaBdry = .false.
+    if(nGlce>0)then ! check if liquid flux at the top of glacier ice (m s-1) for melting ice
+      if (scalarGlceMelt < 0._rkind) zeroFlux_noThetaBdry = .true.
+    end if
     do iLayer=ixTop,ixBot
-      if (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards
+      if(iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
+        iLayerConductiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice, note the flux is from the end of the previous time step
+      elseif (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards 
       ! flux depends on the type of lower boundary condition
         select case(ix_bcLowrTdyn) ! identify the lower boundary condition for thermodynamics
           case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
@@ -200,11 +214,17 @@ subroutine snowSoilNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
       select case(layerType(iLayer)) ! get the liquid flux at layer interfaces
-        case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
-        case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
+        case(iname_snow,iname_lake,iname_glce); qFlux = iLayerLiqFluxSnLaGl(iLayer)
+        case(iname_soil);                       qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
-      if (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
+      ! surface ice melt, propagates upwards and if above layer not coupled, two fluxes here
+      if(mLayerTempTrial(iLayer)<=Tfreeze) then ! can't be unfrozen lake
+        if ((iLayer==nSnow+nLake+nSoil+1 .and. nSoil==0) .or. (iLayer==nSnow+nLake+1 .and. nLake>0)) qFlux = scalarSurfaceIceMelt
+      end if
+      if(iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
+        iLayerAdvectiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
+      elseif(iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
       else ! compute fluxes within the domain -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
@@ -257,8 +277,13 @@ subroutine snowSoilNrgFlux(&
 
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
+      if(iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
+        dFlux_dWatAbove(iLayer)  = 0._rkind 
+        dFlux_dTempAbove(iLayer) = 0._rkind
+        dFlux_dWatBelow(iLayer)  = 0._rkind
+        dFlux_dTempBelow(iLayer) = 0._rkind
       ! ***** the lower boundary
-      if (iLayer==nLayers) then  ! if lower boundary
+      elseif (iLayer==nLayers) then  ! if lower boundary
         ! identify the lower boundary condition
         select case(ix_bcLowrTdyn) ! prescribed temperature at the lower boundary
           case(prescribedTemp)
@@ -282,7 +307,7 @@ subroutine snowSoilNrgFlux(&
 
   end associate ! end association of local variables with information in the data structures
 
-end subroutine snowSoilNrgFlux
+end subroutine snowLakeSoilGlceNrgFlux
 
-end module snowSoilNrgFlux_module
+end module snowLakeSoilGlceNrgFlux_module
 

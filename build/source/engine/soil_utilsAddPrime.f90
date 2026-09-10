@@ -135,7 +135,7 @@ subroutine liquidHeadPrime(&
     dPsiLiq_dPsi0 = 1._rkind  ! derivative=1 because values are identical
     dPsiLiq_dTemp = 0._rkind  ! derivative=0 because no impact of temperature for unfrozen conditions
   end if  ! (if ice exists)
-
+  
   if(volFracLiqPrime==realMissing .or. volFracIcePrime==realMissing) matricHeadLiqPrime = realMissing
 
 end subroutine liquidHeadPrime

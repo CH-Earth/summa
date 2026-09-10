@@ -10,24 +10,18 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
 ! named variables to describe the state variable type
-USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
-USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
 USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
 USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for layers
+USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
-USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
 
 ! metadata for information in the data structures
 USE globalData,only:indx_meta       ! metadata for the variables in the index structure
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength     ! data vector with variable length dimension (rkind)
 
@@ -129,8 +123,8 @@ subroutine popTol4ida(&
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! state subsets
-  integer(i4b)                       :: iState                    ! index of state within the snow+soil domain
-  integer(i4b)                       :: iLayer                    ! index of layer within the snow+soil domain
+  integer(i4b)                       :: iState                    ! index of state within the layer domains
+  integer(i4b)                       :: iLayer                    ! index of layer within the layer domains
   integer(i4b)                       :: ixStateSubset             ! index within the state subset
   logical(lgt),dimension(nState)     :: tolFlag                   ! flag to denote that the state is populated
   real(rkind)                        :: absTolTempCas
@@ -156,7 +150,7 @@ subroutine popTol4ida(&
     scalarCanopyTemp    => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in) : [dp]     temperature of the vegetation canopy (K)
     scalarCanopyWat     => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in) : [dp]     mass of total water on the vegetation canopy (kg m-2)
     scalarCanopyLiq     => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in) : [dp]     mass of liquid water on the vegetation canopy (kg m-2)
-    ! model state variable vectors for the snow-soil layers
+    ! model state variable vectors for the layer domains
     mLayerTemp          => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in) : [dp(:)]  temperature of each snow/soil layer (K)
     mLayerVolFracWat    => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in) : [dp(:)]  volumetric fraction of total water (-)
     mLayerVolFracLiq    => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in) : [dp(:)]  volumetric fraction of liquid water (-)
@@ -169,14 +163,14 @@ subroutine popTol4ida(&
     ixVegNrg            => indx_data%var(iLookINDEX%ixVegNrg)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy energy state variable
     ixVegHyd            => indx_data%var(iLookINDEX%ixVegHyd)%dat                 ,& ! intent(in) : [i4b(:)] [length=1] index of canopy hydrology state variable (mass)
     ixAqWat             => indx_data%var(iLookINDEX%ixAqWat)%dat                  ,& ! intent(in) : [i4b(:)] [length=1] index of aquifer storage state variable
-    ! vector of energy and hydrology indices for the snow and soil domains
-    ixSnowSoilNrg       => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    ixSnowSoilHyd       => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    nSnowSoilNrg        => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd        => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the snow+soil domain
+    ! vector of energy and hydrology indices for the layer domains
+    ixSnLaSoGlNrg       => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for energy state variables in the layer domains
+    ixSnLaSoGlHyd       => indx_data%var(iLookINDEX%ixSnLaSoGlHyd)%dat            ,& ! intent(in) : [i4b(:)] index in the state subset for hydrology state variables in the layer domains
+    nSnLaSoGlNrg        => indx_data%var(iLookINDEX%nSnLaSoGlNrg )%dat(1)         ,& ! intent(in) : [i4b]    number of energy state variables in the layer domains
+    nSnLaSoGlHyd        => indx_data%var(iLookINDEX%nSnLaSoGlHyd )%dat(1)         ,& ! intent(in) : [i4b]    number of hydrology state variables in the layer domains
     ! type of model state variabless
     ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in) : [i4b(:)] [state subset] type of desired model state variables
-    ixHydType           => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in) : [i4b(:)] index of the type of hydrology states in snow+soil domain
+    ixHydType           => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in) : [i4b(:)] index of the type of hydrology states in layer domains
     ! number of layers
     nSnow               => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in) : [i4b]    number of snow layers
     nSoil               => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in) : [i4b]    number of soil layers
@@ -233,19 +227,19 @@ subroutine popTol4ida(&
     end do
 
     ! tolerance for tempreture of the snow and soil domain
-    if(nSnowSoilNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        ixStateSubset            = ixSnowSoilNrg(iLayer)  ! index within the state vector
+    if(nSnLaSoGlNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+        ixStateSubset            = ixSnLaSoGlNrg(iLayer)  ! index within the state vector
         absTol(ixStateSubset)  = absTolTempSoilSnow    ! transfer temperature from a layer to the state vector
         relTol(ixStateSubset)  = relTolTempSoilSnow
         tolFlag(ixStateSubset) = .true.                 ! flag to denote that tolerances are populated
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
-    if(nSnowSoilHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
-        ixStateSubset            = ixSnowSoilHyd(iLayer)   ! index within the state vector
+    if(nSnLaSoGlHyd>0)then
+      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+        ixStateSubset            = ixSnLaSoGlHyd(iLayer)   ! index within the state vector
         tolFlag(ixStateSubset) = .true.                  ! flag to denote that tolerances are populated
         select case( ixHydType(iLayer) )
           case(iname_watLayer); absTol(ixStateSubset) = absTolWatSnow ;  relTol(ixStateSubset) = relTolWatSnow
@@ -254,7 +248,7 @@ subroutine popTol4ida(&
           case(iname_lmpLayer); absTol(ixStateSubset) = absTolMatric ;  relTol(ixStateSubset) = relTolMatric
           case default; tolFlag(ixStateSubset) = .false.  ! flag to denote that tolerances are populated
         end select
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! build the state vector for the aquifer storage

@@ -13,12 +13,12 @@
 # This results in KGE values that range between -1 and 1, with lower KGE values indicating larger differences from bench.
 
 # Run:
-# python timeseries_to_statistics.py sundials_1en6 [1-101] 100
+# python timeseries_to_statistics.py sun6 [1-101] 100 
 # and run 100 times with different batch numbers 1-100, and then merge the files with 101
 
 import os
 import glob
-import xarray as xr
+import xarray as xr # need to install dask also
 from pathlib import Path
 import numpy as np
 
@@ -26,14 +26,15 @@ import warnings
 warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 in kgem, both have no snow
 
 # Settings
-bench_name  = 'sundials_1en8cm'
+bench_name  = 'sun8en'
+skip = 273*24 # skip first year in stat calcs
 
-not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sundials_1en6 1 1` for single batch, and `python timeseries_to_statistics.py sundials_1en6 2 1` to merge
+not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sun6 1 1` for single batch, and `python timeseries_to_statistics.py sun6 2 1` to merge
 run_local = False
 
 # which statistics to compute
-do_vars = False
-do_steps = False
+do_vars = True
+do_steps = True
 do_balance = True
 do_wall = False
 
@@ -46,10 +47,10 @@ if run_local:
 else:
     import sys
     # The first input argument specifies the run where the files are
-    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sun6 or be1)
     ibatch = int(sys.argv[2])
     nbatch = int(sys.argv[3])
-    top_fold    = '/home/avanb/scratch/'
+    top_fold = os.environ['SCRATCH']+'/'
 
 des_dir =  top_fold + 'statistics_temp_' + method_name
 # Check if the directory exists
@@ -65,16 +66,19 @@ des_fil  = method_name + '_hrly_diff_stats_{}_{}.nc'
 des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 des_fl3 = method_name + '_hrly_diff_bals_{}_{}.nc'
 des_fl4 = method_name + '_hrly_diff_wall_{}_{}.nc'
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp','averageRoutedRunoff']
+settings= [settings[i] for i in (1, 4)]#only do some vars
 stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
-balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc']
+stepsets= [stepsets[i] for i in (0, 1, 2, 3)]#only do some steps
+balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
+balssets= [balssets[i] for i in (3, 8)]#only do some
 #balssets= ['scalarRainPlusMelt','scalarRootZoneTemp','airtemp','scalarSWE']
 wallsets= ['wallClockTime']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
-viz_fil = viz_fil.format(','.join(settings))
+viz_fil = viz_fil.format(','.join(['accuracy']))
 viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
-viz_fl2 = viz_fl2.format(','.join(stepsets))
+viz_fl2 = viz_fl2.format(','.join(['split']))
 viz_fl3 = method_name + '_hrly_diff_bals_{}.nc'
 viz_fl3 = viz_fl3.format(','.join(['balance']))
 viz_fl4 = method_name + '_hrly_diff_wals_{}.nc'
@@ -138,7 +142,7 @@ def correlation(x,y,dims=None):
 def run_loop(file,bench,processed_files_path0):
 
     # extract the subset IDs
-    subset = file.split('/')[-1].split('_')[1]
+    subset = file.split('/')[-1].split('_')[-2]
 
     # acquire the lock before opening the file
     if not_parallel:
@@ -154,24 +158,35 @@ def run_loop(file,bench,processed_files_path0):
     # sometimes gives -9999 the whole run (non-compute), make these nan and plot as lowest value 0 in geographic
     dat = dat.where(dat!=-9999)
     # some weird negative values in runoff if not routed
-    if do_vars: dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].where(dat['averageRoutedRunoff']>=0)
+    #if do_vars: dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].where(dat['averageRoutedRunoff']>=0)
     # get rid of gru dimension, assuming hru and gru are one to one (everything now as hruId)
-    dat = dat.drop_vars(['hruId','gruId'])
+    # get rid of dom dimension, assuming one dom per hru
+    dat = dat.drop_vars(['hruId','gruId','domType'])
+    if 'dom' in dat.dims:
+        dat = dat.isel(dom=0, drop=True)
     m = dat.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
     dat = dat.drop_dims('gru')
-    dat = xr.merge([dat,m])  
-    dat = dat.where(dat.time!=dat.time[0],drop=True) #first timestep weird
+    dat = xr.merge([dat,m])
+    dat = dat.isel(time=slice(skip, None)) #skip first timesteps
     
     if do_vars:
         ben = ben.where(ben!=-9999)
-        ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0) 
-        ben = ben.drop_vars(['hruId','gruId'])
+        #ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0) 
+        ben = ben.drop_vars(['hruId','gruId','domType'])
+        if 'dom' in ben.dims:
+            ben = ben.isel(dom=0, drop=True)
         m = ben.drop_dims('hru')
         m = m.rename({'gru': 'hru'})
         ben = ben.drop_dims('gru')
-        ben = xr.merge([ben,m])  
-        ben = ben.where(ben.time!=ben.time[0],drop=True) #first timestep weird
+        ben = xr.merge([ben,m])
+        ben = ben.isel(time=slice(skip, None)) #skip first timesteps
+
+        # Align coordinates of ben with dat
+        if 'hru' in dat.dims and 'hru' in ben.dims:
+            ben = ben.assign_coords(hru=dat['hru'])
+        if 'gru' in dat.dims and 'gru' in ben.dims:
+            ben = ben.assign_coords(gru=dat['gru'])
 
         diff = dat - ben
         the_hru = np.array(ben['hru'])
@@ -212,6 +227,9 @@ def run_loop(file,bench,processed_files_path0):
             maxe = diff[var].isel(amx).drop_vars('time')
             maxe = maxe.expand_dims("stat").assign_coords(stat=("stat",["maxe"]))
 
+            avge = np.fabs(diff[var]).mean(dim='time') 
+            avge = avge.expand_dims("stat").assign_coords(stat=("stat",["avge"]))
+
             r = correlation(dat[var],ben[var],dims='time')
             kgem = 1 - np.sqrt( np.square(r-1)
                    + np.square( dat[var].std(dim='time')/ben[var].std(dim='time') - 1)
@@ -225,7 +243,7 @@ def run_loop(file,bench,processed_files_path0):
             kgem = kgem/(2.0-kgem)
             kgem = kgem.expand_dims("stat").assign_coords(stat=("stat",["kgem"]))
 
-            new = xr.merge([mean,mnnz,amax, mean_ben,mnnz_ben,amax_ben, rmse,rmnz, maxe, kgem])
+            new = xr.merge([mean,mnnz,amax, mean_ben,mnnz_ben,amax_ben, rmse,rmnz, maxe, avge, kgem])
             new.to_netcdf(des_dir / des_fil.format(var,subset))
 
     if do_steps:

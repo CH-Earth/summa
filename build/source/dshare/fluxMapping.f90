@@ -20,12 +20,17 @@ contains
  USE globalData, only: iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
  USE globalData, only: iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
  USE globalData, only: iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
- USE globalData, only: iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
- USE globalData, only: iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
- USE globalData, only: iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
+ USE globalData, only: iname_nrgLayer   ! named variable defining the energy state variable for layers
+ USE globalData, only: iname_watLayer   ! named variable defining the total water state variable for layers
+ USE globalData, only: iname_liqLayer   ! named variable defining the liquid  water state variable for layers
  USE globalData, only: iname_matLayer   ! named variable defining the matric head state variable for soil layers
  USE globalData, only: iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
  USE globalData, only: iname_watAquifer ! named variable defining the total water in the aquifer
+ USE globalData, only: iname_watSnow    ! named variable defining the total water in the snowpack
+ USE globalData, only: iname_watLake    ! named variable defining the total water in the lake
+ USE globalData, only: iname_watGlce    ! named variable defining the total water in the glacier ice
+ USE globalData, only: iname_watIce     ! named variable defining the total water in the lake or glacier ice
+
  ! access missing values
  USE globalData,only:integerMissing    ! missing integer
  implicit none
@@ -109,7 +114,7 @@ contains
  flux2state_orig(iLookFLUX%scalarCanopyAdvectiveHeatFlux)   = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarGroundAdvectiveHeatFlux)   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarCanopySublimation)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarSnowSublimation)           = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+ flux2state_orig(iLookFLUX%scalarGroundSublimation)         = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! stomatal resistance and photosynthesis -- calculated when the canopy energy state variable is active
  flux2state_orig(iLookFLUX%scalarStomResistSunlit)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
@@ -132,16 +137,19 @@ contains
  flux2state_orig(iLookFLUX%scalarThroughfallRain)           = flux2state(state1=iname_watCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarCanopyLiqDrainage)         = flux2state(state1=iname_watCanopy, state2=integerMissing)
 
- ! energy fluxes and for the snow and soil domains
+ ! energy fluxes and for the layer domains
  flux2state_orig(iLookFLUX%iLayerConductiveFlux)            = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerAdvectiveFlux)             = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
 
- ! liquid water fluxes for the snow domain
- flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%iLayerLiqFluxSnow)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%mLayerLiqFluxSnow)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ ! liquid water fluxes for the snow lake glce domain
+ flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watSnow,   state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%scalarLakeDrainage)              = flux2state(state1=iname_watLake,   state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%scalarGlceMelt)                  = flux2state(state1=iname_watGlce,   state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%iLayerLiqFluxSnLaGl)             = flux2state(state1=iname_matLayer,  state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%scalarSurfaceIceMelt)            = flux2state(state1=iname_watIce,    state2=iname_watLayer)
+ flux2state_orig(iLookFLUX%mLayerLiqFluxSnLaGl)             = flux2state(state1=iname_matLayer,  state2=iname_watLayer)
 
  ! liquid water fluxes for the soil domain
  flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
@@ -170,6 +178,7 @@ contains
  ! derived variables
  flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarTotalRunoff)               = flux2state(state1=iname_matLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarGlacierMelt)               = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
  flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! ** copy across flux metadata
@@ -200,10 +209,10 @@ contains
   ! (mass of total water on the vegetation canopy --> mass of liquid water)
   if(flux2state_liq(iVar)%state1==iname_watCanopy) flux2state_liq(iVar)%state1=iname_liqCanopy
   if(flux2state_liq(iVar)%state2==iname_watCanopy) flux2state_liq(iVar)%state2=iname_liqCanopy
-  ! (volumetric total water in the snow+soil domain --> volumetric liquid water)
+  ! (volumetric total water in the layer domains --> volumetric liquid water)
   if(flux2state_liq(iVar)%state1==iname_watLayer)  flux2state_liq(iVar)%state1=iname_liqLayer
   if(flux2state_liq(iVar)%state2==iname_watLayer)  flux2state_liq(iVar)%state2=iname_liqLayer
-  ! (total water matric potential in the snow+soil domain --> liquid water matric potential)
+  ! (total water matric potential in the layer domains --> liquid water matric potential)
   if(flux2state_liq(iVar)%state1==iname_matLayer)  flux2state_liq(iVar)%state1=iname_lmpLayer
   if(flux2state_liq(iVar)%state2==iname_matLayer)  flux2state_liq(iVar)%state2=iname_lmpLayer
  end do

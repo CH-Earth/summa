@@ -351,6 +351,7 @@ contains
  USE globalData,only: elapsedRead                      ! elapsed time for the data read
  USE globalData,only: elapsedWrite                     ! elapsed time for the stats/write
  USE globalData,only: elapsedPhysics                   ! elapsed time for the physics
+ USE globalData,only: elapsedUpdateArea                ! elapsed time for updating glacier and wetland area
  implicit none
  ! define dummy variables
  integer(i4b),intent(in)            :: err             ! error code
@@ -372,42 +373,49 @@ contains
  call date_and_time(values=endModelRun)
  elpSec = elapsedSec(startInit,endModelRun)
 
+ ! remove the update area time from the physics time
+ elapsedPhysics = elapsedPhysics - elapsedUpdateArea
+
  ! print initial and final date and time
  write(outunit,"(/,A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',startInit(1:3),  startInit(5:8)
  write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)")   '  final date/time = ',endModelRun(1:3),endModelRun(5:8)
 
  ! print elapsed time for the initialization
- write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed init = ', elapsedInit,           ' s'
- write(outunit,"(A,1PG15.7)")                                                 '    fraction init = ', elapsedInit/elpSec
+ write(outunit,"(/,A,1PG15.7,A)")                                          '        elapsed init = ', elapsedInit,           ' s'
+ write(outunit,"(A,1PG15.7)")                                              '       fraction init = ', elapsedInit/elpSec
 
  ! print elapsed time for the parameter setup
- write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed setup = ', elapsedSetup,          ' s'
- write(outunit,"(A,1PG15.7)")                                                 '   fraction setup = ', elapsedSetup/elpSec
+ write(outunit,"(/,A,1PG15.7,A)")                                          '       elapsed setup = ', elapsedSetup,          ' s'
+ write(outunit,"(A,1PG15.7)")                                              '      fraction setup = ', elapsedSetup/elpSec
 
  ! print elapsed time to read the restart data
  write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed restart = ', elapsedRestart,        ' s'
  write(outunit,"(A,1PG15.7)")                                                 ' fraction restart = ', elapsedRestart/elpSec
 
  ! print elapsed time for the data read
- write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed read = ', elapsedRead,           ' s'
- write(outunit,"(A,1PG15.7)")                                                 '    fraction read = ', elapsedRead/elpSec
+ write(outunit,"(/,A,1PG15.7,A)")                                          '        elapsed read = ', elapsedRead,           ' s'
+ write(outunit,"(A,1PG15.7)")                                              '       fraction read = ', elapsedRead/elpSec
 
  ! print elapsed time for the data write
- write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed write = ', elapsedWrite,          ' s'
- write(outunit,"(A,1PG15.7)")                                                 '   fraction write = ', elapsedWrite/elpSec
+ write(outunit,"(/,A,1PG15.7,A)")                                          '       elapsed write = ', elapsedWrite,          ' s'
+ write(outunit,"(A,1PG15.7)")                                              '      fraction write = ', elapsedWrite/elpSec
 
  ! print elapsed time for the physics
- write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed physics = ', elapsedPhysics,        ' s'
- write(outunit,"(A,1PG15.7)")                                                 ' fraction physics = ', elapsedPhysics/elpSec
+ write(outunit,"(/,A,1PG15.7,A)")                                          '     elapsed physics = ', elapsedPhysics,        ' s'
+ write(outunit,"(A,1PG15.7)")                                              '    fraction physics = ', elapsedPhysics/elpSec
+
+ ! print elapsed time for updating glacier and wetland area
+ write(outunit,"(/,A,1PG15.7,A)")                                          ' elapsed update area = ', elapsedUpdateArea,     ' s'
+ write(outunit,"(A,1PG15.7)")                                              'fraction update area = ', elapsedUpdateArea/elpSec
 
  ! print total elapsed time
- write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed time = ', elpSec,                ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/60_rkind,          ' m'
- write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/3600_rkind,        ' h'
- write(outunit,"(A,1PG15.7,A/)")                                              '       or           ', elpSec/86400_rkind,       ' d'
+ write(outunit,"(/,A,1PG15.7,A)")                                          '        elapsed time = ', elpSec,                 ' s'
+ write(outunit,"(A,1PG15.7,A)")                                            '          or           ', elpSec/60_rkind,        ' m'
+ write(outunit,"(A,1PG15.7,A)")                                            '          or           ', elpSec/3600_rkind,      ' h'
+ write(outunit,"(A,1PG15.7,A/)")                                           '          or           ', elpSec/86400_rkind,     ' d'
 
  ! print the number of threads
- write(outunit,"(A,i10,/)")                                                   '   number threads = ', nThreads
+ write(outunit,"(A,i10,/)")                                                '      number threads = ', nThreads
 #endif
  ! stop with message
  if(err==0)then

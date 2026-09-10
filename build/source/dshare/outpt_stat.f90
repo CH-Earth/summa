@@ -36,6 +36,7 @@ contains
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE var_lookup,only:iLookVarType                   ! named variables for variable types
  USE var_lookup,only:iLookSTAT                      ! named variables for output statistics types
+
  USE get_ixname_module,only:get_freqName            ! get name of frequency from frequency index
  implicit none
 
@@ -46,9 +47,11 @@ contains
  logical(lgt)  ,intent(in)      :: resetStats(:)    ! vector of flags to reset statistics
  logical(lgt)  ,intent(in)      :: finalizeStats(:) ! vector of flags to reset statistics
  integer(i4b)  ,intent(in)      :: statCounter(:)   ! number of time steps in each output frequency
+
  ! output variables
  integer(i4b)  ,intent(out)     :: err              ! error code
  character(*)  ,intent(out)     :: message          ! error message
+
  ! internals
  character(256)                 :: cmessage         ! error message
  integer(i4b)                   :: iVar             ! index for varaiable loop

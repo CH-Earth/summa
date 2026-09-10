@@ -39,17 +39,22 @@ Makefile-*
 site/
 # cmake_build containing cmake build objects
 build/cmake_build
+build/cmake_build_openwq
 runinfo.txt
 # OpenWQ source code
 build/source/openwq/openwq
+# OpenWQ external dependencies built locally (Armadillo, PhreeqcRM, ...)
+build/source/openwq/_deps
 # pre-processing files
 utils/pre-processing/*.nc
 # vscode related files
 .vscode
-# test files
+# NextGen test run output and forcing
 test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.nc
+test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.txt
 test_ngen/domain_provo/forcing/*.nc
 test_ngen/domain_provo/forcing/SUMMA_input/*.nc
 test_ngen/domain_provo/simulations/run_1/SUMMA/*.nc
+test_ngen/domain_provo/simulations/run_1/SUMMA/*.txt
 test_ngen/domain_provo/simulations/*.nc
 test_ngen/domain_provo/simulations/*.csv

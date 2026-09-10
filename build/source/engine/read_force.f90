@@ -39,7 +39,7 @@ USE globalData,only:integerMissing            ! integer missing value
 USE globalData,only:gru_struc                 ! gru-hru mapping structures
 
 ! access the minimum and maximum HRUs in the file
-USE globalData,only:ixHRUfile_min,ixHRUfile_max
+USE globalData,only:ixHRUfile_min,ixHRUfile_max ! first and last HRUs in the forcing file
 
 ! global data on the forcing file
 USE globalData,only:numtim                    ! number time steps
@@ -264,7 +264,11 @@ contains
  ! ***** part 2: compute time
  ! **********************************************************************************************
 
+#ifndef NGEN_FORCING_ACTIVE
  ! check that the computed julian day matches the time information in the NetCDF file
+ ! NOTE: with NGEN forcing there is no NetCDF time axis; time_data was already filled from
+ !       currentJulDay by createForcingTimeData above, and fulltimeVec/forcFileInfo are not
+ !       allocated in that path, so this block must be skipped.
  dataJulDay = fulltimeVec(jRead)/forcFileInfo(iFile)%convTime2Days + refJulDay_data
  if(abs(currentJulDay - dataJulDay) > timeDiffTol)then
   write(message,'(a,f18.8,a,f18.8)') trim(message)//'date for time step: ',dataJulDay,' differs from the expected date: ',currentJulDay
@@ -281,6 +285,7 @@ contains
                  time_data(iLookTIME%imin),dsec, & ! output = minute/second
                  err,cmessage)                     ! output = error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+#endif
 
  ! check to see if any of the time data is missing -- note that it is OK if ih_tz or imin_tz are missing
  if((time_data(iLookTIME%iyyy)==integerMissing) .or. &
@@ -304,7 +309,7 @@ contains
                  time_data(iLookTIME%im),             & ! input  = month
                  time_data(iLookTIME%id),             & ! input  = day
                  time_data(iLookTIME%ih),             & ! input  = hour
-                 time_data(iLookTIME%imin),0._rkind,     & ! input  = minute/second
+                 time_data(iLookTIME%imin),0._rkind,  & ! input  = minute/second
                  currentJulDay,err,cmessage)            ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  ! compute the time since the start of the year (in fractional days)
@@ -343,13 +348,13 @@ contains
 
  end subroutine read_force
 
-
+ 
  ! *************************************************************************
  ! * private subroutine: find first timestep in any of the forcing files...
  ! *************************************************************************
  subroutine getFirstTimestep(currentJulDay,iFile,iRead,ncid,err,message)
- USE netcdf                                            ! netcdf capability
- USE nr_utils_module,only:arth                         ! use to build vectors with regular increments
+ USE netcdf                                          ! netcdf capability
+ USE nr_utils_module,only:arth                       ! use to build vectors with regular increments
  implicit none
  ! define input
  real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step
@@ -369,9 +374,9 @@ contains
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
  integer(i4b)                      :: nFiles           ! number of forcing files
- real(rkind)                          :: timeVal(1)       ! single time value (restrict time read)
- real(rkind),allocatable              :: fileTime(:)      ! array of time from netcdf file
- real(rkind),allocatable              :: diffTime(:)      ! array of time differences
+ real(rkind)                       :: timeVal(1)       ! single time value (restrict time read)
+ real(rkind),allocatable           :: fileTime(:)      ! array of time from netcdf file
+ real(rkind),allocatable           :: diffTime(:)      ! array of time differences
  ! Start procedure here
  err=0; message="getFirstTimestep/"
 
@@ -449,7 +454,7 @@ contains
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
  USE time_utils_module,only:fracDay                      ! compute fractional day
  USE time_utils_module,only:extractTime                  ! extract time info from units string
- USE time_utils_module,only:compJulDay                   ! convert calendar date to julian day
+ USE time_utils_module,only:compjulday                   ! convert calendar date to julian day
  USE globalData,only:tmZoneOffsetFracDay                 ! time zone offset in fractional days
  USE globalData,only:ncTime                              ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
  USE globalData,only:utcTime                             ! all times in UTC (timeOffset = longitude/15. hours)
@@ -523,7 +528,7 @@ contains
  subroutine readForcingData(ncid,iFile,ixStartRead,nRead,nHRUlocal,err,message)
  USE netcdf                                            ! netcdf capability
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
- USE time_utils_module,only:compJulDay                 ! convert calendar date to julian day
+ USE time_utils_module,only:compjulday                 ! convert calendar date to julian day
  USE get_ixname_module,only:get_ixForce                ! identify index of named variable
  ! dummy variables
  integer(i4b) ,intent(in)                :: ncid               ! NetCDF ID

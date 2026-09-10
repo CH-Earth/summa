@@ -25,7 +25,6 @@ USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
                     var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
@@ -33,6 +32,8 @@ USE data_types,only:&
 ! named variables for snow and soil
 USE globalData,only:iname_snow          ! named variables for snow
 USE globalData,only:iname_soil          ! named variables for soil
+USE globalData,only:iname_glce          ! named variables for glacier ice
+USE globalData,only:iname_lake          ! named variables for lake
 
 ! named variables for parent structures
 USE var_lookup,only:iLookINDEX          ! named variables for structure elements
@@ -56,6 +57,7 @@ contains
  ! ************************************************************************************************
  subroutine volicePack(&
                        ! input/output: model data structures
+                       maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
                        tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
@@ -73,6 +75,7 @@ contains
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input/output: model data structures
+ integer(i4b),intent(in)         :: maxLayers           ! maximum number of snow/firn/ice layers
  logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
@@ -92,10 +95,12 @@ contains
  ! initialize error control
  err=0; message='volicePack/'
 
- ! divide snow layers if too thick, don't do it if need to merge
+ ! divide snow/firn layers if too thick, don't do it if need to merge (note, ice layers do not grow so do not divide)
  if (.not.tooMuchMelt)then
    call layerDivide(&
                     ! input/output: model data structures
+                    .false.,                     & ! intent(in):    flag to denote that we are not dividing glacier ice layers since they currently do not grow
+                    maxLayers,                   & ! intent(in):    maximum number of snow/firn layers
                     model_decisions,             & ! intent(in):    model decisions
                     mpar_data,                   & ! intent(in):    model parameters
                     indx_data,                   & ! intent(inout): type of each layer
@@ -108,10 +113,11 @@ contains
    if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
  endif
 
- ! merge snow layers if they are too thin
+ ! merge snow/firn/ice layers if they are too thin, here assuming merging ice layers only if there is no snow/firn
  call layerMerge(&
                  ! input/output: model data structures
-                 tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
+                 maxLayers,                   & ! intent(in):    maximum number of snow/firn/ice layers
+                 tooMuchMelt,                 & ! intent(in):    flag to force merge of snow/firn/ice layers
                  model_decisions,             & ! intent(in):    model decisions
                  mpar_data,                   & ! intent(in):    model parameters
                  indx_data,                   & ! intent(inout): type of each layer
@@ -126,7 +132,10 @@ contains
  ! update the number of layers
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
  indx_data%var(iLookINDEX%nSoil)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
- indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
+ indx_data%var(iLookINDEX%nGlce)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_glce)
+ indx_data%var(iLookINDEX%nLake)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
+ indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1) &
+                                           + indx_data%var(iLookINDEX%nGlce)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1)
 
  ! flag if layers were modified
  modifiedLayers = (mergedLayers .or. divideLayer)
@@ -139,25 +148,25 @@ contains
  ! ************************************************************************************************
  subroutine newsnwfall(&
                        ! input: model control
-                       dt,                        & ! time step (seconds)
-                       snowLayers,                & ! logical flag if snow layers exist
-                       fc_param,                  & ! freeezing curve parameter for snow (K-1)
+                       dt,                        & ! intent(in):    time step (seconds)
+                       snowLayers,                & ! intent(in):    logical flag if snow layers exist
+                       fc_param,                  & ! intent(in):    freeezing curve parameter for snow (K-1)
                        ! input: diagnostic scalar variables
-                       scalarSnowfallTemp,        & ! computed temperature of fresh snow (K)
-                       scalarNewSnowDensity,      & ! computed density of new snow (kg m-3)
-                       scalarThroughfallSnow,     & ! throughfall of snow through the canopy (kg m-2 s-1)
-                       scalarCanopySnowUnloading, & ! unloading of snow from the canopy (kg m-2 s-1)
+                       scalarSnowfallTemp,        & ! intent(in):    computed temperature of fresh snow (K)
+                       scalarNewSnowDensity,      & ! intent(in):    computed density of new snow (kg m-3)
+                       scalarThroughfallSnow,     & ! intent(in):    throughfall of snow through the canopy (kg m-2 s-1)
+                       scalarCanopySnowUnloading, & ! intent(in):    unloading of snow from the canopy (kg m-2 s-1)
                        ! input/output: state variables
-                       scalarSWE,                 & ! SWE (kg m-2)
-                       scalarSnowDepth,           & ! total snow depth (m)
-                       surfaceLayerTemp,          & ! temperature of surface layer (K)
-                       surfaceLayerDepth,         & ! depth of surface layer (m)
-                       surfaceLayerVolFracIce,    & ! volumetric fraction of ice in surface layer (-)
-                       surfaceLayerVolFracLiq,    & ! volumetric fraction of liquid water in surface layer (-)
+                       scalarSWE,                 & ! intent(inout): SWE (kg m-2)
+                       scalarSnowDepth,           & ! intent(inout): total snow depth (m)
+                       surfaceLayerTemp,          & ! intent(inout): temperature of surface layer (K)
+                       surfaceLayerDepth,         & ! intent(inout): depth of surface layer (m)
+                       surfaceLayerVolFracIce,    & ! intent(inout): volumetric fraction of ice in surface layer (-)
+                       surfaceLayerVolFracLiq,    & ! intent(inout): volumetric fraction of liquid water in surface layer (-)
                        ! output: error control
-                       err,message                ) ! error control
+                       err,message                ) ! intent(out):   error control
  ! computational modules
- USE snow_utils_module,only:fracliquid,templiquid                  ! functions to compute temperature/liquid water
+ USE snow_utils_module,only:fracliquid              ! functions to compute temperature/liquid water
  ! add new snowfall to the system
  implicit none
  ! input: model control
@@ -226,9 +235,9 @@ contains
   SWE = totalMassIceSurfLayer + iden_water*surfaceLayerVolFracLiq*surfaceLayerDepth
   ! compute new volumetric fraction of liquid water and ice (-)
   volFracWater = (SWE/totalDepthSurfLayer)/iden_water
-  fracLiq      = fracliquid(surfaceLayerTemp,fc_param)                           ! fraction of liquid water
+  fracLiq      = fracliquid(surfaceLayerTemp,fc_param)                              ! fraction of liquid water
   surfaceLayerVolFracIce = (1._rkind - fracLiq)*volFracWater*(iden_water/iden_ice)  ! volumetric fraction of ice (-)
-  surfaceLayerVolFracLiq =          fracLiq *volFracWater                        ! volumetric fraction of liquid water (-)
+  surfaceLayerVolFracLiq =             fracLiq *volFracWater                        ! volumetric fraction of liquid water (-)
   ! update new layer depth (m)
   surfaceLayerDepth      = totalDepthSurfLayer
 

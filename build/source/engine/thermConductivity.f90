@@ -6,26 +6,28 @@ USE nr_type
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (rkind)
-                    var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength         ! data vector with variable length dimension (rkind)
+                    var_ilength,  & ! data vector with variable length dimension (i4b)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! physical constants
 USE multiconst,only:&
-                    iden_ice,    & ! intrinsic density of ice      (kg m-3)
-                    iden_water,  & ! intrinsic density of water    (kg m-3)
+                    iden_ice,     & ! intrinsic density of ice      (kg m-3)
+                    iden_water,   & ! intrinsic density of water    (kg m-3)
                     ! thermal conductivity
-                    lambda_air,  & ! thermal conductivity of air   (J s-1 m-1)
-                    lambda_ice,  & ! thermal conductivity of ice   (J s-1 m-1)
-                    lambda_water   ! thermal conductivity of water (J s-1 m-1)
+                    lambda_air,   & ! thermal conductivity of air   (J s-1 m-1)
+                    lambda_ice,   & ! thermal conductivity of ice   (J s-1 m-1)
+                    lambda_water, & ! thermal conductivity of water (J s-1 m-1)
+                    Tfreeze         ! freezing point of pure water         (K)
 
 ! missing values
-USE globalData,only:integerMissing ! missing integer
-USE globalData,only:realMissing    ! missing real number
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
 
 ! named variables that define the layer type
-USE globalData,only:iname_snow     ! snow
-USE globalData,only:iname_soil     ! soil
+USE globalData,only:iname_snow      ! named variables for snow
+USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_glce      ! named variables for glacier ice
+USE globalData,only:iname_lake      ! named variables for lake
 
 ! named variables
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -117,6 +119,7 @@ contains
  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
  ! input: coordinate variables
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
+ nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in): number of lake layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
  layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
  mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
@@ -145,26 +148,26 @@ contains
  ! loop through layers
  do iLayer=1,nLayers
 
-  ! get the soil layer
-  if(iLayer>nSnow) iSoil = iLayer-nSnow
+   ! get the soil layer
+   if(iLayer>nSnow+nLake) iSoil = iLayer-nSnow-nLake
 
-  ! compute the thermal conductivity of dry and wet soils (W m-1)
-  ! NOTE: this is actually constant over the simulation, and included here for clarity
-  if(ixThCondSoil == funcSoilWet .and. layerType(iLayer)==iname_soil)then
-   bulkden_soil   = iden_soil(iSoil)*( 1._rkind - theta_sat(iSoil) )
-   lambda_drysoil = (0.135_rkind*bulkden_soil + 64.7_rkind) / (iden_soil(iSoil) - 0.947_rkind*bulkden_soil)
-   lambda_wetsoil = (8.80_rkind*frac_sand(iSoil) + 2.92_rkind*frac_clay(iSoil)) / (frac_sand(iSoil) + frac_clay(iSoil))
-  end if
+   ! compute the thermal conductivity of dry and wet soils (W m-1)
+   ! NOTE: this is actually constant over the simulation, and included here for clarity
+   if(ixThCondSoil == funcSoilWet .and. layerType(iLayer)==iname_soil)then
+     bulkden_soil   = iden_soil(iSoil)*( 1._rkind - theta_sat(iSoil) )
+     lambda_drysoil = (0.135_rkind*bulkden_soil + 64.7_rkind) / (iden_soil(iSoil) - 0.947_rkind*bulkden_soil)
+     lambda_wetsoil = (8.80_rkind*frac_sand(iSoil) + 2.92_rkind*frac_clay(iSoil)) / (frac_sand(iSoil) + frac_clay(iSoil))
+   end if
 
-  ! * compute the volumetric fraction of air in each layer...
-  select case(layerType(iLayer))
-   case(iname_soil); mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-   case(iname_snow); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
-  end select
+   ! * compute the volumetric fraction of air in each layer...
+   select case(layerType(iLayer))
+     case(iname_soil);                         mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+     case(iname_snow, iname_lake, iname_glce); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+     case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
+   end select
 
   ! *****
-  ! * compute the thermal conductivity of snow and soil at the mid-point of each layer...
+  ! * compute the thermal conductivity at the mid-point of each layer...
   ! *************************************************************************************
   select case(layerType(iLayer))
 
@@ -216,6 +219,11 @@ contains
                        err,cmessage)                         ! output: error control
        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
      endif
+
+     case(iname_lake, iname_glce)
+       mLayerThermalC(iLayer) = lambda_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                lambda_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                lambda_air   * mLayerVolFracAir(iLayer)         ! air component
 
      ! * error check
      case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
@@ -279,7 +287,7 @@ subroutine thermConductivity(&
                     mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)                 
                     mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                     mLayerdTheta_dPsi,       & ! intent(in):    derivative in volumetric liquid water content w.r.t. liquid matric potential (m-1)
-                    mLayerFracLiqSnow,       & ! intent(in):    fraction of liquid water (-)
+                    mLayerFracLiq,           & ! intent(in):    fraction of liquid water (-)
                     ! input/output: derivatives
                     dThermalC_dWatAbove,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
                     dThermalC_dWatBelow,     & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer below
@@ -295,7 +303,7 @@ subroutine thermConductivity(&
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: model state variables
-  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the snow+soil domain
+  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the layer domain
   logical,intent(in)                   :: scalarSolution           ! flag to indicate the scalar solution
   real(rkind),intent(in)               :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the current iteration (-)
   real(rkind),intent(in)               :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid at the current iteration (-)
@@ -309,7 +317,7 @@ subroutine thermConductivity(&
   real(rkind),intent(in)               :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
   real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind),intent(in)               :: mLayerdTheta_dPsi(:)     ! derivative in volumetric liquid water content w.r.t. liquid matric potential (m-1)
-  real(rkind),intent(in)               :: mLayerFracLiqSnow(:)     ! fraction of liquid water (-)
+  real(rkind),intent(in)               :: mLayerFracLiq(:)         ! fraction of liquid water (-)
   ! input/output: derivatives
   real(rkind),intent(inout)            :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
   real(rkind),intent(inout)            :: dThermalC_dWatBelow(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -368,12 +376,13 @@ subroutine thermConductivity(&
     ! input: coordinate variables
     ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1),                 & ! intent(in):  [i4b]   index of canopy air space energy state variable
     ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1),                 & ! intent(in):  [i4b]   index of canopy energy state variable
-    ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1),                 & ! intent(in):  [i4b]   index of upper-most energy state in the snow+soil subdomain
+    ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1),                 & ! intent(in):  [i4b]   index of upper-most energy state in the layer subdomain
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in):  [dp]    number of snow layers
-    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg)%dat(1),             & ! intent(in):  [i4b]   number of energy state variables in the snow+soil domain
+    nLake                   => indx_data%var(iLookINDEX%nLake)%dat(1),                    & ! intent(in):  [dp]    number of lake layers
+    nSnLaSoGlNrg            => indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1),             & ! intent(in):  [i4b]   number of energy state variables in the layer domains
     layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in):  [dp(:)] layer type (iname_soil or iname_snow)
     ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,                & ! intent(in):  [i4b(:)]list of indices for all model layers
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,               & ! intent(in):  [i4b]   index in the state subset for energy state variables in the snow+soil domain
+    ixSnLaSoGlNrg           => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat,               & ! intent(in):  [i4b]   index in the state subset for energy state variables in the layer domains
     mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the mid-point of each layer (m)
     iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the interface of each layer (m)
     ! input: heat capacity and thermal conductivity
@@ -389,8 +398,6 @@ subroutine thermConductivity(&
     vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat,                       & ! intent(in):  [dp(:)] van Genutchen "n" parameter (-)
     vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat,                   & ! intent(in):  [dp(:)] van Genutchen "alpha" parameter (m-1)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat,                   & ! intent(in):  [dp(:)] soil residual volumetric water content (-)
-    ! input: snow parameters
-    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),            & ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
     ! input/output: diagnostic variables and derivatives (diagnostic as may be treated as constant)
     mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(inout): [dp(:)] thermal conductivity at the mid-point of each layer (W m-1 K-1)
     iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(inout): [dp(:)] thermal conductivity at the interface of each layer (W m-1 K-1)
@@ -400,11 +407,11 @@ subroutine thermConductivity(&
     ! initialize error control
     err=0; message="thermConductivity/"
 
-    ! get the indices for the snow+soil layers
+    ! get the indices for the layers
     doVegNrgFlux = (ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing)
-    if (nSnowSoilNrg>0) then
+    if (nSnLaSoGlNrg>0) then
       if (scalarSolution) then
-        ixLayerDesired = pack(ixLayerState, ixSnowSoilNrg/=integerMissing)
+        ixLayerDesired = pack(ixLayerState, ixSnLaSoGlNrg/=integerMissing)
         ixTop = ixLayerDesired(1)
         ixBot = ixLayerDesired(1)
       else
@@ -414,7 +421,7 @@ subroutine thermConductivity(&
     elseif (doVegNrgFlux) then ! need top interface, potentially from top layer
       ixTop = 1
       ixBot = 1
-    else ! if not computing fluxes over vegetation and no energy state variables in the snow+soil domain, then we don't need to compute thermal conductivity      
+    else ! if not computing fluxes over vegetation and no energy state variables in the layer domain, then we don't need to compute thermal conductivity      
       return
     endif
 
@@ -425,7 +432,7 @@ subroutine thermConductivity(&
     do iLayer=ixTop,ixBot
 
       ! get the soil layer
-      if(iLayer>nSnow) iSoil = iLayer-nSnow
+      if(iLayer>nSnow+nLake) iSoil = iLayer-nSnow-nLake
 
       ! compute the thermal conductivity of dry and wet soils (W m-1)
       ! NOTE: this is actually constant over the simulation, and included here for clarity
@@ -438,13 +445,13 @@ subroutine thermConductivity(&
       ! * compute the volumetric fraction of air in each layer...
   
       select case(layerType(iLayer))
-        case(iname_soil); mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-        case(iname_snow); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-        case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
+        case(iname_soil);                         mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+        case(iname_snow, iname_lake, iname_glce); mLayerVolFracAir(iLayer) = 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+        case default; err=20; message=trim(message)//'unable to identify type of layer to compute volumetric fraction of air'; return
       end select
 
       ! *****
-      ! * compute the thermal conductivity of snow and soil and derivatives at the mid-point of each layer...
+      ! * compute the thermal conductivity and derivatives at the mid-point of each layer...
       ! ***************************************************************************************************
       dThermalC_dWat(iLayer) = 0._rkind
       dThermalC_dNrg(iLayer) = 0._rkind
@@ -517,7 +524,7 @@ subroutine thermConductivity(&
           end select  ! option for the thermal conductivity of soil
 
         case(iname_snow)
-          dVolFracIce_dWat = ( 1._rkind - mLayerFracLiqSnow(iLayer) )*(iden_water/iden_ice)
+          dVolFracIce_dWat = ( 1._rkind - mLayerFracLiq(iLayer) )*(iden_water/iden_ice)
           dVolFracIce_dTk = -mLayerdTheta_dTk(iLayer)*(iden_water/iden_ice)
 
           ! temporally constant thermal conductivity, derivatives are zero
@@ -542,8 +549,25 @@ subroutine thermConductivity(&
             end select  ! option for the thermal conductivity of snow
           end if
 
+        case(iname_lake, iname_glce)
+          if (mLayerTemp(iLayer) < Tfreeze) then
+            dVolFracIce_dWat = ( 1._rkind - mLayerFracLiq(iLayer) )*(iden_water/iden_ice)
+            dVolFracIce_dTk  = -mLayerdTheta_dTk(iLayer)*(iden_water/iden_ice)
+          else
+            dVolFracIce_dWat = 0._rkind
+            dVolFracIce_dTk  = 0._rkind
+          end if
+          dVolFracLiq_dWat = mLayerFracLiq(iLayer)
+          dVolFracLiq_dTk  = mLayerdTheta_dTk(iLayer)
+          mLayerThermalC(iLayer) = lambda_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                   lambda_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                   lambda_air   * mLayerVolFracAir(iLayer)         ! air component
+          ! compute derivatives
+          dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_water*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
+          dThermalC_dNrg(iLayer) = (lambda_ice - lambda_water) * dVolFracIce_dTk
+
         ! * error check
-        case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute thermal conductivity'; return
+        case default; err=20; message=trim(message)//'unable to identify type of layer to compute thermal conductivity'; return
       end select
 
     end do  ! looping through layers

@@ -108,7 +108,7 @@ contains
 
  ! *****
  ! * check soil parameter dependencies...
- ! theta_res < critSoilWilting < critSoilTranspire < fieldCapacit < theta_sat
+ ! theta_res < critSoilWilting < critSoilTranspire < fieldCapacity < theta_sat
  ! *********************************
 
  ! associations
@@ -137,7 +137,7 @@ contains
   print*, 'theta_sat         = ', theta_sat
   print*, 'critSoilTranspire = ', critSoilTranspire
   message=trim(message)//'critSoilTranspire parameter is out of range '// &
-                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
   err=20; return
  end if
 
@@ -147,7 +147,7 @@ contains
   print*, 'theta_sat       = ', theta_sat
   print*, 'critSoilWilting = ', critSoilWilting
   message=trim(message)//'critSoilWilting parameter is out of range '// &
-                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
   err=20; return
  end if
 
@@ -157,7 +157,7 @@ contains
   print*, 'theta_sat     = ', theta_sat
   print*, 'fieldCapacity = ', fieldCapacity
   message=trim(message)//'fieldCapacity parameter is out of range '// &
-                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial, must overwrite all soil parameters]'
+                         '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
   err=20; return
  end if
 

@@ -10,6 +10,7 @@ import os
 from glob import glob
 import netCDF4 as nc
 import numpy as np
+import sys
 
 catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
 
@@ -17,18 +18,16 @@ missing = False # if appending nan hrus to batch because failed
 missgru = 72055933 # batch 205 summa-be32 value
 misshru = missgru  # could be different
 
-run_local = False
-if run_local:
-    top_fold = '/Users/amedin/Research/USask/test_py/'
-    method_name = 'sundials_1en8'
-else:
-    import multiprocessing as mp
-    import sys
+run_batch = False # run by batch
+if run_batch:
     top_fold    = '/home/avanb/scratch/'
-    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
+else: # run with python parallel processing
+    import multiprocessing as mp
+    top_fold    = '/home/avanb/scratch/'
 
+method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
 ncdir        = top_fold + 'summa-' + method_name + '_nocat'
-file_pattern = 'run1_G*_timestep.nc'
+file_pattern = 'run1__G*_timestep.nc'
 ctdir        = top_fold + 'summa-' + method_name
 
 # get list of split summa output files (hardwired pattern)
@@ -40,9 +39,9 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
     outfilelist = outfilelist0[(catby_num*g):(catby_num*(g+1))]
     gru_num = 0
     hru_num = 0
-    subset0 = outfilelist[0].split('/')[-1].split('_')[1]
-    subset1 = outfilelist[-1].split('/')[-1].split('_')[1]
-    out_name = 'run1_'+subset0[0:7]+subset1[7:14]+'_timestep.nc' # will fail if GRU numbers are more than 6 digits
+    subset0 = outfilelist[0].split('/')[-1].split('_')[-2]
+    subset1 = outfilelist[-1].split('/')[-1].split('_')[-2]
+    out_name = 'run1__'+subset0[0:7]+subset1[7:14]+'_timestep.nc' # will fail if GRU numbers are more than 6 digits
 
     for file in outfilelist:
         f = nc.Dataset(file)
@@ -136,8 +135,7 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
     return #nothing
 # -- end functions
 
-
-if run_local:
+if run_batch:
     # -- no parallel processing
     for g in range(0,int(len(outfilelist0)/catby_num)):
         get_stat(g,catby_num,outfilelist0,ctdir)

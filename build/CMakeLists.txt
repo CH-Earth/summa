@@ -167,7 +167,7 @@ set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${DRIVER})
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 if (USE_NEXTGEN)
-    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_NEXTGEN})
+    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_BMI})
 endif()
 
 if (USE_SUNDIALS)
@@ -183,7 +183,6 @@ if (USE_OPENWQ)
     set(SUMMA_ALL ${SUMMA_ALL} ${OPENWQ_COUPLER})
     list(APPEND EXT_TARGETS openWQ)
 endif ()
-
 
 # Define version number
 set(VERSIONFILE     ${DRIVER_DIR}/summaversion.inc)

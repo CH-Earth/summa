@@ -19,7 +19,9 @@ type data4ida
   type(c_ptr)                     :: ida_mem                         ! IDA memory
   real(rkind)                     :: dt                              ! data step
   integer(i4b)                    :: nSnow                           ! number of snow layers
+  integer(i4b)                    :: nLake                           ! number of lake layers
   integer(i4b)                    :: nSoil                           ! number of soil layers
+  integer(i4b)                    :: nGlce                           ! number of glacier ice layers
   integer(i4b)                    :: nLayers                         ! total number of layers
   integer(i4b)                    :: nState                          ! total number of state variables
   integer(i4b)                    :: ixMatrix                        ! form of matrix (dense or banded)
@@ -31,8 +33,7 @@ type data4ida
   type(model_options),allocatable :: model_decisions(:)              ! model decisions
   type(zLookup)                   :: lookup_data                     ! lookup tables
   type(var_i)                     :: type_data                       ! type of vegetation and soil
-  type(var_d)                     :: attr_data                       ! spatial attributes
-  type(var_dlength)               :: mpar_data                       ! model parameters
+   type(var_dlength)              :: mpar_data                       ! model parameters
   type(var_d)                     :: forc_data                       ! model forcing data
   type(var_dlength)               :: bvar_data                       ! model variables for the local basin
   type(var_dlength)               :: prog_data                       ! prognostic variables for a local HRU
@@ -62,9 +63,9 @@ type data4ida
   real(rkind), allocatable        :: mLayerMatricHeadTrial(:)        ! trial value for total water matric potential (m)
   real(rkind)                     :: scalarCanopyTempPrime           ! prime value for temperature of the vegetation canopy (K s-1)
   real(rkind)                     :: scalarCanopyWatPrime            ! prime value for mass of total water on the vegetation canopy (kg m-2 s-1)
-  real(rkind), allocatable        :: mLayerTempPrime(:)              ! prime vector of temperature of each snow and soil layer (K s-1)
-  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)        ! prime vector of matric head of each snow and soil layer (m s-1)
-  real(rkind), allocatable        :: mLayerVolFracWatPrime(:)        ! prime vector of volumetric total water content of each snow and soil layer (s-1)
+  real(rkind), allocatable        :: mLayerTempPrime(:)              ! prime vector of temperature of each layer (K s-1)
+  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)        ! prime vector of matric head of each layer (m s-1)
+  real(rkind), allocatable        :: mLayerVolFracWatPrime(:)        ! prime vector of volumetric total water content of each layer (s-1)
  end type data4ida
 
 

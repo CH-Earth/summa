@@ -18,183 +18,100 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module allocspace_progStuct_module
+module allocspace_progStruct_module
 
   ! data types
   USE nr_type
-  
-  ! provide access to the derived types to define the data structures
-  USE data_types,only:&
-                      ! final data vectors
-                      dlength,             & ! var%dat
-                      ilength,             & ! var%dat
-                      ! no spatial dimension
-                      var_i,               & ! x%var(:)            (i4b)
-                      var_i8,              & ! x%var(:)            (i8b)
-                      var_d,               & ! x%var(:)            (dp)
-                      var_flagVec,         & ! x%var(:)%dat        (logical)
-                      var_ilength,         & ! x%var(:)%dat        (i4b)
-                      var_dlength,         & ! x%var(:)%dat        (dp)
-                      ! gru dimension
-                      gru_int,             & ! x%gru(:)%var(:)     (i4b)
-                      gru_int8,            & ! x%gru(:)%var(:)     (i8b)
-                      gru_double,          & ! x%gru(:)%var(:)     (dp)
-                      gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
-                      gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
-                      ! gru+hru dimension
-                      gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
-                      gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     (i8b)
-                      gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
-                      gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                      gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
-  
+
+  ! provide access to the derived type used for the openWQ start-of-timestep snapshot
+  USE data_types,only:gru_hru_dom_doubleVec   ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (dp)
+
   ! metadata structure
-  USE data_types,only:var_info               ! data type for metadata
-  
-  ! access missing values
-  USE globalData,only:integerMissing         ! missing integer
-  USE globalData,only:realMissing            ! missing real number
-  
-  USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
-  USE globalData,only:nSpecBand              ! number of spectral bands
-  
+  USE data_types,only:var_info                ! data type for metadata
+
   ! privacy
   implicit none
   private
   public::allocGlobal_progStruct
 
-  
   ! -----------------------------------------------------------------------------------------------------------------------------------
   contains
  ! ************************************************************************************************
  ! public subroutine allocGlobal_progStruct: allocate space for progStruct_timestep_start
- ! Modified copy of the subroutine allocGlobal() from allocspace.f90 specificly for allocating
- ! the array progStruct_timestep_start 
+ ! Modified copy of the subroutine allocGlobal() from allocspace.f90, specialized for allocating
+ ! the array progStruct_timestep_start used by the openWQ coupling.
+ !
+ ! It differs from allocGlobal in two ways:
+ !   1) it only ever handles the gru_hru_dom_doubleVec data structure (progStruct), and
+ !   2) the number of snow layers is forced to nSnow (= maxSnowLayers) for every domain so that
+ !      the snapshot buffer is large enough to hold the state at the start of the timestep even
+ !      after the physics adds snow layers during the step.
+ !
+ ! The spatial layout mirrors the "spatial domain" data structures used throughout SummaSundials:
+ ! every HRU is subdivided into one or more domains (upland, glacier, wetland, ...), each with its
+ ! own layer stack, hence the gru -> hru -> dom -> var -> dat nesting.
  ! ************************************************************************************************
   subroutine allocGlobal_progStruct(metaStruct,dataStruct,nSnow,err,message)
-    ! NOTE: safety -- ensure only used in allocGlobal
-    USE globalData,only: gru_struc     ! gru-hru mapping structures
-    USE allocspace_module, only:allocLocal
+    ! NOTE: safety -- ensure only used for the openWQ progStruct snapshot
+    USE globalData,only: gru_struc            ! gru-hru-dom mapping structures
+    USE allocspace_module,only:allocLocal
     implicit none
     ! input
-    type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
-    integer(i4b),intent(in)         :: nSnow
+    type(var_info),intent(in)             :: metaStruct(:)  ! metadata structure
+    integer(i4b),intent(in)               :: nSnow          ! forced (maximum) number of snow layers for the snapshot buffer
     ! output
-    class(*),intent(out)            :: dataStruct     ! data structure
-    integer(i4b),intent(out)        :: err            ! error code
-    character(*),intent(out)        :: message        ! error message
+    type(gru_hru_dom_doubleVec),intent(inout) :: dataStruct ! data structure
+    integer(i4b),intent(out)              :: err            ! error code
+    character(*),intent(out)              :: message        ! error message
     ! local variables
-    logical(lgt)                    :: check          ! .true. if structure is already allocated
-    integer(i4b)                    :: iHRU           ! loop index through HRUs
-    integer(i4b)                    :: iGRU           ! loop index through GRUs
-    integer(i4b)                    :: nGRU           ! number of GRUs
-    logical(lgt)                    :: spatial        ! spatial flag
-    character(len=256)              :: cmessage       ! error message of the downwind routine
+    integer(i4b)                          :: iHRU           ! loop index through HRUs
+    integer(i4b)                          :: iGRU           ! loop index through GRUs
+    integer(i4b)                          :: iDOM           ! loop index through domains
+    integer(i4b)                          :: nGRU           ! number of GRUs
+    character(len=256)                    :: cmessage       ! error message of the downwind routine
     ! initialize error control
     err=0; message='allocGlobal_progStruct/'
-    ! initialize allocation check
-    check=.false.
-   
+
     ! get the number of GRUs
     nGRU = size(gru_struc)
-   
+
     ! * allocate GRU dimension
-    select type(dataStruct)
-     ! gru dimension only
-     class is (gru_int);           if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     class is (gru_int8);          if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     class is (gru_intVec);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     class is (gru_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     class is (gru_doubleVec);     if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     ! gru+hru dimensions
-     class is (gru_hru_int);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     class is (gru_hru_int8);      if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     class is (gru_hru_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     class is (gru_hru_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-     class is (gru_hru_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-    end select
-   
-    ! check errors
-    if(check) then; err=20; message=trim(message)//'GRU structure was unexpectedly allocated already'; return; end if
+    if(allocated(dataStruct%gru))then
+      err=20; message=trim(message)//'GRU dimension was unexpectedly allocated already'; return
+    end if
+    allocate(dataStruct%gru(nGRU),stat=err)
     if(err/=0)then; err=20; message=trim(message)//'problem allocating GRU dimension'; return; end if
-   
-    ! * allocate HRU dimension
+
+    ! * allocate HRU, DOM and local (variable) dimensions
     do iGRU=1,nGRU
-     ! allocate the HRU dimension
-     select type(dataStruct)
-      class is (gru_hru_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-      class is (gru_hru_int8);      if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-      class is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-      class is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-      class is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-      class default  ! do nothing: It is acceptable to not be any of these specified cases
-     end select
-     ! check errors
-     if(check) then; err=20; message=trim(message)//'HRU structure was unexpectedly allocated already'; return; end if
-     if(err/=0)then; err=20; message=trim(message)//'problem allocating HRU dimension'; return; end if
-    end do
-   
-    ! * allocate local data structures where there is a spatial dimension
-    gruLoop: do iGRU=1,nGRU
-   
-     ! initialize the spatial flag
-     spatial=.false.
-   
-     ! loop through HRUs
-     hruLoop: do iHRU=1,gru_struc(iGRU)%hruCount
-   
-      ! get the number of snow and soil layers
-      associate(&
-      ! nSnow => gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! number of snow layers for each HRU
-      nSoil => gru_struc(iGRU)%hruInfo(iHRU)%nSoil  ) ! number of soil layers for each HRU
-   
-      ! allocate space for structures WITH an HRU dimension
-      select type(dataStruct)
-       class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-       class is (gru_hru_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-       class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-       class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-       class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-       class default; exit hruLoop
-      end select
-   
-      ! error check
-      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-   
-      ! end association to info in data structures
-      end associate
-   
-     end do hruLoop ! loop through HRUs
-   
-     ! allocate space for structures *WITHOUT* an HRU dimension
-     select type(dataStruct)
-      class is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
-      class is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
-      class default
-       if(.not.spatial) exit gruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
-       cycle gruLoop  ! can have an HRU dimension if we get to here
-     end select
-   
-     ! error check
-     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-   
-    end do gruLoop ! loop through GRUs
-   
-    ! * allocate local data structures where there is no spatial dimension
-    select type(dataStruct)
-     class is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-     class is (var_i8);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-     class is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-     class is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-     class is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-     ! check identified the data type
-     class default; if(.not.spatial)then; err=20; message=trim(message)//'unable to identify derived data type'; return; end if
-    end select
-   
-    ! error check
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-   
+
+      allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err)
+      if(err/=0)then; err=20; message=trim(message)//'problem allocating HRU dimension'; return; end if
+
+      do iHRU=1,gru_struc(iGRU)%hruCount
+
+        allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err)
+        if(err/=0)then; err=20; message=trim(message)//'problem allocating DOM dimension'; return; end if
+
+        do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+
+          ! get the number of lake, soil and glacier ice layers for this domain
+          ! (snow layers are forced to nSnow because they vary through the timestep)
+          associate(&
+          nLake => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake, & ! number of lake layers for this domain
+          nSoil => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil, & ! number of soil layers for this domain
+          nGlce => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce  ) ! number of glacier ice layers for this domain
+
+          call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM), &
+                          nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err=err,message=cmessage)
+          if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+          end associate
+
+        end do ! loop through domains
+      end do ! loop through HRUs
+    end do ! loop through GRUs
+
   end subroutine allocGlobal_progStruct
-  
-end module allocspace_progStuct_module
-  
+
+end module allocspace_progStruct_module

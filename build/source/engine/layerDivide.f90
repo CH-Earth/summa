@@ -28,9 +28,11 @@ USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
                     iden_water        ! intrinsic density of liquid water    (kg m-3)
 
-! access named variables for snow and soil
+! access named variables for layers
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
+USE globalData,only:iname_glce        ! named variables for glacier ice
+USE globalData,only:iname_lake        ! named variables for lake
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -41,7 +43,6 @@ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
                     var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
@@ -82,6 +83,8 @@ contains
  ! ***********************************************************************************************************
  subroutine layerDivide(&
                         ! input/output: model data structures
+                        doGlac,                          & ! intent(in):    flag to denote if we are dividing glacier ice layers
+                        maxLayers,                       & ! intent(in):    maximum number of snow/firn/ice layers
                         model_decisions,                 & ! intent(in):    model decisions
                         mpar_data,                       & ! intent(in):    model parameters
                         indx_data,                       & ! intent(inout): type of each layer
@@ -95,44 +98,50 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! computational modules
  USE snow_utils_module,only:fracliquid,templiquid          ! functions to compute temperature/liquid water
- USE globalData,only:maxSnowLayers, &                      ! maximum number of snow layers
-                     veryBig
+ USE globalData,only:veryBig
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
- type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
- type(var_dlength),intent(in)    :: mpar_data              ! model parameters
- type(var_ilength),intent(inout) :: indx_data              ! type of each layer
- type(var_dlength),intent(inout) :: prog_data              ! model prognostic variables for a local HRU
- type(var_dlength),intent(inout) :: diag_data              ! model diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data              ! model flux variables
+ logical(lgt),intent(in)            :: doGlac                 ! flag to denote if we are dividing glacier ice layers
+ integer(i4b),intent(in)            :: maxLayers              ! maximum number of snow/firn/ice layers
+ type(model_options),intent(in)     :: model_decisions(:)     ! model decisions
+ type(var_dlength),intent(in)       :: mpar_data              ! model parameters
+ type(var_ilength),intent(inout)    :: indx_data              ! type of each layer
+ type(var_dlength),intent(inout)    :: prog_data              ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout)    :: diag_data              ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout)    :: flux_data              ! model flux variables
  ! output
- logical(lgt),intent(out)        :: divideLayer            ! flag to denote that a layer was divided
- integer(i4b),intent(out)        :: err                    ! error code
- character(*),intent(out)        :: message                ! error message
+ logical(lgt),intent(out)           :: divideLayer            ! flag to denote that a layer was divided
+ integer(i4b),intent(out)           :: err                    ! error code
+ character(*),intent(out)           :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
- character(LEN=256)              :: cmessage               ! error message of downwind routine
- integer(i4b)                    :: nSnow                  ! number of snow layers
- integer(i4b)                    :: nSoil                  ! number of soil layers
- integer(i4b)                    :: nLayers                ! total number of layers
- integer(i4b)                    :: iLayer                 ! layer index
- integer(i4b)                    :: jLayer                 ! layer index
- real(rkind),dimension(4)        :: zmax_lower             ! lower value of maximum layer depth
- real(rkind),dimension(4)        :: zmax_upper             ! upper value of maximum layer depth
- real(rkind)                     :: zmaxCheck              ! value of zmax for a given snow layer
- integer(i4b)                    :: nCheck                 ! number of layers to check to divide
- logical(lgt)                    :: createLayer            ! flag to indicate we are creating a new snow layer
- real(rkind)                     :: depthOriginal          ! original layer depth before sub-division (m)
- real(rkind),parameter           :: fracTop=0.5_rkind      ! fraction of old layer used for the top layer
- real(rkind)                     :: surfaceLayerSoilTemp   ! temperature of the top soil layer (K)
- real(rkind)                     :: maxFrozenSnowTemp      ! maximum temperature when effectively all water is frozen (K)
- real(rkind),parameter           :: unfrozenLiq=0.01_rkind ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
- real(rkind)                     :: volFracWater           ! volumetric fraction of total water, liquid and ice (-)
- real(rkind)                     :: fracLiq                ! fraction of liquid water (-)
- integer(i4b),parameter          :: ixVisible=1            ! named variable to define index in array of visible part of the spectrum
- integer(i4b),parameter          :: ixNearIR=2             ! named variable to define index in array of near IR part of the spectrum
- real(rkind),parameter           :: snowDepthTol=1.e-10_rkind ! tolerance for the snow depth difference (m)
+ character(LEN=256)                 :: cmessage               ! error message of downwind routine
+ integer(i4b)                       :: nSnow                  ! number of snow layers
+ integer(i4b)                       :: nLake                  ! number of lake layers
+ integer(i4b)                       :: nSoil                  ! number of soil layers
+ integer(i4b)                       :: nGlce                  ! number of glacier ice layers
+ integer(i4b)                       :: nDivLayers             ! number of layers to divide
+ integer(i4b)                       :: nLayers                ! total number of layers
+ integer(i4b)                       :: iLayer                 ! layer index
+ integer(i4b)                       :: jLayer                 ! layer index
+ real(rkind),dimension(maxLayers-1) :: zmax_lower             ! lower value of maximum layer depth
+ real(rkind),dimension(maxLayers-1) :: zmax_upper             ! upper value of maximum layer depth
+ real(rkind),dimension(4)           :: zmax_lower_param       ! lower value of maximum layer depth (m) that has been set in the model parameters
+ real(rkind),dimension(4)           :: zmax_upper_param       ! upper value of maximum layer depth (m) that has been set in the model parameters
+ real(rkind)                        :: zmaxCheck              ! value of zmax for a given snow layer
+ integer(i4b)                       :: nCheck                 ! number of layers to check to divide
+ logical(lgt)                       :: createLayer            ! flag to indicate we are creating a new snow layer
+ real(rkind)                        :: depthOriginal          ! original layer depth before sub-division (m)
+ real(rkind),parameter              :: fracTop=0.5_rkind      ! fraction of old layer used for the top layer
+ real(rkind)                        :: surfaceLayerSoilTemp   ! temperature of the top soil layer (K)
+ real(rkind)                        :: maxFrozenSnowTemp      ! maximum temperature when effectively all water is frozen (K)
+ real(rkind),parameter              :: unfrozenLiq=0.01_rkind ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
+ real(rkind)                        :: volFracWater           ! volumetric fraction of total water, liquid and ice (-)
+ real(rkind)                        :: fracLiq                ! fraction of liquid water (-)
+ integer(i4b),parameter             :: ixVisible=1            ! named variable to define index in array of visible part of the spectrum
+ integer(i4b),parameter             :: ixNearIR=2             ! named variable to define index in array of near IR part of the spectrum
+ real(rkind),parameter              :: snowDepthTol=1.e-10_rkind ! tolerance for the snow depth difference (m)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -141,8 +150,9 @@ contains
  associate(&
  ! model decisions
  ix_snowLayers          => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
+ noThetaChange          => indx_data%var(iLookINDEX%noThetaChange)%dat(1),       & ! number of layers with no change in total water content (bottom layers)
  ! model parameters (compute layer temperature)
- fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),       & ! freezing curve parameter for snow (K-1)
+ snowfrz_scale          => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),       & ! freezing curve parameter for snow (K-1)
  ! model parameters (new snow density)
  newSnowDenMin          => mpar_data%var(iLookPARAM%newSnowDenMin)%dat(1),       & ! minimum new snow density (kg m-3)
  newSnowDenMult         => mpar_data%var(iLookPARAM%newSnowDenMult)%dat(1),      & ! multiplier for new snow density (kg m-3)
@@ -167,20 +177,40 @@ contains
 
  ! ---------------------------------------------------------------------------------------------------
 
+ ! initialize the number of snow layers
+ nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
+ nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
+ nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+
+ ! number of layers possible to divide
+ if(doGlac)then
+   nDivLayers = nGlce-noThetaChange
+ else
+   nDivLayers = nSnow
+ end if
+
  ! initialize flag to denote that a layer was divided
  divideLayer=.false.
 
- ! identify algorithmic control parameters to syb-divide and combine snow layers
- zmax_lower = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
- zmax_upper = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
+ ! identify algorithmic control parameters to sub-divide and combine layers
+ zmax_lower_param = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
+ zmax_upper_param = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
+ if(maxLayers <= 5)then ! generalize the above parameters to the number of layers
+   zmax_lower = zmax_lower_param(1:maxLayers-1)
+   zmax_upper = zmax_upper_param(1:maxLayers-1)
+ else
+   zmax_lower(1:4) = zmax_lower_param
+   zmax_upper(1:4) = zmax_upper_param
+   do iLayer=5,maxLayers-1
+     zmax_lower(iLayer) = zmax_lower(iLayer-1)*2._rkind
+     zmax_upper(iLayer) = zmax_upper(iLayer-1)*2._rkind
+   end do
+  end if
 
- ! initialize the number of snow layers
- nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
- nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
- nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
-
- ! ***** special case of no snow layers
- if(nSnow==0)then
+ ! ***** special case of no snow layers to divide
+ if(nSnow==0 .and. .not.doGlac)then
 
   ! check if create the first snow layer
   select case(ix_snowLayers)
@@ -197,10 +227,10 @@ contains
 
    ! add a layer to all model variables
    iLayer=0 ! (layer to divide: 0 is the special case of "snow without a layer")
-   call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! associate local variables to the information in the data structures
    ! NOTE: need to do this here, since state vectors have just been modified
@@ -218,11 +248,11 @@ contains
 
    ! compute surface layer temperature
    surfaceLayerSoilTemp = mLayerTemp(2)    ! temperature of the top soil layer (K)
-   maxFrozenSnowTemp    = templiquid(unfrozenLiq,fc_param)               ! snow temperature at fraction "unfrozenLiq" (K)
+   maxFrozenSnowTemp    = templiquid(unfrozenLiq,snowfrz_scale)          ! snow temperature at fraction "unfrozenLiq" (K)
    mLayerTemp(1)        = min(maxFrozenSnowTemp,surfaceLayerSoilTemp)    ! snow temperature  (K)
 
    ! compute the fraction of liquid water associated with the layer temperature
-   fracLiq = fracliquid(mLayerTemp(1),fc_param)
+   fracLiq = fracliquid(mLayerTemp(1),snowfrz_scale)
 
    ! compute volumeteric fraction of liquid water and ice
    volFracWater = (scalarSWE/scalarSnowDepth)/iden_water  ! volumetric fraction of total water (liquid and ice)
@@ -258,32 +288,41 @@ contains
  ! ********************************************************************************************************************
  ! ********************************************************************************************************************
 
- ! ***** sub-divide snow layers, if necessary
- else ! if nSnow>0
+ ! ***** sub-divide layers, if necessary
+ elseif (nDivLayers>0) then
 
   ! identify the number of layers to check for need for sub-division
-  nCheck = min(nSnow, maxSnowLayers-1) ! the depth of the last layer, if it exists, does not have a maximum value
+  nCheck = min(nDivLayers, maxLayers-1) ! the depth of the last layer, if it exists, does not have a maximum value
   ! loop through all layers, and sub-divide a given layer, if necessary
   do iLayer=1,nCheck
    divideLayer=.false.
 
-   ! identify the maximum depth of the layer
-   select case(ix_snowLayers)
-    case(sameRulesAllLayers)
-     if (nCheck >= maxSnowLayers-1) then
-      ! make sure we don't divide so make very big
-      zmaxCheck = veryBig
+   ! if dividing glacier ice layers, force division of the top layer only
+   if (doGlac)then 
+     if(iLayer==1)then
+       zMaxCheck = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)
      else
-      zmaxCheck = zmax
+       zMaxCheck = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)+1._rkind 
      end if
-    case(rulesDependLayerIndex)
-     if(iLayer == nSnow)then
-      zmaxCheck = zmax_lower(iLayer)
-     else
-      zmaxCheck = zmax_upper(iLayer)
-     end if
-    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
-   end select ! (option to combine/sub-divide snow layers)
+   else ! (dividing snow layers)
+     ! identify the maximum depth of the layer
+     select case(ix_snowLayers)
+      case(sameRulesAllLayers)
+       if (nCheck >= maxLayers-1) then
+        ! make sure we don't divide so make very big
+        zmaxCheck = veryBig
+       else
+        zmaxCheck = zmax
+       end if
+      case(rulesDependLayerIndex)
+       if(iLayer == nDivLayers)then
+        zmaxCheck = zmax_lower(iLayer)
+       else
+        zmaxCheck = zmax_upper(iLayer)
+       end if
+      case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+     end select ! (option to combine/sub-divide snow layers)
+   end if  ! (if dividing glacier ice layers)
 
    ! check the need to sub-divide
    if(prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) > zmaxCheck)then
@@ -292,10 +331,10 @@ contains
     divideLayer=.true.
 
     ! add a layer to all model variables
-    call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(prog_data,prog_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(diag_data,diag_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(flux_data,flux_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(indx_data,indx_meta,iLayer,nDivLayers,nLayers,doGlac,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! define the layer depth
     layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
@@ -309,8 +348,11 @@ contains
    end if   ! (if sub-dividing layer)
 
   end do  ! (looping through layers)
-
- end if  ! if nSnow==0
+ else ! (if nGlce==0 and. doGlac==.true)
+  ! no layers to divide, so set divideLayer to false
+   message=trim(message)//'cannot divide glacier ice layers if melted all top ice layers'
+   err=20; return
+ end if  ! if nDivLayers==0
 
  ! update coordinates
  if(divideLayer)then
@@ -322,18 +364,30 @@ contains
   iLayerHeight     => prog_data%var(iLookPROG%iLayerHeight)%dat       ,& ! height of the layer interface (m)
   layerType        => indx_data%var(iLookINDEX%layerType)%dat         ,& ! type of each layer (iname_snow or iname_soil)
   nSnow            => indx_data%var(iLookINDEX%nSnow)%dat(1)          ,& ! number of snow layers
+  nLake            => indx_data%var(iLookINDEX%nLake)%dat(1)          ,& ! number of lake layers
   nSoil            => indx_data%var(iLookINDEX%nSoil)%dat(1)          ,& ! number of soil layers
+  nGlce            => indx_data%var(iLookINDEX%nGlce)%dat(1)          ,& ! number of glacier ice layers
   nLayers          => indx_data%var(iLookINDEX%nLayers)%dat(1)         & ! total number of layers
   )  ! (association of local variables with coordinate variab;es in data structures)
 
   ! update the layer type
-  layerType(1:nSnow+1)         = iname_snow
-  layerType(nSnow+2:nLayers+1) = iname_soil
+  if(doGlac)then
+   ! glacier ice layers
+   layerType(nSnow+nLake+nSoil+1:nLayers+1)= iname_glce
+  else
+   ! snow layers
+   layerType(1:nSnow+1)                         = iname_snow
+   layerType(nSnow+2:nSnow+nLake+1)             = iname_lake
+   layerType(nSnow+nLake+2:nSnow+nLake+nSoil+1) = iname_soil
+   layerType(nSnow+nLake+nSoil+2:nLayers+1)     = iname_glce
+  end if  ! (if dividing glacier ice layers)
 
-  ! identify the number of snow and soil layers, and check all is a-OK
+  ! identify the number of layers, and check all is a-OK
   nSnow   = count(layerType(1:nLayers+1)==iname_snow)
+  nLake   = count(layerType(1:nLayers+1)==iname_lake)
   nSoil   = count(layerType(1:nLayers+1)==iname_soil)
-  nLayers = nSnow + nSoil
+  nGlce   = count(layerType(1:nLayers+1)==iname_glce)
+  nLayers = nSnow + nLake + nSoil + nGlce
 
   ! re-set coordinate variables
   iLayerHeight(0) = -scalarSnowDepth
@@ -363,11 +417,10 @@ contains
  end subroutine layerDivide
 
 
-
  ! ************************************************************************************************
  ! private subroutine addModelLayer: add an additional layer to all model vectors
  ! ************************************************************************************************
- subroutine addModelLayer(dataStruct,metaStruct,ix_divide,nSnow,nLayers,err,message)
+ subroutine addModelLayer(dataStruct,metaStruct,ix_divide,nSnow,nLayers,doGlac,err,message)
  USE var_lookup,only:iLookVarType                     ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
  USE f2008_funcs_module,only:cloneStruc               ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
@@ -381,6 +434,7 @@ contains
  ! input: snow layer indices
  integer(i4b),intent(in)         :: ix_divide         ! index of the layer to divide
  integer(i4b),intent(in)         :: nSnow,nLayers     ! number of snow layers, total number of layers
+ logical(lgt),intent(in)         :: doGlac            ! flag for dividing glacier ice layers
  ! output: error control
  integer(i4b),intent(out)        :: err               ! error code
  character(*),intent(out)        :: message           ! error message
@@ -401,13 +455,23 @@ contains
  do iVar=1,size(metaStruct)
 
   ! define bounds
-  select case(metaStruct(iVar)%varType)
-   case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
-   case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-   case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
-   case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
-   case default; cycle
-  end select
+  if(doGlac)then ! note here nSnow will be nGlce
+    select case(metaStruct(iVar)%varType)
+     case(iLookVarType%midGlce); ix_lower=nLayers-nSnow+1; ix_upper=nLayers
+     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
+     case(iLookVarType%ifcGlce); ix_lower=nLayers-nSnow; ix_upper=nLayers
+     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+     case default; cycle
+    end select
+  else
+    select case(metaStruct(iVar)%varType)
+     case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
+     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
+     case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
+     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+     case default; cycle
+    end select
+  endif
 
   ! identify whether it is a state variable
   select case(trim(metaStruct(iVar)%varName))

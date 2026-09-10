@@ -26,43 +26,59 @@ USE nr_type
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     ! final data vectors
-                    dlength,             & ! var%dat
-                    ilength,             & ! var%dat
+                    dlength,               & ! var%dat
+                    ilength,               & ! var%dat
                     ! no spatial dimension
-                    var_i,               & ! x%var(:)            (i4b)
-                    var_i8,              & ! x%var(:)            (i8b)
-                    var_d,               & ! x%var(:)            (rkind)
-                    var_flagVec,         & ! x%var(:)%dat        (logical)
-                    var_ilength,         & ! x%var(:)%dat        (i4b)
-                    var_dlength,         & ! x%var(:)%dat        (rkind)
+                    var_i,                 & ! x%var(:)            (i4b)
+                    var_i8,                & ! x%var(:)            (i8b)
+                    var_d,                 & ! x%var(:)            (rkind)
+                    var_flagVec,           & ! x%var(:)%dat        (logical)
+                    var_ilength,           & ! x%var(:)%dat        (i4b)
+                    var_dlength,           & ! x%var(:)%dat        (rkind)
                     ! gru dimension
-                    gru_int,             & ! x%gru(:)%var(:)     (i4b)
-                    gru_int8,            & ! x%gru(:)%var(:)     (i8b)
-                    gru_double,          & ! x%gru(:)%var(:)     (rkind)
-                    gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
-                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (rkind)
+                    gru_int,               & ! x%gru(:)%var(:)     (i4b)
+                    gru_int8,              & ! x%gru(:)%var(:)     (i8b)
+                    gru_double,            & ! x%gru(:)%var(:)     (rkind)
+                    gru_intVec,            & ! x%gru(:)%var(:)%dat (i4b)
+                    gru_doubleVec,         & ! x%gru(:)%var(:)%dat (rkind)
                     ! gru+hru dimension
-                    gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
-                    gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     (i8b)
-                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (rkind)
-                    gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (rkind)
-                    ! gru+hru+z dimension
-                    gru_hru_z_vLookup      ! x%gru(:)%hru(:)%z(:)%var(:)%lookup (rkind)
+                    gru_hru_int,           & ! x%gru(:)%hru(:)%var(:)     (i4b)
+                    gru_hru_int8,          & ! x%gru(:)%hru(:)%var(:)     (i8b)
+                    gru_hru_double,        & ! x%gru(:)%hru(:)%var(:)     (rkind)
+                    gru_hru_intVec,        & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
+                    gru_hru_doubleVec,     & ! x%gru(:)%hru(:)%var(:)%dat (rkind)
+                    ! gru+hru+dom dimension
+                    gru_hru_dom_int,       & ! x%gru(:)%hru(:)%dom(:)%var(:)     (i4b)
+                    gru_hru_dom_int8,      & ! x%gru(:)%hru(:)%dom(:)%var(:)     (i8b)
+                    gru_hru_dom_double,    & ! x%gru(:)%hru(:)%dom(:)%var(:)     (rkind)
+                    gru_hru_dom_intVec,    & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (i4b)
+                    gru_hru_dom_doubleVec, & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat (rkind)
+                    ! gru+hru+dom+z dimension
+                    gru_hru_dom_z_vLookup, & ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup (rkind)
+                    ! gru+grid dimension
+                    gru_grid_double          ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
+
 
 ! metadata structure
-USE data_types,only:var_info               ! data type for metadata
+USE data_types,only:var_info           ! data type for metadata
 
 ! access missing values
-USE globalData,only:integerMissing         ! missing integer
-USE globalData,only:realMissing            ! missing real number
+USE globalData,only:integerMissing     ! missing integer
+USE globalData,only:realMissing        ! missing real number
 
-USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
-USE globalData,only:nSpecBand              ! number of spectral bands
+USE globalData,only:nTimeDelay        ! number of timesteps in the time delay histogram
+USE globalData,only:nSpecBand         ! number of spectral bands
 
 ! access variable types
-USE var_lookup,only:iLookVarType           ! look up structure for variable typed
-USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
+USE var_lookup,only:iLookVarType       ! look up structure for variable typed
+USE var_lookup,only:maxvarFreq         ! allocation dimension (output frequency)
+
+! access domain types
+USE globalData,only:upland             ! horizontal domain type for upland areas
+USE globalData,only:glacCln1           ! first horizontal domain type for glacier clean areas
+USE globalData,only:glacCln2           ! second horizontal domain type for glacier clean areas
+USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
+USE globalData,only:wetland            ! horizontal domain type for wetland areas
 
 ! privacy
 implicit none
@@ -70,115 +86,190 @@ private
 public::allocGlobal
 public::allocLocal
 public::resizeData
-
-! -----------------------------------------------------------------------------------------------------------------------------------
 contains
 
- ! ************************************************************************************************
- ! public subroutine allocGlobal: allocate space for global data structures
- ! ************************************************************************************************
- subroutine allocGlobal(metaStruct,dataStruct,err,message)
- ! NOTE: safety -- ensure only used in allocGlobal
- USE globalData,only: gru_struc     ! gru-hru mapping structures
- implicit none
- ! input
- type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
- ! output
- class(*),intent(out)            :: dataStruct     ! data structure
- integer(i4b),intent(out)        :: err            ! error code
- character(*),intent(out)        :: message        ! error message
- ! local variables
- logical(lgt)                    :: check          ! .true. if structure is already allocated
- integer(i4b)                    :: iHRU           ! loop index through HRUs
- integer(i4b)                    :: iGRU           ! loop index through GRUs
- integer(i4b)                    :: nGRU           ! number of GRUs
- logical(lgt)                    :: spatial        ! spatial flag
- character(len=256)              :: cmessage       ! error message of the downwind routine
- ! initialize error control
- err=0; message='allocGlobal/'
+! ************************************************************************************************
+! public subroutine allocGlobal: allocate space for global data structures
+! ************************************************************************************************
+subroutine allocGlobal(metaStruct,dataStruct,err,message)
+  ! NOTE: safety -- ensure only used in allocGlobal
+  USE globalData,only: gru_struc     ! gru-hru mapping structures
+  implicit none
+  ! input
+  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
+  ! output
+  class(*),intent(out)            :: dataStruct     ! data structure
+  integer(i4b),intent(out)        :: err            ! error code
+  character(*),intent(out)        :: message        ! error message
+  ! local variables
+  logical(lgt)                    :: check          ! .true. if structure is already allocated
+  integer(i4b)                    :: iGrid          ! loop index through grids
+  integer(i4b)                    :: iDOM           ! loop index through domains
+  integer(i4b)                    :: iHRU           ! loop index through HRUs
+  integer(i4b)                    :: iGRU           ! loop index through GRUs
+  integer(i4b)                    :: nGRU           ! number of GRUs
+  logical(lgt)                    :: spatial        ! spatial flag
+  integer(i4b)                    :: nGlac          ! number of glaciers in GRU
+  integer(i4b)                    :: nGrid          ! number of grids in GRU
+  integer(i4b)                    :: iVar           ! loop index through variables
+  character(len=256)              :: cmessage       ! error message of the downwind routine
+  ! initialize error control
+  err=0; message='allocGlobal/'
 
- ! initialize allocation check
- check=.false.
+  ! initialize allocation check
+  check=.false.
 
- ! get the number of GRUs
- nGRU = size(gru_struc)
+  ! get the number of GRUs
+  nGRU = size(gru_struc)
 
- ! * allocate GRU dimension
- select type(dataStruct)
-  ! gru dimension only
-  class is (gru_int);           if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  class is (gru_int8);          if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  class is (gru_intVec);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  class is (gru_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  class is (gru_doubleVec);     if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  ! gru+hru dimensions
-  class is (gru_hru_int);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  class is (gru_hru_int8);      if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  class is (gru_hru_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  class is (gru_hru_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  class is (gru_hru_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  ! gru+hru+z dimensions
-  class is (gru_hru_z_vLookup); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
- end select
-
- ! check errors
- if(check) then; err=20; message=trim(message)//'GRU structure was unexpectedly allocated already'; return; end if
- if(err/=0)then; err=20; message=trim(message)//'problem allocating GRU dimension'; return; end if
-
- ! * allocate HRU dimension
- do iGRU=1,nGRU
-  ! allocate the HRU dimension
+  ! * allocate GRU dimension
   select type(dataStruct)
-   class is (gru_hru_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_int8);      if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class is (gru_hru_z_vLookup); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   class default  ! do nothing: It is acceptable to not be any of these specified cases
+    ! gru dimension only
+    class is (gru_int);               if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_int8);              if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_intVec);            if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_double);            if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_doubleVec);         if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    ! gru+hru dimensions
+    class is (gru_hru_int);           if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_hru_int8);          if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_hru_intVec);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_hru_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_hru_doubleVec);     if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    ! gru+hru+dom dimensions
+    class is (gru_hru_dom_int);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_hru_dom_int8);      if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_hru_dom_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_hru_dom_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    class is (gru_hru_dom_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if 
+    ! gru+hru+dom+z dimensions
+    class is (gru_hru_dom_z_vLookup); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+    ! gru+glacier+grid dimensions
+    class is (gru_grid_double);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
   end select
-  ! check errors
-  if(check) then; err=20; message=trim(message)//'HRU structure was unexpectedly allocated already'; return; end if
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating HRU dimension'; return; end if
- end do
 
- ! * allocate local data structures where there is a spatial dimension
- gruLoop: do iGRU=1,nGRU
+   ! check errors
+  if(check) then; err=20; message=trim(message)//'GRU structure was unexpectedly allocated already'; return; end if
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating GRU dimension'; return; end if
 
-  ! initialize the spatial flag
-  spatial=.false.
+   ! * allocate HRU dimension
+  do iGRU=1,nGRU
+    select type(dataStruct)
+      ! gru+hru dimensions
+      class is (gru_hru_int);           if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class is (gru_hru_int8);          if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class is (gru_hru_intVec);        if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class is (gru_hru_double);        if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class is (gru_hru_doubleVec);     if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      ! gru+hru+dom dimensions
+      class is (gru_hru_dom_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class is (gru_hru_dom_int8);      if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class is (gru_hru_dom_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class is (gru_hru_dom_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class is (gru_hru_dom_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      ! gru+hru+dom+z dimensions
+      class is (gru_hru_dom_z_vLookup); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+      class default  ! do nothing: It is acceptable to not be any of these specified cases
+    end select
+    ! check errors
+    if(check) then; err=20; message=trim(message)//'HRU structure was unexpectedly allocated already'; return; end if
+    if(err/=0)then; err=20; message=trim(message)//'problem allocating HRU dimension'; return; end if
+  end do
 
-  ! loop through HRUs
-  hruLoop: do iHRU=1,gru_struc(iGRU)%hruCount
+  ! * allocate the DOM dimension
+  do iGRU=1,nGRU
+    do iHRU=1,gru_struc(iGRU)%hruCount
+      select type(dataStruct)
+        ! gru+hru+dom dimensions
+        class is (gru_hru_dom_int);       if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_int8);      if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_intVec);    if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_double);    if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class is (gru_hru_dom_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        ! gru+hru+dom+z dimensions
+        class is (gru_hru_dom_z_vLookup); if(allocated(dataStruct%gru(iGRU)%hru(iHRU)%dom))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(iHRU)%dom(gru_struc(iGRU)%hruInfo(iHRU)%domCount),stat=err); end if
+        class default  ! do nothing: It is acceptable to not be any of these specified cases
+      end select
+      ! check errors
+      if(check) then; err=20; message=trim(message)//'DOM structure was unexpectedly allocated already'; return; end if
+      if(err/=0)then; err=20; message=trim(message)//'problem allocating DOM dimension'; return; end if
+    end do
+  end do
 
-   ! get the number of snow and soil layers
-   associate(&
-   nSnow => gru_struc(iGRU)%hruInfo(iHRU)%nSnow, & ! number of snow layers for each HRU
-   nSoil => gru_struc(iGRU)%hruInfo(iHRU)%nSoil  ) ! number of soil layers for each HRU
+  ! * allocate local data structures where there is a spatial dimension
+  gruLoop: do iGRU=1,nGRU
+    hruLoop: do iHRU=1,gru_struc(iGRU)%hruCount
 
-   ! allocate space for structures WITH an HRU dimension
-   select type(dataStruct)
-    class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    class is (gru_hru_z_vLookup); spatial=.true. ! (special case, allocate space separately later)
-    class default; exit hruLoop
-   end select
+      ! initialize the spatial flag
+      spatial=.false.
+      domLoop: do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
 
-   ! error check
-   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+        ! get the number of layers
+        associate(&
+        nSnow => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow, & ! number of snow layers for each domain
+        nLake => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake, & ! number of lake layers for each domain
+        nSoil => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil, & ! number of soil layers for each domain
+        nGlce => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce  ) ! number of glacier ice layers for each domain
 
-   ! end association to info in data structures
-   end associate
+        ! allocate space for structures WITH a DOM dimension
+        select type(dataStruct)
+          class is (gru_hru_dom_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=nSnow,nLake=nLake,nSoil=nSoil,nGlce=nGlce,nGlac=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+          class is (gru_hru_dom_z_vLookup); spatial=.true. ! (special case, allocate space separately later)
+          class default
+          if(.not.spatial) exit domLoop  ! no need to allocate spatial dimensions if none exist for a given variable
+        end select
 
-  end do hruLoop ! loop through HRUs
+        ! error check
+        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+        ! end association to info in data structures
+        end associate
+      end do domLoop ! loop through domains
+
+      ! allocate space for structures *WITHOUT* a DOM dimension
+      select type(dataStruct)    
+        class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=0,err=err,message=cmessage); spatial=.true.
+        class default
+        if(.not.spatial) exit hruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
+        cycle hruLoop  ! can have an DOM dimension if we get to here
+      end select
+
+    end do hruLoop ! loop through HRUs
 
   ! allocate space for structures *WITHOUT* an HRU dimension
+  nGlac = gru_struc(iGRU)%nGlac
+  nGrid = gru_struc(iGRU)%nGrid
   select type(dataStruct)
-   class is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
-   class is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+   class is (gru_int);           call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_int8);          call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_intVec);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_double);        call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_doubleVec);     call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nLake=0,nSoil=0,nGlce=0,nGlac=nGlac,err=err,message=cmessage); spatial=.true.
+   class is (gru_grid_double)
+     if(.not.allocated(dataStruct%gru(iGRU)%grid))then; allocate(dataStruct%gru(iGRU)%grid(nGrid),stat=err); end if
+     if(err/=0)then; err=20; message=trim(message)//'problem allocating glacier dimension in grid structure'; return; end if
+     do iGrid=1,nGrid
+       ! get the number of grid cells in the x and y directions
+       associate(&
+        nx => gru_struc(iGRU)%gridInfo(iGrid)%nx,     & ! number of grid cells in the x-direction
+        ny => gru_struc(iGRU)%gridInfo(iGrid)%ny      & ! number of grid cells in the y-direction
+        )
+        if(.not.allocated(dataStruct%gru(iGRU)%grid(iGrid)%var))then; allocate(dataStruct%gru(iGRU)%grid(iGrid)%var(size(metaStruct)),stat=err); end if
+        do iVar=1,size(metaStruct)
+          if(.not.allocated(dataStruct%gru(iGRU)%grid(iGrid)%var(iVar)%dat2))then;  allocate(dataStruct%gru(iGRU)%grid(iGrid)%var(iVar)%dat2(nx,ny),stat=err); end if
+          if(err/=0)then; err=20; message=trim(message)//'problem allocating grid dimension for variable '//trim(metaStruct(iVar)%varName); return; end if
+        end do
+       end associate
+      enddo
+      spatial=.true.
    class default
     if(.not.spatial) exit gruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
     cycle gruLoop  ! can have an HRU dimension if we get to here
@@ -208,14 +299,17 @@ contains
  ! ************************************************************************************************
  ! public subroutine allocLocal: allocate space for local data structures
  ! ************************************************************************************************
- subroutine allocLocal(metaStruct,dataStruct,nSnow,nSoil,err,message)
+ subroutine allocLocal(metaStruct,dataStruct,nSnow,nLake,nSoil,nGlce,nGlac,err,message)
  implicit none
  ! input-output
  type(var_info),intent(in)        :: metaStruct(:)  ! metadata structure
  class(*),intent(inout)           :: dataStruct     ! data structure
  ! optional input
  integer(i4b),intent(in),optional :: nSnow          ! number of snow layers
+ integer(i4b),intent(in),optional :: nLake          ! number of lake layers
  integer(i4b),intent(in),optional :: nSoil          ! number of soil layers
+ integer(i4b),intent(in),optional :: nGlce          ! number of glacier ice layers
+ integer(i4b),intent(in),optional :: nGlac          ! number of glaciers in GRU
  ! output
  integer(i4b),intent(out)         :: err            ! error code
  character(*),intent(out)         :: message        ! error message
@@ -230,12 +324,14 @@ contains
  ! get the number of variables in the metadata structure
  nVars = size(metaStruct)
 
- ! check if nSnow and nSoil are present
- if(present(nSnow) .or. present(nSoil))then
-  ! check both are present
-  if(.not.present(nSoil))then; err=20; message=trim(message)//'expect nSoil to be present when nSnow is present'; return; end if
-  if(.not.present(nSnow))then; err=20; message=trim(message)//'expect nSnow to be present when nSoil is present'; return; end if
-  nLayers = nSnow + nSoil
+ ! check if layers numbers are present
+ if(present(nSnow).or. present(nLake) .or. present(nSoil) .or. present(nGlce))then
+  ! check all are present
+  if(.not.present(nSnow))then; err=20; message=trim(message)//'expect nSnow to be present when other layers present'; return; end if
+  if(.not.present(nLake))then; err=20; message=trim(message)//'expect nLake to be present when other layers present'; return; end if
+  if(.not.present(nSoil))then; err=20; message=trim(message)//'expect nSoil to be present when other layers present'; return; end if
+  if(.not.present(nGlce))then; err=20; message=trim(message)//'expect nGlce to be present when other layers present'; return; end if
+  nLayers = nSnow + nLake + nSoil + nGlce
 
  ! It is possible that nSnow and nSoil are actually needed here, so we return an error if the optional arguments are missing when needed
  else
@@ -266,9 +362,9 @@ contains
 
  ! allocate the dimension for model data
  select type(dataStruct)
-  class is (var_flagVec); call allocateDat_flag(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
-  class is (var_ilength); call allocateDat_int( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
-  class is (var_dlength); call allocateDat_rkind(  metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
+  class is (var_flagVec); call allocateDat_flag(  metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlac,dataStruct,err,cmessage)
+  class is (var_ilength); call allocateDat_int(   metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlac,dataStruct,err,cmessage)
+  class is (var_dlength); call allocateDat_rkind( metaStruct,nSnow,nLake,nSoil,nGlce,nLayers,nGlac,dataStruct,err,cmessage)
   class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
  end select
 
@@ -532,8 +628,8 @@ contains
  ! ************************************************************************************************
  ! private subroutine allocateDat_rkind: initialize data dimension of the data structures
  ! ************************************************************************************************
- subroutine allocateDat_rkind(metadata,nSnow,nSoil,nLayers, & ! input
-                              varData,err,message)            ! output
+ subroutine allocateDat_rkind(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlac, & ! input
+                              varData,err,message)                              ! output
  ! access subroutines
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
 
@@ -541,8 +637,11 @@ contains
  ! input variables
  type(var_info),intent(in)         :: metadata(:) ! metadata structure
  integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nLake       ! number of lake layers
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
- integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of layers in the layer domains
+ integer(i4b),intent(in)           :: nGlac       ! number of glaciers in GRU
  ! output variables
  type(var_dlength),intent(inout)   :: varData     ! model variables for a local HRU
  integer(i4b),intent(out)          :: err         ! error code
@@ -574,13 +673,19 @@ contains
     case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
     case(iLookVarType%wLength); allocate(varData%var(iVar)%dat(nSpecBand),stat=err)
     case(iLookVarType%midSnow); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case(iLookVarType%midLake); allocate(varData%var(iVar)%dat(nLake),stat=err)
     case(iLookVarType%midSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case(iLookVarType%midGlce); allocate(varData%var(iVar)%dat(nGlce),stat=err)
     case(iLookVarType%midToto); allocate(varData%var(iVar)%dat(nLayers),stat=err)
     case(iLookVarType%ifcSnow); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case(iLookVarType%ifcLake); allocate(varData%var(iVar)%dat(0:nLake),stat=err)
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case(iLookVarType%ifcGlce); allocate(varData%var(iVar)%dat(0:nGlce),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlac),stat=err)
+    case(iLookVarType%gridvar); err=40; message=trim(message)//"should not be allocating a grid variable at this point [name='"//trim(metadata(iVar)%varName)
     case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown = special (and valid) case that is allocated later (initialize with zero-length vector)
     case default
@@ -600,15 +705,18 @@ contains
  ! ************************************************************************************************
  ! private subroutine allocateDat_int: initialize data dimension of the data structures
  ! ************************************************************************************************
- subroutine allocateDat_int(metadata,nSnow,nSoil,nLayers, & ! input
-                            varData,err,message)            ! output
+ subroutine allocateDat_int(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlac, & ! input
+                            varData,err,message)                       ! output
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
  type(var_info),intent(in)         :: metadata(:) ! metadata structure
  integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nLake       ! number of lake layers
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
- integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the layer domains (nSnow+nSoil)
+ integer(i4b),intent(in)           :: nGlac       ! number of glaciers in GRU
  ! output variables
  type(var_ilength),intent(inout)   :: varData     ! model variables for a local HRU
  integer(i4b),intent(out)          :: err         ! error code
@@ -640,12 +748,19 @@ contains
     case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
     case(iLookVarType%wLength); allocate(varData%var(iVar)%dat(nSpecBand),stat=err)
     case(iLookVarType%midSnow); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case(iLookVarType%midLake); allocate(varData%var(iVar)%dat(nLake),stat=err)
     case(iLookVarType%midSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case(iLookVarType%midGlce); allocate(varData%var(iVar)%dat(nGlce),stat=err)
     case(iLookVarType%midToto); allocate(varData%var(iVar)%dat(nLayers),stat=err)
     case(iLookVarType%ifcSnow); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case(iLookVarType%ifcLake); allocate(varData%var(iVar)%dat(0:nLake),stat=err)
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case(iLookVarType%ifcGlce); allocate(varData%var(iVar)%dat(0:nGlce),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlac),stat=err)
+    case(iLookVarType%gridvar); err=40; message=trim(message)//"should not be allocating a grid variable at this point [name='"//trim(metadata(iVar)%varName)
     case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varName)//"'; type='"//trim(get_varTypeName(metadata(iVar)%varType))//"']"; return
@@ -663,15 +778,18 @@ contains
  ! ************************************************************************************************
  ! private subroutine allocateDat_flag: initialize data dimension of the data structures
  ! ************************************************************************************************
- subroutine allocateDat_flag(metadata,nSnow,nSoil,nLayers, & ! input
-                             varData,err,message)            ! output
+ subroutine allocateDat_flag(metadata,nSnow,nLake,nSoil,nGlce,nLayers,nGlac, & ! input
+                             varData,err,message)                       ! output
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
  type(var_info),intent(in)         :: metadata(:) ! metadata structure
  integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nLake       ! number of lake layers
  integer(i4b),intent(in)           :: nSoil       ! number of soil layers
- integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ integer(i4b),intent(in)           :: nGlce       ! number of glacier ice layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the layer domains (nSnow+nSoil)
+ integer(i4b),intent(in)           :: nGlac       ! number of glaciers in GRU
  ! output variables
  type(var_flagVec),intent(inout)   :: varData     ! model variables for a local HRU
  integer(i4b),intent(out)          :: err         ! error code
@@ -703,12 +821,19 @@ contains
     case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
     case(iLookVarType%wLength); allocate(varData%var(iVar)%dat(nSpecBand),stat=err)
     case(iLookVarType%midSnow); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case(iLookVarType%midLake); allocate(varData%var(iVar)%dat(nLake),stat=err)
     case(iLookVarType%midSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case(iLookVarType%midGlce); allocate(varData%var(iVar)%dat(nGlce),stat=err)
     case(iLookVarType%midToto); allocate(varData%var(iVar)%dat(nLayers),stat=err)
     case(iLookVarType%ifcSnow); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case(iLookVarType%ifcLake); allocate(varData%var(iVar)%dat(0:nLake),stat=err)
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case(iLookVarType%ifcGlce); allocate(varData%var(iVar)%dat(0:nGlce),stat=err)
+    case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case(iLookVarType%glacier); allocate(varData%var(iVar)%dat(nGlac),stat=err)
+    case(iLookVarType%gridvar); err=40; message=trim(message)//"should not be allocating a grid variable at this point [name='"//trim(metadata(iVar)%varName)
     case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varName)//"'; type='"//trim(get_varTypeName(metadata(iVar)%varType))//"']"; return

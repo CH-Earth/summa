@@ -18,7 +18,9 @@ type data4kinsol
   real(rkind)                     :: dt_cur                       ! current stepsize
   real(rkind)                     :: dt                           ! data step
   integer(i4b)                    :: nSnow                        ! number of snow layers
+  integer(i4b)                    :: nLake                        ! number of lake layers
   integer(i4b)                    :: nSoil                        ! number of soil layers
+  integer(i4b)                    :: nGlce                        ! number of glacier ice layers
   integer(i4b)                    :: nLayers                      ! total number of layers
   integer(i4b)                    :: nState                       ! total number of state variables
   integer(i4b)                    :: ixMatrix                     ! form of matrix (dense or banded)
@@ -30,7 +32,6 @@ type data4kinsol
   type(model_options),allocatable :: model_decisions(:)           ! model decisions
   type(zLookup)                   :: lookup_data                  ! lookup tables
   type(var_i)                     :: type_data                    ! type of vegetation and soil
-  type(var_d)                     :: attr_data                    ! spatial attributes
   type(var_dlength)               :: mpar_data                    ! model parameters
   type(var_d)                     :: forc_data                    ! model forcing data
   type(var_dlength)               :: bvar_data                    ! model variables for the local basin

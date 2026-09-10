@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module snowAlbedo_module
+module snowLakeGlceAlbedo_module
 
 ! data types
 USE nr_type                         ! numerical recipes data types
@@ -29,8 +29,6 @@ USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (rkind)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
@@ -55,14 +53,15 @@ USE mDecisions_module,only:  &
 ! privacy
 implicit none
 private
-public::snowAlbedo
+public::snowLakeGlceAlbedo
+
 contains
 
 
  ! *******************************************************************************************************
- ! public subroutine snowAlbedo: muster program to compute energy fluxes at vegetation and ground surfaces
+ ! public subroutine snowLakeGlceAlbedo: muster program to compute energy fluxes at vegetation and ground surfaces
  ! *******************************************************************************************************
- subroutine snowAlbedo(&
+ subroutine snowLakeGlceAlbedo(&
                        ! input: model control
                        dt,                                    & ! intent(in):    model time step (s)
                        snowPresence,                          & ! intent(in):    logical flag to denote if snow is present
@@ -103,7 +102,7 @@ contains
  real(rkind)                     :: fZen                          ! factor to modify albedo at low zenith angles (-)
  real(rkind),parameter           :: bPar=2._rkind                 ! empirical parameter in fZen
  ! initialize error control
- err=0; message='snowAlbedo/'
+ err=0; message='snowLakeGlceAlbedo/'
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in the data structure
  associate(&
@@ -125,6 +124,11 @@ contains
  albedoSootLoad            => mpar_data%var(iLookPARAM%albedoSootLoad)%dat(1),        & ! intent(in): soot load factor (-)
  albedoRefresh             => mpar_data%var(iLookPARAM%albedoRefresh)%dat(1),         & ! intent(in): critical mass necessary for albedo refreshment (kg m-2)
  snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),         & ! intent(in): scaling parameter for the freezing curve for snow (K-1)
+ ! input: model parameters for ice and water
+ albedoFrznWatVisible      => mpar_data%var(iLookPARAM%albedoFrznWatVisible)%dat(1),  & ! intent(in): albedo of frozen water in the visible part of the spectrum (-)
+ albedoFrznWatNearIR       => mpar_data%var(iLookPARAM%albedoFrznWatNearIR)%dat(1),   & ! intent(in): albedo of frozen water  in the near infra-red part of the spectrum (-)
+ albedoOpenWatVisible      => mpar_data%var(iLookPARAM%albedoOpenWatVisible)%dat(1),  & ! intent(in): albedo of open water in the visible part of the spectrum (-)
+ albedoOpenWatNearIR       => mpar_data%var(iLookPARAM%albedoOpenWatNearIR)%dat(1),   & ! intent(in): albedo of open water in the near infra-red part of the spectrum (-)
  ! input: model variables
  surfaceTemp               => prog_data%var(iLookPROG%mLayerTemp)%dat(1),             & ! intent(in): surface temperature
  snowfallRate              => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),         & ! intent(in): snowfall rate (kg m-2 s-1)
@@ -132,12 +136,21 @@ contains
  ! input/output: model variables
  scalarSnowAlbedo          => prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1),       & ! intent(inout): snow albedo for the entire spectral band (-)
  spectralSnowAlbedoDirect  => diag_data%var(iLookDIAG%spectralSnowAlbedoDirect)%dat,  & ! intent(inout): direct snow albedo in each spectral band (-)
- spectralSnowAlbedoDiffuse => prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat  & ! intent(inout): diffuse snow albedo in each spectral band (-)
+ spectralSnowAlbedoDiffuse => prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat, & ! intent(inout): diffuse snow albedo in each spectral band (-)
+ spectralFrznWatAlbedo     => diag_data%var(iLookDIAG%spectralFrznWatAlbedo)%dat,     & ! intent(inout): albedo of frozen water in each spectral band (-)
+ spectralOpenWatAlbedo     => diag_data%var(iLookDIAG%spectralOpenWatAlbedo)%dat      & ! intent(inout): albedo of open water in each spectral band (-)
+
  ) ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------------
 
  ! return early if computing radiation in noah-MP
  if(ixCanopySrad==noah_mp) return
+
+ ! set frozen water (ice) and unfrozen water (open) albedo
+ spectralFrznWatAlbedo(ixVisible) = albedoFrznWatVisible
+ spectralFrznWatAlbedo(ixNearIR)  = albedoFrznWatNearIR  ! may want to change this to be a function of the dewpoint temperature or solar zenith angle
+ spectralOpenWatAlbedo(ixVisible) = albedoOpenWatVisible
+ spectralOpenWatAlbedo(ixNearIR)  = albedoOpenWatNearIR/(max(0.01_rkind,cosZenith)**1.7_rkind + 0.15_rkind) ! method of Pivovarov (1972) (CLM and Noah-MP)
 
  ! return early if no snow
  if(.not. snowPresence)then
@@ -152,7 +165,6 @@ contains
 
  ! identify option for snow albedo
  select case(ixAlbedoMethod)
-
 
   ! *** constant decay rate
   case(constantDecay)
@@ -172,7 +184,6 @@ contains
    spectralSnowAlbedoDiffuse(ixNearIR)  = scalarSnowAlbedo
    spectralSnowAlbedoDirect(ixVisible)  = scalarSnowAlbedo
    spectralSnowAlbedoDirect(ixNearIR)   = scalarSnowAlbedo
-
 
   ! *** variable decay rate
   case(variableDecay)
@@ -195,7 +206,7 @@ contains
    spectralSnowAlbedoDirect(ixNearIR)  = spectralSnowAlbedoDiffuse(ixNearIR)  + 0.4_rkind*fZen*(1._rkind - spectralSnowAlbedoDiffuse(ixNearIR))
 
    ! compute average albedo
-   scalarSnowAlbedo = (        Frad_direct)*(Frad_vis*spectralSnowAlbedoDirect(ixVisible) + (1._rkind - Frad_vis)*spectralSnowAlbedoDirect(ixNearIR) ) + &
+   scalarSnowAlbedo = (           Frad_direct)*(Frad_vis*spectralSnowAlbedoDirect(ixVisible) + (1._rkind - Frad_vis)*spectralSnowAlbedoDirect(ixNearIR) ) + &
                       (1._rkind - Frad_direct)*(Frad_vis*spectralSnowAlbedoDirect(ixVisible) + (1._rkind - Frad_vis)*spectralSnowAlbedoDirect(ixNearIR) )
 
   ! check that we identified the albedo option
@@ -209,16 +220,16 @@ contains
  ! end association to data structures
  end associate
 
- end subroutine snowAlbedo
+ end subroutine snowLakeGlceAlbedo
 
 
  ! *******************************************************************************************************
  ! private subroutine computAlbedo: compute change in albedo -- implicit solution
  ! *******************************************************************************************************
- subroutine computAlbedo(snowAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
+ subroutine computAlbedo(snowLakeGlceAlbedo,refreshFactor,decayFactor,albedoMax,albedoMin)
  implicit none
  ! dummy variables
- real(rkind),intent(inout)   :: snowAlbedo    ! snow albedo (-)
+ real(rkind),intent(inout)   :: snowLakeGlceAlbedo    ! snow albedo (-)
  real(rkind),intent(in)      :: refreshFactor ! albedo refreshment factor (-)
  real(rkind),intent(in)      :: decayFactor   ! albedo decay factor (-)
  real(rkind),intent(in)      :: albedoMax     ! maximum albedo (-)
@@ -226,10 +237,10 @@ contains
  ! local variables
  real(rkind)                 :: albedoChange ! change in albedo over the time step (-)
  ! compute change in albedo
- albedoChange = refreshFactor*(albedoMax - snowAlbedo) - (decayFactor*(snowAlbedo - albedoMin)) / (1._rkind + decayFactor)
- snowAlbedo   = snowAlbedo + albedoChange
- if(snowAlbedo > albedoMax) snowAlbedo = albedoMax
+ albedoChange = refreshFactor*(albedoMax - snowLakeGlceAlbedo) - (decayFactor*(snowLakeGlceAlbedo - albedoMin)) / (1._rkind + decayFactor)
+ snowLakeGlceAlbedo   = snowLakeGlceAlbedo + albedoChange
+ if(snowLakeGlceAlbedo > albedoMax) snowLakeGlceAlbedo = albedoMax
  end subroutine computAlbedo
 
 
-end module snowAlbedo_module
+end module snowLakeGlceAlbedo_module

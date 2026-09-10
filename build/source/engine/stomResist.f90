@@ -22,18 +22,19 @@ module stomResist_module
 
 ! data types
 USE nr_type
+USE globalData,only:realMissing  ! missing real number
+
+! physical constants
+USE multiconst, only: Rgas     ! universal gas constant (J mol-1 K-1)
+USE multiconst, only: Tfreeze  ! freezing point of pure water (K)
+USE multiconst, only: ave_slp  ! standard pressure (Pa)
+
+! derived types to define the data structures
 USE data_types,only:&
                     var_i,            & ! data vector (i4b)
                     var_d,            & ! data vector (rkind)
                     var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
-
-! constants
-USE multiconst,only:&
-                    Rgas,     & ! universal gas constant (J mol-1 K-1)
-                    Tfreeze,  & ! freezing point of pure water (K)
-                    ave_slp     ! standard pressure (Pa)
-USE globalData,only:realMissing     ! missing real number
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookTYPE           ! named variables for structure elements
@@ -41,7 +42,7 @@ USE var_lookup,only:iLookDIAG           ! named variables for structure elements
 USE var_lookup,only:iLookFLUX           ! named variables for structure elements
 USE var_lookup,only:iLookFORCE          ! named variables for structure elements
 USE var_lookup,only:iLookPARAM          ! named variables for structure elements
-USE var_lookup,only:iLookDECISIONS      ! named variables for elements of the decision structure
+USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
 
 ! look-up values for the stomatal resistance formulation
 USE mDecisions_module,only:  &
@@ -182,7 +183,6 @@ contains
  ! output: carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
  scalarIntercellularCO2Sunlit    => diag_data%var(iLookDIAG%scalarIntercellularCO2Sunlit)%dat(1),   & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
  scalarIntercellularCO2Shaded    => diag_data%var(iLookDIAG%scalarIntercellularCO2Shaded)%dat(1)    & ! intent(out): [dp] carbon dioxide partial pressure of leaf interior (shaded leaves) (Pa)
-
  )
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -310,12 +310,6 @@ contains
 
 
  ! *******************************************************************************************************
- ! *******************************************************************************************************
- ! *** PRIVATE SUBROUTINES *******************************************************************************
- ! *******************************************************************************************************
- ! *******************************************************************************************************
-
- ! *******************************************************************************************************
  ! private subroutine stomResist_flex: flexible stomatal resistance routine to evaluate different options
  ! *******************************************************************************************************
  subroutine stomResist_flex(&
@@ -336,8 +330,6 @@ contains
                             scalarPhotosynthesis,                & ! intent(out): photosynthesis (umol CO2 m-2 s-1)
                             ! output: error control
                             err,message)                           ! intent(out): error control
- ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
  real(rkind),intent(in)             :: scalarVegetationTemp          ! vegetation temperature (K)

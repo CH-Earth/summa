@@ -23,17 +23,18 @@ from matplotlib.colors import LogNorm
 from matplotlib.colors import ListedColormap
 
 do_rel = False # true is plot relative to the benchmark simulation
-do_heat = False # true is plot heatmaps instead of scatterplots
+do_heat = True # true is plot heatmaps instead of scatterplots
 run_local = True # true is run on local machine, false is run on cluster
 inferno_col= True # Set to True if want to match geographic plots, False if want rainbow colormap (does not matter if do_heat is False)
 fixed_Mass_units = False # true is convert mass balance units to kg m-2 s-1, if ran new code with depth in calculation
+no_snow = False # true is only plot snow free simulations
 
 # which statistics to plot, can do both
 do_vars = False
 do_balance = True
 
 if run_local: 
-    stat = 'mnnz'
+    stat = 'etcomp'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics_en')
 else:
     import sys
@@ -45,9 +46,9 @@ else:
 #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6']
 method_name=['be1','be16','be32','sundials_1en6']
 plt_name=['BE1','BE16','BE32','SUNDIALS']
-method_name=['be1','be1cm','be1en','sundials_1en6cm','sundials_1en6en'] 
-plt_name=['BE1 common','BE1 temp','BE1 mixed','SUNDIALS temp','SUNDIALS enth']
-method_name2=method_name+['sundials_1en8cm']
+method_name=['be8','be8cm','be8en','sundials_1en5cm','sundials_1en5en'] 
+plt_name=['BE8 common','BE8 temp','BE8 mixed','SUNDIALS temp', 'SUNDIALS enth']
+method_name2=method_name+['sundials_1en8en']
 plt_name2=plt_name+['reference solution']
 
 if inferno_col:
@@ -63,15 +64,16 @@ else: # use rainbow colormap, I think looks better
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Simulation statistics file locations
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','scalarRootZoneTemp']
 viz_fil = method_name.copy()
 viz_fl2 = method_name2.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(settings))
+    viz_fil[i] = viz_fil[i].format(','.join(['accuracy']))
 for i, m in enumerate(method_name2):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
     viz_fl2[i] = viz_fl2[i].format(','.join(['balance']))
+
 
 summa = {}
 summa1 = {}
@@ -80,15 +82,25 @@ if do_vars:
         # Get the aggregated statistics of SUMMA simulations
         summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
     hru_size = summa[m].sizes['hru']
-if do_balance:
+if do_balance: 
     for i, m in enumerate(method_name2):
         summa1[m] = xr.open_dataset(viz_dir/viz_fl2[i])
     hru_size = summa1[m].sizes['hru']
+
+if no_snow:
+    summa[method_name[0]] = xr.open_dataset(viz_dir/viz_fil[0]) # will be a problem if this does not exist
+    if do_vars:
+        for m in method_name:
+            summa[m] = summa[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
+    if do_balance: 
+        for m in method_name2:
+            summa1[m] = summa1[m].where(summa[method_name[0]]['scalarSWE'].sel(stat='mean_ben') == 0)
 
 numbin = int(np.sqrt(hru_size/10))
 maxcolor = numbin**2/75
 do_clip = True # choose if want the heat values clipped (True) or plotted as white if over maxcolor (False)
     
+# vars loop    
 def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
     r = i//ncol
     c = i-r*ncol
@@ -170,6 +182,7 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
         mnx = 1.0
         mxy = 0.0
         mny = 1.0
+
     for j, m in enumerate(method_name):
         s = summa[m][var].sel(stat=[stat,stat0])
         if var == 'scalarTotalET':
@@ -260,7 +273,9 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
                 mxy = y_points.max()
             else:
                 if mx:
-                    mnx = 0.0
+                    if lx: 
+                        mx = np.log10(mx)
+                        mnx = max(mnx,-10)
                     mxx = mx
             x_edges = np.linspace(mnx,mxx, num=numbin)
             y_edges = np.linspace(mny,mxy, num=numbin)            
@@ -286,7 +301,10 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
             # Adjust the pcolormesh call to use the centers and compatible shading
             norm = LogNorm(vmin=1, vmax=maxcolor)
             mesh = axs[r, c].pcolormesh(X, Y, zi_clipped, shading='gouraud', cmap=custom_cmap, zorder=0,norm=norm)
-            if r==1 and c==len(method_name)-1: fig.colorbar(mesh, ax=axs.ravel().tolist(), label='GRU count',aspect=20/3*nrow)
+            if len(plot_vars)/len(use_meth)==1:
+                if r==0 and c==len(method_name)-1: fig.colorbar(mesh, ax=axs.ravel().tolist()[0:len(use_meth)], label='GRU count',aspect=20/3*1.5)
+            else:
+                if r==0 and c==len(plot_vars)-1: fig.colorbar(mesh, ax=axs.ravel().tolist(), label='GRU count',aspect=20/3*nrow*1.5)
 
         elif not do_heat:
             if stat=='mnnz' or stat=='mean' or stat=='amax': 
@@ -294,6 +312,7 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
             else: 
                 axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
 
+    if no_snow: plt_t = plt_t + ' (snow-free GRUs)'
     if do_heat:
         axs[r,c].set_title(plt_t + ' '+ plt_name[0] + ' heatmap')
     elif not(do_heat):
@@ -314,7 +333,8 @@ def run_loop(i,var,lx,ly,plt_t,leg_t,leg_t0,leg_tm,rep,mx):
     axs[r,c].set_ylabel(stat0_word + ' [{}]'.format(leg_t0))
     if do_heat and c>0: axs[r, c].set_ylabel('')
 
-def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
+# balance loop
+def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,rep,mx):
     r = i//ncol
     c = i-r*ncol
     global method_name2  # Declare method_name as global to modify its global value
@@ -322,16 +342,21 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
     method_name2 = np.copy(method_name20)
     plt_name2 = np.copy(plt_name20)
 
-    if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
+    if stat == 'etcomp':
         stat0 = 'mean'
-        wordx = ' mean'
-    if stat == 'rmnz' or stat == 'mnnz':
-        stat0 = 'mean'
-        wordx = ' mean' # no 0s'
-    if stat == 'maxe': 
-        stat0 = 'amax'
-        wordx = ' max'
-    wordy = wordx
+        wordx = ' form mean' # no 0s' ! x axis
+        wordy = ' form mean' # no 0s' ! y axis
+    else:
+        if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
+            stat0 = 'mean'
+            wordx = ' mean'
+        if stat == 'rmnz' or stat == 'mnnz':
+            stat0 = 'mean'
+            wordx = ' mean' # no 0s'
+        if stat == 'maxe': 
+            stat0 = 'amax'
+            wordx = ' max'
+        wordy = wordx
 
     # Data
     do_same = False
@@ -342,18 +367,26 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
             mnx = 1.0
             for m in method_name2:
                 # Get the statistics, remove 9999 (should be nan, but just in case)
-                s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
+                if stat == 'etcomp':
+                    s = summa1[m[:-2]+'en'][var].sel(stat=stat0)
+                else:
+                    s = summa1[m][var].sel(stat=stat0).where(lambda x: x != 9999)
                 mxx = max(s.max(),mxx)
                 mnx = min(s.min(),mnx)
             mxy = 0.0
             mny = 1.0
             for m in method_name2:
                 # Get the statistics, remove 9999 (should be nan, but just in case)
-                s = summa1[m][comp].sel(stat=stat0).where(lambda x: x != 9999)
+                if stat == 'etcomp':
+                    s = summa1[m][comp].sel(stat=stat0)
+                else:
+                    s = summa1[m][comp].sel(stat=stat0).where(lambda x: x != 9999)
                 mxy = max(s.max(),mxy)
                 mny = min(s.min(),mny)
             method_name2 = [method_name20[rep]]
             plt_name2 = [plt_name20[rep]]
+            if stat == 'etcomp':
+                plt_name2 = [plt_name20[rep][:-5]]
     else: # only one method
         mxx = 0.0
         mnx = 1.0
@@ -361,8 +394,15 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
         mny = 1.0
     for j, m in enumerate(method_name2):
         # Get the statistics, remove 9999 (should be nan, but just in case)
-        s = np.fabs(summa1[m][var].sel(stat=stat0)).where(lambda x: x != 9999, np.nan)
-        s0 = np.fabs(summa1[m][comp].sel(stat=stat0)).where(lambda x: x != 9999, np.nan)
+        if stat == 'etcomp':
+            s = summa1[m[:-2]+'en'][var].sel(stat=stat0) # x axis
+            if plt_name2[0]=='SUNDIALS': wordx = ' enth' + wordx
+            if plt_name2[0][:-1]=='BE': wordx = ' mixed' + wordx
+            s0 = summa1[m][var].sel(stat=stat0) # y axis
+            wordy = ' temp' + wordy
+        else:
+            s = np.fabs(summa1[m][var].sel(stat=stat0)).where(lambda x: x != 9999, np.nan)
+            s0 = np.fabs(summa1[m][comp].sel(stat=stat0)).where(lambda x: x != 9999, np.nan)
         if fixed_Mass_units and 'Mass' in comp: s0 = s0/1000 # / density for mass balance
 
         if do_heat:
@@ -394,6 +434,15 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
                 mxx = x_points.max()
                 mny = y_points.min()
                 mxy = y_points.max()
+            else:
+                if mx:
+                    if lx: 
+                        mx = np.log10(mx)
+                        mnx = max(mnx,-10)
+                    mxx = mx
+                if stat == 'etcomp':
+                    mnx = mny
+                    mxy = mxx
             x_edges = np.linspace(mnx,mxx, num=numbin)
             y_edges = np.linspace(mny,mxy, num=numbin)
             zi, _, _ = np.histogram2d(x_points, y_points, bins=[x_edges, y_edges])
@@ -412,19 +461,23 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
             # Adjust the pcolormesh call to use the centers and compatible shading
             norm = LogNorm(vmin=1, vmax=maxcolor)
             mesh = axs[r, c].pcolormesh(X, Y, zi_clipped, shading='gouraud', cmap=custom_cmap, zorder=0,norm=norm)
-            if r==1 and c==len(method_name2)-1: fig.colorbar(mesh, ax=axs.ravel().tolist(), label='GRU count',aspect=20/3*nrow)
+            if len(plot_vars)/len(use_meth)==1:
+                if r==0 and c==len(method_name2)-1: fig.colorbar(mesh, ax=axs.ravel().tolist()[0:len(use_meth)], label='GRU count',aspect=20/3*1.5)
+            else:
+                if r==0 and c==len(method_name2)-1: fig.colorbar(mesh, ax=axs.ravel().tolist(), label='GRU count',aspect=20/3*nrow*1.5)
         elif not do_heat:
             axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
 
-    if comp == 'numberFluxCalc':
-        stat0_word = 'number flux calculations'
+    if comp == 'wallClockTime':
+        stat0_word = 'wall clock time'
         stat_word = 'wall clock time'
     else:
         stat0_word = 'balance abs value'
         stat_word = 'balance abs value'
 
+    if no_snow: plt_t = plt_t + ' (snow-free GRUs)'
     if do_heat:
-        axs[r,c].set_title(plt_t + ' '+ plt_name[0] + ' heatmap')
+        axs[r,c].set_title(plt_t + ' '+ plt_name2[0] + ' heatmap')
     elif not(do_heat):
         lgnd = axs[r,c].legend(plt_name2)
         for j, m in enumerate(plt_name2):
@@ -435,6 +488,7 @@ def run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,repy):
     axs[r,c].set_xlabel(stat_word  + wordx + ' [{}]'.format(leg_t))
     axs[r,c].set_ylabel(stat0_word + wordy + ' [{}]'.format(leg_t0))
     if do_heat and c>0: axs[r, c].set_ylabel('')
+
 
 plt.rcParams['xtick.color'] = 'black'
 plt.rcParams['xtick.major.width'] = 2
@@ -461,22 +515,22 @@ if do_vars:
         rep = [int(val+_) for val in rep for _ in range(len(use_meth))]
              
     plot_vars = settings
-    plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','average routed runoff']
-    leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$mm~y^{-1}$']
-    leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$mm~y^{-1}$']
-    leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$mm~h^{-1}$']
+    plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 4m soil temperature']
+    leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~s^{-1}$']
+    leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$mm~s^{-1}$']
+    leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~h^{-1}$','$kg~m^{-2}$','$mm~s^{-1}$']
 
     #to zoom the heat x axis set these
-    maxes = [0.0,0.0,0.0,0.0,0.0,0.0] #initialize
+    maxes = [0.0,0.0,0.0,0.0,0.0] #initialize
     if stat == 'rmse' or stat=='rmnz':
-        maxes = [60,15,250,0.5,200,20e-3]
-        if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,20e-3]
+        maxes = [60,15,250,0.5,10]
+        if do_rel: maxes = [0.6,0.02,0.6,0.3,0.02]
     if stat == 'maxe':
-        maxes = [60,20,250,0.5,200,2.0]
-        if do_rel: maxesx = [0.6,0.02,0.6,0.3,0.6,2.0]
+        maxes = [60,20,250,0.5,10]
+        if do_rel: maxes = [0.6,0.02,0.6,0.3,0.02]
     if stat == 'kgem':
-        maxes = [0.9,0.9,0.9,0.9,0.9,20e-3]
-    #maxes = [0.0,0.0,0.0,0.0,0.0,0.0] # turn off zoom
+        maxes = [0.9,0.9,0.9,0.9,0.9]
+    #maxes = [0.0,0.0,0.0,0.0,0.0] # turn off zoom
 
     plot_vars = [plot_vars[i] for i in use_vars]
     plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
@@ -496,9 +550,12 @@ if do_vars:
     else:
         ncol = 2
         nrow = len(plot_vars)//ncol + 1
+    if ncol == 1: ncol = 2
+    if nrow == 1: nrow = 2
 
     fig_fil = 'Hrly_diff_scat_{}_{}'
     if do_rel: fig_fil = fig_fil + '_rel'
+    if no_snow: fig_fil = fig_fil + '_nosnow'
     if do_heat:
         fig_fil = '{}'+fig_fil + '_heat'
         if sum(maxes)>0: fig_fil = fig_fil + '_zoom'
@@ -529,6 +586,9 @@ if do_vars:
             r = i//ncol
             c = i-r*ncol
             fig.delaxes(axs[r, c])
+    if do_heat and len(plot_vars)/len(use_meth)==1:
+        for c in range(len(use_meth)):
+            fig.delaxes(axs[1, c]) 
 
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
@@ -538,14 +598,19 @@ if do_balance:
  
  # Specify variables of interest
     if do_heat:
-        use_vars = [0,1,2]
-        use_meth = [0,1,3]
+        #use_vars = [0,1,2]
+        #use_meth = [0,1,3]
+        use_vars = [4]
+        use_meth = [1,3]
+        # log will not work if the max is <1
         logx = np.ones(len(use_vars)) # log scale x axis
         logy = np.ones(len(use_vars)) # log scale y axis
+        #logx = np.zeros(len(use_vars)) # no log scale x axis
+        #logy = np.zeros(len(use_vars)) # no log scale y axis
+
     else:
         use_vars = [0,1,2,3]
         use_meth = [0,1,2,3,4,5]
-        logx = np.zeros(len(use_vars)) # no log scale x axis
         logx = np.ones(len(use_vars)) # log scale x axis
         logy = np.ones(len(use_vars)) # log scale y axis
 
@@ -557,17 +622,26 @@ if do_balance:
         rep = [int(val+_) for val in rep for _ in range(len(use_meth))]
 
     plot_vars = ['balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceCasNrg','wallClockTime']
-    comp_vars = ['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','numberFluxCalc']
+    comp_vars = ['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
     plt_titl = ['vegetation balance','snow balance','soil balance', 'canopy air space and aquifer balance', 'wall clock time']
     leg_titl = ['$W~m^{-3}$'] * 4 + ['$s$']
-    leg_titl0 =['$kg~m^{-3}~s^{-1}$'] * 4 + ['$num$']
+    leg_titl0 =['$kg~m^{-3}~s^{-1}$'] * 4 + ['$s$']
     if fixed_Mass_units: leg_titl0 = ['s^{-1}$'] * 3 + ['m~s^{-1}$'] + ['$num$']
+
+     #to zoom the heat x axis set these
+    maxes = [0.0,0.0,0.0,0.0,0.0] #initialize
+    if stat == 'etcomp':
+        maxes = [0.0,0.0,0.0,0.0,0.02] #initialize
+    if stat == 'mean' or stat == 'amax':
+        maxes = [0.0,0.0,0.0,0.0,0.0] # turn off zoom
+    #maxes = [0.0,0.0,0.0,0.0,0.0] # turn off zoom
 
     plot_vars = [plot_vars[i] for i in use_vars]
     comp_vars = [comp_vars[i] for i in use_vars]
     plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
     leg_titl = [leg_titl[i] for i in use_vars]
     leg_titl0 = [leg_titl0[i] for i in use_vars]
+    maxes = [maxes[i] for i in use_vars]
     method_name2 = [method_name2[i] for i in use_meth]
     plt_name2 = [plt_name2[i] for i in use_meth]
 
@@ -580,8 +654,11 @@ if do_balance:
     else:
         ncol = 2
         nrow = len(plot_vars)//ncol + 1
+    if ncol == 1: ncol = 2
+    if nrow == 1: nrow = 2
 
     fig_fil = 'Hrly_balance_scat_{}'
+    if no_snow: fig_fil = fig_fil + '_nosnow'
     if do_heat:
         fig_fil = '{}'+fig_fil + '_heat'
         fig_fil = fig_fil.format(','.join(method_name2),','.join(plot_vars),stat)
@@ -603,8 +680,8 @@ if do_balance:
         fig,axs = plt.subplots(nrow,ncol,figsize=(70*ncol,54*nrow),constrained_layout=do_heat)   
     if not do_heat: fig.subplots_adjust(hspace=0.33, wspace=0.17) # Adjust the bottom margin, vertical space, and horizontal space
 
-    for i,(var,comp,lx,ly,leg_t,leg_t0,plt_t,rep) in enumerate(zip(plot_vars,comp_vars,logx,logy,leg_titl,leg_titl0,plt_titl,rep)): 
-        run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,rep)
+    for i,(var,comp,lx,ly,leg_t,leg_t0,plt_t,rep,mx) in enumerate(zip(plot_vars,comp_vars,logx,logy,leg_titl,leg_titl0,plt_titl,rep,maxes)): 
+        run_loopb(i,var,comp,lx,ly,leg_t,leg_t0,plt_t,rep,mx)
 
     # Remove the extra subplots
     if not do_heat and (len(plot_vars)) < nrow*ncol:
@@ -612,5 +689,9 @@ if do_balance:
             r = i//ncol
             c = i-r*ncol
             fig.delaxes(axs[r, c])
+    if do_heat and len(plot_vars)/len(use_meth)==1:
+        for c in range(len(use_meth)):
+            fig.delaxes(axs[1, c]) 
+    
     # Save
     plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
