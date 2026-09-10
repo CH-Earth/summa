@@ -229,8 +229,7 @@ AFTER tag of v4.0.0-exp-Sundials
 -58) Groundwater / TOPMODEL baseflow fixes in computBaseflow (decision groundwatr == qTopmodl), commit dca170cc Sep 10, 2026
       1) The transmissivity integrals are written in terms of the hydraulic conductivity at the soil surface, but the code was passing
          mLayerSatHydCondMP(1), which is the macropore conductivity at the first layer midpoint (already scaled by the depth profile).
-         Now recovers the surface value for any profile as surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1). Affects both the
-         power-law and exponential transmissivity forms.
+         Now recovers the surface value for any profile as surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1).
       2) Analytical-Jacobian consistency fix: for soil layers above the water table the baseflow is forced to zero (trSoil clamp), but the
          derivative matrix (dBaseflow_dVolLiq, dBaseflow_dWat, dBaseflow_dTk) still had non-zero rows for them. 
  59) New exponential hydraulic conductivity profile, commits bb2b1344 and 5095074b Sep 10, 2026
