@@ -741,11 +741,13 @@ subroutine mDecisions(err,message)
       end if
   end select
 
-  ! check power-law profile is selected when using topmodel baseflow option
+  ! check a depth-varying conductivity profile is selected when using topmodel baseflow option
+  ! NOTE: the baseflow transmissivity is the vertical integral of the conductivity profile, so both are supported
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
-      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
-        message=trim(message)//'power-law hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" in model decisions input file)'
+      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile .and. &
+         model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
+        message=trim(message)//'a power-law or exponential hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" or "exp_prof" in model decisions input file)'
         err=20; return
       end if
   end select

@@ -39,6 +39,16 @@ USE var_lookup,only:iLookDIAG    ! named variables for structure elements
 USE var_lookup,only:iLookFLUX    ! named variables for structure elements
 USE var_lookup,only:iLookPARAM   ! named variables for structure elements
 
+! model decision structures
+USE globalData,only:model_decisions        ! model decision structure
+USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+
+! look-up values for the choice of hydraulic conductivity profile
+USE mDecisions_module,only: &
+ constant,                  & ! constant hydraulic conductivity with depth
+ powerLaw_profile,          & ! power-law profile
+ expLaw_profile               ! exponential profile
+
 ! privacy
 implicit none
 private
@@ -58,10 +68,17 @@ contains
 !
 ! We further assume that transmssivity (m2 s-1) for each layer is defined assuming that the water
 ! available for saturated flow is located at the bottom of the soil profile. Specifically:
-!  trTotal(iLayer) = tran0*(zActive(iLayer)/soilDepth)**zScale_TOPMODEL
+!  trTotal(iLayer) = tran0*xTrans(zActive(iLayer))
 !  trSoil(iLayer)  = trTotal(iLayer) - trTotal(iLayer+1)
 ! where zActive(iLayer) is the effective water table thickness for all layers up to and including
 ! the current layer (working from the bottom to the top).
+!
+! Transmissivity is the vertical integral of the hydraulic conductivity profile, so xTrans follows
+! whichever profile satHydCond used, for saturated thickness s and total soil depth D:
+!  powerLaw_profile: tran0 = kAnisotropic*K_0*D/zScale_TOPMODEL, xTrans = (s/D)**zScale_TOPMODEL
+!  expLaw_profile:   tran0 = kAnisotropic*K_0/f_hydCond,         xTrans = exp(-f*(D-s)) - exp(-f*D)
+! Both give xTrans=0 at s=0. The exponential form keeps conductivity finite at the base of the soil,
+! which matters for glacier debris where melt enters through the bottom boundary.
 !
 ! The outflow from each layer is then (m3 s-1)
 !  mLayerOutflow(iLayer) = trSoil(iLayer)*tan_slope*contourLength
@@ -264,6 +281,8 @@ subroutine computBaseflow(&
   real(rkind)                        :: activePorosity        ! "active" porosity associated with storage above a threshold (-)
   real(rkind)                        :: drainableWater        ! drainable water in each layer (m)
   real(rkind)                        :: tran0                 ! maximum transmissivity (m2 s-1)
+  integer(i4b)                       :: ix_hc_profile         ! index for the choice of the hydraulic conductivity profile
+  real(rkind),dimension(nSoil)       :: xTrans                ! dimensionless transmissivity profile, trTotal = tran0*xTrans (-)
   real(rkind),dimension(nSoil)       :: zActive               ! water table thickness associated with storage below and including the given layer (m)
   real(rkind),dimension(nSoil)       :: trTotal               ! total transmissivity associated with total water table depth zActive (m2 s-1)
   real(rkind),dimension(nSoil)       :: trSoil                ! transmissivity of water in a given layer (m2 s-1)
@@ -292,6 +311,7 @@ subroutine computBaseflow(&
     contourLength           => prog_data%var(iLookPROG%DOMcontourLength)%dat(1),         & ! intent(in):  [dp]    length of contour at downslope edge of HRU (m)
     ! input: baseflow parameters
     zScale_TOPMODEL         => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),         & ! intent(in):  [dp]    TOPMODEL exponent (-)
+    f_hydCond               => mpar_data%var(iLookPARAM%f_hydCond)%dat(1),               & ! intent(in):  [dp]    decay rate of hydraulic conductivity with depth (m-1)
     kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in):  [dp]    anisotropy factor for lateral hydraulic conductivity (-)
     fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),           & ! intent(in):  [dp]    field capacity (-)
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                  & ! intent(in):  [dp(:)] soil porosity (-)
@@ -312,33 +332,61 @@ subroutine computBaseflow(&
       kAnisotropic_use = kAnisotropic*10._rkind ! if glacier ice layers are present, increase anisotropy factor to reflect higher hydraulic conductivity in glacier debris
     end if
 
-    ! compute the maximum transmissivity
-    ! NOTE: this can be done as a pre-processing step
-    tran0 = kAnisotropic_use*surfaceHydCond*soilDepth/zScale_TOPMODEL   ! maximum transmissivity (m2 s-1)
+    ! the transmissivity profile is the vertical integral of the hydraulic conductivity profile, so it must
+    ! match the profile satHydCond used to build the conductivity itself
+    ix_hc_profile = model_decisions(iLookDECISIONS%hc_profile)%iDecision
+    if(nGlce>0) ix_hc_profile = expLaw_profile ! must match the override in satHydCond
 
-    ! compute the water table thickness (m) and transmissivity in each layer (m2 s-1)
+    ! compute the water table thickness (m) in each layer, working from the bottom of the profile up
     do iLayer=nSoil,ixSaturation,-1  ! loop through "active" soil layers, from lowest to highest
       ! define drainable water in each layer (m)
       activePorosity = theta_sat(iLayer) - fieldCapacity_use ! "active" porosity (-)
       drainableWater = mLayerDepth(iLayer)*(max(0._rkind,mLayerVolFracLiq(iLayer) - fieldCapacity_use))/activePorosity
-      ! compute layer transmissivity
       if (iLayer==nSoil) then
-        zActive(iLayer) = drainableWater                                       ! water table thickness associated with storage in a given layer (m)
-        trTotal(iLayer) = tran0*(zActive(iLayer)/soilDepth)**zScale_TOPMODEL   ! total transmissivity for total depth zActive (m2 s-1)
-        trSoil(iLayer)  = trTotal(iLayer)                                      ! transmissivity of water in a given layer (m2 s-1)
+        zActive(iLayer) = drainableWater                        ! water table thickness associated with storage in a given layer (m)
       else
         zActive(iLayer) = zActive(iLayer+1) + drainableWater
-        trTotal(iLayer) = tran0*(zActive(iLayer)/soilDepth)**zScale_TOPMODEL
-        trSoil(iLayer)  = trTotal(iLayer) - trTotal(iLayer+1)
       end if
     end do  ! end looping through soil layers
 
+    ! set un-used portions of the water table thickness to zero, both profiles give xTrans=0 there
+    if (ixSaturation>1) zActive(1:ixSaturation-1) = 0._rkind
+
+    ! compute the maximum transmissivity (m2 s-1) and the dimensionless transmissivity profile xTrans(zActive),
+    ! along with dXdS = d(xTrans)/d(zActive/soilDepth) used to build the derivative matrix below
+    ! NOTE: tran0 can be done as a pre-processing step
+    select case(ix_hc_profile)
+
+      ! K(z) = K_0*exp(-f*z) integrated from the water table up to the base of the soil gives
+      !  T(s) = (K_0/f)*[exp(-f*(D-s)) - exp(-f*D)], for saturated thickness s and soil depth D
+      ! NOTE: written so that no exponential ever takes a positive argument
+      case(expLaw_profile)
+        tran0 = kAnisotropic_use*surfaceHydCond/f_hydCond
+        xTrans(1:nSoil) = exp(-f_hydCond*(soilDepth - zActive(1:nSoil))) - exp(-f_hydCond*soilDepth)
+        dXdS(1:nSoil)   = soilDepth*f_hydCond*exp(-f_hydCond*(soilDepth - zActive(1:nSoil)))
+
+      ! power-law transmissivity, the original TOPMODEL-ish form
+      ! NOTE: constant is grouped here only for completeness, mDecisions does not allow it with qbaseTopmodel
+      case(constant, powerLaw_profile)
+        tran0 = kAnisotropic_use*surfaceHydCond*soilDepth/zScale_TOPMODEL
+        xTrans(1:nSoil) = (zActive(1:nSoil)/soilDepth)**zScale_TOPMODEL
+        dXdS(1:nSoil)   = zScale_TOPMODEL*(zActive(1:nSoil)/soilDepth)**(zScale_TOPMODEL - 1._rkind)
+
+      case default
+        message=trim(message)//"unknown hydraulic conductivity profile for the baseflow transmissivity"
+        err=20; return
+
+    end select
+
+    ! compute the transmissivity of each layer (m2 s-1)
+    trTotal(1:nSoil) = tran0*xTrans(1:nSoil)                    ! total transmissivity for total depth zActive (m2 s-1)
+    trSoil(nSoil)    = trTotal(nSoil)                           ! transmissivity of water in a given layer (m2 s-1)
+    do iLayer=nSoil-1,1,-1
+      trSoil(iLayer) = trTotal(iLayer) - trTotal(iLayer+1)
+    end do
+
     ! set un-used portions of the vectors to zero
-    if (ixSaturation>1) then
-      zActive(1:ixSaturation-1) = 0._rkind
-      trTotal(1:ixSaturation-1) = 0._rkind
-      trSoil(1:ixSaturation-1)  = 0._rkind
-    end if
+    if (ixSaturation>1) trSoil(1:ixSaturation-1) = 0._rkind
 
     ! compute the outflow from each layer (m3 s-1)
     mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
@@ -396,9 +444,6 @@ subroutine computBaseflow(&
     do iLayer=1,nSoil
       if (mLayerVolFracLiq(iLayer) <= fieldCapacity_use) depth2capacity(iLayer) = 0._rkind
     end do
-
-    ! compute the change in dimensionless flux w.r.t. change in dimensionless storage (-)
-    dXdS(1:nSoil) = zScale_TOPMODEL*(zActive(1:nSoil)/soilDepth)**(zScale_TOPMODEL - 1._rkind)
 
     ! loop through soil layers
     do iLayer=1,nSoil
