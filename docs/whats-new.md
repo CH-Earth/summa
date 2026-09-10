@@ -1,6 +1,71 @@
 # What's new
 This page provides simple, high-level documentation about what has changed in each new release of SUMMA. Please add any changes made in pull requests to under the `Pre-release` header. Use `Minor changes` sub-heading for changes that do not affect science outputs or are likely to affect only a minority of users. Use `Major changes` for anything else.
 
+A commit-level list of every change on the 4.x line is kept in
+[`docs/assets/changes_fromV3Summa.txt`](assets/changes_fromV3Summa.txt); the summary below only
+covers the user-facing highlights.
+
+## Version 4.0.0 (experimental)
+
+### Build system
+- SUMMA is now built with CMake. Options select the SUNDIALS solvers (`-DUSE_SUNDIALS=ON`),
+  the NextGen framework (`-DUSE_NEXTGEN=ON`), the OpenWQ water-quality coupling
+  (`-DUSE_OPENWQ=ON`), and the build type (`-DCMAKE_BUILD_TYPE=Release|Debug`). See the
+  [installation instructions](installation/SUMMA_installation.md).
+
+### Numerical solution
+- New `num_method` options `kinsol` and `ida` use the SUNDIALS KINSOL and IDA solvers
+  (require a SUNDIALS build). The built-in backward-Euler solver is `homegrown` (the legacy
+  name `itertive` still works).
+- `fDerivMeth` now selects a numerical vs. analytical Jacobian; the in-flux-routine numerical
+  derivatives were removed. Analytical derivatives are required for `kinsol`/`ida`.
+- New `nrgConserv` decision (renamed from `howHeatCap`): temperature/closed-form heat capacity
+  vs. an enthalpy formulation with a soil temperature–enthalpy lookup table or analytical
+  relation.
+- New solver-control parameters for the backward-Euler step count and for SUNDIALS
+  relative/absolute tolerances and IDA controls; all have sensible defaults.
+- The moisture-based form of Richards' equation was removed — `f_Richards` only does the
+  mixed form now.
+
+### Spatial representation
+- HRUs can be subdivided into multiple spatial **domains** (upland plus glacier
+  accumulation / clean-ablation / debris-ablation columns; wetland and lake columns are
+  scaffolded but not yet active). Data structures gained a `dom` dimension throughout; the
+  restart and attributes files gained `dom`, `glac` and glacier-grid variables. Runs without
+  glaciers or wetlands are unchanged.
+- The number of soil layers no longer has to be the same in every HRU.
+
+### Process options
+- New `infRateMax` decision for the maximum infiltration rate (`topmodel_GA`, `GreenAmpt`,
+  `noInfExc`), and new `surfRun_SE` decision for saturation-excess surface runoff
+  (`homegrown_SE`, `FUSEPRMS`, `FUSEAVIC`, `FUSETOPM`, `zero_SE`). Distinct
+  `scalarSurfaceRunoff_IE` / `scalarSurfaceRunoff_SE` output fluxes were added.
+- New `aquiferIni` decision (`fullStart` / `emptyStart`).
+- Wind-profile / stability changes to fix over-estimated snow sublimation (affects
+  `veg_traits = CM_QJRMS1988` most).
+- Soil and snow longwave emissivity updated (0.98/0.99 → 0.96/0.98).
+
+### Input / output
+- Simulation start/end time (`simStartTime`, `simEndTime`) and `tmZoneInfo` are set in the
+  file manager, not the model decisions file. The file manager version string is
+  `SUMMA_FILE_MANAGER_V3.0.0`.
+- New `read_force` decision (buffered vs. per-step forcing reads; was `readForcing`) and
+  `write_buff` decision (buffered vs. per-step output writes; was `writeOutput`).
+- Fluxes and soil compression are written as means over the output window rather than the
+  value at the end of the last sub-step.
+- New energy/mass balance output variables (`balanceCasNrg`, `balanceVegNrg`, `balanceSnowNrg`,
+  `balanceSoilNrg`, `balanceVegMass`, `balanceSnowMass`, `balanceSoilMass`, `balanceAqMass`),
+  `meanStepSize`, and the GRU-level `basin__StorageChange`.
+- Routing-histogram variables are no longer written by default (set `allowRoutingOutput` to
+  re-enable). Several derived heat-capacity/conductivity scalars that no longer point to
+  anything were removed from the output list.
+
+### Other
+- Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
+- Runs as a NextGen submodule; NextGen test cases are in `test_ngen/`.
+- Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the
+  individual flux modules, simplified Jacobian assembly.
+
 ## Pre-release
 ### Major changes
 - General cleanup and shortening of computFlux.f90, vegNrgFlux.f90, snowSoilNrgFlux.f90, vegLiqFlux.f90, snowLiqFlux.f90, soilLiqFlux.f90, groundwatr.f90, and bigAquifer.f90 

@@ -1,25 +1,107 @@
 # SUMMA Configuration
 
-SUMMA configuration is performed via a number of input files, which are described in detail in the documentation for [SUMMA input](../input_output/SUMMA_input.md). In this section we provide a brief overview of how SUMMA's configuration can be changed to evaluate multiple modeling alternatives. SUMMA provides opportunities to select how individual processes are parameterized and how the spatial model elements interact with each other. We'll discuss each of these in the following sections.
+SUMMA is configured through a set of input files, described in detail in the documentation for
+[SUMMA input](../input_output/SUMMA_input.md). This section gives a high-level overview of the
+three axes along which a SUMMA configuration can be varied: the **process parameterizations**,
+the **numerical solution**, and the **spatial configuration**.
 
-## Alternative model parameterizations
+## Alternative process parameterizations
 
-While most hydrologists have a common conceptualization of the dominant processes that contribute to the land surface hydrological cycle, there are many different ways in which these processes are parameterized in hydrological models. Because the implementation of these parameterizations is often intertwined with other aspects of hydrological models, it remains difficult in practice to directly compare the performance of these different model parameterizations.
-
-In SUMMA, we have separated the model numerical solution techniques from the model parameterizations and we have made it possible to select from multiple parameterizations for individual hydrological processes, which allows for direct comparisons of these parameterizations under different conditions.
+Most hydrologists share a common conceptual picture of the dominant land-surface hydrological
+processes, but there are many different ways to parameterize those processes in a model, and
+in most models the parameterizations are entangled with each other and with the numerical
+solver. SUMMA separates the numerical solution from the process parameterizations and lets
+you pick, independently, how each process is represented.
 
 ![SUMMA horrendogram](../assets/img/SUMMA_horrendogram.png)<a id="SUMMA_horrendogram"></a>
-*SUMMA horrendogram (Clark et al. [2015a](../references.md#clark_2015a)) showing the SUMMA structure. The inner circle shows the conservation equations, which are solved by the solver. These conservations equations evolve in time as a result of physical processes, represented by the blue and orange circles. Each of these physical processes can be represented by different model parameterizations, which are shown in green and which can be specified as model options.*
+*SUMMA horrendogram (Clark et al. [2015a](../references.md#clark_2015a)). The inner circle is
+the set of conservation equations solved by the numerical core. They evolve in time under the
+physical processes shown in the blue and orange rings; each process can be represented by one
+of several parameterizations (green), selected as model options.*
 
-The different model options are referred to as **model decisions** and are specified in the [model decisions file](../input_output/SUMMA_input.md#infile_model_decisions). SUMMA users can specify model decisions that they would like to use in this file by selecting from existing parameterizations. For example, the user can choose between three different parameterizations for vegetation roughness length and displacement height and two parameterizations that describe the change in saturated hydraulic conductivity with depth. The available model decisions are discussed in the [model decisions file](../input_output/SUMMA_input.md#infile_model_decisions), but the master list is available in the SUMMA model code in `summa/build/source/engine/mDecisions.f90` We envision that model developers will contribute additional model parameterizations for these and other processes. In the current version of SUMMA, the same parameterization applies across the entire model domain, that is, it is not possible to have different model decisions for different model elements. Also, in the current version users need to specify parameter values for all model decisions, even if they are not being used. However, the parameter values for parameters that are not active (because the active model decision does not require them) do not affect the simulation. This means that the user can provide dummy parameters for inactive model decisions.
+The parameterization choices are **model decisions**, listed in the
+[model decisions file](../input_output/SUMMA_input.md#infile_model_decisions). The complete set
+of decisions and their options is documented in
+[Model Decisions in SUMMA](SUMMA_model_decisions.md); the file of record in the code is
+`build/source/engine/mDecisions.f90`.
 
-## Alternative spatial configurations
+A few practical notes:
 
-In hydrological models we know that simulation results are affected by the spatial representation of the landscape in the model. In SUMMA we allow the user to combine model element in a number of different ways to expand the domain over which we can test multiple modeling alternatives.
+* A decision applies uniformly across the whole run — you cannot yet use different decisions
+  for different model elements.
+* Every decision must be given a value even if the active configuration does not use it.
+  Where a decision is inactive, its value has no effect; several decisions accept the literal
+  `notPopulatedYet` as a placeholder that resolves to the default.
+* Parameters follow the same rule: values must be supplied for all parameters, but parameters
+  that the active decisions do not use do not affect the simulation.
 
-The smallest spatial elements in SUMMA are **hydrologic response units** (HRUs), which can be organized into **grouped response units**. For a detailed listing of the important differences between these units, see Clark et al. ([2015a](../references.md#clark_2015a)). In brief, GRUs are made up of one or more HRUs, are spatially contiguous, and there is no lateral exchange of moisture between GRUs. HRUs do not have to be spatially continuous, for example, they can be used to represent fractional coverage of a single landscape type across the GRU, they are uniform in soil and land use type, and SUMMA includes an option for lateral subsurface flow between HRUs. HRUs can be configured as free-draining columns, as columns contributing to a conceptual aquifer, either individually or as a group, or as columns that exchange moisture with neighboring columns through the saturated subsurface. SUMMA does not dictate or presume a shape of HRUs and GRUs.
+## Numerical solution
+
+The conservation equations are solved by a numerical core that is independent of the process
+parameterizations. The [`num_method`](SUMMA_model_decisions.md#num_method) decision selects the
+solver:
+
+* **homegrown** — SUMMA's built-in backward-Euler solver (also accepted under the legacy name
+  `itertive`). Available in every build.
+* **kinsol** — backward Euler using the SUNDIALS KINSOL nonlinear solver.
+* **ida** — adaptive-step implicit differential-algebraic solution using SUNDIALS IDA.
+
+The `kinsol` and `ida` options require SUMMA to be built with SUNDIALS support
+(`cmake ... -DUSE_SUNDIALS=ON`, see the [installation instructions](../installation/SUMMA_installation.md)).
+Related decisions include [`fDerivMeth`](SUMMA_model_decisions.md#fderivmeth) (numerical vs.
+analytical Jacobian — analytical is required for the SUNDIALS solvers) and
+[`nrgConserv`](SUMMA_model_decisions.md#nrgconserv), which chooses between a temperature-based
+and an enthalpy-based form of the energy equations.
+
+## Spatial configuration
+
+Simulation results depend on how the landscape is discretized. SUMMA lets you combine model
+elements in several ways so that multiple spatial configurations can be tested within the same
+framework.
 
 ![SUMMA spatial configurations](../assets/img/SUMMA_spatial.png)<a id="SUMMA_spatial"></a>
-*Alternative SUMMA spatial configurations (Clark et al. [2015a](../references.md#clark_2015a)). One or more HRUs are organized into GRUs and HRUs can be configured as different column models.*
+*Alternative SUMMA spatial configurations (Clark et al. [2015a](../references.md#clark_2015a)).
+One or more HRUs are organized into GRUs, and HRUs can be configured as different column
+models.*
 
-As with the model decisions, the column specification is set globally for the entire model domain. The specific column configuration can be selected in the [model decisions file](../input_output/SUMMA_input.md#infile_model_decisions). Whether the columns contribute to a single or common aquifer per GRU is indicated by the choice of the `spatial_gw` decision in that file. Spatial exchange between HRUs is indicated by specifying the downslope HRU in the [local attributes file](../input_output/SUMMA_input.md#infile_local_attributes).
+### GRUs and HRUs
+
+The two primary spatial units are the **grouped response unit** (GRU) and the **hydrologic
+response unit** (HRU); see Clark et al. ([2015a](../references.md#clark_2015a)) for the full
+discussion.
+
+* A **GRU** is spatially contiguous and is made up of one or more HRUs. There is no lateral
+  exchange of water between GRUs.
+* An **HRU** is uniform in soil and land-use type and need not be spatially contiguous — for
+  example, an HRU can represent the fractional coverage of one landscape type across the GRU.
+  HRUs can be run as free-draining columns, as columns that feed a conceptual aquifer
+  (individually or shared across the GRU), or as columns that exchange water with neighbouring
+  columns through the saturated subsurface.
+
+SUMMA does not presume any particular shape for HRUs or GRUs. The relevant decisions and
+inputs are:
+
+* [`groundwatr`](SUMMA_model_decisions.md#groundwatr) — the column type (TOPMODEL-style
+  baseflow, big-bucket aquifer, or no explicit groundwater).
+* [`spatial_gw`](SUMMA_model_decisions.md#spatial_gw) — whether each column has its own
+  groundwater store (`localColumn`) or the GRU shares a single store (`singleBasin`).
+* `downHRUindex` in the [local attributes file](../input_output/SUMMA_input.md#infile_local_attributes)
+  — the downslope HRU for lateral subsurface exchange (`0` means the basin outlet, i.e. no
+  downslope neighbour).
+
+### Sub-HRU spatial domains
+
+Within an HRU, SUMMA can carry more than one **spatial domain**, each with its own layered
+column of state variables and its own fractional area of the HRU. The domain types are:
+
+| Type | Status |
+|---|---|
+| upland | the standard soil/snow column; every HRU has one |
+| glacier accumulation, glacier clean ablation, glacier debris ablation | glacier ice columns, with area that evolves over the run |
+| wetland | recognized by the data structures but the wetland fluxes are not yet implemented |
+
+Runs without glaciers or wetlands have exactly one (upland) domain per HRU and behave as in
+earlier SUMMA versions. Domain counts, types, areas and initial layer structure come from the
+[initial conditions file](../input_output/SUMMA_input.md#infile_initial_conditions). Lake
+layers are represented in the layer bookkeeping alongside snow, soil and glacier ice, but a
+full lake column is likewise not yet active.

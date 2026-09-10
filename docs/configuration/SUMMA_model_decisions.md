@@ -1,462 +1,473 @@
 # Model Decisions in SUMMA
 
-**TODO**: Add information and background (including references) for all the available model decisions.
+Model decisions select which process parameterizations and numerical methods SUMMA uses for a
+run. They are supplied in the [model decisions file](../input_output/SUMMA_input.md#infile_model_decisions),
+whose path is given by the `decisionsFile` entry of the [file manager](../input_output/SUMMA_input.md#infile_master_configuration).
 
-Information about the selection of specific model decisions is provided to SUMMA via the [model decisions file](../input_output/SUMMA_input.md#infile_model_decisions).
+* The file has one decision per line as `<keyword> <option>`; lines may appear in any order.
+* Keywords and options are **case sensitive**.
+* The authoritative list of keywords is `build/source/dshare/get_ixname.f90`
+  (`function get_ixdecisions`); the authoritative list of options, defaults and the rules that
+  couple decisions together is `build/source/engine/mDecisions.f90`. If this page and the code
+  disagree, the code wins.
+* Simulation start/end time (`simStartTime`, `simEndTime`) and time-zone handling
+  (`tmZoneInfo`) are **not** model decisions — they moved to the [file manager](../input_output/SUMMA_input.md#infile_master_configuration).
+* Every decision must be present in the file. Several options are named `notPopulatedYet`;
+  where accepted (noted below) they resolve to the default so that inactive decisions can be
+  given a placeholder value.
 
-<a id="soilCatTbl"></a>
-##  3. soilCatTbl
-Soil-category dataset
+## Summary
 
-| Option | Description |
-|---|---|
-| STAS | **TODO: Describe STAS <br> [Reference](http://doi.org/)** |
-| STAS-RUC | **TODO: Describe STAS-RUC <br> [Reference](http://doi.org/)** |
-| ROSETTA | **TODO: Describe ROSETTA <br> [Reference](http://doi.org/)** |
+There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepted) are in **bold**.
 
+| # | Keyword | Options | Purpose |
+|---|---------|---------|---------|
+| 1 | [soilCatTbl](#soilcattbl) | STAS, STAS-RUC, ROSETTA | soil-category lookup table |
+| 2 | [vegeParTbl](#vegepartbl) | USGS, MODIFIED_IGBP_MODIS_NOAH, plumberCABLE, plumberCHTESSEL, plumberSUMMA | vegetation-category lookup table |
+| 3 | [soilStress](#soilstress) | NoahType, CLM_Type, SiB_Type | soil-moisture control on stomatal resistance |
+| 4 | [stomResist](#stomresist) | BallBerry, Jarvis, simpleResistance, BallBerryFlex, BallBerryTest | stomatal resistance |
+| 5 | [bbTempFunc](#bbtempfunc) | q10Func, Arrhenius | Ball-Berry: leaf-temperature control on photosynthesis |
+| 6 | [bbHumdFunc](#bbhumdfunc) | humidLeafSurface, scaledHyperbolic | Ball-Berry: humidity control on stomatal resistance |
+| 7 | [bbElecFunc](#bbelecfunc) | linear, linearJmax, quadraticJmax | Ball-Berry: dependence of photosynthesis on PAR |
+| 8 | [bbCO2point](#bbco2point) | origBWB, Leuning | Ball-Berry: use of the CO2 compensation point |
+| 9 | [bbNumerics](#bbnumerics) | NoahMPsolution, newtonRaphson | Ball-Berry: iterative solution method |
+| 10 | [bbAssimFnc](#bbassimfnc) | colimitation, minFunc | Ball-Berry: controls on carbon assimilation |
+| 11 | [bbCanIntg8](#bbcanintg8) | constantScaling, laiScaling | Ball-Berry: leaf-to-canopy scaling of photosynthesis |
+| 12 | [num_method](#num_method) | **homegrown** (alias `itertive`), kinsol, ida | numerical method for the model equations |
+| 13 | [fDerivMeth](#fderivmeth) | numericl, analytic | flux derivatives for the Jacobian |
+| 14 | [LAI_method](#lai_method) | monTable, specified | source of LAI/SAI |
+| 15 | [cIntercept](#cintercept) | **notPopulatedYet**, sparseCanopy, storageFunc | canopy interception |
+| 16 | [f_Richards](#f_richards) | **mixdform** | form of Richards' equation |
+| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict | groundwater parameterization |
+| 18 | [hc_profile](#hc_profile) | constant, pow_prof, exp_prof | hydraulic-conductivity profile with depth |
+| 19 | [bcUpprTdyn](#bcupprtdyn) | presTemp, nrg_flux, zeroFlux | upper boundary condition, thermodynamics |
+| 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux | lower boundary condition, thermodynamics |
+| 21 | [bcUpprSoiH](#bcupprsoih) | presHead, liq_flux | upper boundary condition, soil hydrology |
+| 22 | [bcLowrSoiH](#bclowrsoih) | presHead, bottmPsi, drainage, zeroFlux | lower boundary condition, soil hydrology |
+| 23 | [veg_traits](#veg_traits) | Raupach_BLM1994, CM_QJRMS1988, vegTypeTable | vegetation roughness length and displacement height |
+| 24 | [rootProfil](#rootprofil) | **powerLaw**, doubleExp | rooting profile |
+| 25 | [canopyEmis](#canopyemis) | simplExp, difTrans | canopy emissivity |
+| 26 | [snowIncept](#snowincept) | stickySnow, lightSnow | maximum canopy snow interception capacity |
+| 27 | [windPrfile](#windprfile) | exponential, logBelowCanopy | canopy wind profile |
+| 28 | [astability](#astability) | standard, louisinv, mahrtexp | atmospheric stability function |
+| 29 | [compaction](#compaction) | consettl, anderson | snow compaction / densification |
+| 30 | [snowLayers](#snowlayers) | jrdn1991, CLM_2010 | snow layer combination / sub-division rules |
+| 31 | [thCondSnow](#thcondsnow) | tyen1965, melr1977, jrdn1991, smnv2000 | snow thermal conductivity |
+| 32 | [thCondSoil](#thcondsoil) | funcSoilWet, mixConstit, hanssonVZJ | soil thermal conductivity |
+| 33 | [canopySrad](#canopysrad) | noah_mp, CLM_2stream, UEB_2stream, NL_scatter, BeersLaw | canopy shortwave radiation |
+| 34 | [alb_method](#alb_method) | conDecay, varDecay | snow albedo |
+| 35 | [spatial_gw](#spatial_gw) | localColumn, singleBasin | spatial representation of groundwater |
+| 36 | [subRouting](#subrouting) | timeDlay, qInstant | within-basin (sub-grid) routing |
+| 37 | [snowDenNew](#snowdennew) | **hedAndPom**, anderson, pahaut_76, constDens | new-snow density |
+| 38 | [snowUnload](#snowunload) | **meltDripUnload**, windUnload | unloading of snow from the canopy |
+| 39 | [nrgConserv](#nrgconserv) | closedForm, enthalpyForm, enthalpyFormAN | state variable / residual form for the energy equations |
+| 40 | [aquiferIni](#aquiferini) | **fullStart**, emptyStart | initial fill level of the aquifer |
+| 41 | [infRateMax](#infratemax) | **topmodel_GA**, GreenAmpt, noInfExc | maximum infiltration rate |
+| 42 | [surfRun_SE](#surfrun_se) | **homegrown_SE**, FUSEPRMS, FUSEAVIC, FUSETOPM, zero_SE | saturation-excess surface runoff |
+| 43 | [read_force](#read_force) | **readPerStep**, readFullSeries | how forcing data are read |
+| 44 | [write_buff](#write_buff) | **writePerStep**, writeFullSeries | how model output is buffered before writing |
 
-<a id="vegeParTbl"></a>
-##  4. vegeParTbl
-Vegetation category dataset
+---
 
-| Option | Description |
-|---|---|
-| USGS | **TODO: Describe USGS <br> [Reference](http://doi.org/)** |
-| MODIFIED_IGBP_MODIS_NOAH | **TODO: Describe MODIFIED_IGBP_MODIS_NOAH <br> [Reference](http://doi.org/)** |
-| plumberCABLE | **TODO: Describe plumberCABLE <br> [Reference](http://doi.org/)** |
-| plumberCHTESSEL | **TODO: Describe plumberCHTESSEL <br> [Reference](http://doi.org/)** |
-| plumberSUMMA | **TODO: Describe plumberSUMMA <br> [Reference](http://doi.org/)** |
+<a id="soilcattbl"></a>
+## 1. soilCatTbl — soil-category dataset
 
-<a id="soilStress"></a>
-##  5. soilStress
-Function for the soil moisture control on stomatal resistance
-
-| Option | Description |
-|---|---|
-| NoahType | **Soil stress is a thresholded linear function of volumetric liquid water content <br> [Reference](http://doi.org/)** |
-| CLM_Type | **Soil stress is a thresholded linear function of matric head <br> [CLM, 2010]( https://doi.org/10.1029/2011MS00045)** |
-| SiB_Type | **Soil stress is an exponential of the log of matric head <br> [Reference](http://doi.org/)** |
-
-<a id="stomResist"></a>
-##  6. stomResist
-Function for stomatal resistance
-
-| Option | Description |
-|---|---|
-| BallBerry | **TODO: Describe BallBerry <br> [Reference](http://doi.org/)** |
-| Jarvis | **TODO: Describe Jarvis <br> [Reference](http://doi.org/)** |
-| simpleResistance | **TODO: Describe simpleResistance <br> [Reference](http://doi.org/)** |
-| BallBerryFlex | **TODO: Describe BallBerryFlex <br> [Reference](http://doi.org/)** |
-| BallBerryTest | **TODO: Describe BallBerryTest <br> [Reference](http://doi.org/)** |
-
-<a id="bbTempFunc"></a>
-##  7. bbTempFunc
-Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
-
-| Option | Description |
-|---|---|
-| q10Func | **TODO: Describe q10Func <br> [Reference](http://doi.org/)** |
-| Arrhenius | **TODO: Describe Arrhenius <br> [Reference](http://doi.org/)** |
-
-
-<a id="bbHumdFunc"></a>
-##  8. bbHumdFunc
-Ball-Berry: humidity controls on stomatal resistance
-
-| Option | Description |
-|---|---|
-| humidLeafSurface | **TODO: Describe humidLeafSurface <br> [Reference](http://doi.org/)** |
-| scaledHyperbolic | **TODO: Describe scaledHyperbolic <br> [Reference](http://doi.org/)** |
-
-
-<a id="bbElecFunc"></a>
-## 9. bbElecFunc
-Ball-Berry: dependence of photosynthesis on PAR
-
-| Option | Description |
-|---|---|
-| linear | **TODO: Describe linear <br> [Reference](http://doi.org/)** |
-| linearJmax | **TODO: Describe linearJmax <br> [Reference](http://doi.org/)** |
-| quadraticJmax | **TODO: Describe quadraticJmax <br> [Reference](http://doi.org/)** |
-
-<a id="bbCO2point"></a>
-## 10. bbCO2point
-Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
+Selects the block of `SOILPARM.TBL` used for soil properties keyed on `soilTypeIndex`.
 
 | Option | Description |
 |---|---|
-| origBWB | **TODO: Describe origBWB <br> [Reference](http://doi.org/)** |
-| Leuning | **TODO: Describe Leuning <br> [Reference](http://doi.org/)** |
+| STAS | STATSGO soil classes (Noah/Noah-MP default) |
+| STAS-RUC | STATSGO classes with the RUC land-surface-model parameter set |
+| ROSETTA | classes/parameters from the ROSETTA pedotransfer database |
 
+<a id="vegepartbl"></a>
+## 2. vegeParTbl — vegetation-category dataset
 
-<a id="bbNumerics"></a>
-## 11. bbNumerics
-Ball-Berry: iterative numerical solution method
-
-| Option | Description |
-|---|---|
-| NoahMPsolution | **TODO: Describe NoahMPsolution <br> [Reference](http://doi.org/)** |
-| newtonRaphson | **TODO: Describe newtonRaphson <br> [Reference](http://doi.org/)** |
-
-
-<a id="bbAssimFnc"></a>
-## 12. bbAssimFnc
-Ball-Berry: controls on carbon assimilation
+Selects the block of `VEGPARM.TBL` used for vegetation properties keyed on `vegTypeIndex`.
 
 | Option | Description |
 |---|---|
-| colimitation | **TODO: Describe colimitation <br> [Reference](http://doi.org/)** |
-| minFunc | **TODO: Describe minFunc <br> [Reference](http://doi.org/)** |
+| USGS | 24-class USGS land-use classification |
+| MODIFIED_IGBP_MODIS_NOAH | 20-class modified IGBP/MODIS classification |
+| plumberCABLE | vegetation parameters tuned for the PLUMBER CABLE configuration |
+| plumberCHTESSEL | vegetation parameters tuned for the PLUMBER CH-TESSEL configuration |
+| plumberSUMMA | vegetation parameters tuned for the PLUMBER SUMMA configuration |
 
-
-<a id="bbCanIntg8"></a>
-## 13. bbCanIntg8
-Ball-Berry: scaling of photosynthesis from the leaf to the canopy
+<a id="soilstress"></a>
+## 3. soilStress — soil-moisture control on stomatal resistance
 
 | Option | Description |
 |---|---|
-| constantScaling | **TODO: Describe constantScaling <br> [Reference](http://doi.org/)** |
-| laiScaling | **TODO: Describe laiScaling <br> [Reference](http://doi.org/)** |
+| NoahType | thresholded linear function of volumetric liquid water content |
+| CLM_Type | thresholded linear function of matric head ([CLM technical note, 2010](https://doi.org/10.1029/2011MS00045)) |
+| SiB_Type | exponential of the log of matric head |
 
+<a id="stomresist"></a>
+## 4. stomResist — stomatal resistance
+
+| Option | Description |
+|---|---|
+| BallBerry | Ball-Berry conductance model (as in Noah-MP) |
+| Jarvis | Jarvis environmental-stress model |
+| simpleResistance | prescribed minimum stomatal resistance scaled by environmental factors |
+| BallBerryFlex | flexible Ball-Berry scheme; enables decisions 5–11 |
+| BallBerryTest | flexible Ball-Berry scheme, testing configuration; enables decisions 5–11 |
+
+Decisions 5–11 are read only when `stomResist` is `BallBerryFlex` or `BallBerryTest`;
+otherwise their values are ignored (use `notPopulatedYet`).
+
+<a id="bbtempfunc"></a>
+## 5. bbTempFunc — Ball-Berry leaf-temperature function
+
+| Option | Description |
+|---|---|
+| q10Func | Q10 function, as in CLM4 and Noah-MP |
+| Arrhenius | Arrhenius functions, as in CLM5 and CABLE |
+
+<a id="bbhumdfunc"></a>
+## 6. bbHumdFunc — Ball-Berry humidity function
+
+| Option | Description |
+|---|---|
+| humidLeafSurface | humidity at the leaf surface (Bonan et al., 2011) |
+| scaledHyperbolic | scaled hyperbolic function (Leuning et al., 1995) |
+
+<a id="bbelecfunc"></a>
+## 7. bbElecFunc — Ball-Berry electron-transport (PAR) function
+
+| Option | Description |
+|---|---|
+| linear | linear function, as in CLM4 and Noah-MP |
+| linearJmax | linear Jmax function, as in CABLE |
+| quadraticJmax | quadratic Jmax function, as in SSiB and CLM5 |
+
+<a id="bbco2point"></a>
+## 8. bbCO2point — Ball-Berry CO2 compensation point
+
+| Option | Description |
+|---|---|
+| origBWB | original Ball-Woodrow-Berry formulation (no explicit compensation point) |
+| Leuning | Leuning formulation using the CO2 compensation point |
+
+<a id="bbnumerics"></a>
+## 9. bbNumerics — Ball-Berry iterative solution method
+
+| Option | Description |
+|---|---|
+| NoahMPsolution | fixed-point iteration, maximum 3 iterations (as in Noah-MP and CLM4) |
+| newtonRaphson | full Newton-Raphson iteration to convergence |
+
+<a id="bbassimfnc"></a>
+## 10. bbAssimFnc — Ball-Berry carbon assimilation
+
+| Option | Description |
+|---|---|
+| colimitation | smooth co-limitation of the three assimilation controls (Collatz et al. 1991; Sellers et al. 1996) |
+| minFunc | take the minimum of the three assimilation controls |
+
+<a id="bbcanintg8"></a>
+## 11. bbCanIntg8 — Ball-Berry leaf-to-canopy scaling
+
+| Option | Description |
+|---|---|
+| constantScaling | constant scaling factor from leaf to canopy |
+| laiScaling | exponential function of LAI (Leuning et al., 1995, eq. 9) |
 
 <a id="num_method"></a>
-## 14. num_method
-Numerical method choice
+## 12. num_method — numerical method
 
 | Option | Description |
 |---|---|
-| itertive | **Use homegrown SUMMA Backward Euler solver (backwards compatible naming)** |
-| homegrown | **Use homegrown SUMMA Backward Euler solver** |
-| kinsol | **SUNDIALS (must have installed SUNDIALS) Backward Euler solution using KINSOL, backwards Euler solver with constant step-size <br> [SUNDIALS KINSOL](https://sundials.readthedocs.io/en/latest/kinsol/index.html)** |
-| ida | **SUNDIALS  (must have installed SUNDIALS) solution using IDA, adaptive step-size Implicit Differential-Algebraic solver <br> [SUNDIALS IDA](https://sundials.readthedocs.io/en/latest/ida/index.html)** |
+| homegrown | SUMMA's built-in backward-Euler solver (concepts from Numerical Recipes); constant sub-step with adaptive retries |
+| itertive | accepted as a backward-compatible alias for `homegrown` |
+| kinsol | backward Euler with the SUNDIALS KINSOL nonlinear solver; constant step size. Requires SUMMA built with `-DUSE_SUNDIALS=ON`. [KINSOL docs](https://sundials.readthedocs.io/en/latest/kinsol/) |
+| ida | adaptive-step implicit differential-algebraic solution with SUNDIALS IDA. Requires SUMMA built with `-DUSE_SUNDIALS=ON`. [IDA docs](https://sundials.readthedocs.io/en/latest/ida/) |
 
-
-<a id="fDerivMeth"></a>
-## 15. fDerivMeth
-Method to calculate flux derivatives for Jacobian
+<a id="fderivmeth"></a>
+## 13. fDerivMeth — flux derivatives for the Jacobian
 
 | Option | Description |
 |---|---|
-| numericl | **numerical derivatives** |
-| analytic | **analytical derivatives, only works with SUNDIALS num_method (kinsol or ida <br> [SUNDIALS IDA](https://sundials.readthedocs.io/en/latest/kinsol/Mathematics_link.html#difference-quotient-jacobian-approximations)** |
+| numericl | finite-difference (numerical) derivatives |
+| analytic | analytical derivatives. Required for `num_method = kinsol` or `ida`; with `homegrown` either option may be used |
 
-
-<a id="LAI_method"></a>
-## 16. LAI_method
-Method to determine LAI and SAI
+<a id="lai_method"></a>
+## 14. LAI_method — source of LAI and SAI
 
 | Option | Description |
 |---|---|
-| monTable | **TODO: Describe monTable <br> [Reference](http://doi.org/)** |
-| specified | **TODO: Describe specified <br> [Reference](http://doi.org/)** |
+| monTable | LAI/SAI taken directly from the monthly vegetation-class table |
+| specified | LAI/SAI computed from the green-vegetation fraction and the `winterSAI` / `summerLAI` parameters |
 
-
-<a id="cIntercept"></a>
-## 17. cIntercept
-Parameterization for canopy interception
+<a id="cintercept"></a>
+## 15. cIntercept — canopy interception
 
 | Option | Description |
 |---|---|
-| sparseCanopy | **TODO: Describe sparseCanopy <br> [Reference](http://doi.org/)** |
-| storageFunc | **TODO: Describe storageFunc <br> [Reference](http://doi.org/)** |
-| notPopulatedYet | **TODO: Describe notPopulatedYet <br> [Reference](http://doi.org/)** |
+| notPopulatedYet | undefined (backward compatibility) |
+| sparseCanopy | a fixed fraction of rainfall reaches the ground as throughfall; canopy drainage above a storage threshold |
+| storageFunc | throughfall is a function of relative canopy storage; 100% throughfall at canopy capacity |
 
-<a id="f_Richards"></a>
-## 18. f_Richards
-Form of Richards' equation
+<a id="f_richards"></a>
+## 16. f_Richards — form of Richards' equation
 
 | Option | Description |
 |---|---|
-| moisture | **TODO: Describe moisture <br> [Reference](http://doi.org/)** |
-| mixdform | **TODO: Describe mixdform <br> [Reference](http://doi.org/)** |
+| mixdform | mixed (head/moisture) form of Richards' equation |
 
+The moisture-based form was removed; `mixdform` (or `notPopulatedYet`) is the only accepted value.
 
 <a id="groundwatr"></a>
-## 19. groundwatr
-Groundwater parameterization
+## 17. groundwatr — groundwater parameterization
 
 | Option | Description |
 |---|---|
-| qTopmodl | **TODO: Describe qTopmodl <br> [Reference](http://doi.org/)** |
-| bigBuckt | **TODO: Describe bigBuckt <br> [Reference](http://doi.org/)** |
-| noXplict | **TODO: Describe noXplict <br> [Reference](http://doi.org/)** |
+| qTopmodl | TOPMODEL-style baseflow from a per-column store |
+| bigBuckt | lumped "big bucket" aquifer model |
+| noXplict | no explicit groundwater; soil drainage leaves the column |
+
+See also [`spatial_gw`](#spatial_gw), which sets whether the store is per column or per basin.
 
 <a id="hc_profile"></a>
-## 20. hc_profile
-Hydraulic conductivity profile
+## 18. hc_profile — hydraulic-conductivity profile
 
 | Option | Description |
 |---|---|
-| constant | **TODO: Describe constant <br> [Reference](http://doi.org/)** |
-| pow_prof | **TODO: Describe pow_prof <br> [Reference](http://doi.org/)** |
+| constant | saturated hydraulic conductivity constant with depth |
+| pow_prof | power-law decrease of saturated hydraulic conductivity with depth |
+| exp_prof | exponential decrease of saturated hydraulic conductivity with depth |
 
-
-<a id="bcUpprTdyn"></a>
-## 21. bcUpprTdyn
-Upper boundary condition for thermodynamics
-
-| Option | Description |
-|---|---|
-| presTemp | **TODO: Describe presTemp <br> [Reference](http://doi.org/)** |
-| nrg_flux | **TODO: Describe nrg_flux <br> [Reference](http://doi.org/)** |
-| zeroFlux | **TODO: Describe zeroFlux <br> [Reference](http://doi.org/)** |
-
-<a id="bcLowrTdyn"></a>
-## 22. bcLowrTdyn
-Lower boundary condition for thermodynamics
+<a id="bcupprtdyn"></a>
+## 19. bcUpprTdyn — upper boundary condition, thermodynamics
 
 | Option | Description |
 |---|---|
-| presTemp | **TODO: Describe presTemp <br> [Reference](http://doi.org/)** |
-| zeroFlux | **TODO: Describe zeroFlux <br> [Reference](http://doi.org/)** |
+| presTemp | prescribed surface temperature |
+| nrg_flux | energy flux computed from the surface energy balance |
+| zeroFlux | zero energy flux at the upper boundary |
 
-
-<a id="bcUpprSoiH"></a>
-## 23. bcUpprSoiH
-Upper boundary condition for soil hydrology
-
-| Option | Description |
-|---|---|
-| presHead | **TODO: Describe presHead <br> [Reference](http://doi.org/)** |
-| liq_flux | **TODO: Describe liq_flux <br> [Reference](http://doi.org/)** |
-
-
-<a id="bcLowrSoiH"></a>
-## 24. bcLowrSoiH
-Lower boundary condition for soil hydrology
+<a id="bclowrtdyn"></a>
+## 20. bcLowrTdyn — lower boundary condition, thermodynamics
 
 | Option | Description |
 |---|---|
-| presHead | **TODO: Describe presHead <br> [Reference](http://doi.org/)** |
-| bottmPsi | **TODO: Describe bottmPsi <br> [Reference](http://doi.org/)** |
-| drainage | **TODO: Describe drainage <br> [Reference](http://doi.org/)** |
-| zeroFlux | **TODO: Describe zeroFlux <br> [Reference](http://doi.org/)** |
+| presTemp | prescribed temperature at the bottom of the soil column |
+| zeroFlux | zero energy flux at the bottom of the soil column |
+
+<a id="bcupprsoih"></a>
+## 21. bcUpprSoiH — upper boundary condition, soil hydrology
+
+| Option | Description |
+|---|---|
+| presHead | prescribed head (prescribed volumetric liquid water content for the mixed form) |
+| liq_flux | prescribed liquid water flux (infiltration) at the soil surface |
+
+<a id="bclowrsoih"></a>
+## 22. bcLowrSoiH — lower boundary condition, soil hydrology
+
+| Option | Description |
+|---|---|
+| presHead | prescribed matric head at the bottom of the soil column |
+| bottmPsi | flux computed from the matric head gradient in the lowest layer |
+| drainage | free (gravity) drainage |
+| zeroFlux | zero liquid water flux at the bottom of the soil column |
 
 <a id="veg_traits"></a>
-## 25. veg_traits
-Parameterization for vegetation roughness length and displacement height
+## 23. veg_traits — roughness length and displacement height
 
 | Option | Description |
 |---|---|
-| Raupach_BLM1994 | **TODO: Describe Raupach_BLM1994 <br> [Raupach, 1994](http://doi.org/10.1007/BF00709229)** |
-| CM_QJRMS1988 | **TODO: Describe CM_QJRMS1988 <br> [Choudhury and Monteith, 1988](http://doi.org/10.1002/qj.49711448006)** |
-| vegTypeTable | **TODO: Describe vegTypeTable <br> [Reference](http://doi.org/)** |
+| Raupach_BLM1994 | [Raupach (1994)](https://doi.org/10.1007/BF00709229) simplified expressions |
+| CM_QJRMS1988 | [Choudhury and Monteith (1988)](https://doi.org/10.1002/qj.49711448006) four-layer heat-budget model |
+| vegTypeTable | constant values taken from the vegetation-type table |
 
-<a id="rootProfil"></a>
-## 26. rootProfil
-Parameterization for the rooting profile
-
-| Option | Description |
-|---|---|
-| powerLaw | **TODO: Describe powerLaw <br> [Reference](http://doi.org/)** |
-| doubleExp | **TODO: Describe doubleExp <br> [Reference](http://doi.org/)** |
-
-
-<a id="canopyEmis"></a>
-## 27. canopyEmis
-Parameterization for canopy emissivity
+<a id="rootprofil"></a>
+## 24. rootProfil — rooting profile
 
 | Option | Description |
 |---|---|
-| simplExp | **TODO: Describe simplExp <br> [Reference](http://doi.org/)** |
-| difTrans | **TODO: Describe difTrans <br> [Reference](http://doi.org/)** |
+| powerLaw | power-law root density with depth (also selected by `notPopulatedYet`) |
+| doubleExp | double-exponential profile (Zeng, 2001) |
 
-
-<a id="snowIncept"></a>
-## 28. snowIncept
-Parameterization for snow interception
+<a id="canopyemis"></a>
+## 25. canopyEmis — canopy emissivity
 
 | Option | Description |
 |---|---|
-| stickySnow | **Includes a rapid interception increasae between -3 and 0 C from observations of increased cohesion in warm regions.  <br> [Andreadis et al. 2009](https://doi.org/10.1029/2008WR007042)** |
-| lightSnow | **Includes a slight decrease in interception after -3 C from obervations in cold regions. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4)** |
+| simplExp | simple exponential function of LAI+SAI |
+| difTrans | function of the diffuse transmissivity of the canopy |
 
-
-<a id="windPrfile"></a>
-## 29. windPrfile
-Canopy wind profile
+<a id="snowincept"></a>
+## 26. snowIncept — canopy snow interception capacity
 
 | Option | Description |
 |---|---|
-| exponential | **The wind speed profile through the canopy is an exponential decay function. <br> [Reference](http://doi.org/)** |
-| logBelowCanopy | **The wind speed profile through the canopy is a logarithmic decay function. <br> [Reference](http://doi.org/)** |
+| stickySnow | maximum interception capacity increases with temperature (increased cohesion in warm conditions) ([Andreadis et al., 2009](https://doi.org/10.1029/2008WR007042)) |
+| lightSnow | maximum interception capacity an inverse function of new-snow density ([Hedstrom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4)) |
 
+<a id="windprfile"></a>
+## 27. windPrfile — canopy wind profile
+
+| Option | Description |
+|---|---|
+| exponential | exponential wind-speed decay that extends to the ground surface |
+| logBelowCanopy | logarithmic wind-speed profile below the canopy |
 
 <a id="astability"></a>
-## 30. astability
-Stability function
+## 28. astability — atmospheric stability function
 
 | Option | Description |
 |---|---|
-| standard | **TODO: Describe standard <br> [Reference](http://doi.org/)** |
-| louisinv | **TODO: Describe louisinv <br> [Reference](http://doi.org/)** |
-| mahrtexp | **TODO: Describe mahrtexp <br> [Reference](http://doi.org/)** |
+| standard | standard Monin-Obukhov similarity (after Anderson, 1976) |
+| louisinv | Louis (1979) inverse-power function |
+| mahrtexp | Mahrt (1987) exponential function |
 
 <a id="compaction"></a>
-## 31. compaction
-Compaction routine
+## 29. compaction — snow densification
 
 | Option | Description |
 |---|---|
-| consettl | **TODO: Describe consettl <br> [Reference](http://doi.org/)** |
-| anderson | **TODO: Describe anderson <br> [Reference](http://doi.org/)** |
+| consettl | constant settlement rate |
+| anderson | semi-empirical method of Anderson (1976) (destructive metamorphism + overburden) |
 
-
-<a id="snowLayers"></a>
-## 32. snowLayers
-Method to combine and sub-divide snow layers
+<a id="snowlayers"></a>
+## 30. snowLayers — snow layer combination and sub-division
 
 | Option | Description |
 |---|---|
-| jrdn1991 | **Divides the snowpack into a growing layer system where the number of layers is 100.  <br> [Jordan, 1991](https://apps.dtic.mil/docs/citations/ADA245493)** |
-| CLM_2010 | **Divides the snowpack into a 5-layer system. The rules of the layer division/merge can be altered to create <5 layer snowpacks. <br> [Community Land Model, 2010]( https://doi.org/10.1029/2011MS00045)** |
+| jrdn1991 | SNTHERM rules applied identically to all layers; grows to as many as 100 layers (Jordan, 1991) |
+| CLM_2010 | CLM rules; combination/sub-division depend on layer index, giving up to a 5-layer snowpack ([CLM technical note, 2010](https://doi.org/10.1029/2011MS00045)) |
 
-
-<a id="thCondSnow"></a>
-## 33. thCondSnow
-Thermal conductivity representation for snow
+<a id="thcondsnow"></a>
+## 31. thCondSnow — snow thermal conductivity
 
 | Option | Description |
 |---|---|
-| tyen1965 | **TODO: Describe tyen1965 <br> [Reference](http://doi.org/)** |
-| melr1977 | **TODO: Describe melr1977 <br> [Reference](http://doi.org/)** |
-| jrdn1991 | **TODO: Describe jrdn1991 <br> [Reference](http://doi.org/)** |
-| smnv2000 | **TODO: Describe smnv2000 <br> [Reference](http://doi.org/)** |
+| tyen1965 | Yen (1965) |
+| melr1977 | Mellor (1977) |
+| jrdn1991 | Jordan (1991), as used in SNTHERM |
+| smnv2000 | Smirnova et al. (2000) |
 
-<a id="thCondSoil"></a>
-## 34. thCondSoil
-Thermal conductivity representation for soil
-
-| Option | Description |
-|---|---|
-| funcSoilWet | **TODO: Describe funcSoilWet <br> [Reference](http://doi.org/)** |
-| mixConstit | **TODO: Describe mixConstit <br> [Reference](http://doi.org/)** |
-| hanssonVZJ | **TODO: Describe hanssonVZJ <br> [Reference](http://doi.org/)** |
-
-<a id="canopySrad"></a>
-## 35. canopySrad
-Method for canopy shortwave radiation
+<a id="thcondsoil"></a>
+## 32. thCondSoil — soil thermal conductivity
 
 | Option | Description |
 |---|---|
-| noah_mp | **TODO: Describe noah_mp <br> [Reference](http://doi.org/)** |
-| CLM_2stream | **TODO: Describe CLM_2stream <br> [Reference](http://doi.org/)** |
-| UEB_2stream | **TODO: Describe UEB_2stream <br> [Reference](http://doi.org/)** |
-| NL_scatter | **TODO: Describe NL_scatter <br> [Reference](http://doi.org/)** |
-| BeersLaw | **TODO: Describe BeersLaw <br> [Reference](http://doi.org/)** |
+| funcSoilWet | function of soil wetness (Kersten-number approach) |
+| mixConstit | volume-weighted mixture of soil constituents |
+| hanssonVZJ | Hansson et al. (VZJ 2004); tuned to the Mizoguchi laboratory freezing experiment |
+
+<a id="canopysrad"></a>
+## 33. canopySrad — canopy shortwave radiation
+
+| Option | Description |
+|---|---|
+| noah_mp | full Noah-MP two-stream implementation (includes its own albedo) |
+| CLM_2stream | CLM two-stream model |
+| UEB_2stream | UEB two-stream model (Mahat and Tarboton, 2012) |
+| NL_scatter | simplified scattering method of Nijssen and Lettenmaier (1999) |
+| BeersLaw | Beer's-law extinction (as in VIC) |
 
 <a id="alb_method"></a>
-## 36. alb_method
-Albedo representation
+## 34. alb_method — snow albedo
 
 | Option | Description |
 |---|---|
-| conDecay | **TODO: Describe conDecay <br> [Reference](http://doi.org/)** |
-| varDecay | **TODO: Describe varDecay <br> [Reference](http://doi.org/)** |
-
+| conDecay | constant decay time scale (as in VIC, CLASS) |
+| varDecay | variable decay from destructive metamorphism and soot content (BATS-style) |
 
 <a id="spatial_gw"></a>
-## 37. spatial_gw
-Method for spatial representation of groundwater
+## 35. spatial_gw — spatial representation of groundwater
 
 | Option | Description |
 |---|---|
-| localColumn | **TODO: Describe localColumn <br> [Reference](http://doi.org/)** |
-| singleBasin | **TODO: Describe singleBasin <br> [Reference](http://doi.org/)** |
+| localColumn | a separate groundwater store for each soil column |
+| singleBasin | a single groundwater store shared across the whole GRU |
 
-
-<a id="subRouting"></a>
-## 38. subRouting
-Method for sub-grid routing
+<a id="subrouting"></a>
+## 36. subRouting — within-basin routing
 
 | Option | Description |
 |---|---|
-| timeDlay | **TODO: Describe timeDlay <br> [Reference](http://doi.org/)** |
-| qInstant | **TODO: Describe qInstant <br> [Reference](http://doi.org/)** |
+| timeDlay | route runoff through a time-delay histogram (gamma-distribution unit hydrograph) |
+| qInstant | no routing; runoff is delivered instantaneously |
 
-
-<a id="snowDenNew"></a>
-## 39. snowDenNew
-Method for new snow density
+<a id="snowdennew"></a>
+## 37. snowDenNew — new-snow density
 
 | Option | Description |
 |---|---|
-| hedAndPom | **An empirical calculation dependant on air temperature. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4)** |
-| anderson | **TODO: Describe anderson <br> [Reference](http://doi.org/)** |
-| pahaut_76 | **An empirical calculation dependant on air temperature and wind speed. <br> [Pahaut, 1976](http://doi.org/)** |
-| constDens | **A constant new snow density of 330 kg/m^3 <br> [Reference](http://doi.org/)** |
+| hedAndPom | temperature-dependent exponential relation ([Hedstrom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4)); also selected by `notPopulatedYet` |
+| anderson | Anderson (1976) temperature relation |
+| pahaut_76 | Pahaut (1976); depends on air temperature and wind speed (Col de Porte) |
+| constDens | constant new-snow density, taken directly from the `constSnowDen` parameter |
 
-
-<a id="snowUnload"></a>
-## 40. snowUnload
-Method for unloading snow from the canopy
+<a id="snowunload"></a>
+## 38. snowUnload — unloading of intercepted snow
 
 | Option | Description |
 |---|---|
-| meltDripUnload | **Contains a temperature unloading function where the parameter *snowUnloadingCoeff* controls the exponential unloading rate and *ratioDrip2Unloading* is the ratio of liquid water drip from the canopy to snow unloading. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4) <br> [Storck et al. 2002]( https://doi.org/10.1029/2002WR001281)** |
-| windUnload | **Contains temperature and wind dependent unloading functions. The rates of temperature and wind unloading are adjustable through parameters *rateTempUnloading* and *rateWindUnloading*. Both functions contain parameter thresholds for the minimum temperature and windspeed required for unloading.  <br> [Roesch et al. 2001](https://doi.org/10.1007/s003820100153)** |
+| meltDripUnload | temperature-driven unloading plus liquid drip; controlled by `snowUnloadingCoeff` and `ratioDrip2Unloading` ([Hedstrom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4); [Storck et al., 2002](https://doi.org/10.1029/2002WR001281)); also selected by `notPopulatedYet` |
+| windUnload | temperature- and wind-driven unloading; controlled by `rateTempUnloading`, `rateWindUnloading` and minimum-temperature / minimum-windspeed thresholds ([Roesch et al., 2001](https://doi.org/10.1007/s003820100153)) |
 
+<a id="nrgconserv"></a>
+## 39. nrgConserv — form of the energy equations
 
-<a id="nrgConserv"></a>
-## 41. nrgConserv
-Choice of variable in energy equations (BE residual or IDA state variable)
-
-| Option | Description |
-|---|---|
-| closedForm | **use temperature with closed form heat capacity <br> [Energy paper stub](http://doi.org/)** |
-| enthalpyForm | **use enthalpy with soil temperature-enthalpy lookup table <br> [Energy paper stub](http://doi.org/)** |
-| enthalpyFormAN | **use enthalpy with soil temperature-enthalpy analytical solutions <br> [Energy paper stub](http://doi.org/)** |
-
-
-<a id="aquiferIni"></a>
-## 42. aquiferIni
-Choice of initial fill level for aquifer, should be used at default unless comparing solution methods
+Chooses the state variable / residual formulation for energy conservation.
 
 | Option | Description |
 |---|---|
-| fullStart | **(default) start with initial value aquifer, usually full for cold start as easier to drain the aquifer to equilibrium than fill to equilibrium** |
-| emptyStart | **start with empty aquifer, only used if comparing solution solution methods and not looking to simulate reality** |
+| closedForm | temperature with a closed-form heat capacity |
+| enthalpyForm | enthalpy as the state variable, with a temperature–enthalpy lookup table for soil |
+| enthalpyFormAN | enthalpy as the state variable, with an analytical temperature–enthalpy relation for soil |
 
+`enthalpyForm` / `enthalpyFormAN` require `num_method` to be `homegrown`, `kinsol` or `ida`.
+With the `itertive` alias, the value is forced to `closedForm` for backward compatibility.
 
-<a id="infRateMax"></a>
-## 43. infRateMax
-Choice of equation to determine maximum infiltration rate.
-
-| Option | Description |
-|---|---|
-| topmodel_GA | **(default) Topmodel-ish approximation of Green-Ampt** |
-| GreenAmpt | **Green-Ampt infiltration rate** |
-| noInfiltrationExcess | **Set max infiltration rate to something very high to make having infiltration excess runoff practically impossible**|
-
-
-<a id="surfRun_SE"></a>
-## 44. surfRun_SE
-Choice of equation to calculate saturation excess runoff.
+<a id="aquiferini"></a>
+## 40. aquiferIni — initial aquifer fill level
 
 | Option | Description |
 |---|---|
-| homegrown_SE | **(default) Original SUMMA implementation for saturation excess** |
-| FUSEPRMS | **PRMS saturation excess runoff as implemented in FUSE**|
-| FUSEAVIC | **ARNO/VIC saturation excess runoff as implemented in FUSE**|
-| FUSETOPM | **Topmodel saturation excess runoff as implemented in FUSE**|
-| zero_SE | **No saturation excess runoff**|
+| fullStart | start from the aquifer value in the initial-conditions file (default; for a cold start this is typically full, since draining to equilibrium is easier than filling) |
+| emptyStart | start from an empty aquifer; intended only for comparing solution methods, not for realistic simulation |
 
-
-<a id="readForcing"></a>
-## 45. readForcing
-Method used to read forcing data
+<a id="infratemax"></a>
+## 41. infRateMax — maximum infiltration rate
 
 | Option | Description |
 |---|---|
-| readPerStep | **Read forcing data per time step (default)** |
-| readFullSeries | **Read full forcing series in a buffered read** |
+| topmodel_GA | Green-Ampt with a TOPMODEL-based conductivity rate (default; also selected by `notPopulatedYet` when `num_method = itertive`) |
+| GreenAmpt | Green-Ampt maximum infiltration rate |
+| noInfExc | maximum infiltration rate set very high, effectively disabling infiltration-excess runoff (saturation-excess runoff can still occur) |
 
-
-<a id="writeOutput"></a>
-## 46. writeOutput
-Method used to write model output
+<a id="surfrun_se"></a>
+## 42. surfRun_SE — saturation-excess surface runoff
 
 | Option | Description |
 |---|---|
-| writePerStep | **Write model output per time step (default)** |
-| writeFullSeries | **Write all data for a given output file in a buffered read** |
+| homegrown_SE | SUMMA's built-in saturation-excess procedure (default; also selected by `notPopulatedYet`) |
+| FUSEPRMS | PRMS saturation-excess formulation, as implemented in FUSE |
+| FUSEAVIC | ARNO/VIC saturation-excess formulation, as implemented in FUSE |
+| FUSETOPM | TOPMODEL saturation-excess formulation, as implemented in FUSE |
+| zero_SE | no saturation-excess surface runoff |
+
+<a id="read_force"></a>
+## 43. read_force — how forcing is read
+
+Renamed from `readForcing` in earlier versions.
+
+| Option | Description |
+|---|---|
+| readPerStep | read one time step of forcing at a time (default; also selected by `notPopulatedYet`) |
+| readFullSeries | read the whole forcing series for a file in one buffered read |
+
+<a id="write_buff"></a>
+## 44. write_buff — how output is buffered
+
+Renamed from `writeOutput` in earlier versions.
+
+| Option | Description |
+|---|---|
+| writePerStep | write model output every time step (default; also selected by `notPopulatedYet`) |
+| writeFullSeries | buffer a whole output file in memory and write it once |

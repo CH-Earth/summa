@@ -203,4 +203,43 @@ AFTER tag of v4.0.0-exp-Sundials
 -54) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
 -55) Turn off (smoothly) condensation into saturated soil and infiltration into over-pressured soil with no water exit (no flux BC and no lateral flow), last bit of sat soil, commits around 87967f22 Jul 22, 2026
  56) Remove deprecated moisture-based Richards' equation, f_Richards decision still can be included but does not do anything but mixed form, commits around b99de74f	Jul 22, 2026
+ 57) Spatial domain expansion, merge of the glacier branch, commit a3c73138 Aug 27, 2026 (and follow-on fixes)
+     Each HRU can now hold more than one spatial "domain", each with its own layered column and its own fraction of the HRU area.
+     Domain types (domType in the initial conditions file; Fortran parameter names in globalData.f90 in parentheses):
+      ! 1 upland                    (upland)   ! the standard soil/snow column, every HRU has one
+      ! 2 glacier accumulation      (glacCln1) ! glacier ice column
+      ! 3 glacier clean ablation    (glacCln2) ! glacier ice column
+      ! 4 glacier debris ablation   (glacDbr)  ! glacier ice column, debris-covered
+      ! 5 wetland                   (wetland)  ! recognized by the data structures but wetland fluxes are not yet implemented
+     A "dom" dimension was added throughout the data structures (gru -> hru -> dom -> var), and to the restart and attributes files.
+     The layer system now tracks snow / lake / soil / glacier ice layers together (new INDEX variables nLakeOnly*, nGlceOnly*, nSnLaSoGl*,
+     and layer counts nLake and nGlce); as in change 50 the number of soil layers can differ between columns.
+     Runs with a single (upland) domain per HRU are unchanged.
+     New prognostic variables per domain: DOMarea, DOMelev, DOMtan_slope, DOMaspect, DOMcontourLength, scalarGlceWE (glacier ice water
+      equivalent change over the run), glacMass4AreaChange, scalarAblFrac (fraction of the domain in a glacier ablation zone).
+     Glacier area evolves during the run (glacAreaChange.f90, time_updateGlacArea) driven by a per-glacier grid supplied in the attributes
+      and initial conditions files (dimensions grid, xgrid, ygrid; variables surface_elev, debris_thick, bed_elev, glacierMask, cell2hruId).
+     New attributes file entries: nGlac, nWtld, nGrid (all optional, assumed 0), plus the glacier grid dimensions and variables when nGlac>0.
+     New GRU (basin) variables: basin__GlacierArea, basin__GlacierStorage, and glacier reservoir routing (glacIceRunoffFuture,
+      glacSnowRunoffFuture, glacFirnRunoffFuture, updateJulDay).
+     New parameters: glacierTempReduction (HRU, katabatic air-temperature reduction), glacStor_kIce / glacStor_kSnow / glacStor_kFirn
+      and latMoraineWidth (GRU). All have defaults, so are only needed for glacier runs.
+     maxSnowLayers is multiplied by 2.5 when any glacier is present, to allow firn development in the accumulation zone.
+     The OpenWQ coupling was updated to be per (HRU, domain) rather than per HRU (see build/source/openwq), commit f16c3488 Sep 10, 2026.
+-58) Groundwater / TOPMODEL baseflow fixes in computBaseflow (decision groundwatr == qTopmodl), commit dca170cc Sep 10, 2026
+      1) The transmissivity integrals are written in terms of the hydraulic conductivity at the soil surface, but the code was passing
+         mLayerSatHydCondMP(1), which is the macropore conductivity at the first layer midpoint (already scaled by the depth profile).
+         Now recovers the surface value for any profile as surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1). Affects both the
+         power-law and exponential transmissivity forms.
+      2) Analytical-Jacobian consistency fix: for soil layers above the water table the baseflow is forced to zero (trSoil clamp), but the
+         derivative matrix (dBaseflow_dVolLiq, dBaseflow_dWat, dBaseflow_dTk) still had non-zero rows for them. 
+ 59) New exponential hydraulic conductivity profile, commits bb2b1344 and 5095074b Sep 10, 2026
+     New option for the hc_profile decision:
+      ! constant   ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
+      ! pow_prof   ! power-law profile (original TOPMODEL-ish form)
+      ! exp_prof   ! exponential profile, K(z) = K_0*exp(-f*z), finite at the base of the soil
+     New parameter f_hydCond, decay rate of hydraulic conductivity with depth for the exponential profile (m-1), default 3 (1-5 m-1 for
+      supraglacial debris and weathered shallow till). Backwards compatible: defaults are supplied if the parameter is absent.
+     The TOPMODEL baseflow option (groundwatr == qTopmodl) now accepts exp_prof as well as pow_prof, since the baseflow transmissivity is
+      just the vertical integral of the conductivity profile. Glacier domains force exp_prof internally.
 
