@@ -51,7 +51,8 @@ USE mDecisions_module,only: &
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only: &
  constant,                  & ! constant hydraulic conductivity with depth
- powerLaw_profile             ! power-law profile
+ powerLaw_profile,          & ! power-law profile
+ expLaw_profile               ! exponential profile
 
 ! look-up values for the sub-grid routing method
 USE mDecisions_module,only: &
@@ -279,6 +280,7 @@ contains
  k_macropore        => mpar_data%var(iLookPARAM%k_macropore)%dat,       & ! saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
  compactedDepth     => mpar_data%var(iLookPARAM%compactedDepth)%dat(1), & ! the depth at which k_soil reaches the compacted value given by Clapp and Hornberger (1978) (m)
  zScale_TOPMODEL    => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),& ! exponent for the TOPMODEL-ish baseflow parameterization (-)
+ f_hydCond          => mpar_data%var(iLookPARAM%f_hydCond)%dat(1),      & ! decay rate of hydraulic conductivity with depth, exponential profile (m-1)
  ! associate the model index structures
  nSnow              => indx_data%var(iLookINDEX%nSnow)%dat(1),          & ! number of snow layers
  nLake              => indx_data%var(iLookINDEX%nLake)%dat(1),          & ! number of lake layers
@@ -296,7 +298,9 @@ contains
 
  ! NOTE: could do constant profile with the power-law profile with exponent=1, but keep constant profile decision for clarity
  ix_hc_profile = model_decisions(iLookDECISIONS%hc_profile)%iDecision
- if(nGlce>0) ix_hc_profile = powerLaw_profile ! force power-law profile if glacier, since glacier debris has lateral (TOPMODEL-ish) flow
+ ! NOTE: the power-law profile drives conductivity to zero at the base of the soil, which would shut off the capillary flux
+ !       from glacier ice melt in qDrainFlux; the exponential profile decays with depth but stays finite there
+ if(nGlce>0) ix_hc_profile = expLaw_profile ! force exponential profile if glacier, loose bouldery debris at the surface grading to a silt-choked matrix at the ice interface
  select case(ix_hc_profile)
 
   ! constant hydraulic conductivity with depth
@@ -364,6 +368,30 @@ contains
        iLayerSatHydCond(iSoil) = (d1 + d2) /  ( (d1 / mLayerSatHydCond(iSoil)) + (d2 / mLayerSatHydCond(iSoil+1)) )
      endif
    end do
+
+  ! exponential profile: K(z) = k_soil*exp(-f_hydCond*z), decays with depth but stays finite at the base of the soil
+  case(expLaw_profile)
+    ! 1) Calculate scaled conductivities at layer midpoints first.
+    do iLayer=(nSnow+nLake+1),(nSnow+nLake+nSoil)
+      iSoil = iLayer-nSnow-nLake
+      midDepthScaleFactor = exp(-f_hydCond*mLayerHeight(iLayer))
+      mLayerSatHydCond(iSoil)   = k_soil(iSoil)      * midDepthScaleFactor
+      mLayerSatHydCondMP(iSoil) = k_macropore(iSoil) * midDepthScaleFactor
+    end do
+
+    ! 2) Compute interface conductivity from midpoint values.
+    do iLayer=(nSnow+nLake),(nSnow+nLake+nSoil)
+      iSoil = iLayer-nSnow-nLake
+      if(iLayer==nSnow+nLake)then
+        iLayerSatHydCond(iSoil) = k_soil(1)     * exp(-f_hydCond*iLayerHeight(iLayer))
+      else if(iLayer==nSnow+nLake+nSoil)then
+        iLayerSatHydCond(iSoil) = k_soil(nSoil) * exp(-f_hydCond*iLayerHeight(iLayer))
+      else
+        d1 = iLayerHeight(iLayer) - mLayerHeight(iLayer)
+        d2 = mLayerHeight(iLayer+1) - iLayerHeight(iLayer)
+        iLayerSatHydCond(iSoil) = (d1 + d2) / ( (d1 / mLayerSatHydCond(iSoil)) + (d2 / mLayerSatHydCond(iSoil+1)) )
+      endif
+    end do
 
   ! error check (errors checked earlier also, so should not get here)
   case default

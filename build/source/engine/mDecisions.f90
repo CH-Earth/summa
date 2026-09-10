@@ -79,6 +79,7 @@ integer(i4b),parameter,public :: noExplicit           = 133    ! no explicit gro
 ! look-up values for the choice of hydraulic conductivity profile
 integer(i4b),parameter,public :: constant             = 141    ! constant hydraulic conductivity with depth
 integer(i4b),parameter,public :: powerLaw_profile     = 142    ! power-law profile
+integer(i4b),parameter,public :: expLaw_profile       = 143    ! exponential profile, K(z) = K_0*exp(-f*z), finite at the base of the soil
 ! look-up values for the choice of boundary conditions for thermodynamics
 integer(i4b),parameter,public :: prescribedTemp       = 151    ! prescribed temperature
 integer(i4b),parameter,public :: energyFlux           = 152    ! energy flux
@@ -504,6 +505,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision))
     case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
     case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
+    case('exp_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = expLaw_profile      ! exponential profile
     case default
       err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
   end select

@@ -195,6 +195,9 @@ contains
   if (parFallback(iLookBPAR%latMoraineWidth)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookBPAR%latMoraineWidth)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
   endif
+  if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%f_hydCond)%default_val = 3._rkind ! 1-5 m-1 for supraglacial debris and weathered shallow till
+  end if
  end if
 
  ! check we have populated all variables

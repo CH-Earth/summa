@@ -793,6 +793,7 @@ MODULE data_types
    logical(lgt) :: firstSplitOper   ! flag indicating if desire to compute infiltration
    integer(i4b) :: bc_lower         ! index defining the type of lower boundary conditions
    integer(i4b) :: ixInfRateMax     ! index defining the maximum infiltration rate method (GreenAmpt or topmodel_GA)
+   integer(i4b) :: ix_hc_profile    ! index defining the hydraulic conductivity profile, sets the shape used by topmodel_GA
    integer(i4b) :: surfRun_SE       ! index defining the saturation excess surface runoff method
    integer(i4b) :: ix_groundwatr    ! index defining the groundwater parameterization
    integer(i4b) :: bc_upper         ! index defining the type of boundary conditions
@@ -830,6 +831,7 @@ MODULE data_types
    real(rkind) :: theta_res           ! soil residual volumetric water content (-)
    real(rkind) :: qSurfScale          ! scaling factor in the surface runoff parameterization (-)
    real(rkind) :: zScale_TOPMODEL     ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
+   real(rkind) :: f_hydCond           ! decay rate of hydraulic conductivity with depth, exponential profile (m-1)
    real(rkind) :: rootingDepth        ! rooting depth (m)
    real(rkind) :: wettingFrontSuction ! Green-Ampt wetting front suction (m)
    real(rkind) :: soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
@@ -1898,6 +1900,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    ixBcLowerSoilHydrology => model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision,& ! index of the lower boundary conditions for soil hydrology
    ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,& ! index defining the type of boundary conditions
    ixInfRateMax           => model_decisions(iLookDECISIONS%infRateMax)%iDecision,& ! index of the maximum infiltration rate parameterization
+   ix_hc_profile          => model_decisions(iLookDECISIONS%hc_profile)%iDecision,& ! index of the hydraulic conductivity profile
    surfRun_SE             => model_decisions(iLookDECISIONS%surfRun_SE)%iDecision,& ! index defining the saturation excess surface runoff method
    ix_groundwatr          => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! index defining the groundwater parameterization
   &)
@@ -1906,6 +1909,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    in_surfaceFlux % bc_lower       = ixBcLowerSoilHydrology  ! index defining the type of boundary conditions at the bottom of the soil
    in_surfaceFlux % bc_upper       = ixBcUpperSoilHydrology  ! index defining the type of boundary conditions (Neumann or Dirichlet)
    in_surfaceFlux % ixInfRateMax   = ixInfRateMax            ! index defining the maximum infiltration rate parameterization (GreenAmpt or topmodel_GA)
+   in_surfaceFlux % ix_hc_profile  = ix_hc_profile           ! index defining the hydraulic conductivity profile (overridden for glacier debris in update_surfaceFlux)
    in_surfaceFlux % surfRun_SE     = surfRun_SE              ! index defining the saturation excess surface runoff method
    in_surfaceFlux % ix_groundwatr  = ix_groundwatr           ! index defining the groundwater parameterization
    in_surfaceFlux % nRoots         = nRoots                  ! number of layers that contain roots
@@ -1987,6 +1991,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    theta_res           => mpar_data%var(iLookPARAM%theta_res)%dat,             & ! soil residual volumetric water content (-)
    qSurfScale          => mpar_data%var(iLookPARAM%qSurfScale)%dat(1),         & ! scaling factor in the surface runoff parameterization (-)
    zScale_TOPMODEL     => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),    & ! TOPMODEL scaling factor (m)
+   f_hydCond           => mpar_data%var(iLookPARAM%f_hydCond)%dat(1),          & ! decay rate of hydraulic conductivity with depth (m-1)
    rootingDepth        => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),       & ! rooting depth (m)
    wettingFrontSuction => mpar_data%var(iLookPARAM%wettingFrontSuction)%dat(1),& ! Green-Ampt wetting front suction (m)
    soilIceScale        => mpar_data%var(iLookPARAM%soilIceScale)%dat(1),       & ! scaling factor for depth of soil ice, used to get frozen fraction (m)
@@ -2000,6 +2005,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    in_surfaceFlux % theta_res           = theta_res(1)        ! soil residual volumetric water content (-)
    in_surfaceFlux % qSurfScale          = qSurfScale          ! scaling factor in the surface runoff parameterization (-)
    in_surfaceFlux % zScale_TOPMODEL     = zScale_TOPMODEL     ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
+   in_surfaceFlux % f_hydCond           = f_hydCond           ! decay rate of hydraulic conductivity with depth, exponential profile (m-1)
    in_surfaceFlux % rootingDepth        = rootingDepth        ! rooting depth (m)
    if(nGlce>0) in_surfaceFlux % rootingDepth = max(rootingDepth,iLayerHeight(nSoil)) ! make all glacier debris layers take infiltration
    in_surfaceFlux % wettingFrontSuction = wettingFrontSuction ! Green-Ampt wetting front suction (m)

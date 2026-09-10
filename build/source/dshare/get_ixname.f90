@@ -379,6 +379,7 @@ contains
   case('k_macropore'              ); get_ixParam = iLookPARAM%k_macropore            ! saturated hydraulic conductivity for the macropores (m s-1)
   case('kAnisotropic'             ); get_ixParam = iLookPARAM%kAnisotropic           ! anisotropy factor for lateral hydraulic conductivity (-)
   case('zScale_TOPMODEL'          ); get_ixParam = iLookPARAM%zScale_TOPMODEL        ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
+  case('f_hydCond'                ); get_ixParam = iLookPARAM%f_hydCond              ! decay rate of hydraulic conductivity with depth, exponential profile (m-1)
   case('compactedDepth'           ); get_ixParam = iLookPARAM%compactedDepth         ! depth where k_soil reaches the compacted value given by Clapp and Hornberger (1978) (m)
   case('aquiferBaseflowRate'      ); get_ixParam = iLookPARAM%aquiferBaseflowRate    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   case('aquiferScaleFactor'       ); get_ixParam = iLookPARAM%aquiferScaleFactor     ! scaling factor for aquifer storage in the big bucket (m)

@@ -79,6 +79,10 @@ USE mDecisions_module,only:   &
   GreenAmpt,                  & ! Green-Ampt parameterization
   topmodel_GA,                & ! Green-Ampt parameterization with conductivity profile from TOPMODEL-ish parameterization
   noInfiltrationExcess,       & ! no infiltration excess runoff
+  ! look-up values for the choice of hydraulic conductivity profile
+  constant,                   & ! constant hydraulic conductivity with depth
+  powerLaw_profile,           & ! power-law profile
+  expLaw_profile,             & ! exponential profile
   ! look-up values for the choice of groundwater parameterization
   qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
   bigBucket,                  & ! a big bucket (lumped aquifer model)
@@ -771,6 +775,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: dfInfRaw(1:in_surfaceFlux % nSoil)  ! derivatives for different parts of a function
   real(rkind)                      :: total_soil_depth                    ! total depth of soil (m)
   integer(i4b)                     :: ixInfRateMax_use                    ! topmodel_GA choice of the maximum infiltration rate for glacier domains
+  integer(i4b)                     :: ix_hc_profile_use                   ! hydraulic conductivity profile used to shape the topmodel_GA infiltration rate
   ! head boundary condition
   real(rkind)                      :: cFlux                               ! capillary flux (m s-1)
   ! simplified Green-Ampt infiltration
@@ -779,6 +784,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: availCapacity                       ! available storage capacity in the root zone (m)
   real(rkind)                      :: depthWettingFront                   ! depth to the wetting front (m)
   real(rkind)                      :: hydCondWettingFront                 ! hydraulic conductivity at the wetting front (m s-1)
+  real(rkind)                      :: dHydCondWF_dDepth                   ! derivative in hydraulic conductivity at the wetting front w.r.t. its depth (s-1)
   ! saturated area associated with variable storage capacity
   real(rkind)                      :: fracCap                             ! fraction of pore space filled with liquid water and ice (-)
   real(rkind)                      :: fInfRaw                             ! infiltrating area before imposing solution constraints (-)
@@ -908,6 +914,7 @@ contains
    firstSplitOper => in_surfaceFlux % firstSplitOper, & ! flag indicating if desire to compute infiltration
    bc_upper       => in_surfaceFlux % bc_upper,       & ! index defining the type of boundary conditions
    ixInfRateMax   => in_surfaceFlux % ixInfRateMax,   & ! index defining the maximum infiltration rate method
+   ix_hc_profile  => in_surfaceFlux % ix_hc_profile,  & ! index defining the hydraulic conductivity profile
    nGlce          => in_surfaceFlux % nGlce,          & ! number of glacier ice layers
    surfRun_SE     => in_surfaceFlux % surfRun_SE,     & ! index defining the saturation excess surface runoff method
    ! input to compute infiltration
@@ -925,7 +932,10 @@ contains
    message => out_surfaceFlux % message  & ! error message
   &)
    ixInfRateMax_use = ixInfRateMax
-   if(nGlce>0) ixInfRateMax_use = topmodel_GA ! need to use TOPMODEL-ish Green-Ampt to have lateral flow in glacier debris
+   if(nGlce>0) ixInfRateMax_use = topmodel_GA ! glacier debris conductivity varies with depth, so the wetting-front conductivity must follow that profile
+   ! the topmodel_GA infiltration rate re-derives the conductivity profile, so it has to use the same shape satHydCond used
+   ix_hc_profile_use = ix_hc_profile
+   if(nGlce>0) ix_hc_profile_use = expLaw_profile ! must match the override in satHydCond
 
    ! compute the surface flux and its derivative
    if (firstSplitOper .or. updateInfil) then
@@ -1468,11 +1478,15 @@ subroutine update_volFracLiq_derivatives
    surfaceSatHydCond => in_surfaceFlux % surfaceSatHydCond , & ! saturated hydraulic conductivity at the surface (m s-1)
    ! input: soil parameters
    zScale_TOPMODEL     => in_surfaceFlux % zScale_TOPMODEL     , & ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
+   f_hydCond           => in_surfaceFlux % f_hydCond           , & ! decay rate of hydraulic conductivity with depth, exponential profile (m-1)
    rootingDepth        => in_surfaceFlux % rootingDepth        , & ! rooting depth (m)
    wettingFrontSuction => in_surfaceFlux % wettingFrontSuction , & ! Green-Ampt wetting front suction (m)
    mLayerDepth         => in_surfaceFlux % mLayerDepth         , & ! depth of each soil layer (m)
    ! input-output: surface runoff and infiltration flux (m s-1)
-   xMaxInfilRate    => io_surfaceFlux % xMaxInfilRate  & ! maximum infiltration rate (m s-1)
+   xMaxInfilRate    => io_surfaceFlux % xMaxInfilRate , & ! maximum infiltration rate (m s-1)
+   ! output: error control
+   err     => out_surfaceFlux % err    , & ! error code
+   message => out_surfaceFlux % message  & ! error message
   &)
    ! define the depth to the wetting front (m) and derivatives
    depthWettingFront = (rootZoneLiq/availCapacity)*min(rootingDepth,total_soil_depth)
@@ -1485,17 +1499,30 @@ subroutine update_volFracLiq_derivatives
    select case(ixInfRateMax_use)  ! maximum infiltration rate parameterization (noInfExcess set in update_surfaceFlux)
     case(topmodel_GA)
      ! define the hydraulic conductivity at depth=depthWettingFront (m s-1)
-     hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
+     ! NOTE: this re-derives the conductivity profile rather than reading iLayerSatHydCond, so it must use the same shape as satHydCond
+     select case(ix_hc_profile_use)
+       case(expLaw_profile)   ! K(z) = K_0*exp(-f*z), decays with depth but stays finite at the base of the soil
+         hydCondWettingFront = surfaceSatHydCond * exp(-f_hydCond*depthWettingFront)
+         dHydCondWF_dDepth   = -f_hydCond*hydCondWettingFront
+       case(powerLaw_profile) ! K decreases with depth, to zero at the base of the soil
+         hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 1._rkind) )
+         dHydCondWF_dDepth   = -surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) &
+                                * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) )/total_soil_depth
+       case(constant)         ! K uniform with depth, so the wetting front sees the surface conductivity
+         hydCondWettingFront = surfaceSatHydCond
+         dHydCondWF_dDepth   = 0._rkind
+       case default; err=20; message=trim(message)//'unknown hydraulic conductivity profile for the topmodel_GA infiltration rate'; return_flag=.true.; return
+     end select
      ! define the maximum infiltration rate (m s-1)
      xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
      ! define the derivatives
      if(updateInfil)then
        fPart1    = hydCondWettingFront
        fPart2    = (wettingFrontSuction + depthWettingFront)/depthWettingFront
-       dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/total_soil_depth
+       dPart1(:) = dHydCondWF_dDepth*dDepthWettingFront_dWat(:)
        dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
        dxMaxInfilRate_dWat(:) = fPart1*dPart2(:) + fPart2*dPart1(:)
-       dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/total_soil_depth)**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/total_soil_depth
+       dPart1(:) = dHydCondWF_dDepth*dDepthWettingFront_dTk(:)
        dPart2(:) = -dDepthWettingFront_dTk(:)*wettingFrontSuction / (depthWettingFront**2_i4b)
        dxMaxInfilRate_dTk(:)  = fPart1*dPart2(:) + fPart2*dPart1(:)
      endif
