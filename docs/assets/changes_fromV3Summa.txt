@@ -233,15 +233,27 @@ AFTER tag of v4.0.0-exp-Sundials
          Now recovers the surface value for any profile as surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1).
       2) Analytical-Jacobian consistency fix: for soil layers above the water table the baseflow is forced to zero (trSoil clamp), but the
          derivative matrix (dBaseflow_dVolLiq, dBaseflow_dWat, dBaseflow_dTk) still had non-zero rows for them. 
- 59) New exponential hydraulic conductivity profile, noting classical Beven-Kirkby transmissivity is exponential, commits bb2b1344 and 5095074b Sep 10, 2026
-     New option for the hc_profile decision:
+ 59) New exponential hydraulic conductivity profile, used internally for glacier debris and future for SUMMA coupled to separate aquifer, commits bb2b1344 and 5095074b Sep 10, 2026
       ! constant   ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
       ! pow_prof   ! power-law profile (original TOPMODEL-ish form)
-      ! exp_prof   ! exponential profile, K(z) = K_0*exp(-f*z) finite at the base of the soil, only for >=v4.1
+      ! exp_prof   ! exponential profile, only for >=v4.1 (used internally for glacier debris and future-proof selectable for an external aquifer)
      New parameter f_hydCond, decay rate of hydraulic conductivity with depth for the exponential profile (m-1), supraglacial debris and weathered shallow till values are default.
       f_hydCond                 |       3.0000 |       0.1000 |      10.0000
-     The groundwatr == qTopmodl option now accepts exp_prof as well as pow_prof, since the baseflow transmissivity is just the vertical integral of the conductivity profile.
-     The profile shape is re-derived in three places (vs previous hard-coded power law from iLayerSatHydCond): satHydCond (the conductivity itself), the topmodel_GA max infiltration rate in soilLiqFlux (conductivity at wetting front), computBaseflow (transmissivity integral).
--60) pow_prof conductivity profile floor below compactedDepth made consistent across satHydCond, topmodel_GA and computBaseflow, commit 8ae78ac2 Sep 11, 2026
-     The floor cannot be dropped, else at the bottom interface (1 - z/refDepth) is exactly 0, so 0**(zScale_TOPMODEL-1) is infinite for zScale_TOPMODEL < 1 (allowed to 0.1) and 0 above it.
+     SCOPE: exp_prof is not classical Beven-Kirkby. B-K integrates K_0*exp(-f*z) to infinite depth, T(d) = (K_0/f)*exp(-f*d), still
+      positive with the water table at the soil base; that deep indefinite store is what makes it a shallow aquifer. exp_prof
+      integrates to a finite impermeable base at D, T(d) = (K_0/f)*[exp(-f*d) - exp(-f*D)], so T = 0 there. It therefore means
+      lateral flow over an impermeable base with no aquifer beneath: glacier debris over ice, or soil over a separately modelled
+      aquifer (e.g. MODFLOW). The dropped tail exp(-f*D) is 22-41% of T_0 for 0.3-0.5 m debris with f = 3, but 6e-6 for
+      a 4 m soil column, so it only matters for shallow columns. So exp_prof is rejected by mDecisions for now.
+     The profile shape is re-derived in three places (vs previous hard-coded power law from iLayerSatHydCond): satHydCond (the conductivity itself), the topmodel_GA max infiltration rate in soilLiqFlux (conductivity at wetting front), computBaseflow (transmissivity).
+     Only exp_prof is consistent across all three. The re-derivation deliberately keeps the pow_prof inconsistency: computBaseflow
+      stays on the classical calibrated transmissivity and so does not match the compactedDepth floor satHydCond applies to the
+      conductivity (see change 60).
+-60) pow_prof conductivity floor below compactedDepth carried into the topmodel_GA infiltration rate, and the infRateMax check re-keyed on hc_profile, commit 8ae78ac2 Sep 11, 2026
+     topmodel_GA re-derived the unfloored power law while satHydCond floors below compactedDepth; both are the vertical conductivity at a depth, so topmodel_GA now uses satHydCond's shape. 
+     Note: The floor cannot be dropped instead: at the bottom interface 0**(zScale_TOPMODEL-1) is infinite for zScale_TOPMODEL < 1 (allowed to 0.1) and exactly 0 above it.
+      GreenAmpt vs topmodel_GA is about depth-varying conductivity, an hc_profile property not a groundwatr one, so the check is re-keyed: pow_prof/exp_prof need topmodel_GA (or noInfExc), 
+      constant with topmodel_GA only warns since it is the backwards-compatible default. 
+      This rejects bigBuckt + pow_prof + GreenAmpt, previously legal and silently inconsistent, and the bigBucket deprecation warning now fires only for constant, where the GreenAmpt it advises is actually legal.
+     computBaseflow keeps the classical (s/D)**zScale_TOPMODEL transmissivity (Ambroise et al. 1996), since with qTopmodl zScale_TOPMODEL is a recession-calibration parameter, not a soil property; constant is now its own case there (T linear in s).
 -61) Consistent association of the iden_ice/iden_water density ratio to (iden_ice/iden_water) because it is faster (inconsistent variations differ by 1 ULP), commit cde6aeeb Sep 11, 2026
