@@ -282,6 +282,10 @@ subroutine computBaseflow(&
   real(rkind)                        :: drainableWater        ! drainable water in each layer (m)
   real(rkind)                        :: tran0                 ! maximum transmissivity (m2 s-1)
   real(rkind)                        :: surfaceHydCond_use    ! macropore conductivity at the soil surface (m s-1)
+  real(rkind)                        :: refDepth              ! reference depth for the power-law profile scaling (m)
+  real(rkind)                        :: cDepth                ! compacted depth, limited to the soil column (m)
+  real(rkind)                        :: scaleFacC             ! power-law scale factor at the compacted depth (-)
+  real(rkind)                        :: wtDepth               ! depth to the water table (m)
   integer(i4b)                       :: ix_hc_profile         ! index for the choice of the hydraulic conductivity profile
   real(rkind),dimension(nSoil)       :: xTrans                ! dimensionless transmissivity profile, trTotal = tran0*xTrans (-)
   real(rkind),dimension(nSoil)       :: zActive               ! water table thickness associated with storage below and including the given layer (m)
@@ -315,6 +319,7 @@ subroutine computBaseflow(&
     ! input: baseflow parameters
     zScale_TOPMODEL         => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),         & ! intent(in):  [dp]    TOPMODEL exponent (-)
     f_hydCond               => mpar_data%var(iLookPARAM%f_hydCond)%dat(1),               & ! intent(in):  [dp]    decay rate of hydraulic conductivity with depth (m-1)
+    compactedDepth          => mpar_data%var(iLookPARAM%compactedDepth)%dat(1),          & ! intent(in):  [dp]    depth where k_soil reaches the compacted value (m)
     kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in):  [dp]    anisotropy factor for lateral hydraulic conductivity (-)
     fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),           & ! intent(in):  [dp]    field capacity (-)
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                  & ! intent(in):  [dp(:)] soil porosity (-)
@@ -374,12 +379,39 @@ subroutine computBaseflow(&
         xTrans(1:nSoil) = exp(-f_hydCond*(soilDepth - zActive(1:nSoil))) - exp(-f_hydCond*soilDepth)
         dXdS(1:nSoil)   = soilDepth*f_hydCond*exp(-f_hydCond*(soilDepth - zActive(1:nSoil)))
 
-      ! power-law transmissivity, the original TOPMODEL-ish form
-      ! NOTE: constant is grouped here only for completeness, mDecisions does not allow it with qbaseTopmodel
-      case(constant, powerLaw_profile)
-        tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth/zScale_TOPMODEL
-        xTrans(1:nSoil) = (zActive(1:nSoil)/soilDepth)**zScale_TOPMODEL
-        dXdS(1:nSoil)   = zScale_TOPMODEL*(zActive(1:nSoil)/soilDepth)**(zScale_TOPMODEL - 1._rkind)
+      ! power-law transmissivity, the vertical integral of the same floored profile satHydCond builds,
+      !  K(z) = K_0*(1 - min(z,zc)/R)**(zScale_TOPMODEL-1), for zc = compactedDepth and R = refDepth.
+      ! For saturated thickness s, water table depth d = D-s, and Kc the scale factor at zc, that integrates to
+      !  s <= D-zc:  T = K_0*Kc*s                                                  (water table below the scaling zone)
+      !  s >  D-zc:  T = K_0*Kc*(D-zc) + K_0*(R/n)*[(1-d/R)**n - (1-zc/R)**n]
+      ! NOTE: zc < R always, so 1-min(z,zc)/R is bounded away from zero and this never evaluates 0**(n-1). That is why
+      !       satHydCond floors the profile in the first place, so the floor has to be carried through here too
+      case(powerLaw_profile)
+        refDepth  = soilDepth
+        if (soilDepth < compactedDepth) refDepth = compactedDepth + 1._rkind ! as in satHydCond
+        cDepth    = min(compactedDepth, soilDepth)
+        scaleFacC = (1._rkind - cDepth/refDepth)**(zScale_TOPMODEL - 1._rkind)
+        tran0     = kAnisotropic_use*surfaceHydCond_use*soilDepth
+        do iLayer=1,nSoil
+          if (zActive(iLayer) <= soilDepth - cDepth) then ! water table at or below the compacted depth, uniform conductivity
+            xTrans(iLayer) = scaleFacC*zActive(iLayer)/soilDepth
+            dXdS(iLayer)   = scaleFacC
+          else                                            ! water table up inside the scaling zone
+            wtDepth        = soilDepth - zActive(iLayer)
+            xTrans(iLayer) = scaleFacC*(soilDepth - cDepth)/soilDepth                                    &
+                             + ( refDepth/(zScale_TOPMODEL*soilDepth) )                                  &
+                               *( (1._rkind - wtDepth/refDepth)**zScale_TOPMODEL                         &
+                                - (1._rkind -  cDepth/refDepth)**zScale_TOPMODEL )
+            dXdS(iLayer)   = (1._rkind - wtDepth/refDepth)**(zScale_TOPMODEL - 1._rkind)
+          end if
+        end do
+
+      ! uniform conductivity with depth, so transmissivity is simply linear in the saturated thickness
+      ! NOTE: grouped here only for completeness, mDecisions does not allow constant with qbaseTopmodel
+      case(constant)
+        tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth
+        xTrans(1:nSoil) = zActive(1:nSoil)/soilDepth
+        dXdS(1:nSoil)   = 1._rkind
 
       case default
         message=trim(message)//"unknown hydraulic conductivity profile for the baseflow transmissivity"

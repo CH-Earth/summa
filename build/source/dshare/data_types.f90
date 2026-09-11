@@ -832,6 +832,7 @@ MODULE data_types
    real(rkind) :: qSurfScale          ! scaling factor in the surface runoff parameterization (-)
    real(rkind) :: zScale_TOPMODEL     ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
    real(rkind) :: f_hydCond           ! decay rate of hydraulic conductivity with depth, exponential profile (m-1)
+   real(rkind) :: compactedDepth      ! depth where k_soil reaches the compacted value, power-law profile (m)
    real(rkind) :: rootingDepth        ! rooting depth (m)
    real(rkind) :: wettingFrontSuction ! Green-Ampt wetting front suction (m)
    real(rkind) :: soilIceScale        ! soil ice scaling factor in Gamma distribution used to define frozen area (m)
@@ -1992,6 +1993,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    qSurfScale          => mpar_data%var(iLookPARAM%qSurfScale)%dat(1),         & ! scaling factor in the surface runoff parameterization (-)
    zScale_TOPMODEL     => mpar_data%var(iLookPARAM%zScale_TOPMODEL)%dat(1),    & ! TOPMODEL scaling factor (m)
    f_hydCond           => mpar_data%var(iLookPARAM%f_hydCond)%dat(1),          & ! decay rate of hydraulic conductivity with depth (m-1)
+   compactedDepth      => mpar_data%var(iLookPARAM%compactedDepth)%dat(1),     & ! depth where k_soil reaches the compacted value (m)
    rootingDepth        => mpar_data%var(iLookPARAM%rootingDepth)%dat(1),       & ! rooting depth (m)
    wettingFrontSuction => mpar_data%var(iLookPARAM%wettingFrontSuction)%dat(1),& ! Green-Ampt wetting front suction (m)
    soilIceScale        => mpar_data%var(iLookPARAM%soilIceScale)%dat(1),       & ! scaling factor for depth of soil ice, used to get frozen fraction (m)
@@ -2006,6 +2008,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
    in_surfaceFlux % qSurfScale          = qSurfScale          ! scaling factor in the surface runoff parameterization (-)
    in_surfaceFlux % zScale_TOPMODEL     = zScale_TOPMODEL     ! scaling factor used to describe decrease in hydraulic conductivity with depth (m)
    in_surfaceFlux % f_hydCond           = f_hydCond           ! decay rate of hydraulic conductivity with depth, exponential profile (m-1)
+   in_surfaceFlux % compactedDepth      = compactedDepth      ! depth where k_soil reaches the compacted value, power-law profile (m)
    in_surfaceFlux % rootingDepth        = rootingDepth        ! rooting depth (m)
    if(nGlce>0) in_surfaceFlux % rootingDepth = max(rootingDepth,iLayerHeight(nSoil)) ! make all glacier debris layers take infiltration
    in_surfaceFlux % wettingFrontSuction = wettingFrontSuction ! Green-Ampt wetting front suction (m)
