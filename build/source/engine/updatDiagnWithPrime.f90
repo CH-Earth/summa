@@ -393,8 +393,8 @@ subroutine updatDiagnWithPrime(&
                 scalarCanopyWatTrial          = scalarCanopyLiqTrial          + scalarCanopyIceTrial
                 scalarCanopyWatPrime          = scalarCanopyLiqPrime          + scalarCanopyIcePrime
             case(iname_snow)
-                mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)*iden_ice/iden_water
-                mLayerVolFracWatPrime(iLayer) = mLayerVolFracLiqPrime(iLayer) + mLayerVolFracIcePrime(iLayer)*iden_ice/iden_water
+                mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)*(iden_ice/iden_water)
+                mLayerVolFracWatPrime(iLayer) = mLayerVolFracLiqPrime(iLayer) + mLayerVolFracIcePrime(iLayer)*(iden_ice/iden_water)
             case(iname_soil)
                 mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
                 mLayerVolFracWatPrime(iLayer) = mLayerVolFracLiqPrime(iLayer) + mLayerVolFracIcePrime(iLayer)
