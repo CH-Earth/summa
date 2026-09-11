@@ -109,6 +109,7 @@ module parameter_search
   public :: initialize_parameter_search
   public :: sample_parameters
   public :: perturb_parameters
+  public :: perturb_parameters_dds
 
 contains
 
@@ -723,7 +724,176 @@ contains
 
   end subroutine perturb_parameters
 
-
+  ! **************************************************************************************************
+  ! Generate a Dynamically Dimensioned Search (DDS) candidate solution.
+  !
+  ! Randomly selects a subset of the nD decision variables for inclusion in the DDS neighborhood {N}.
+  ! The probability P(i) of selecting each decision variable decreases logarithmically with function
+  ! evaluation i. Selected variables are perturbed around the current best solution x_best using a
+  ! normal random variable with standard deviation r times the decision-variable range.
+  !
+  ! This implementation differs slightly from the original DDS algorithm of Tolson and Shoemaker
+  ! (2007): perturbations that fall outside the parameter bounds are rejected and the full candidate
+  ! is regenerated rather than reflected back into the feasible range. Ordered constraints are
+  ! checked after transforming the complete candidate solution back to physical model space.
+  ! **************************************************************************************************
+  
+  subroutine perturb_parameters_dds(search,x_best,i,m,r,x_new,err,message)
+  
+    implicit none
+  
+    type(parameter_search_info), intent(in)  :: search        ! parameter-search information
+    real(rkind),                 intent(in)  :: x_best(:)     ! current best decision-variable vector
+    integer(i4b),                intent(in)  :: i             ! current function-evaluation number
+    integer(i4b),                intent(in)  :: m             ! maximum number of function evaluations
+    real(rkind),                 intent(in)  :: r             ! DDS neighborhood perturbation size
+    real(rkind),                 intent(out) :: x_new(:)      ! new candidate decision-variable vector
+    integer(i4b),                intent(out) :: err           ! error code
+    character(*),                intent(out) :: message       ! error message
+  
+    integer(i4b)            :: d                              ! decision-variable index
+    integer(i4b)            :: nD                             ! total number of decision variables
+    integer(i4b)            :: J                              ! number of dimensions in neighborhood {N}
+    integer(i4b)            :: d_random                       ! random dimension selected if {N} is empty
+    integer(i4b)            :: ntry                           ! attempt number for generating valid candidate
+    integer(i4b), parameter :: maxtry=10000                   ! maximum attempts to generate valid candidate
+  
+    real(rkind) :: P_i                                       ! probability dimension d is included in {N}
+    real(rkind) :: u                                         ! uniform random number
+    real(rkind) :: z                                         ! standard normal random variable N(0,1)
+    real(rkind) :: sigma_d                                   ! perturbation standard deviation for dimension d
+    real(rkind) :: x_best_d                                  ! x_best(d) in transformed search space
+    real(rkind) :: x_new_d                                   ! x_new(d) in transformed search space
+    real(rkind) :: x_min_d                                   ! lower bound for dimension d in search space
+    real(rkind) :: x_max_d                                   ! upper bound for dimension d in search space
+  
+    logical(lgt), dimension(size(x_best)) :: N               ! DDS neighborhood {N}; true if d is perturbed
+  
+    character(len=256) :: cmessage                           ! message returned by called routines
+  
+  
+    err=0
+    message='perturb_parameters_dds/'
+  
+    nD=size(x_best)                                          ! determine number of decision variables
+  
+    ! -----------------------------------------------------------------------------------------------
+    ! Check input arguments.
+    ! -----------------------------------------------------------------------------------------------
+  
+    if(size(x_new) /= nD .or. size(search%param_names) /= nD)then
+      message=trim(message)//'incorrect decision-variable vector size'
+      err=20
+      return
+    endif
+  
+    if(m <= 1)then
+      message=trim(message)//'maximum number of function evaluations must be greater than one'
+      err=20
+      return
+    endif
+  
+    if(i < 1 .or. i > m)then
+      message=trim(message)//'function-evaluation index is outside valid DDS range'
+      err=20
+      return
+    endif
+  
+    if(r <= 0._rkind)then
+      message=trim(message)//'DDS neighborhood perturbation size must be greater than zero'
+      err=20
+      return
+    endif
+  
+    ! -----------------------------------------------------------------------------------------------
+    ! Compute probability that each decision variable is included in the DDS neighborhood.
+    ! -----------------------------------------------------------------------------------------------
+  
+    P_i=1._rkind-log(real(i,rkind))/log(real(m,rkind))       ! P(i) = 1 - ln(i)/ln(m)
+  
+    ! -----------------------------------------------------------------------------------------------
+    ! Generate a candidate solution satisfying all parameter constraints.
+    ! -----------------------------------------------------------------------------------------------
+  
+    candidate_loop: do ntry=1,maxtry                         ! repeatedly generate candidates until one is feasible
+  
+      x_new=x_best                                           ! initialize candidate at current best solution
+      N=.false.                                              ! initialize DDS neighborhood {N}
+      J=0                                                    ! initialize number of perturbed dimensions
+  
+      ! ---------------------------------------------------------------------------------------------
+      ! Randomly select dimensions for inclusion in neighborhood {N}.
+      ! ---------------------------------------------------------------------------------------------
+  
+      do d=1,nD                                              ! loop through all decision variables
+  
+        call random_number(u)                                ! sample dimension-selection random number
+  
+        if(u < P_i)then
+          N(d)=.true.                                        ! include dimension d in DDS neighborhood
+          J=J+1                                              ! increment neighborhood dimension
+        endif
+  
+      enddo
+  
+      if(J == 0)then                                         ! ensure at least one dimension is perturbed
+        call random_number(u)                                ! sample one dimension uniformly
+        d_random=1+int(u*real(nD,rkind))                     ! convert random number to dimension index
+        d_random=min(d_random,nD)                            ! guard against upper-end roundoff
+        N(d_random)=.true.                                   ! include selected dimension in neighborhood
+        J=1                                                  ! neighborhood now contains one dimension
+      endif
+  
+      ! ---------------------------------------------------------------------------------------------
+      ! Perturb the selected dimensions.
+      ! ---------------------------------------------------------------------------------------------
+  
+      do d=1,nD                                              ! loop through all decision variables
+  
+        if(.not.N(d)) cycle                                  ! skip decision variables outside DDS neighborhood {N}
+  
+        call transform_parameter(x_best(d),                  & ! transform x_best(d) from physical to search space
+                                 search%transformation(d),   & ! transformation for decision variable d
+                                 x_best_d,                   & ! transformed value of x_best(d)
+                                 err,cmessage)                 ! error code and message
+  
+        if(err/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+  
+        x_min_d=search%search_lower(d)                        ! lower decision-variable bound in search space
+        x_max_d=search%search_upper(d)                        ! upper decision-variable bound in search space
+        sigma_d=r*(x_max_d-x_min_d)                          ! sigma_d = r [x_max(d) - x_min(d)]
+  
+        call random_normal(z)                                ! generate standard normal random variable N(0,1)
+  
+        x_new_d=x_best_d+sigma_d*z                           ! perturb x_best(d) to generate x_new(d)
+  
+        if(x_new_d < x_min_d .or. x_new_d > x_max_d) &       ! reject candidate if perturbation violates bounds
+          cycle candidate_loop
+  
+        call inverse_transform_parameter(x_new_d,            & ! transform x_new(d) from search to physical space
+                                         search%transformation(d), & ! transformation for decision variable d
+                                         x_new(d),           & ! proposed physical-space value of dimension d
+                                         err,cmessage)         ! error code and message
+  
+        if(err/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+  
+      enddo
+  
+      if(check_ordered_constraints(search,x_new)) return      ! accept candidate if ordered constraints are satisfied
+  
+    enddo candidate_loop
+  
+    message=trim(message)//'unable to generate DDS candidate satisfying parameter constraints'
+    err=20
+  
+  end subroutine perturb_parameters_dds
+  
   ! **************************************************************************************************
   ! Transform a parameter from physical model space to parameter-search space.
   ! **************************************************************************************************

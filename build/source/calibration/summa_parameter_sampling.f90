@@ -38,6 +38,7 @@ module summa_parameter_sampling
   private
 
   public :: generate_parameter_sample 
+  public :: generate_dds_sample
 
 contains
 
@@ -95,5 +96,66 @@ contains
     endif
   
   end subroutine generate_parameter_sample
+
+  
+  ! **************************************************************************************************
+  ! Generate a parameter sample using Dynamically Dimensioned Search (DDS).
+  !
+  ! Generates a new candidate decision-variable vector by perturbing the current best solution using
+  ! DDS, then constructs the complete SUMMA parameter override vector. The DDS perturbation operates
+  ! only on sampled parameters, while the complete override vector also includes any constraint-only
+  ! parameters required to maintain valid SUMMA parameter relationships.
+  ! **************************************************************************************************
+  
+  subroutine generate_dds_sample(param_spec,search,x_best,i,m, &
+                                 param_value,param_override,err,message)
+  
+    ! DDS parameter sampling
+    USE parameter_search, only: perturb_parameters_dds
+    
+    ! SUMMA parameter overrides
+    USE summa_parameter_spec, only: build_summa_parameter_overrides
+  
+    implicit none
+  
+    type(parameter_spec),        intent(in)  :: param_spec       ! complete SUMMA parameter specification
+    type(parameter_search_info), intent(in)  :: search           ! parameter-search information
+    real(rkind),                 intent(in)  :: x_best(:)        ! current best DDS decision-variable vector
+    integer(i4b),                intent(in)  :: i                ! current function-evaluation number
+    integer(i4b),                intent(in)  :: m                ! maximum number of function evaluations
+    real(rkind),                 intent(out) :: param_value(:)   ! new sampled decision-variable vector
+    real(rkind),                 intent(out) :: param_override(:)! complete SUMMA parameter override vector
+    integer(i4b),                intent(out) :: err              ! error code
+    character(*),                intent(out) :: message          ! error message
+ 
+    real(rkind), parameter      :: r = 0.2_rkind                 ! DDS neighborhood perturbation size 
+    character(len=256)          :: cmessage                      ! message returned by called routines
+  
+    err=0
+    message='generate_dds_sample/'
+  
+    call perturb_parameters_dds(search,        & ! generate DDS candidate
+                                x_best,        & ! current best solution
+                                i,             & ! current evaluation
+                                m,             & ! evaluation budget
+                                r,             & ! perturbation size
+                                param_value,   & ! new candidate
+                                err,cmessage)    ! error information
+    if(err/=0)then
+      message=trim(message)//trim(cmessage)
+      return
+    endif
+  
+    call build_summa_parameter_overrides(param_spec,         & ! construct full SUMMA parameter vector
+                                         search%param_names, & ! sampled parameter names
+                                         param_value,        & ! sampled parameter values
+                                         param_override,     & ! complete SUMMA overrides
+                                         err,cmessage)         ! error information
+    if(err/=0)then
+      message=trim(message)//trim(cmessage)
+      return
+    endif
+  
+  end subroutine generate_dds_sample
 
 end module summa_parameter_sampling

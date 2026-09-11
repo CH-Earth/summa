@@ -36,6 +36,7 @@ program summa_driver_opt
   ! logging
   USE globalData,      only: iulog
   USE iso_fortran_env, only: error_unit
+  USE iso_fortran_env, only: output_unit
 
   ! MPI
   USE mpi, only: MPI_Init,MPI_Finalize
@@ -74,38 +75,36 @@ program summa_driver_opt
 
   implicit none
 
-  ! SUMMA configuration
-  type(config_info) :: config
+  type(config_info) :: config                              ! SUMMA configuration information
 
-  ! MPI contexts for domain and model-instance parallelism
-  type(parallel_context_type) :: domain_parallel
-  type(parallel_context_type) :: instance_parallel
+  type(parallel_context_type) :: domain_parallel           ! MPI context for domain parallelism
+  type(parallel_context_type) :: instance_parallel         ! MPI context for model-instance parallelism
 
-  ! MPI message tags
-  integer(i4b), parameter :: tag_work = 1
-  integer(i4b), parameter :: tag_done = 2
-  integer(i4b), parameter :: tag_stop = 3
+  integer(i4b), parameter :: tag_work=1                    ! MPI tag for work messages
+  integer(i4b), parameter :: tag_done=2                    ! MPI tag for completed work
+  integer(i4b), parameter :: tag_stop=3                    ! MPI tag for stop messages
 
-  ! rank-specific logging
-  character(len=4)    :: rankString
-  character(len=256)  :: log_file
+  character(len=4)   :: rankString                         ! MPI rank formatted as a string
+  character(len=256) :: log_file                           ! rank-specific log file
 
-  ! calibration parameter information
-  type(parameter_spec)        :: param_spec
-  type(parameter_search_info) :: search
-  character(len=64), allocatable :: param_name(:)
-  
-  integer(i4b), parameter :: nSamples=1000
+  type(parameter_spec)                   :: param_spec     ! complete SUMMA parameter specification
+  type(parameter_search_info)            :: search         ! sampled parameter search information
+  character(len=64), allocatable         :: param_name(:)  ! complete SUMMA parameter names
 
-  ! calibration output file
-  integer(i4b)        :: ncid_calib
-  character(len=256)  :: calib_file
+  character(len=*), parameter :: sampling_method='dds'     ! parameter sampling method
+  integer(i4b),     parameter :: nSamples=5000             ! total number of parameter samples
 
-  ! error control
-  integer(i4b)        :: err=0
-  integer(i4b)        :: mpi_err=0
-  character(len=1024) :: message=''
-  character(len=256)  :: mpi_message=''
+  real(rkind), allocatable :: x_best(:)                    ! best parameter vector found so far
+  real(rkind)              :: F_best                       ! objective value associated with x_best
+  integer(i4b)             :: sample_best                  ! sample index associated with x_best
+
+  integer(i4b)       :: ncid_calib                         ! NetCDF identifier for calibration output
+  character(len=256) :: calib_file                         ! calibration output file
+
+  integer(i4b)        :: err=0                             ! SUMMA error code
+  integer(i4b)        :: mpi_err=0                         ! MPI error code
+  character(len=1024) :: message=''                        ! SUMMA error message
+  character(len=256)  :: mpi_message=''                    ! MPI error message
 
   ! ---------------------------------------------------------------------------------------
   ! Initialize MPI
@@ -189,6 +188,8 @@ program summa_driver_opt
                                        instance_parallel, & ! MPI instance-parallel context
                                        param_spec,search, & ! parameter specification and search information
                                        param_name,        & ! complete SUMMA parameter-name vector
+                                       x_best,F_best,     & ! current best solution and objective value
+                                       sample_best,       & ! sample index associated with current best solution
                                        err,message)         ! error code and message
   if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
@@ -210,13 +211,13 @@ program summa_driver_opt
   ! Evaluate parameter samples
   ! ---------------------------------------------------------------------------------------
 
-  call evaluate_parameter_samples(config,                 & ! SUMMA configuration structure
-                                  domain_parallel,        & ! MPI context for domain parallelism
-                                  instance_parallel,      & ! MPI context for model-instance parallelism
-                                  param_spec,search,      & ! parameter specification and search information
-                                  param_name,ncid_calib,  & ! parameter names and calibration output
-                                  nSamples,               & ! total number of parameter samples
-                                  err,message)             ! error code and message
+  call evaluate_parameter_samples(config,                     & ! SUMMA configuration structure
+                                  domain_parallel,            & ! MPI context for domain parallelism
+                                  instance_parallel,          & ! MPI context for model-instance parallelism
+                                  param_spec,search,          & ! parameter specification and search information
+                                  param_name,ncid_calib,      & ! parameter names and calibration output
+                                  x_best,F_best,sample_best,  & ! current best solution and objective value; sample index
+                                  nSamples,err,message)         ! total number of parameter samples; error code and message
   if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
   ! ---------------------------------------------------------------------------------------
@@ -259,33 +260,39 @@ contains
   ! and non-sampled parameters required by calibration constraints. On the dispatcher rank, also
   ! initializes the random-number generator used for parameter sampling.
   !
-  ! All information returned by this routine is invariant across individual parameter samples.
+  ! Initializes parameter information shared across evaluations and establishes
+  ! dispatcher-owned state used to track the current best solution.!
   ! **************************************************************************************************
   
-  subroutine initialize_parameter_evaluation(config,            &
-                                             instance_parallel, &
-                                             param_spec,search, &
-                                             param_name,         &
+  subroutine initialize_parameter_evaluation(config,instance_parallel, &
+                                             param_spec,search,param_name, &
+                                             x_best,F_best,sample_best, &
                                              err,message)
-  
+
     USE parameter_search, only: initialize_parameter_search
     USE summa_parameter_spec, only: get_summa_parameter_spec
   
     implicit none
-  
-    type(config_info),           intent(in)  :: config
-    type(parallel_context_type), intent(in)  :: instance_parallel
-    type(parameter_spec),        intent(out) :: param_spec
-    type(parameter_search_info), intent(out) :: search
-    character(len=64), allocatable, intent(out) :: param_name(:)
-    integer(i4b),                intent(out) :: err
-    character(*),                intent(out) :: message
-  
-    integer(i4b)              :: i
-    integer(i4b)              :: nseed
-    integer(i4b), allocatable :: seed(:)
-  
-    character(len=256) :: cmessage
+
+    type(config_info),           intent(in)  :: config             ! SUMMA configuration information
+    type(parallel_context_type), intent(in)  :: instance_parallel  ! MPI context for model-instance parallelism
+
+    type(parameter_spec),        intent(out) :: param_spec         ! complete SUMMA parameter specification
+    type(parameter_search_info), intent(out) :: search             ! sampled parameter search information
+    character(len=64), allocatable, intent(out) :: param_name(:)   ! complete SUMMA parameter names
+
+    real(rkind), allocatable, intent(out) :: x_best(:)             ! best decision-variable vector
+    real(rkind),              intent(out) :: F_best                ! best objective value
+    integer(i4b),             intent(out) :: sample_best           ! sample index associated with best objective
+
+    integer(i4b), intent(out) :: err                               ! error code
+    character(*), intent(out) :: message                           ! error message
+
+    integer(i4b)              :: i                                 ! parameter index
+    integer(i4b)              :: nseed                             ! random-number seed vector size
+    integer(i4b), allocatable :: seed(:)                           ! random-number seed vector
+
+    character(len=256) :: cmessage                                 ! message returned by called routines
   
     err=0
     message='initialize_parameter_evaluation/'
@@ -303,7 +310,7 @@ contains
       message=trim(message)//trim(cmessage)
       return
     endif
-  
+ 
     ! construct the complete invariant SUMMA parameter-name vector
     allocate(param_name(size(param_spec%params)),stat=err)
   
@@ -316,23 +323,37 @@ contains
       param_name(i)=param_spec%params(i)%name
     enddo
   
-    ! initialize random-number generator on the dispatcher
     if(instance_parallel%rank == 0)then
-  
+
+      ! initialize random-number generator on the dispatcher
+      
       call random_seed(size=nseed)
-  
+
       allocate(seed(nseed),stat=err)
-  
+
       if(err/=0)then
         message=trim(message)//'unable to allocate random-number seed'
         return
       endif
-  
+
       seed=42
       call random_seed(put=seed)
-  
+
+      ! initialize best parameter vector on the dispatcher
+      
+      allocate(x_best(size(search%param_names)),stat=err)
+
+      if(err/=0)then
+        message=trim(message)//'unable to allocate best parameter vector'
+        return
+      endif
+
+      x_best=0._rkind
+      F_best=-huge(1._rkind)
+      sample_best=0
+
     endif
-  
+
   end subroutine initialize_parameter_evaluation
 
 
@@ -344,18 +365,19 @@ contains
   ! immediately assigned additional samples, reducing load imbalance from variable model runtimes.
   ! **************************************************************************************************
 
-  subroutine evaluate_parameter_samples(config,                 &
-                                        domain_parallel,        &
-                                        instance_parallel,      &
-                                        param_spec,search,      &
-                                        param_name,ncid_calib,  &
-                                        nSamples,               &
-                                        err,message)
+  subroutine evaluate_parameter_samples(config,                    &
+                                        domain_parallel,           &
+                                        instance_parallel,         &
+                                        param_spec,search,         &
+                                        param_name,ncid_calib,     &
+                                        x_best,F_best,sample_best, &
+                                        nSamples,err,message)
 
     ! parameter search
     USE parameter_search, only: parameter_spec,parameter_search_info
     
     ! objective-function evaluation
+    USE summa_parameter_sampling, only: generate_dds_sample
     USE summa_parameter_sampling, only: generate_parameter_sample
     USE summa_simulation,         only: evaluate_objective
     
@@ -366,22 +388,31 @@ contains
 
     ! dummy variables
     type(config_info),              intent(inout) :: config             ! SUMMA configuration structure
+
     type(parallel_context_type),    intent(in)    :: domain_parallel    ! MPI context for domain parallelism
     type(parallel_context_type),    intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
+    
     type(parameter_spec),           intent(in)    :: param_spec         ! complete SUMMA parameter specification
     type(parameter_search_info),    intent(in)    :: search             ! parameter-search configuration and metadata
     character(len=64),              intent(in)    :: param_name(:)      ! complete SUMMA parameter-name vector
     integer(i4b),                   intent(in)    :: ncid_calib         ! calibration output NetCDF file ID
+    
+    real(rkind), allocatable,       intent(inout) :: x_best(:)          ! current best decision-variable vector
+    real(rkind),                    intent(inout) :: F_best             ! objective value associated with x_best
+    integer(i4b),                   intent(inout) :: sample_best        ! sample index associated with F_best
+    
     integer(i4b),                   intent(in)    :: nSamples           ! total number of parameter trials
+    
     integer(i4b),                   intent(out)   :: err                ! error code
     character(*),                   intent(out)   :: message            ! error message
 
     ! sampled parameter values
     real(rkind),       allocatable   :: param_value(:)
     real(rkind),       allocatable   :: param_override(:)
-    
-    ! complete parameter overrides retained by rank 0
-    real(rkind),       allocatable  :: param_overrides(:,:)
+
+    ! complete parameter samples and parameter overrides retained by rank 0
+    real(rkind),       allocatable   :: param_samples(:,:)
+    real(rkind),       allocatable   :: param_overrides(:,:)
 
     ! parameter-evaluation timing
     integer(i4b),      allocatable  :: startModelRun(:,:)
@@ -425,6 +456,12 @@ contains
         return
       endif
 
+      allocate(param_samples(size(search%param_names),nSamples),stat=err)
+      if(err/=0)then
+        message=trim(message)//'unable to allocate sampled parameter storage'
+        return
+      endif
+
       allocate(param_overrides(size(param_spec%params),nSamples),stat=err)
       if(err/=0)then
         message=trim(message)//'unable to allocate parameter override storage'
@@ -465,7 +502,9 @@ contains
                                          err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-          param_overrides(:,next_sample)=param_override
+          ! save parameter samples (rank 0)
+          param_samples(:,next_sample)=param_value       ! retain sampled decision-variable vector
+          param_overrides(:,next_sample)=param_override  ! retain complete SUMMA override vector
           call date_and_time(values=startModelRun(:,next_sample))
 
           ! send the sample index and parameter vector to this worker
@@ -501,6 +540,16 @@ contains
         sample_id=worker_sample(worker)
         call date_and_time(values=endModelRun(:,sample_id))
 
+        ! update best parameter sample
+        if(objective > F_best)then
+          F_best=objective                     ! update best objective value
+          x_best=param_samples(:,sample_id)    ! update best decision-variable vector
+          sample_best=sample_id                ! record sample associated with current best
+
+          write(output_unit,'(A,I0,A,F14.6)') 'new DDS best: sample=',sample_best,', objective=',F_best
+
+        endif
+
         call write_calibration_output(ncid_calib,                   &
                                       sample_id, worker,            &
                                       param_name,                   &
@@ -522,12 +571,35 @@ contains
         if(next_sample <= nSamples)then
 
           ! generate the next parameter sample and complete SUMMA override vector
-          call generate_parameter_sample(param_spec,search,       &
-                                         param_value,param_override, &
-                                         err,cmessage)
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          select case(trim(sampling_method))
 
-          param_overrides(:,next_sample)=param_override
+            case ('dds')
+
+              call generate_dds_sample(param_spec,search,             &
+                                       x_best,                         &
+                                       next_sample,nSamples,           &
+                                       param_value,param_override,     &
+                                       err,cmessage)
+              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+         
+            case ('random')
+         
+              call generate_parameter_sample(param_spec,search,       &
+                                             param_value,param_override, &
+                                             err,cmessage)
+              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+         
+            case default
+         
+              message=trim(message)//'unknown parameter sampling method: '//trim(sampling_method)
+              err=20; return
+       
+          end select
+
+
+          ! save parameter samples (rank 0)
+          param_samples(:,next_sample)=param_value       ! retain sampled decision-variable vector
+          param_overrides(:,next_sample)=param_override  ! retain complete SUMMA override vector
           call date_and_time(values=startModelRun(:,next_sample))
 
           ! send the next sample to the worker that just became available
