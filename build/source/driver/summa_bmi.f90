@@ -240,6 +240,10 @@ module summabmi
   integer, parameter :: output_item_count = 16
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
+  ! Buffers behind summa_get_ptr_int/float.  The BMI contract is that the returned pointer
+  ! stays valid after the call, so these cannot be the callers' own automatic arrays.
+  real,    target, allocatable :: ptr_buffer(:)
+  integer, target              :: iptr_buffer
   ! ---------------------------------------------------------------------------------------
 
   contains
@@ -976,7 +980,7 @@ module summabmi
      integer ,target :: itarget_arr
      integer :: bmi_status
 
-     call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+     call get_basin_field(this, name, target_arr, itarget_arr) ! See near bottom of file
      ! use the real or integer target
      if(name(1:5)=='model')then ! not currently used, left in for future integer type needs
        size = sizeof(itarget_arr) ! 'sizeof' in gcc & ifort
@@ -1031,7 +1035,7 @@ module summabmi
 
      select case(name)
      case default
-       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       call get_basin_field(this, name, target_arr, itarget_arr) ! See near bottom of file
        ! use the integer target
        dest = itarget_arr
        bmi_status = BMI_SUCCESS
@@ -1049,7 +1053,7 @@ module summabmi
 
      select case(name)
      case default
-       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       call get_basin_field(this, name, target_arr, itarget_arr) ! See near bottom of file
        ! use the real target
        dest = target_arr
        bmi_status = BMI_SUCCESS
@@ -1075,18 +1079,16 @@ module summabmi
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      integer, pointer, intent(inout) :: dest_ptr(:)
-     integer :: bmi_status, n_elements
-     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
-     integer ,target :: itarget_arr
+     integer :: bmi_status
+     real    :: target_arr(sum(gru_struc(:)%hruCount))
      type (c_ptr) :: src
 
      select case(name)
      case default
-       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
-       ! use the integer target
-       src = c_loc(itarget_arr)
-       n_elements = sum(gru_struc(:)%hruCount)
-       call c_f_pointer(src, dest_ptr, [n_elements])
+       call get_basin_field(this, name, target_arr, iptr_buffer) ! See near bottom of file
+       ! use the integer target, which is a scalar (the 'model*' fields are not per-HRU)
+       src = c_loc(iptr_buffer)
+       call c_f_pointer(src, dest_ptr, [1])
        bmi_status = BMI_SUCCESS
      end select
    end function summa_get_ptr_int
@@ -1097,16 +1099,16 @@ module summabmi
      character (len=*), intent(in) :: name
      real, pointer, intent(inout) :: dest_ptr(:)
      integer :: bmi_status, n_elements
-     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
-     integer ,target :: itarget_arr
+     integer :: itarget_arr
      type (c_ptr) :: src
 
      select case(name)
      case default
-       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
-       ! use the real target
-       src = c_loc(target_arr(1))
        n_elements = sum(gru_struc(:)%hruCount)
+       if (.not. allocated(ptr_buffer)) allocate(ptr_buffer(n_elements))
+       call get_basin_field(this, name, ptr_buffer, itarget_arr) ! See near bottom of file
+       ! use the real target
+       src = c_loc(ptr_buffer(1))
        call c_f_pointer(src, dest_ptr, [n_elements])
        bmi_status = BMI_SUCCESS
      end select
@@ -1140,10 +1142,10 @@ module summabmi
 
      select case(name)
      case default
-       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
-       ! use the integer target
+       call get_basin_field(this, name, target_arr, itarget_arr) ! See near bottom of file
+       ! use the integer target, which is a scalar (the 'model*' fields are not per-HRU)
        src = c_loc(itarget_arr)
-       call c_f_pointer(src, src_flattened, [n_elements])
+       call c_f_pointer(src, src_flattened, [1])
        n_elements = size(inds)
        do i = 1, n_elements
           dest(i) = src_flattened(inds(i))
@@ -1166,10 +1168,10 @@ module summabmi
 
      select case(name)
      case default
-       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       call get_basin_field(this, name, target_arr, itarget_arr) ! See near bottom of file
        ! use the real target
        src = c_loc(target_arr(1))
-       call c_f_pointer(src, src_flattened, [n_elements])
+       call c_f_pointer(src, src_flattened, [size(target_arr)])
        n_elements = size(inds)
        do i = 1, n_elements
           dest(i) = src_flattened(inds(i))
@@ -1375,11 +1377,13 @@ module summabmi
      end associate summaVars
    end subroutine assign_basin_field
 
-   ! non-BMI helper function to get fields, only get first do_nHRU of them
-   subroutine get_basin_field(this, name, do_nHRU, target_arr, itarget_arr)
+   ! non-BMI helper function to get fields, for every HRU in the run.
+   ! NOTE: this used to take a do_nHRU argument and fill only the first do_nHRU entries,
+   !       leaving the rest at -999.  Every caller but the itemsize probe wants them all,
+   !       and all were passing 1, so callers were handed one value followed by -999s.
+   subroutine get_basin_field(this, name, target_arr, itarget_arr)
      implicit none
      class (summa_bmi), intent(in) :: this
-     integer, intent(in)  :: do_nHRU
      character (len=*), intent(in) :: name
      real, target, intent(out)    :: target_arr(sum(gru_struc(:)%hruCount))
      integer, target, intent(out) :: itarget_arr
@@ -1406,7 +1410,6 @@ module summabmi
         do iGRU = 1, this%model%summa1_struc(n)%nGRU
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
-            if (i > do_nHRU) return
             target_arr(i) = 0._rkind
             do iDOM = 1, gru_struc(iGRU)%hruInfo(jHRU)%domCount
               fracDOM = progStruct%gru(iGRU)%hru(jHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)/ bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
