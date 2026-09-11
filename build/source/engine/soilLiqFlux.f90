@@ -786,7 +786,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: hydCondWettingFront                 ! hydraulic conductivity at the wetting front (m s-1)
   real(rkind)                      :: dHydCondWF_dDepth                   ! derivative in hydraulic conductivity at the wetting front w.r.t. its depth (s-1)
   real(rkind)                      :: refDepth_use                        ! reference depth for the power-law profile scaling (m)
-  real(rkind)                      :: cDepth_use                          ! compacted depth, limited to the soil column (m)
+  real(rkind)                      :: depthWF_use                         ! wetting-front depth, clamped off the base of the soil (m)
   ! saturated area associated with variable storage capacity
   real(rkind)                      :: fracCap                             ! fraction of pore space filled with liquid water and ice (-)
   real(rkind)                      :: fInfRaw                             ! infiltrating area before imposing solution constraints (-)
@@ -1507,21 +1507,18 @@ subroutine update_volFracLiq_derivatives
        case(expLaw_profile)   ! K(z) = K_0*exp(-f*z), decays with depth but stays finite at the base of the soil
          hydCondWettingFront = surfaceSatHydCond * exp(-f_hydCond*depthWettingFront)
          dHydCondWF_dDepth   = -f_hydCond*hydCondWettingFront
-       ! floored power law, the same profile satHydCond builds: K(z) = K_0*(1 - min(z,zc)/R)**(zScale_TOPMODEL-1),
-       ! for zc = compactedDepth and R = refDepth. Below zc the conductivity is uniform, so the wetting front sees no gradient.
-       ! NOTE: zc < R always, so this never evaluates 0**(n-1) at the base of the soil
+       ! power law, the same profile satHydCond builds: K(z) = K_0*(1 - z/R)**(zScale_TOPMODEL-1) for
+       ! R = refDepth, decaying over the whole column and reaching zero at the base. It is not floored
+       ! below compactedDepth -- see the NOTE in satHydCond.
        case(powerLaw_profile)
          refDepth_use = total_soil_depth
          if (total_soil_depth < compactedDepth) refDepth_use = compactedDepth + 1._rkind ! as in satHydCond
-         cDepth_use   = min(compactedDepth, total_soil_depth)
-         if (depthWettingFront >= cDepth_use) then ! below the scaling zone, conductivity is uniform
-           hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - cDepth_use/refDepth_use)**(zScale_TOPMODEL - 1._rkind) )
-           dHydCondWF_dDepth   = 0._rkind
-         else
-           hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWettingFront/refDepth_use)**(zScale_TOPMODEL - 1._rkind) )
-           dHydCondWF_dDepth   = -surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) &
-                                  * ( (1._rkind - depthWettingFront/refDepth_use)**(zScale_TOPMODEL - 2._rkind) )/refDepth_use
-         end if
+         ! clamp the wetting front off the base, where (1 - z/R)**(n-2) in the derivative is singular
+         depthWF_use = min(depthWettingFront, 0.99_rkind*refDepth_use)
+         hydCondWettingFront = surfaceSatHydCond * ( (1._rkind - depthWF_use/refDepth_use)**(zScale_TOPMODEL - 1._rkind) )
+         dHydCondWF_dDepth   = -surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) &
+                                * ( (1._rkind - depthWF_use/refDepth_use)**(zScale_TOPMODEL - 2._rkind) )/refDepth_use
+         if (depthWettingFront > depthWF_use) dHydCondWF_dDepth = 0._rkind
        case(constant)         ! K uniform with depth, so the wetting front sees the surface conductivity
          hydCondWettingFront = surfaceSatHydCond
          dHydCondWF_dDepth   = 0._rkind

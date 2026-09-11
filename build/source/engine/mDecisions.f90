@@ -760,6 +760,19 @@ subroutine mDecisions(err,message)
       end if
   end select
 
+  ! check the conductivity profile is compatible with the lower boundary condition
+  ! NOTE: the power-law conductivity reaches exactly zero at the base of the soil, so iLayerSatHydCond(nSoil)
+  !       is zero and the prescribed-head drainage flux, scalarDrainage = cflux + bottomSatHydCond, is
+  !       identically zero whatever head is prescribed. That is a silent no-op, so reject it rather than
+  !       flooring the profile: use exp_prof, which decays with depth but stays finite at the base.
+  if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision == prescribedHead .and. &
+     model_decisions(iLookDECISIONS%hc_profile)%iDecision == powerLaw_profile)then
+    message=trim(message)//'a power-law hydraulic conductivity profile cannot be used with a prescribed-head lower &
+      &boundary: the conductivity is zero at the base of the soil, so the prescribed head can drive no drainage &
+      &(set "hc_profile" to "exp_prof" or "constant" in model decisions input file)'
+    err=20; return
+  end if
+
   ! check bigBucket groundwater option is used when for spatial groundwater is singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
     if(model_decisions(iLookDECISIONS%groundwatr)%iDecision /= bigBucket)then

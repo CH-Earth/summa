@@ -376,9 +376,8 @@ subroutine computBaseflow(&
 
       ! power-law transmissivity, the classical TOPMODEL-ish form (Ambroise et al. 1996), the integral of
       !  K_0*(1-z/D)**(zScale_TOPMODEL-1) over the saturated thickness
-      ! NOTE: this deliberately does NOT inherit the compactedDepth floor that satHydCond applies to the conductivity.
-      !       With qTopmodl the soil column is a conceptual shallow aquifer and zScale_TOPMODEL is a recession-calibration
-      !       parameter, not a soil property, so the transmissivity keeps its calibrated form
+      ! NOTE: this is the exact integral of the profile satHydCond builds, which decays to zero at the base
+      !       of the soil; that zero is the Beven-Kirkby premise of the shallow aquifer, not an artifact
       case(powerLaw_profile)
         tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth/zScale_TOPMODEL
         xTrans(1:nSoil) = (zActive(1:nSoil)/soilDepth)**zScale_TOPMODEL
