@@ -81,9 +81,9 @@ write_buff                      writePerStep    ! (31) method used to write mode
 ! noXplict  ! no explicit groundwater parameterization
 ! -----------------------------------------------------------------------------------------------
 ! (09) choice of hydraulic conductivity profile
-! constant  ! constant hydraulic conductivity with depth
-! pow_prof  ! power-law profile
-! exp_prof  ! exponential profile, only for >=v4.1
+! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
+! pow_prof  ! power-law profile (original TOPMODEL-ish form)
+! exp_prof  ! exponential profile, K(z) = K_0*exp(-f*z) finite at the base of the soil, only for >=v4.1
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
