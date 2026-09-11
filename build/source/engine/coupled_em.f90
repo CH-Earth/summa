@@ -1293,7 +1293,7 @@ subroutine coupled_em(&
                 iLayer = jLayer + nSoil
                 frz_scale_use = snowfrz_scale*icefrz_mult
               end if
-              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*iden_ice/iden_water
+              mLayerVolFracWat(iLayer) = mLayerVolFracLiq(iLayer) + mLayerVolFracIce(iLayer)*(iden_ice/iden_water)
               ! recompute enthalpy of layers if changed water and ice content
               if(enthalpyStateVec .or. computeEnthalpy)then
                  call T2enthTemp_snLaGl(&
@@ -1475,7 +1475,7 @@ subroutine coupled_em(&
                                                               prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                             * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
       prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
-                                                        + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
+                                                        + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*(iden_ice/iden_water)
       if(enthalpyStateVec .or. computeEnthalpy)then ! compute enthalpy of the top snow layer
         call T2enthTemp_snLaGl(&
                        .false.,                                           & ! intent(in):  flag that no liquid water in layer

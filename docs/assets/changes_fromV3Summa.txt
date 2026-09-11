@@ -226,6 +226,7 @@ AFTER tag of v4.0.0-exp-Sundials
       and latMoraineWidth (GRU). All have defaults, so are only needed for glacier runs.
      maxSnowLayers is multiplied by 2.5 when any glacier is present, to allow firn development in the accumulation zone.
      The OpenWQ coupling was updated to be per (HRU, domain) rather than per HRU (see build/source/openwq), commit f16c3488 Sep 10, 2026.
+     Next Gen coupling was also updated.
 -58) Groundwater / TOPMODEL baseflow fixes in computBaseflow (decision groundwatr == qTopmodl), commit dca170cc Sep 10, 2026
       1) The transmissivity integrals are written in terms of the hydraulic conductivity at the soil surface, but the code was passing
          mLayerSatHydCondMP(1), which is the macropore conductivity at the first layer midpoint (already scaled by the depth profile).
@@ -241,4 +242,11 @@ AFTER tag of v4.0.0-exp-Sundials
       supraglacial debris and weathered shallow till). Backwards compatible: defaults are supplied if the parameter is absent.
      The TOPMODEL baseflow option (groundwatr == qTopmodl) now accepts exp_prof as well as pow_prof, since the baseflow transmissivity is
       just the vertical integral of the conductivity profile. Glacier domains force exp_prof internally.
-
+-60) Consistent association of the ice/water density ratio, Sep 11, 2026
+     iden_ice/iden_water (and iden_water/iden_ice) were written two ways across the code: grouped as x*(iden_ice/iden_water), which
+     folds to a single compile-time constant multiply, and chained as x*iden_ice/iden_water, which evaluates (x*917)/1000 at runtime.
+     917/1000 is not exactly representable in binary, so the two forms differ by one ULP. Both are equally accurate (two roundings
+     either way), but the grouped form is faster since iden_ice and iden_water are PARAMETERs, so the division is folded at compile
+     time rather than executed per call. This shifts results by ~1 ULP at each site, which then amplifies (see change 57), so it was applied identically to SummaDevelop
+     and to this branch in the same step. Verified afterwards: 11 of the 13 wrrPaper test cases remain bit-for-bit identical between
+     the two, the exceptions being the two groundwatr=qTopmodl cases, which differ only through change 58.
