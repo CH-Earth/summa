@@ -253,3 +253,6 @@ AFTER tag of v4.0.0-exp-Sundials
       This rejects bigBuckt + pow_prof + GreenAmpt, previously legal and silently inconsistent, and the bigBucket deprecation warning now fires only for constant, where the GreenAmpt it advises is actually legal.
      computBaseflow keeps the classical (s/D)**zScale_TOPMODEL transmissivity (Ambroise et al. 1996), since with qTopmodl zScale_TOPMODEL is a recession-calibration parameter, not a soil property; constant is now its own case there (T linear in s).
 -61) Consistent association of the iden_ice/iden_water density ratio to (iden_ice/iden_water) because it is faster (inconsistent variations differ by 1 ULP), commit cde6aeeb Sep 11, 2026
+ 62) Fixed lateral flow HRUs within a GRU to run in cascade (topological) order instead of array order, commit 90edb489 Sep 11, 2026
+     The lateral outflow of an HRU is added to the inflow of its downslope HRU (downHRUindex) as each HRU is run, and the inflow
+      is zeroed at the start of every step, so a contributor run after its receiver would have its water silently dropped rather than delayed. 
