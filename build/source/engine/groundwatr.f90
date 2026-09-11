@@ -374,12 +374,22 @@ subroutine computBaseflow(&
         xTrans(1:nSoil) = exp(-f_hydCond*(soilDepth - zActive(1:nSoil))) - exp(-f_hydCond*soilDepth)
         dXdS(1:nSoil)   = soilDepth*f_hydCond*exp(-f_hydCond*(soilDepth - zActive(1:nSoil)))
 
-      ! power-law transmissivity, the original TOPMODEL-ish form
-      ! NOTE: constant is grouped here only for completeness, mDecisions does not allow it with qbaseTopmodel
-      case(constant, powerLaw_profile)
+      ! power-law transmissivity, the classical TOPMODEL-ish form (Ambroise et al. 1996), the integral of
+      !  K_0*(1-z/D)**(zScale_TOPMODEL-1) over the saturated thickness
+      ! NOTE: this is the exact integral of the profile satHydCond builds, which decays to zero at the base
+      !       of the soil; that zero is the Beven-Kirkby premise of the shallow aquifer, not an artifact
+      case(powerLaw_profile)
         tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth/zScale_TOPMODEL
         xTrans(1:nSoil) = (zActive(1:nSoil)/soilDepth)**zScale_TOPMODEL
         dXdS(1:nSoil)   = zScale_TOPMODEL*(zActive(1:nSoil)/soilDepth)**(zScale_TOPMODEL - 1._rkind)
+
+      ! uniform conductivity with depth, so transmissivity is simply linear in the saturated thickness
+      ! NOTE: unreachable, mDecisions does not allow constant with qbaseTopmodel, but kept correct rather than
+      !       lumped in with the power law
+      case(constant)
+        tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth
+        xTrans(1:nSoil) = zActive(1:nSoil)/soilDepth
+        dXdS(1:nSoil)   = 1._rkind
 
       case default
         message=trim(message)//"unknown hydraulic conductivity profile for the baseflow transmissivity"

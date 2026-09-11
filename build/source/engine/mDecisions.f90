@@ -741,16 +741,37 @@ subroutine mDecisions(err,message)
       end if
   end select
 
-  ! check a depth-varying conductivity profile is selected when using topmodel baseflow option
-  ! NOTE: the baseflow transmissivity is the vertical integral of the conductivity profile, so both are supported
+  ! check the conductivity profile is compatible with the topmodel baseflow option
+  ! NOTE: elsewhere hc_profile only sets the vertical conductivity, since computBaseflow runs for qTopmodl (and glaciers) alone,
+  !       so exp_prof is unrestricted there. Only with qTopmodl does it change the transmissivity, to the finite impermeable base
+  !       form that has no aquifer beneath, which is the MODFLOW-coupled case and is not enabled yet. Glacier domains do not need
+  !       it selectable, they override to expLaw_profile internally in satHydCond, soilLiqFlux and computBaseflow.
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
-      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile .and. &
-         model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
-        message=trim(message)//'a power-law or exponential hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" or "exp_prof" in model decisions input file)'
+      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision == expLaw_profile)then
+        message=trim(message)//'the exponential hydraulic conductivity profile is not yet selectable with the topmodel baseflow &
+          &option: it makes the transmissivity the finite impermeable base form, lateral flow with no shallow aquifer beneath, &
+          &which is reserved for the MODFLOW coupled aquifer (set "hc_profile" to "pow_prof" in model decisions input file)'
+        err=20; return
+      end if
+      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
+        message=trim(message)//'a power-law hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" in model decisions input file)'
         err=20; return
       end if
   end select
+
+  ! check the conductivity profile is compatible with the lower boundary condition
+  ! NOTE: the power-law conductivity reaches exactly zero at the base of the soil, so iLayerSatHydCond(nSoil)
+  !       is zero and the prescribed-head drainage flux, scalarDrainage = cflux + bottomSatHydCond, is
+  !       identically zero whatever head is prescribed. That is a silent no-op, so reject it rather than
+  !       flooring the profile: use exp_prof, which decays with depth but stays finite at the base.
+  if(model_decisions(iLookDECISIONS%bcLowrSoiH)%iDecision == prescribedHead .and. &
+     model_decisions(iLookDECISIONS%hc_profile)%iDecision == powerLaw_profile)then
+    message=trim(message)//'a power-law hydraulic conductivity profile cannot be used with a prescribed-head lower &
+      &boundary: the conductivity is zero at the base of the soil, so the prescribed head can drive no drainage &
+      &(set "hc_profile" to "exp_prof" or "constant" in model decisions input file)'
+    err=20; return
+  end if
 
   ! check bigBucket groundwater option is used when for spatial groundwater is singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
@@ -760,17 +781,34 @@ subroutine mDecisions(err,message)
     end if
   end if
 
-  ! check that maximum infiltration rate assumption aligns with groundwater option
-  ! TOPMODEL baseflow assumes a reduction in hydraulic conductivity with depth, possibly to 0 at the bottom of the soil, and infiltration rate assumptions must match these conductivities
-  ! BigBucket means we have an aquifer below the soil column, for which Green-Ampt is the most basic assumption. TOPMODEL_GA is not appropriate for this but for backward compatability we throw a warning instead of a graceful exit
-  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
-    case(qbaseTopmodel)
-      if(model_decisions(iLookDECISIONS%infRateMax)%iDecision /= topModel_GA)then
-        message=trim(message)//'maximum infiltration rate method must be topmodel_GA when using qTopmodl for groundwatr, not '//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//' (set "infRateMax" to "topmodel_GA" in model decisions input file)'
+  ! check that the maximum infiltration rate assumption matches the hydraulic conductivity profile
+  ! NOTE: the two infiltration options differ in whether the conductivity varies with depth, which is an hc_profile property and
+  !       not a groundwatr one. GreenAmpt assumes homogeneous soil and uses the surface conductivity, topmodel_GA evaluates the
+  !       hc_profile conductivity at the wetting front, and noInfExc uses neither. The qTopmodl requirement follows from this,
+  !       since qTopmodl already requires a depth-varying profile.
+  select case(model_decisions(iLookDECISIONS%hc_profile)%iDecision)
+    case(powerLaw_profile, expLaw_profile)
+      if(model_decisions(iLookDECISIONS%infRateMax)%iDecision /= topModel_GA .and. &
+         model_decisions(iLookDECISIONS%infRateMax)%iDecision /= noInfiltrationExcess)then
+        message=trim(message)//'maximum infiltration rate method must be topmodel_GA (or noInfExc) with a depth-varying hydraulic &
+          &conductivity profile, not '//trim(model_decisions(iLookDECISIONS%infRateMax)%cDecision)//' (set "infRateMax" to &
+          &"topmodel_GA" in model decisions input file)'
         err=20; return
       end if
-    case(bigBucket)
+    case(constant)
       if(model_decisions(iLookDECISIONS%infRateMax)%iDecision == topModel_GA)then
+        write(*,*) 'DEPRECATION WARNING: infRateMax topmodel_GA evaluates the hydraulic conductivity at the wetting front, but hc_profile is constant so the column is homogeneous. Please use GreenAmpt instead (set "infRateMax" to "GreenAmpt" in model decisions input file)'
+      end if
+  end select
+
+  ! BigBucket means we have an aquifer below the soil column, for which Green-Ampt is the most basic assumption. TOPMODEL_GA is not appropriate for this but for backward compatability we throw a warning instead of a graceful exit
+  ! NOTE: only advise this for a constant conductivity profile. With a depth-varying profile the check above requires topmodel_GA,
+  !       so advising GreenAmpt here would contradict it, and escalating this to an error would leave that combination with no
+  !       legal infRateMax at all
+  select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
+    case(bigBucket)
+      if(model_decisions(iLookDECISIONS%infRateMax)%iDecision == topModel_GA .and. &
+         model_decisions(iLookDECISIONS%hc_profile)%iDecision == constant)then
         write(*,*) 'DEPRECATION WARNING: Combining groundwater parametrization bigBucket with maximum infiltration rate method topModel_GA is not recommended. This was the default in SUMMA v3.x.x and below, but is not appropriate for this groundwater option. Please use Green-Ampt instead (set "infRateMax" to "GreenAmpt" in model decisions input file)'
         ! This preps us for when we want to remove this option in the future
         !message=trim(message)//'maximum infiltration rate method (infRateMax) cannot be topModel_GA when using BigBucket for groundwater, use GreenAmpt instead'

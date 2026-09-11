@@ -366,7 +366,7 @@ subroutine updatDiagn(&
         if(ixStateType(ixFullVector)==iname_liqCanopy .or. ixStateType(ixFullVector)==iname_liqLayer)then
           select case(ixDomainType)
             case(iname_veg);                           scalarCanopyWatTrial          = scalarCanopyLiqTrial          + scalarCanopyIceTrial
-            case(iname_snow, iname_lake, iname_glce);  mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)*iden_ice/iden_water
+            case(iname_snow, iname_lake, iname_glce);  mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer)*(iden_ice/iden_water)
             case(iname_soil);                          mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_lake, iname_soil, or iname_glce'; return
           end select

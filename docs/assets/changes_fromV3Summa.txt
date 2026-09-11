@@ -200,6 +200,9 @@ AFTER tag of v4.0.0-exp-Sundials
 -52) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
      Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
 -53) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
+     Bugfix Sep 11, 2026: this had also floored the conductivity at k_soil below compactedDepth, so the power law no longer decayed to zero at the base of
+      the soil, which is the Beven-Kirkby premise the qTopmodl transmissivity integrates. Floor removed, and the v3 guard for a column ending exactly at
+      compactedDepth restored (the normalization 0**(zScale_TOPMODEL-1) is otherwise a divide by zero). Belongs on master as well.
 -54) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
 -55) Turn off (smoothly) condensation into saturated soil and infiltration into over-pressured soil with no water exit (no flux BC and no lateral flow), last bit of sat soil, commits around 87967f22 Jul 22, 2026
  56) Remove deprecated moisture-based Richards' equation, f_Richards decision still can be included but does not do anything but mixed form, commits around b99de74f	Jul 22, 2026
@@ -226,19 +229,30 @@ AFTER tag of v4.0.0-exp-Sundials
       and latMoraineWidth (GRU). All have defaults, so are only needed for glacier runs.
      maxSnowLayers is multiplied by 2.5 when any glacier is present, to allow firn development in the accumulation zone.
      The OpenWQ coupling was updated to be per (HRU, domain) rather than per HRU (see build/source/openwq), commit f16c3488 Sep 10, 2026.
+     Next Gen coupling was also updated.
 -58) Groundwater / TOPMODEL baseflow fixes in computBaseflow (decision groundwatr == qTopmodl), commit dca170cc Sep 10, 2026
       1) The transmissivity integrals are written in terms of the hydraulic conductivity at the soil surface, but the code was passing
          mLayerSatHydCondMP(1), which is the macropore conductivity at the first layer midpoint (already scaled by the depth profile).
          Now recovers the surface value for any profile as surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1).
       2) Analytical-Jacobian consistency fix: for soil layers above the water table the baseflow is forced to zero (trSoil clamp), but the
          derivative matrix (dBaseflow_dVolLiq, dBaseflow_dWat, dBaseflow_dTk) still had non-zero rows for them. 
- 59) New exponential hydraulic conductivity profile, commits bb2b1344 and 5095074b Sep 10, 2026
-     New option for the hc_profile decision:
-      ! constant   ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
-      ! pow_prof   ! power-law profile (original TOPMODEL-ish form)
-      ! exp_prof   ! exponential profile, K(z) = K_0*exp(-f*z), finite at the base of the soil
-     New parameter f_hydCond, decay rate of hydraulic conductivity with depth for the exponential profile (m-1), default 3 (1-5 m-1 for
-      supraglacial debris and weathered shallow till). Backwards compatible: defaults are supplied if the parameter is absent.
-     The TOPMODEL baseflow option (groundwatr == qTopmodl) now accepts exp_prof as well as pow_prof, since the baseflow transmissivity is
-      just the vertical integral of the conductivity profile. Glacier domains force exp_prof internally.
-
+ 59) New exponential hydraulic conductivity profile, used internally for glacier debris and future for SUMMA coupled to separate aquifer, commits bb2b1344 and 5095074b Sep 10, 2026
+      ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
+      ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
+      ! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
+     New parameter f_hydCond, decay rate of hydraulic conductivity with depth for the exponential profile (m-1), supraglacial debris and weathered shallow till values are default.
+      f_hydCond                 |       0.7500 |       0.1000 |      10.0000
+     SCOPE: only qTopmodl (and glacier domains) runs computBaseflow, and there exp_prof does not represent a shallow aquifer:
+      classical Beven-Kirkby integrates K_0*exp(-f*z) to infinite depth, T(d) = (K_0/f)*exp(-f*d), still positive at the soil base,
+      whereas exp_prof stops at an impermeable base at D, T(d) = (K_0/f)*[exp(-f*d) - exp(-f*D)], so T = 0 once the water table reaches D. 
+      That suits debris over ice, handled internally, or soil over a deeper aquifer.
+     The profile shape is re-derived in three places (vs previous hard-coded power law from iLayerSatHydCond): satHydCond (the conductivity itself), the topmodel_GA max infiltration rate in soilLiqFlux (conductivity at wetting front), computBaseflow (transmissivity).
+     After change 60 all three agree for pow_prof as well as exp_prof.
+-60) topmodel_GA changes: infiltration rate now follows hc_profile, and infRateMax is re-keyed on hc_profile (not groundwatr), commit 8ae78ac2 Sep 11, 2026
+     It now uses satHydCond's conductivity-depth shape instead of a hand-derived one, so both and computBaseflow agree.
+     pow_prof/exp_prof now require topmodel_GA (or noInfExc); constant only warns with topmodel_GA.
+     Newly rejected (previously silent no-ops): bigBuckt+pow_prof+GreenAmpt, and presHead+pow_prof (zero conductivity at the soil base drove no drainage - use exp_prof).
+-61) Consistent association of the iden_ice/iden_water density ratio to (iden_ice/iden_water) because it is faster (inconsistent variations differ by 1 ULP), commit cde6aeeb Sep 11, 2026
+ 62) Fixed lateral flow HRUs within a GRU to run in cascade (topological) order instead of array order, commit 90edb489 Sep 11, 2026
+     The lateral outflow of an HRU is added to the inflow of its downslope HRU (downHRUindex) as each HRU is run, and the inflow
+      is zeroed at the start of every step, so a contributor run after its receiver would have its water silently dropped rather than delayed. 

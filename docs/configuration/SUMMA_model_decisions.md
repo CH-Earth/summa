@@ -234,8 +234,21 @@ See also [`spatial_gw`](#spatial_gw), which sets whether the store is per column
 | Option | Description |
 |---|---|
 | constant | saturated hydraulic conductivity constant with depth |
-| pow_prof | power-law decrease of saturated hydraulic conductivity with depth |
-| exp_prof | exponential decrease of saturated hydraulic conductivity with depth |
+| pow_prof | power-law decrease with depth, normalized to `k_soil` at `compactedDepth` and reaching zero at the base of the soil |
+| exp_prof | exponential decrease with depth, `K(z) = k_soil * exp(-f_hydCond * z)`, finite at the base of the soil |
+
+`constant` means a homogeneous column, so it pairs with [`infRateMax`](#infratemax) `GreenAmpt`. `pow_prof` and `exp_prof` vary with
+depth and so require `topmodel_GA` (or `noInfExc`), which evaluates the conductivity at the wetting front.
+
+[`groundwatr`](#groundwatr) `qTopmodl` requires `pow_prof`, the only option whose transmissivity represents a shallow aquifer.
+`exp_prof` instead stops at an impermeable base, which suits glacier debris over ice or soil over an external aquifer, and is not
+yet selectable with `qTopmodl`. Glacier domains use it internally whatever this decision is set to.
+
+`pow_prof` cannot be used with [`bcLowrSoiH`](#bclowrsoih) `presHead`: its conductivity is exactly zero at the base of the soil, so a
+prescribed head can drive no drainage. Use `exp_prof`, which decays with depth but stays finite there.
+
+The decay rate for `exp_prof` is the parameter `f_hydCond` (m-1), default 0.75, a soil-column value leaving ~5% of the surface
+conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m depth, so glacier runs should set it explicitly.
 
 <a id="bcupprtdyn"></a>
 ## 19. bcUpprTdyn — upper boundary condition, thermodynamics
@@ -437,9 +450,12 @@ With the `itertive` alias, the value is forced to `closedForm` for backward comp
 
 | Option | Description |
 |---|---|
-| topmodel_GA | Green-Ampt with a TOPMODEL-based conductivity rate (default; also selected by `notPopulatedYet` when `num_method = itertive`) |
+| topmodel_GA | Green-Ampt with the [`hc_profile`](#hc_profile) conductivity evaluated at the wetting front (default; also selected by `notPopulatedYet` when `num_method = itertive`) |
 | GreenAmpt | Green-Ampt maximum infiltration rate |
 | noInfExc | maximum infiltration rate set very high, effectively disabling infiltration-excess runoff (saturation-excess runoff can still occur) |
+
+This must match [`hc_profile`](#hc_profile): a depth-varying profile requires `topmodel_GA` or `noInfExc`, and `constant` with
+`topmodel_GA` gives a deprecation warning.
 
 <a id="surfrun_se"></a>
 ## 42. surfRun_SE — saturation-excess surface runoff

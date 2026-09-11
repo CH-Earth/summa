@@ -174,7 +174,9 @@ contains
   end if
   ! exponential hydraulic conductivity profile
   if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%f_hydCond)%default_val = 3._rkind ! 1-5 m-1 for supraglacial debris and weathered shallow till
+    ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m
+    !       depth, so glacier runs should set f_hydCond explicitly rather than take this default
+    parFallback(iLookPARAM%f_hydCond)%default_val = 0.75_rkind
   end if
  else
   ! glacier parameters
