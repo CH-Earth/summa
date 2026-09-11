@@ -382,7 +382,7 @@ subroutine heatCapacity(&
                                      iden_air   * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) ) ! air component
             ! derivatives
             fLiq = mLayerFracLiqSnow(iLayer)
-            dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
+            dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*(iden_water/iden_ice) - fLiq ) * Cp_air
             if( mLayerTemp(iLayer) < Tfreeze)then
               dVolHtCapBulk_dTk(iLayer) = ( iden_water * (-Cp_ice + Cp_water) + iden_air * (iden_water/iden_ice - 1._rkind) * Cp_air ) * mLayerdTheta_dTk(iLayer)
             else
@@ -533,11 +533,11 @@ subroutine heatAdvectWat(&
             diffT = mLayerTemp(iLayer) - Tfreeze
             fLiq = fracLiquid(mLayerTemp(iLayer),snowfrz_scale)
             integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-            mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
+            mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * (iden_water/iden_ice)) * ( diffT - integral ) &
                                    + (iden_water * Cp_water - iden_air * Cp_air) * integral
             ! derivatives
             dfLiq_dT = dFracLiq_dTk(mLayerTemp(iLayer),snowfrz_scale)
-            dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind -fLiq ) &
+            dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * (iden_water/iden_ice)) * ( 1._rkind -fLiq ) &
                              + (iden_water * Cp_water - iden_air * Cp_air) * fLiq
 
           case(iname_soil)
