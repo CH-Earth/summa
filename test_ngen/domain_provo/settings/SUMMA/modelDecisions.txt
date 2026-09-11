@@ -83,7 +83,7 @@ write_buff                      writePerStep    ! (31) method used to write mode
 ! (09) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
 ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris and future-proof selectable for an external aquifer)
+! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature

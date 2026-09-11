@@ -506,13 +506,6 @@ subroutine mDecisions(err,message)
     case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
     case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
     case('exp_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = expLaw_profile      ! exponential profile
-      ! STUB: exp_prof models lateral flow over a finite impermeable base rather than a shallow aquifer, so it is not yet
-      !       selectable for ordinary runs. Glacier domains do not need it here, they override to expLaw_profile internally
-      !       in satHydCond, soilLiqFlux and computBaseflow. Enable this when the MODFLOW-coupled aquifer lands.
-      message=trim(message)//'the exponential hydraulic conductivity profile is not yet selectable ("hc_profile" = "exp_prof"): &
-        &it represents lateral flow over an impermeable base rather than a shallow groundwater aquifer, and is currently used &
-        &only internally for glacier debris domains'
-      err=20; return
     case default
       err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
   end select
@@ -748,13 +741,21 @@ subroutine mDecisions(err,message)
       end if
   end select
 
-  ! check a depth-varying conductivity profile is selected when using topmodel baseflow option
-  ! NOTE: the baseflow transmissivity is the vertical integral of the conductivity profile, so both are supported
+  ! check the conductivity profile is compatible with the topmodel baseflow option
+  ! NOTE: elsewhere hc_profile only sets the vertical conductivity, since computBaseflow runs for qTopmodl (and glaciers) alone,
+  !       so exp_prof is unrestricted there. Only with qTopmodl does it change the transmissivity, to the finite impermeable base
+  !       form that has no aquifer beneath, which is the MODFLOW-coupled case and is not enabled yet. Glacier domains do not need
+  !       it selectable, they override to expLaw_profile internally in satHydCond, soilLiqFlux and computBaseflow.
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)
-      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile .and. &
-         model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
-        message=trim(message)//'a power-law or exponential hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" or "exp_prof" in model decisions input file)'
+      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision == expLaw_profile)then
+        message=trim(message)//'the exponential hydraulic conductivity profile is not yet selectable with the topmodel baseflow &
+          &option: it makes the transmissivity the finite impermeable base form, lateral flow with no shallow aquifer beneath, &
+          &which is reserved for the MODFLOW coupled aquifer (set "hc_profile" to "pow_prof" in model decisions input file)'
+        err=20; return
+      end if
+      if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= powerLaw_profile)then
+        message=trim(message)//'a power-law hydraulic conductivity profile must be selected when using topmodel baseflow option (set "hc_profile" to "pow_prof" in model decisions input file)'
         err=20; return
       end if
   end select
