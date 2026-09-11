@@ -238,7 +238,7 @@ AFTER tag of v4.0.0-exp-Sundials
       ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
       ! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
      New parameter f_hydCond, decay rate of hydraulic conductivity with depth for the exponential profile (m-1), supraglacial debris and weathered shallow till values are default.
-      f_hydCond                 |       3.0000 |       0.1000 |      10.0000
+      f_hydCond                 |       0.7500 |       0.1000 |      10.0000
      SCOPE: only qTopmodl (and glacier domains) runs computBaseflow, and there exp_prof does not represent a shallow aquifer:
       classical Beven-Kirkby integrates K_0*exp(-f*z) to infinite depth, T(d) = (K_0/f)*exp(-f*d), still positive at the soil base,
       whereas exp_prof stops at an impermeable base at D, T(d) = (K_0/f)*[exp(-f*d) - exp(-f*D)], so T = 0 once the water table reaches D. 
