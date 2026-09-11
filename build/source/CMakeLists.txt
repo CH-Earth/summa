@@ -164,7 +164,7 @@ set(OBJFNC
 set(CALIBR
     ${CALIBR_DIR}/parameter_search.f90
     ${CALIBR_DIR}/summa_parameter_spec.f90
-    ${CALIBR_DIR}/summa_parameter_evaluation.f90
+    ${CALIBR_DIR}/summa_parameter_sampling.f90
     ${CALIBR_DIR}/calibration_output.f90
     CACHE INTERNAL "CALIBR")
 
@@ -183,6 +183,7 @@ set(DRIVER
     ${DRIVER_DIR}/summa_modelRun.f90
     ${DRIVER_DIR}/summa_writeOutput.f90
     ${DRIVER_DIR}/summa_simulation.f90
+    ${DRIVER_DIR}/summa_spinup.f90
     CACHE INTERNAL "DRIVER")
 set(DRIVER_NEXTGEN
     ${DRIVER_DIR}/summa_bmi.f90

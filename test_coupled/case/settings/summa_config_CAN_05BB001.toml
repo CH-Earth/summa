@@ -95,8 +95,8 @@ end_date       = "1989-09-30"
 param_list = [
     "k_soil",
     "theta_sat",
+    "aquiferScaleFactor",
     "aquiferBaseflowExp",
-    "aquiferBaseflowRate",
     "qSurfScale",
     "summerLAI",
     "frozenPrecipMultip",
@@ -115,12 +115,12 @@ write_aligned  = false
 [calibration.parameter_transformations]
 
 k_soil              = "log"
-aquiferBaseflowRate = "log"
+#aquiferBaseflowRate = "log"
 
 [[parameter_dependencies.ordered]]
 parameters   = ["heightCanopyBottom", "heightCanopyTop"]
-gap_fraction = 0.5
+gap_fraction = 0.25
 
 [[parameter_dependencies.ordered]]
-parameters = ["theta_res", "fieldCapacity", "theta_mp", "theta_sat"]
-gap_fraction = 0.05
+parameters = ["theta_res", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025

@@ -41,6 +41,7 @@ program summa_driver
   real(rkind),       allocatable :: param_value(:)
 
   ! objective function
+  integer(i4b), parameter        :: sample_id = 0
   real(rkind)                    :: objective
 
   ! error control
@@ -62,12 +63,12 @@ program summa_driver
   allocate(param_value(0))
 
   ! run SUMMA and evaluate the objective function
-  call evaluate_objective(config,                 & ! SUMMA configuration structure
-                          domain_parallel,        & ! MPI context for domain parallelism
-                          instance_parallel,      & ! MPI context for model-instance parallelism
-                          param_name,param_value, & ! parameter names and values
-                          objective,              & ! objective function value
-                          err, message)             ! error code and message
+  call evaluate_objective(config,                            & ! SUMMA configuration structure
+                          domain_parallel,                   & ! MPI context for domain parallelism
+                          instance_parallel,                 & ! MPI context for model-instance parallelism
+                          sample_id,param_name,param_value,  & ! sample ID + parameter names and values
+                          objective,                         & ! objective function value
+                          err, message)                        ! error code and message
   call handle_err(err,message)
 
   call stop_program(0,'finished simulation successfully.')

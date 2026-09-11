@@ -43,16 +43,17 @@ contains
   ! variable attributes, including native bounds, parameter transformation, sampling status, and
   ! ordered-constraint information.
   !
-  ! Parameter and objective values are written along the unlimited sample dimension.
+  ! Parameter and objective values are written by global trial index along the fixed sample dimension.
   ! **************************************************************************************************
 
-  subroutine create_calibration_output(filename,spec,rank,case,metric,obs_transform,ncid,ierr,message)
+  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,case,metric,obs_transform,ncid,ierr,message)
 
     implicit none
 
     character(*),         intent(in)  :: filename
     type(parameter_spec), intent(in)  :: spec
-    integer(i4b),         intent(in)  :: rank
+    integer(i4b),         intent(in)  :: nSamples
+    integer(i4b),         intent(in)  :: nWorkers
     character(*),         intent(in)  :: case
     character(*),         intent(in)  :: metric
     character(*),         intent(in)  :: obs_transform
@@ -62,6 +63,7 @@ contains
 
     integer(i4b) :: dim_sample,dim_time
     integer(i4b) :: varid_sample,varid_objective,varid_param
+    integer(i4b) :: varid_worker_rank
     integer(i4b) :: varid_start_time,varid_end_time
 
     integer(i4b), dimension(2) :: time_dims
@@ -92,8 +94,8 @@ contains
 
       file_open=.true.
 
-      ! sample dimension
-      ierr=nf90_def_dim(ncid,'sample',NF90_UNLIMITED,dim_sample)
+      ! fixed sample dimension
+      ierr=nf90_def_dim(ncid,'sample',nSamples,dim_sample)
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! sample coordinate
@@ -199,14 +201,25 @@ contains
       enddo
 
       ! -----------------------------------------------------------------------------------------------
-      ! Start/end times
+      ! Rank/timing information
       ! -----------------------------------------------------------------------------------------------
 
-      ! parameter-trial start time
-      ierr=nf90_def_var(ncid,'start_time',NF90_INT,time_dims,varid_start_time)
+      ! worker rank
+      ierr=nf90_def_var(ncid,'worker_rank',NF90_INT,(/dim_sample/),varid_worker_rank)
       if(ierr/=nf90_noerr) exit netcdf_block
       
-      ierr=nf90_put_att(ncid,varid_start_time,'long_name','parameter trial start time')
+      ierr=nf90_put_att(ncid,varid_worker_rank,'long_name', &
+                        'MPI worker rank responsible for parameter trial')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      
+      ierr=nf90_put_att(ncid,varid_worker_rank,'units','-')
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! parameter-trial start time
+      ierr=nf90_def_var(ncid,'dispatch_time',NF90_INT,time_dims,varid_start_time)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      
+      ierr=nf90_put_att(ncid,varid_start_time,'long_name','parameter trial dispatch time')
       if(ierr/=nf90_noerr) exit netcdf_block
       
       ierr=nf90_put_att(ncid,varid_start_time,'components', &
@@ -214,10 +227,10 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
       
       ! parameter-trial end time
-      ierr=nf90_def_var(ncid,'end_time',NF90_INT,time_dims,varid_end_time)
+      ierr=nf90_def_var(ncid,'completion_time',NF90_INT,time_dims,varid_end_time)
       if(ierr/=nf90_noerr) exit netcdf_block
       
-      ierr=nf90_put_att(ncid,varid_end_time,'long_name','parameter trial end time')
+      ierr=nf90_put_att(ncid,varid_end_time,'long_name','parameter trial completion time')
       if(ierr/=nf90_noerr) exit netcdf_block
       
       ierr=nf90_put_att(ncid,varid_end_time,'components', &
@@ -253,7 +266,7 @@ contains
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'case_name',trim(case))
       if(ierr/=nf90_noerr) exit netcdf_block
 
-      ierr=nf90_put_att(ncid,NF90_GLOBAL,'rank',rank)
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'mpi_workers',nWorkers)
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','physical')
@@ -285,13 +298,14 @@ contains
   ! calibration output file was created.
   ! **************************************************************************************************
 
-  subroutine write_calibration_output(ncid,isample,param_names,param_values, &
+  subroutine write_calibration_output(ncid,isample,worker_rank,param_names,param_values, &
                                       objective,start_time,end_time,ierr,message)
   
     implicit none
   
     integer(i4b), intent(in) :: ncid
     integer(i4b), intent(in) :: isample
+    integer(i4b), intent(in) :: worker_rank
   
     character(*), intent(in) :: param_names(:)
     real(rkind),  intent(in) :: param_values(:)
@@ -303,7 +317,7 @@ contains
     integer(i4b), intent(out) :: ierr
     character(*), intent(out) :: message
 
-    integer(i4b) :: varid_sample
+    integer(i4b) :: varid_sample, varid_worker_rank
     integer(i4b) :: varid_start_time,varid_end_time
     integer(i4b) :: varid_param,varid_objective
     integer(i4b) :: iParam
@@ -346,8 +360,15 @@ contains
 
       enddo
 
+      ! worker rank
+      ierr=nf90_inq_varid(ncid,'worker_rank',varid_worker_rank)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr=nf90_put_var(ncid,varid_worker_rank,(/worker_rank/),start=start1,count=count1)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
       ! parameter-trial start times
-      ierr=nf90_inq_varid(ncid,'start_time',varid_start_time)
+      ierr=nf90_inq_varid(ncid,'dispatch_time',varid_start_time)
       if(ierr/=nf90_noerr) exit netcdf_block
      
       ierr=nf90_put_var(ncid,varid_start_time,start_time, &
@@ -355,7 +376,7 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
      
       ! parameter-trial end times
-      ierr=nf90_inq_varid(ncid,'end_time',varid_end_time)
+      ierr=nf90_inq_varid(ncid,'completion_time',varid_end_time)
       if(ierr/=nf90_noerr) exit netcdf_block
      
       ierr=nf90_put_var(ncid,varid_end_time,end_time, &

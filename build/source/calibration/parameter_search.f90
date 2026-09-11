@@ -130,7 +130,7 @@ contains
     integer(i4b),                intent(out) :: err
     character(*),                intent(out) :: message
 
-    character(len=256) :: cmessage
+    character(len=1024) :: cmessage
 
     err = 0
     message = 'initialize_parameter_search/'
@@ -517,22 +517,38 @@ contains
         if(search%params(ixParam)%sampled)then
 
           if(lower_feasible > search%params(ixParam)%upper)then
-            message=trim(message)//'ordered constraint is infeasible near parameter: '// &
-                    trim(search%params(ixParam)%name)
-            err=20; return
+            write(message,'(A,A,A,ES12.5,A,ES12.5,A,A,A,ES12.5)') trim(message)// &
+              'ordered constraint is infeasible near parameter: ', &
+              trim(search%params(ixParam)%name), &
+              ', minimum feasible value = ',lower_feasible, &
+              ', upper bound = ',search%params(ixParam)%upper, &
+              '; must exceed ', &
+              trim(search%params(search%ordered(iConstraint)%param_index(i-1))%name), &
+              ' by at least ',search%ordered(iConstraint)%gap
+            err=20
+            return
           endif
 
-          previous_value = lower_feasible
+          previous_value=lower_feasible
 
         else
 
-          if(search%params(ixParam)%trial_value < lower_feasible)then
-            message=trim(message)//'parameter violates ordered constraint: '// &
-                    trim(search%params(ixParam)%name)
-            err=20; return
-          endif
+         if(search%params(ixParam)%trial_value < lower_feasible)then
+           write(message,'(A,A,A,ES12.5,A,A,A,ES12.5,A,ES12.5,A,ES12.5,A,ES12.5)') trim(message)// &
+             'fixed parameter violates ordered constraint: ', &
+             trim(search%params(ixParam)%name), &
+             ', trial value = ',search%params(ixParam)%trial_value, &
+             '; previous parameter = ', &
+             trim(search%params(search%ordered(iConstraint)%param_index(i-1))%name), &
+             ', previous value = ',previous_value, &
+             ', gap = ',search%ordered(iConstraint)%gap, &
+             ', parameter lower bound = ',search%params(ixParam)%lower, &
+             ', minimum feasible value = ',lower_feasible
+           err=20
+           return
+         endif
 
-          previous_value = search%params(ixParam)%trial_value
+         previous_value=search%params(ixParam)%trial_value
 
         endif
 

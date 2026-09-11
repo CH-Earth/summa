@@ -283,26 +283,25 @@ contains
   ! Sampled parameters receive their values from sampled_values. Non-sampled parameters represented
   ! in the parameter specification receive their scalar trial_value.
   !
-  ! Because summa_paramSetup applies caller-supplied overrides after reading the trial parameter
-  ! file, these overrides ensure that all parameters participating in calibration constraints are
-  ! spatially uniform for the current implementation.
+  ! The ordering of param_values matches spec%params and therefore the invariant parameter-name
+  ! vector constructed from spec%params(:)%name during parameter-evaluation initialization.
   !
-  ! The returned param_names and param_values vectors should be passed directly to run_simulation()
-  ! or evaluate_objective().
+  ! Because summa_paramSetup applies caller-supplied overrides after reading the trial parameter
+  ! file, these values ensure that all parameters participating in calibration constraints are
+  ! spatially uniform for the current implementation.
   ! **************************************************************************************************
 
   subroutine build_summa_parameter_overrides(spec, sampled_names, sampled_values, &
-                                             param_names, param_values, err, message)
+                                             param_values, err, message)
 
     implicit none
 
     type(parameter_spec), intent(in) :: spec
 
-    character(*), intent(in) :: sampled_names(:)
-    real(rkind),  intent(in) :: sampled_values(:)
+    character(*), intent(in)  :: sampled_names(:)
+    real(rkind),  intent(in)  :: sampled_values(:)
 
-    character(len=64), allocatable, intent(out) :: param_names(:)
-    real(rkind),       allocatable, intent(out) :: param_values(:)
+    real(rkind),  intent(out) :: param_values(:)
 
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
@@ -321,20 +320,13 @@ contains
       err=20; return
     endif
 
-
-    allocate(param_names(size(spec%params)), &
-             param_values(size(spec%params)), &
-             stat=err)
-
-    if(err/=0)then
-      message=trim(message)//'unable to allocate SUMMA parameter overrides'
-      return
+    ! override vector must be consistent with the param specs
+    if(size(param_values) /= size(spec%params))then
+      message=trim(message)//'parameter override vector has incorrect size'
+      err=20; return
     endif
 
-
     do i=1,size(spec%params)
-
-      param_names(i) = spec%params(i)%name
 
       if(spec%params(i)%sampled)then
 
@@ -412,7 +404,7 @@ contains
         message=trim(message)//'invalid bounds for parameter: '//trim(param_name)
         err=20; return
       endif
-  
+ 
       return
   
     endif

@@ -135,16 +135,17 @@ contains
   ! runs the model, computes the objective function, and finalizes the simulation.
   ! **************************************************************************************************
  
-  subroutine evaluate_objective(config,                 & ! SUMMA configuration structure
-                                domain_parallel,        & ! MPI context for domain parallelism
-                                instance_parallel,      & ! MPI context for model-instance parallelism
-                                param_name,param_value, & ! parameter names and values
-                                metric,                 & ! objective function value
-                                err, message)             ! error code and message
+  subroutine evaluate_objective(config,                            & ! SUMMA configuration structure
+                                domain_parallel,                   & ! MPI context for domain parallelism
+                                instance_parallel,                 & ! MPI context for model-instance parallelism
+                                sample_id, param_name,param_value, & ! sample ID + parameter names and values
+                                metric,                            & ! objective function value
+                                err, message)                        ! error code and message
  
     use iso_fortran_env, only: output_unit
 
     use globalData, only: ncid
+    USE globalData, only: output_fileSuffix
     use var_lookup, only: iLookFREQ
     
     use read_flowobs_module,     only: read_flow_observations
@@ -158,7 +159,8 @@ contains
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
     type(parallel_context_type), intent(in)    :: instance_parallel
-   
+  
+    integer(i4b), intent(in)  :: sample_id 
     character(*), intent(in)  :: param_name(:)
     real(rkind),  intent(in)  :: param_value(:)
    
@@ -173,6 +175,10 @@ contains
     integer(i4b), parameter            :: n=1                ! number of SUMMA data structures
   
     integer(i4b)                       :: i                  ! looping
+
+    character(len=4)                   :: rankString         ! include rank in the output filename
+    character(len=6)                   :: sampleString       ! include sample index in the output filename
+    character(len=:), allocatable      :: outputFileSuffix_orig  ! orig suffix (to restore output suffix)
 
     real(rkind), allocatable           :: timeSim(:)         ! simulated time
     real(rkind), allocatable           :: flowSim(:)         ! simulated streamflow
@@ -203,7 +209,21 @@ contains
     ! populate domain and model-instance parallel contexts
     summa1_struc(n)%domain_parallel=domain_parallel
     summa1_struc(n)%instance_parallel=instance_parallel
+   
+    ! define unique output filenames for each rank and sample
+
+    outputFileSuffix_orig=trim(output_fileSuffix)
+
+    if(instance_parallel%size > 1)then
+      write(rankString,'(I4.4)') instance_parallel%rank
+      output_fileSuffix=trim(output_fileSuffix)//'_rank'//rankString
+    endif
     
+    if(sample_id > 0)then
+      write(sampleString,'(I6.6)') sample_id
+      output_fileSuffix=trim(output_fileSuffix)//'_sample'//sampleString
+    endif
+
     ! initialize SUMMA
     call initialize_summa(config,                &
                           summa1_struc(n),       &
@@ -272,6 +292,9 @@ contains
       write(output_unit,'(A,A,A,I0,A,F12.9)') &
            'case=',trim(config%case_name),', rank=',instance_parallel%rank,', objective=',metric
     endif
+
+    ! restore output file suffix 
+    output_fileSuffix=outputFileSuffix_orig
 
   end subroutine evaluate_objective
 

@@ -61,10 +61,16 @@ program summa_driver_opt
   USE summaFileManager, only: OUTPUT_PATH
   USE summaFileManager, only: MODEL_INITCOND
 
+  ! SUMMA parameter information
+  USE parameter_search, only: parameter_spec,parameter_search_info
+
   ! SUMMA subroutines/functions
-  USE summa_init, only: init_config
-  USE summa_util, only: handle_err,stop_program
-  USE summa_parameter_evaluation, only: spinup_from_cold
+  USE summa_init,   only: init_config
+  USE summa_spinup, only: spinup_from_cold
+  USE summa_util,   only: stop_program
+
+  USE calibration_output_module, only: create_calibration_output
+  USE calibration_output_module, only: close_calibration_output
 
   implicit none
 
@@ -84,8 +90,16 @@ program summa_driver_opt
   character(len=4)    :: rankString
   character(len=256)  :: log_file
 
-  ! number of parameter samples
+  ! calibration parameter information
+  type(parameter_spec)        :: param_spec
+  type(parameter_search_info) :: search
+  character(len=64), allocatable :: param_name(:)
+  
   integer(i4b), parameter :: nSamples=1000
+
+  ! calibration output file
+  integer(i4b)        :: ncid_calib
+  character(len=256)  :: calib_file
 
   ! error control
   integer(i4b)        :: err=0
@@ -131,7 +145,7 @@ program summa_driver_opt
  
   ! read the configuration files to establish file paths, simulation settings, and calibration options
   call init_config(config,err,message)
-  call handle_err(err,message)
+  if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
   
   initConfig=.false.
   
@@ -155,7 +169,7 @@ program summa_driver_opt
                         domain_parallel,    & ! MPI context for domain parallelism
                         instance_parallel,  & ! MPI context for model-instance parallelism
                         err,message)          ! error code and message
-  call handle_err(err,message)
+  if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
   ! broadcast the rank-0 restart filename to all model instances
   call MPI_Bcast(restart_filename,len(restart_filename),MPI_CHARACTER,0, &
@@ -167,15 +181,52 @@ program summa_driver_opt
   MODEL_INITCOND=trim(restart_filename)
 
   ! ---------------------------------------------------------------------------------------
+  ! Initialize parameter sampling
+  ! ---------------------------------------------------------------------------------------
+
+  ! Initialize parameter-evaluation state that is invariant across samples and shared by all ranks
+  call initialize_parameter_evaluation(config,            & ! SUMMA configuration
+                                       instance_parallel, & ! MPI instance-parallel context
+                                       param_spec,search, & ! parameter specification and search information
+                                       param_name,        & ! complete SUMMA parameter-name vector
+                                       err,message)         ! error code and message
+  if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+
+  ! ---------------------------------------------------------------------------------------
+  ! Create calibration output file
+  ! ---------------------------------------------------------------------------------------
+  
+  if(instance_parallel%rank == 0)then
+    calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_calibration.nc'
+    call create_calibration_output(calib_file,param_spec,nSamples,instance_parallel%size-1,           &
+                                   config%case_name,config%calib%metric,config%calib%obs_transform,   &
+                                   ncid_calib,err,message)
+    if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+  else
+    ncid_calib=-1
+  endif
+
+  ! ---------------------------------------------------------------------------------------
   ! Evaluate parameter samples
   ! ---------------------------------------------------------------------------------------
 
   call evaluate_parameter_samples(config,                 & ! SUMMA configuration structure
                                   domain_parallel,        & ! MPI context for domain parallelism
                                   instance_parallel,      & ! MPI context for model-instance parallelism
+                                  param_spec,search,      & ! parameter specification and search information
+                                  param_name,ncid_calib,  & ! parameter names and calibration output
                                   nSamples,               & ! total number of parameter samples
                                   err,message)             ! error code and message
-  call handle_err(err,message)
+  if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+
+  ! ---------------------------------------------------------------------------------------
+  ! Close calibration output
+  ! ---------------------------------------------------------------------------------------
+
+  if(instance_parallel%rank == 0)then
+    call close_calibration_output(ncid_calib,err,message)
+    if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+  endif
 
   ! ---------------------------------------------------------------------------------------
   ! Finalize MPI
@@ -201,6 +252,91 @@ contains
   ! --------------------------------------------------------------------------------------------------
 
   ! **************************************************************************************************
+  ! Initialize parameter evaluation.
+  !
+  ! Constructs the SUMMA parameter specification and parameter-search information used for all
+  ! parameter evaluations. Builds the complete parameter-name vector, including sampled parameters
+  ! and non-sampled parameters required by calibration constraints. On the dispatcher rank, also
+  ! initializes the random-number generator used for parameter sampling.
+  !
+  ! All information returned by this routine is invariant across individual parameter samples.
+  ! **************************************************************************************************
+  
+  subroutine initialize_parameter_evaluation(config,            &
+                                             instance_parallel, &
+                                             param_spec,search, &
+                                             param_name,         &
+                                             err,message)
+  
+    USE parameter_search, only: initialize_parameter_search
+    USE summa_parameter_spec, only: get_summa_parameter_spec
+  
+    implicit none
+  
+    type(config_info),           intent(in)  :: config
+    type(parallel_context_type), intent(in)  :: instance_parallel
+    type(parameter_spec),        intent(out) :: param_spec
+    type(parameter_search_info), intent(out) :: search
+    character(len=64), allocatable, intent(out) :: param_name(:)
+    integer(i4b),                intent(out) :: err
+    character(*),                intent(out) :: message
+  
+    integer(i4b)              :: i
+    integer(i4b)              :: nseed
+    integer(i4b), allocatable :: seed(:)
+  
+    character(len=256) :: cmessage
+  
+    err=0
+    message='initialize_parameter_evaluation/'
+  
+    ! build the SUMMA parameter specification from the calibration configuration
+    call get_summa_parameter_spec(config,param_spec,err,cmessage)
+    if(err/=0)then
+      message=trim(message)//trim(cmessage)
+      return
+    endif
+  
+    ! construct and validate the model-agnostic parameter-search information
+    call initialize_parameter_search(param_spec,search,err,cmessage)
+    if(err/=0)then
+      message=trim(message)//trim(cmessage)
+      return
+    endif
+  
+    ! construct the complete invariant SUMMA parameter-name vector
+    allocate(param_name(size(param_spec%params)),stat=err)
+  
+    if(err/=0)then
+      message=trim(message)//'unable to allocate parameter-name vector'
+      return
+    endif
+  
+    do i=1,size(param_spec%params)
+      param_name(i)=param_spec%params(i)%name
+    enddo
+  
+    ! initialize random-number generator on the dispatcher
+    if(instance_parallel%rank == 0)then
+  
+      call random_seed(size=nseed)
+  
+      allocate(seed(nseed),stat=err)
+  
+      if(err/=0)then
+        message=trim(message)//'unable to allocate random-number seed'
+        return
+      endif
+  
+      seed=42
+      call random_seed(put=seed)
+  
+    endif
+  
+  end subroutine initialize_parameter_evaluation
+
+
+  ! **************************************************************************************************
   ! Dynamically distribute and evaluate parameter samples.
   !
   ! Rank 0 generates parameter samples and assigns work to available workers. Each worker evaluates
@@ -208,50 +344,56 @@ contains
   ! immediately assigned additional samples, reducing load imbalance from variable model runtimes.
   ! **************************************************************************************************
 
-  subroutine evaluate_parameter_samples(config,                &
-                                        domain_parallel,       &
-                                        instance_parallel,     &
-                                        nSamples,              &
+  subroutine evaluate_parameter_samples(config,                 &
+                                        domain_parallel,        &
+                                        instance_parallel,      &
+                                        param_spec,search,      &
+                                        param_name,ncid_calib,  &
+                                        nSamples,               &
                                         err,message)
 
-    ! parameter search types
+    ! parameter search
     USE parameter_search, only: parameter_spec,parameter_search_info
-    USE parameter_search, only: sample_parameters
     
-    ! SUMMA parameter evaluation subroutines
-    USE summa_parameter_evaluation, only: initialize_parameter_evaluation
-    USE summa_parameter_evaluation, only: evaluate_parameter_sample
-
+    ! objective-function evaluation
+    USE summa_parameter_sampling, only: generate_parameter_sample
+    USE summa_simulation,         only: evaluate_objective
+    
     ! calibration output
-    USE calibration_output_module, only: close_calibration_output
+    USE calibration_output_module, only: write_calibration_output
 
     implicit none
 
     ! dummy variables
-    type(config_info),           intent(inout) :: config             ! SUMMA configuration structure
-    type(parallel_context_type), intent(in)    :: domain_parallel    ! MPI context for domain parallelism
-    type(parallel_context_type), intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
-    integer(i4b),                intent(in)    :: nSamples           ! total number of parameter trials
-    integer(i4b),                intent(out)   :: err                ! error code
-    character(*),                intent(out)   :: message            ! error message
-
-    ! parameter-search information
-    type(parameter_spec)        :: param_spec
-    type(parameter_search_info) :: search
+    type(config_info),              intent(inout) :: config             ! SUMMA configuration structure
+    type(parallel_context_type),    intent(in)    :: domain_parallel    ! MPI context for domain parallelism
+    type(parallel_context_type),    intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
+    type(parameter_spec),           intent(in)    :: param_spec         ! complete SUMMA parameter specification
+    type(parameter_search_info),    intent(in)    :: search             ! parameter-search configuration and metadata
+    character(len=64),              intent(in)    :: param_name(:)      ! complete SUMMA parameter-name vector
+    integer(i4b),                   intent(in)    :: ncid_calib         ! calibration output NetCDF file ID
+    integer(i4b),                   intent(in)    :: nSamples           ! total number of parameter trials
+    integer(i4b),                   intent(out)   :: err                ! error code
+    character(*),                   intent(out)   :: message            ! error message
 
     ! sampled parameter values
-    real(rkind), allocatable :: param_value(:)
+    real(rkind),       allocatable   :: param_value(:)
+    real(rkind),       allocatable   :: param_override(:)
+    
+    ! complete parameter overrides retained by rank 0
+    real(rkind),       allocatable  :: param_overrides(:,:)
+
+    ! parameter-evaluation timing
+    integer(i4b),      allocatable  :: startModelRun(:,:)
+    integer(i4b),      allocatable  :: endModelRun(:,:)
 
     ! MPI work-queue state
     integer(i4b) :: worker
+    integer(i4b) :: worker_sample(instance_parallel%size-1)
     integer(i4b) :: sample_id
     integer(i4b) :: next_sample
     integer(i4b) :: nComplete
     logical(lgt) :: stop_worker
-
-    ! worker-local calibration output
-    integer(i4b) :: ncid_calib
-    integer(i4b) :: local_sample
 
     ! objective value
     real(rkind) :: objective
@@ -264,20 +406,43 @@ contains
     message='evaluate_parameter_samples/'
 
     ! -----------------------------------------------------------------------------------------------
-    ! Initialize parameter evaluation
+    ! Allocate local arrays
     ! -----------------------------------------------------------------------------------------------
 
-    ! build the parameter specification and search information, allocate the sampled parameter vector,
-    ! initialize the dispatcher random-number generator, and create worker calibration output files
-    call initialize_parameter_evaluation(config,                 & ! SUMMA configuration structure
-                                         instance_parallel,      & ! MPI context for model-instance parallelism
-                                         param_spec,search,      & ! parameter specification and search information
-                                         param_value,ncid_calib, & ! sampled parameter vector and calibration output NetCDF ID
-                                         err,cmessage)             ! error code and message
-
+    ! available on all ranks
+    allocate(param_override(size(param_spec%params)),stat=err)
     if(err/=0)then
-      message=trim(message)//trim(cmessage)
-      call abort_mpi(instance_parallel%rank,trim(message))
+      message=trim(message)//'unable to allocate parameter override vector'
+      return
+    endif
+
+    ! rank 0 responsible for parameter sampling and dispatch
+    if(instance_parallel%rank == 0)then
+
+      allocate(param_value(size(search%param_names)),stat=err)
+      if(err/=0)then
+        message=trim(message)//'unable to allocate sampled parameter vector'
+        return
+      endif
+
+      allocate(param_overrides(size(param_spec%params),nSamples),stat=err)
+      if(err/=0)then
+        message=trim(message)//'unable to allocate parameter override storage'
+        return
+      endif
+
+      allocate(startModelRun(8,nSamples), stat=err)
+      if(err/=0)then
+        message=trim(message)//'unable to allocate parameter start-time storage'
+        return
+      endif
+
+      allocate(endModelRun(8,nSamples), stat=err)
+      if(err/=0)then
+        message=trim(message)//'unable to allocate parameter end-time storage'
+        return
+      endif
+    
     endif
 
     ! -----------------------------------------------------------------------------------------------
@@ -294,20 +459,22 @@ contains
 
         if(next_sample <= nSamples)then
 
-          ! generate a feasible parameter vector
-          call sample_parameters(search,param_value,err,cmessage)
-          
-          if(err/=0)then
-            message=trim(message)//trim(cmessage)
-            call abort_mpi(instance_parallel%rank,trim(message))
-          endif
+          ! generate the next parameter sample and complete SUMMA override vector
+          call generate_parameter_sample(param_spec,search,       &
+                                         param_value,param_override, &
+                                         err,cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+          param_overrides(:,next_sample)=param_override
+          call date_and_time(values=startModelRun(:,next_sample))
 
           ! send the sample index and parameter vector to this worker
-          call send_sample(worker,next_sample,param_value, &
+          call send_sample(worker,next_sample,param_override, &
                            instance_parallel%comm,mpi_err)
           call check_mpi(instance_parallel%rank,mpi_err, &
                          'unable to send parameter sample')
 
+          worker_sample(worker)=next_sample
           next_sample=next_sample+1
 
         else
@@ -331,25 +498,45 @@ contains
         call check_mpi(instance_parallel%rank,mpi_err, &
                        'unable to receive objective value')
 
+        sample_id=worker_sample(worker)
+        call date_and_time(values=endModelRun(:,sample_id))
+
+        call write_calibration_output(ncid_calib,                   &
+                                      sample_id, worker,            &
+                                      param_name,                   &
+                                      param_overrides(:,sample_id), &
+                                      objective,                    &
+                                      startModelRun(:,sample_id),   &
+                                      endModelRun(:,sample_id),     &
+                                      err,cmessage)
+        
+        if(err/=0)then
+          message=trim(message)//trim(cmessage)
+          call abort_mpi(instance_parallel%rank,trim(message))
+        endif
+
+
         nComplete=nComplete+1
 
         ! immediately give the completed worker another sample if work remains
         if(next_sample <= nSamples)then
 
-          ! generate the next feasible parameter vector
-          call sample_parameters(search,param_value,err,cmessage)
-          
-          if(err/=0)then
-            message=trim(message)//trim(cmessage)
-            call abort_mpi(instance_parallel%rank,trim(message))
-          endif
+          ! generate the next parameter sample and complete SUMMA override vector
+          call generate_parameter_sample(param_spec,search,       &
+                                         param_value,param_override, &
+                                         err,cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+          param_overrides(:,next_sample)=param_override
+          call date_and_time(values=startModelRun(:,next_sample))
 
           ! send the next sample to the worker that just became available
-          call send_sample(worker,next_sample,param_value, &
+          call send_sample(worker,next_sample,param_override, &
                            instance_parallel%comm,mpi_err)
           call check_mpi(instance_parallel%rank,mpi_err, &
                          'unable to send parameter sample')
 
+          worker_sample(worker)=next_sample
           next_sample=next_sample+1
 
         else
@@ -363,57 +550,39 @@ contains
 
       enddo
 
-
     ! -----------------------------------------------------------------------------------------------
     ! Workers
     ! -----------------------------------------------------------------------------------------------
 
     else
 
-      local_sample=0
-
       do
 
         ! wait for either another parameter sample or a stop instruction
-        call receive_sample(sample_id,param_value,stop_worker, &
+        call receive_sample(sample_id,param_override,stop_worker, &
                             instance_parallel%comm,mpi_err)
         call check_mpi(instance_parallel%rank,mpi_err, &
                        'unable to receive parameter sample')
 
         if(stop_worker) exit
 
-        ! advance the local record index in this worker's calibration file
-        local_sample=local_sample+1
-
-        ! evaluate the supplied parameter sample
-        call evaluate_parameter_sample(config,                 &
-                                       domain_parallel,        &
-                                       instance_parallel,      &
-                                       param_spec,search,      &
-                                       sample_id,local_sample, &
-                                       param_value,ncid_calib, &
-                                       objective,              &
-                                       err, cmessage)
-          
+        ! run SUMMA and evaluate the objective function
+        call evaluate_objective(config,                              & ! SUMMA configuration structure
+                                domain_parallel,instance_parallel,   & ! MPI context for model domain and model-instance parallelism
+                                sample_id,param_name,param_override, & ! complete parameter overrides
+                                objective,err,cmessage)                ! objective function value and error control
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           call abort_mpi(instance_parallel%rank,trim(message))
         endif
 
         ! return the objective value and become available for additional work
-        call send_objective(objective,instance_parallel%comm,mpi_err)
+        call send_objective(objective, &
+                            instance_parallel%comm,mpi_err)
         call check_mpi(instance_parallel%rank,mpi_err, &
                        'unable to send objective value')
 
       enddo
-
-      ! close rank-specific calibration output
-      call close_calibration_output(ncid_calib,err,cmessage)
-
-      if(err/=0)then
-        message=trim(message)//trim(cmessage)
-        call abort_mpi(instance_parallel%rank,trim(message))
-      endif
 
     endif
 
