@@ -506,6 +506,13 @@ subroutine mDecisions(err,message)
     case('constant'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = constant            ! constant hydraulic conductivity with depth
     case('pow_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = powerLaw_profile    ! power-law profile
     case('exp_prof'); model_decisions(iLookDECISIONS%hc_profile)%iDecision = expLaw_profile      ! exponential profile
+      ! STUB: exp_prof models lateral flow over a finite impermeable base rather than a shallow aquifer, so it is not yet
+      !       selectable for ordinary runs. Glacier domains do not need it here, they override to expLaw_profile internally
+      !       in satHydCond, soilLiqFlux and computBaseflow. Enable this when the MODFLOW-coupled aquifer lands.
+      message=trim(message)//'the exponential hydraulic conductivity profile is not yet selectable ("hc_profile" = "exp_prof"): &
+        &it represents lateral flow over an impermeable base rather than a shallow groundwater aquifer, and is currently used &
+        &only internally for glacier debris domains'
+      err=20; return
     case default
       err=10; message=trim(message)//"unknown hydraulic conductivity profile [option="//trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)//"]"; return
   end select
