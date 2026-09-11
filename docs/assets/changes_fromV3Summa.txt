@@ -233,20 +233,15 @@ AFTER tag of v4.0.0-exp-Sundials
          Now recovers the surface value for any profile as surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1).
       2) Analytical-Jacobian consistency fix: for soil layers above the water table the baseflow is forced to zero (trSoil clamp), but the
          derivative matrix (dBaseflow_dVolLiq, dBaseflow_dWat, dBaseflow_dTk) still had non-zero rows for them. 
- 59) New exponential hydraulic conductivity profile, commits bb2b1344 and 5095074b Sep 10, 2026
+ 59) New exponential hydraulic conductivity profile, noting classical Beven-Kirkby transmissivity is exponential, commits bb2b1344 and 5095074b Sep 10, 2026
      New option for the hc_profile decision:
       ! constant   ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
       ! pow_prof   ! power-law profile (original TOPMODEL-ish form)
-      ! exp_prof   ! exponential profile, K(z) = K_0*exp(-f*z), finite at the base of the soil
-     New parameter f_hydCond, decay rate of hydraulic conductivity with depth for the exponential profile (m-1), default 3 (1-5 m-1 for
-      supraglacial debris and weathered shallow till). Backwards compatible: defaults are supplied if the parameter is absent.
-     The TOPMODEL baseflow option (groundwatr == qTopmodl) now accepts exp_prof as well as pow_prof, since the baseflow transmissivity is
-      just the vertical integral of the conductivity profile. Glacier domains force exp_prof internally.
--60) Consistent association of the ice/water density ratio, Sep 11, 2026
-     iden_ice/iden_water (and iden_water/iden_ice) were written two ways across the code: grouped as x*(iden_ice/iden_water), which
-     folds to a single compile-time constant multiply, and chained as x*iden_ice/iden_water, which evaluates (x*917)/1000 at runtime.
-     917/1000 is not exactly representable in binary, so the two forms differ by one ULP. Both are equally accurate (two roundings
-     either way), but the grouped form is faster since iden_ice and iden_water are PARAMETERs, so the division is folded at compile
-     time rather than executed per call. This shifts results by ~1 ULP at each site, which then amplifies (see change 57), so it was applied identically to SummaDevelop
-     and to this branch in the same step. Verified afterwards: 11 of the 13 wrrPaper test cases remain bit-for-bit identical between
-     the two, the exceptions being the two groundwatr=qTopmodl cases, which differ only through change 58.
+      ! exp_prof   ! exponential profile, K(z) = K_0*exp(-f*z) finite at the base of the soil, only for >=v4.1
+     New parameter f_hydCond, decay rate of hydraulic conductivity with depth for the exponential profile (m-1), supraglacial debris and weathered shallow till values are default.
+      f_hydCond                 |       3.0000 |       0.1000 |      10.0000
+     The groundwatr == qTopmodl option now accepts exp_prof as well as pow_prof, since the baseflow transmissivity is just the vertical integral of the conductivity profile.
+     The profile shape is re-derived in three places (vs previous hard-coded power law from iLayerSatHydCond): satHydCond (the conductivity itself), the topmodel_GA max infiltration rate in soilLiqFlux (conductivity at wetting front), computBaseflow (transmissivity integral).
+-60) pow_prof conductivity profile floor below compactedDepth made consistent across satHydCond, topmodel_GA and computBaseflow, commit 8ae78ac2 Sep 11, 2026
+     The floor cannot be dropped, else at the bottom interface (1 - z/refDepth) is exactly 0, so 0**(zScale_TOPMODEL-1) is infinite for zScale_TOPMODEL < 1 (allowed to 0.1) and 0 above it.
+-61) Consistent association of the iden_ice/iden_water density ratio to (iden_ice/iden_water) because it is faster (inconsistent variations differ by 1 ULP), commit cde6aeeb Sep 11, 2026
