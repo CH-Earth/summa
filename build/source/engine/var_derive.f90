@@ -265,6 +265,7 @@ contains
  real(rkind)                     :: d1                  ! distance from lower-layer midpoint to interface (m)
  real(rkind)                     :: d2                  ! distance from interface to upper-layer midpoint (m)
  real(rkind)                     :: refDepth            ! reference depth for scaling (m)
+ logical(lgt)                    :: scaleProfile        ! .false. if the column ends exactly at compactedDepth (degenerate normalization)
  ! initialize error control
  err=0; message='satHydCond/'
  ! ----------------------------------------------------------------------------------
@@ -315,22 +316,23 @@ contains
       endif
     end do
   
-  ! power-law profile
+  ! power-law profile K(z) = k_soil*(1-z/refDepth)**(zScale_TOPMODEL-1), decays to 0 at base of the soil
   case(powerLaw_profile)
-    ! If total column is shallower than compactedDepth, use compactedDepth + 1 m as reference
-    if (iLayerHeight(nLayers) < compactedDepth) then
+    ! NOTE: the reference depth is the depth at which the conductivity is normalized to k_soil, which is the compactedDepth unless the soil column ends above that depth
+    if (iLayerHeight(nLayers) < compactedDepth) then ! (1 - compactedDepth/refDepth)**(number<1) is NaN
       refDepth = compactedDepth + 1._rkind
     else
       refDepth = iLayerHeight(nLayers)
     endif
+    scaleProfile = (compactedDepth < refDepth) ! normalization is degenerate when the column ends exactly at compactedDepth
 
     ! 1) Calculate scaled conductivities at layer midpoints first.
     do iLayer=nSnow+1,nLayers
       iSoil = iLayer - nSnow
-      if(mLayerHeight(iLayer) < compactedDepth)then    ! within the scaling zone (above compacted baseline depth)
+      if(scaleProfile)then
         midDepthScaleFactor = ( (1._rkind - mLayerHeight(iLayer)/refDepth)**(zScale_TOPMODEL - 1._rkind) ) / &
                               ( (1._rkind -       compactedDepth/refDepth)**(zScale_TOPMODEL - 1._rkind) )
-      else ! soil is fully compacted/unweathered at this depth
+      else
         midDepthScaleFactor = 1.0_rkind
       endif
       mLayerSatHydCond(iSoil)   = k_soil(iSoil)      * midDepthScaleFactor
@@ -340,10 +342,10 @@ contains
    ! 2) Compute interface conductivity from midpoint values.
    do iLayer=nSnow,nLayers
      iSoil = iLayer - nSnow
-     if(iLayerHeight(iLayer) < compactedDepth)then    ! within the scaling zone (above compacted baseline depth)
+     if(scaleProfile)then
        ifcDepthScaleFactor = ( (1._rkind - iLayerHeight(iLayer)/refDepth)**(zScale_TOPMODEL - 1._rkind) ) / &
                              ( (1._rkind -       compactedDepth/refDepth)**(zScale_TOPMODEL - 1._rkind) )
-     else ! soil is fully compacted/unweathered at this depth
+     else
        ifcDepthScaleFactor = 1.0_rkind
      endif
 
