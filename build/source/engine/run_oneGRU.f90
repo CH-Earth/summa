@@ -84,13 +84,18 @@ USE globalData,only:glacCln2           ! second horizontal domain type for glaci
 USE globalData,only:glacDbr            ! horizontal domain type for glacier debris areas
 USE globalData,only:wetland            ! horizontal domain type for wetland areas
 
-! provide access to the named variables that describe model decisions
-USE mDecisions_module,only:&           ! look-up values for the choice of method for the spatial representation of groundwater
- localColumn, &                        ! separate groundwater representation in each local soil column
- singleBasin, &                        ! single groundwater store over the entire basin
- bigBucket                             ! a big bucket (lumped aquifer model)
-! -----------------------------------------------------------------------------------------------------------------------------------
-implicit none
+! look-up values for the choice of groundwater parameterization
+USE mDecisions_module,only:       &
+ qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
+ bigBucket,                       & ! a big bucket (lumped aquifer model)
+ noExplicit                         ! no explicit groundwater parameterization
+
+! look-up values for the choice of method for the spatial representation of groundwater
+USE mDecisions_module,only:       & 
+ localColumn,                     & ! separate groundwater representation in each local soil column
+ singleBasin                        ! single groundwater store over the entire basin
+
+ implicit none
 private
 public::run_oneGRU
 contains
@@ -160,6 +165,11 @@ subroutine run_oneGRU(&
   character(len=512)                  :: cmessage                       ! error message
   integer(i4b)                        :: iHRU                           ! HRU index
   integer(i4b)                        :: jHRU,kHRU                      ! index of the hydrologic response unit
+  integer(i4b)                        :: iSeq                           ! position in the cascade processing order
+  integer(i4b)                        :: nOrder                         ! number of HRUs placed in the processing order
+  integer(i4b), allocatable           :: downIdx(:)                     ! index of the downslope HRU (0 = GRU outlet)
+  integer(i4b), allocatable           :: inDegree(:)                    ! number of HRUs draining into a given HRU
+  integer(i4b), allocatable           :: hruOrder(:)                    ! HRU indices in cascade order, upslope before downslope
   integer(i4b)                        :: iDOM                           ! domain index
   real(rkind)                         :: fracDOM                        ! fractional area of a given HRU domain in GRU (-)
   integer(i4b)                        :: nglacDOM                       ! number of glacier domains in the GRU
@@ -283,8 +293,41 @@ subroutine run_oneGRU(&
              glac_tan_slope(nglacDOM),glac_aspect(nglacDOM),glac_contourLength(nglacDOM))
   endif
 
-  ! ********** RUN FOR ONE HRU ********************************************************************************************
+  ! ----- order the HRUs so that an HRU is run after everything that drains into it -----------------------------------------
+  allocate(downIdx(gruInfo%hruCount), inDegree(gruInfo%hruCount), hruOrder(gruInfo%hruCount), stat=err)
+  if(err/=0)then; message=trim(message)//'problem allocating cascade ordering arrays'; return; endif
+  downIdx(:) = 0; inDegree(:) = 0
   do iHRU=1,gruInfo%hruCount
+    dsHRU: do jHRU=1,gruInfo%hruCount
+      if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
+        downIdx(iHRU) = jHRU                  ! first match wins, as before
+        inDegree(jHRU) = inDegree(jHRU) + 1
+        exit dsHRU
+      endif
+    enddo dsHRU
+  enddo
+  ! repeatedly take an HRU nothing drains into, then remove its own contribution
+  nOrder = 0
+  do iHRU=1,gruInfo%hruCount
+    if(inDegree(iHRU)==0)then; nOrder = nOrder + 1; hruOrder(nOrder) = iHRU; endif
+  enddo
+  iSeq = 0
+  do while(iSeq < nOrder)
+    iSeq = iSeq + 1
+    kHRU = downIdx(hruOrder(iSeq))
+    if(kHRU > 0)then
+      inDegree(kHRU) = inDegree(kHRU) - 1
+      if(inDegree(kHRU)==0)then; nOrder = nOrder + 1; hruOrder(nOrder) = kHRU; endif
+    endif
+  end do
+  if(nOrder /= gruInfo%hruCount)then
+    err=20; message=trim(message)//'the downHRUindex cascade network contains a loop, so the HRUs cannot be ordered upslope to &
+      &downslope (check downHRUindex in the attributes file)'; return
+  endif
+
+  ! ********** RUN FOR ONE HRU ********************************************************************************************
+  do iSeq=1,gruInfo%hruCount
+    iHRU = hruOrder(iSeq)
     
     ! skip HRUs with no area
     runHRU = .false.
@@ -326,18 +369,8 @@ subroutine run_oneGRU(&
     if(.not. computeVegFluxFlag) ixComputeVegFlux%hru(iHRU) = no
 
     ! ----- compute fluxes across HRUs --------------------------------------------------------------------------------------------------
-    ! identify lateral connectivity
-    ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
-    kHRU = 0
-    ! identify the downslope HRU
-    dsHRU: do jHRU=1,gruInfo%hruCount
-      if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
-        if(kHRU==0)then  ! check there is a unique match
-          kHRU=jHRU
-          exit dsHRU
-        endif  ! (check there is a unique match)
-      endif  ! (if identified a downslope HRU)
-    enddo dsHRU
+    ! the downslope HRU, found once above with the cascade ordering
+    kHRU = downIdx(iHRU)
     
     do iDOM = 1, gruInfo%hruInfo(iHRU)%domCount
       if(progHRU%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)==0._rkind) cycle ! skip domains with no area
@@ -671,6 +704,8 @@ subroutine run_oneGRU(&
 
   ! aggregate the elapsed time for the update area routines
    elapsedUpdateArea = elapsedUpdateArea + elapsedSec(startUpdateArea,endUpdateArea)
+
+  deallocate(downIdx,inDegree,hruOrder)
 
 end subroutine run_oneGRU
 
