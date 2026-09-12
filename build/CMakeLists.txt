@@ -392,7 +392,7 @@ else()
 
   # Parallel optimization SUMMA executable
   if (USE_MPI)
-    add_executable(${EXEC_NAME_OPT} ${MAIN_SUMMA_OPT})
+    add_executable(${EXEC_NAME_OPT} ${CALIBR_MPI} ${MAIN_SUMMA_OPT})
     target_compile_options(${EXEC_NAME_OPT} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_OPT} PROPERTY LINKER_LANGUAGE Fortran)
     target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa PARALLEL_UTILS)

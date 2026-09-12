@@ -164,9 +164,13 @@ set(OBJFNC
 set(CALIBR
     ${CALIBR_DIR}/parameter_search.f90
     ${CALIBR_DIR}/summa_parameter_spec.f90
-    ${CALIBR_DIR}/summa_parameter_sampling.f90
     ${CALIBR_DIR}/calibration_output.f90
     CACHE INTERNAL "CALIBR")
+
+# MPI-dependent calibration
+set(CALIBR_MPI
+    ${CALIBR_DIR}/summa_parameter_sampling.f90
+    CACHE INTERNAL "CALIBR_MPI")
 
 # Driver support modules
 set(DRIVER
