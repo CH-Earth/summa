@@ -36,5 +36,9 @@ In addition, an NCAR technical note describes the SUMMA implementation in detail
  * Clark, M. P., B. Nijssen, J. D. Lundquist, D. Kavetski, D. E. Rupp, R. A. Woods, J. E. Freer, E. D. Gutmann, A. W. Wood, L. D. Brekke, J. R. Arnold, D. J. Gochis, R. M. Rasmussen, D. G. Tarboton, V. Mahat, G. N. Flerchinger, D. G. Marks, 2015c: The structure for unifying multiple modeling alternatives (SUMMA), Version 1.0: Technical Description. _NCAR Technical Note NCAR/TN-514+STR_, 50 pp., [doi:10.5065/D6WQ01TD](http://dx.doi.org/10.5065/D6WQ01TD).<a id="clark_2015c"></a>
 
 
+## Community resources
+
+- Unofficial, community-maintained AI-agent skill for onboarding new users (not an official NCAR resource): [earth-space-ai/summa-skill](https://github.com/earth-space-ai/summa-skill). It restructures the existing SUMMA documentation for AI coding agents and defers to this repository as the source of truth.
+
 ## License
 SUMMA is distributed under the GNU Public License Version 3. For details see the file `COPYING` in the SUMMA root directory or visit the [online version](http://www.gnu.org/licenses/gpl-3.0.html).
