@@ -157,6 +157,10 @@ if (allocated(index_map)) then; err=20; message=trim(message)//'index_map is une
 
  ! set gru to hru mapping
  if (present(checkHRU)) then                                  ! allocate space for single-HRU run
+   ! identify the GRU containing checkHRU: sGRU is not set by the runtime dimension
+   ! block above for a -h run, but is needed to index the file below
+   sGRU = findloc(gru_id, hru2gru_id(checkHRU), dim=1)
+   if (sGRU < 1) then; err=20; message=trim(message)//'problem finding GRU containing checkHRU'; return; end if
    ! gru to hru mapping
    iGRU = 1
    gru_struc(iGRU)%hruCount             = 1                    ! number of HRUs in each GRU

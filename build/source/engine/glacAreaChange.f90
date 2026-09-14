@@ -1134,6 +1134,7 @@ subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, 
   real(rkind) :: local_drop, src_sum, mean_slope, topElev, emergenceElev
   integer(i4b) :: i, j, iter, nsrc, countGlac
   logical(lgt) :: updated
+  logical(lgt) :: isEdge                ! .true. if a glacier cell borders a non-glacier cell
 
   emergenceMask = 0_i4b
   lat_rockfall = 0._rkind
@@ -1200,10 +1201,14 @@ subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, 
     do i = 1, nx
       do j = 1, ny
         if(zeroMask(i,j)==0_i4b)then
-          if((i>1  .and. zeroMask(i-1,j)==1_i4b) .or. (i<nx .and. zeroMask(i+1,j)==1_i4b) .or. &
-             (j>1  .and. zeroMask(i,j-1)==1_i4b) .or. (j<ny .and. zeroMask(i,j+1)==1_i4b))then
-            edgeMatrix(i,j) = 0_i4b
-          endif
+          ! NOTE: .and. is not guaranteed to short-circuit in Fortran, so the bounds test
+          !       and the array access have to be in separate if statements
+          isEdge = .false.
+          if(i>1 )then; if(zeroMask(i-1,j)==1_i4b) isEdge = .true.; endif
+          if(i<nx)then; if(zeroMask(i+1,j)==1_i4b) isEdge = .true.; endif
+          if(j>1 )then; if(zeroMask(i,j-1)==1_i4b) isEdge = .true.; endif
+          if(j<ny)then; if(zeroMask(i,j+1)==1_i4b) isEdge = .true.; endif
+          if(isEdge) edgeMatrix(i,j) = 0_i4b
         endif
       enddo
     enddo 
@@ -1215,10 +1220,10 @@ subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, 
       do i = 1, nx
         if(edgeMatrix(i,j)==0_i4b .and. S(i,j)<ELA .and. S(i,j)>B(i,j))then
           local_drop = 0._rkind
-          if(i>1  .and. edgeMatrix(i-1,j)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i-1,j)))
-          if(i<nx .and. edgeMatrix(i+1,j)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i+1,j)))
-          if(j>1  .and. edgeMatrix(i,j-1)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i,j-1)))
-          if(j<ny .and. edgeMatrix(i,j+1)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i,j+1)))
+          if(i>1 )then; if(edgeMatrix(i-1,j)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i-1,j))); endif
+          if(i<nx)then; if(edgeMatrix(i+1,j)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i+1,j))); endif
+          if(j>1 )then; if(edgeMatrix(i,j-1)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i,j-1))); endif
+          if(j<ny)then; if(edgeMatrix(i,j+1)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i,j+1))); endif
           if(local_drop>0._rkind .and. slope0(i,j)>verySmall)then
             sin_slope(i,j) = max(2._rkind*slope0(i,j)/sqrt((2._rkind*slope0(i,j))**2_i4b + 1._rkind), verySmall)
             rockface_len(i,j) = local_drop/sin_slope(i,j)
@@ -1237,21 +1242,29 @@ subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, 
              S(i,j)<ELA .and. S(i,j)>B(i,j))then
             src_sum = 0._rkind
             nsrc = 0
-            if(i>1  .and. distance(i-1,j)<distance(i,j) .and. rockface_len_local(i-1,j)>0._rkind)then
-              src_sum = src_sum + rockface_len_local(i-1,j)
-              nsrc = nsrc + 1
+            if(i>1 )then
+              if(distance(i-1,j)<distance(i,j) .and. rockface_len_local(i-1,j)>0._rkind)then
+                src_sum = src_sum + rockface_len_local(i-1,j)
+                nsrc = nsrc + 1
+              endif
             endif
-            if(i<nx .and. distance(i+1,j)<distance(i,j) .and. rockface_len_local(i+1,j)>0._rkind)then
-              src_sum = src_sum + rockface_len_local(i+1,j)
-              nsrc = nsrc + 1
+            if(i<nx)then
+              if(distance(i+1,j)<distance(i,j) .and. rockface_len_local(i+1,j)>0._rkind)then
+                src_sum = src_sum + rockface_len_local(i+1,j)
+                nsrc = nsrc + 1
+              endif
             endif
-            if(j>1  .and. distance(i,j-1)<distance(i,j) .and. rockface_len_local(i,j-1)>0._rkind)then
-              src_sum = src_sum + rockface_len_local(i,j-1)
-              nsrc = nsrc + 1
+            if(j>1 )then
+              if(distance(i,j-1)<distance(i,j) .and. rockface_len_local(i,j-1)>0._rkind)then
+                src_sum = src_sum + rockface_len_local(i,j-1)
+                nsrc = nsrc + 1
+              endif
             endif
-            if(j<ny .and. distance(i,j+1)<distance(i,j) .and. rockface_len_local(i,j+1)>0._rkind)then
-              src_sum = src_sum + rockface_len_local(i,j+1)
-              nsrc = nsrc + 1
+            if(j<ny)then
+              if(distance(i,j+1)<distance(i,j) .and. rockface_len_local(i,j+1)>0._rkind)then
+                src_sum = src_sum + rockface_len_local(i,j+1)
+                nsrc = nsrc + 1
+              endif
             endif
             if(nsrc>0)then
               rockface_len_local(i,j) = src_sum/real(nsrc, rkind)
