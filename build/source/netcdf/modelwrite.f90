@@ -45,8 +45,8 @@ USE globalData,only:nSpecBand           ! maximum number of spectral bands
 USE globalData,only:allowRoutingOutput  ! flag to allow routing variable output
 
 ! provide access to global data
-USE globalData,only:nGRUrun             ! number of GRUs in the run
-USE globalData,only:nHRUrun             ! number of HRUs in the run
+USE globalData,only:nGRUrun             ! number of GRUs in the run (rank)
+USE globalData,only:nHRUrun             ! number of HRUs in the run (rank)
 USE globalData,only:maxDOM              ! maximum number of domains in any HRU
 USE globalData,only:gru_struc           ! gru->hru mapping structure
 
@@ -752,8 +752,8 @@ contains
  ! public subroutine writeRestart: print a re-start file
  ! *********************************************************************************************************
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
-                         nGRU,             & ! intent(in): number of global GRUs
-                         nHRU,             & ! intent(in): number of global HRUs
+                         nGRU_local,       & ! intent(in): number of GRUs assigned to this rank
+                         nHRU_local,       & ! intent(in): number of HRUs assigned to this rank
                          maxDOM,           & ! intent(in): max number of domains in any HRU
                          prog_meta,        & ! intent(in): prognostics metadata
                          prog_data,        & ! intent(in): prognostics data
@@ -783,8 +783,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! input
  character(len=256),intent(in)          :: filename      ! name of the restart file
- integer(i4b),intent(in)                :: nGRU          ! number of global GRUs
- integer(i4b),intent(in)                :: nHRU          ! number of global HRUs
+ integer(i4b),intent(in)                :: nGRU_local    ! number of GRUs assigned to this rank
+ integer(i4b),intent(in)                :: nHRU_local    ! number of HRUs assigned to this rank
  integer(i4b),intent(in)                :: maxDOM        ! max number of domains in any HRU
  type(var_info),intent(in)              :: prog_meta(:)  ! prognostic variable metadata
  type(gru_hru_dom_doubleVec),intent(in) :: prog_data     ! prognostic vars
@@ -878,8 +878,8 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
 
  ! define dimensions
-                     err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU           ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
-                     err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU_local           ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
+                     err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU_local           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                      err = nf90_def_dim(ncid,trim(domDimName)    ,maxDOM         ,    domDimID); message='iCreate[dom]'     ; call netcdf_err(err,message); if(err/=0)return
                      err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay     ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
  if(  maxGlaciers>0) err = nf90_def_dim(ncid,trim(nglDimName)    ,maxGlaciers    ,    nglDimID); message='iCreate[glac]'    ; call netcdf_err(err,message); if(err/=0)return
@@ -956,7 +956,7 @@ contains
  err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
 
  ! write variables
- do iGRU = 1,nGRU
+ do iGRU = 1,nGRU_local
   do iHRU = 1,gru_struc(iGRU)%hruCount
     cHRU = gru_struc(iGRU)%hruInfo(iHRU)%hru_ix
     do iDOM = 1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
@@ -1038,7 +1038,7 @@ contains
     end do
 
     ! include grids
-    call writeRestartGrid(ncid, nGRU, gruDimID, grid_meta, grid_data, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call writeRestartGrid(ncid, nGRU_local, gruDimID, grid_meta, grid_data, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
   
  end do  ! iGRU loop
@@ -1059,7 +1059,7 @@ contains
  ! private subroutine writeRestartGrid: print a re-start file for grids
  ! *********************************************************************************************************
  subroutine writeRestartGrid(ncid,             & ! intent(in): netcdf file id
-                             nGRU,             & ! intent(in): number of global GRUs
+                             nGRU_local,       & ! intent(in): number of GRUs assigned to this rank
                              gruDimID,         & ! intent(in): dimension ID for GRUs
                              grid_meta,        & ! intent(in): grid metadata
                              grid_data,        & ! intent(in): grid data
@@ -1079,7 +1079,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! input
  integer(i4b),intent(in)                :: ncid          ! netcdf file id
- integer(i4b),intent(in)                :: nGRU          ! number of global GRUs
+ integer(i4b),intent(in)                :: nGRU_local    ! number of GRUs assigned to this rank
  integer(i4b),intent(in)                :: gruDimID      ! variable dimension ID
  type(var_info),intent(in)              :: grid_meta(:)  ! grid metadata
  type(gru_grid_double),intent(in)       :: grid_data     ! grid data
@@ -1144,7 +1144,7 @@ end do ! iVar
 err = nf90_enddef(ncid); call netcdf_err(err,message); if (err/=0) return
 
 ! write variables
-do iGRU = 1,nGRU
+do iGRU = 1,nGRU_local
   nGrid = gru_struc(iGRU)%nGrid
   do iGrid = 1,nGrid
     do i = 1,size(ngdx)

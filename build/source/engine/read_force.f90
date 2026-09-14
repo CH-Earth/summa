@@ -22,6 +22,10 @@ module read_force_module
 
 ! data types
 USE nr_type                                   ! variable types, etc.
+USE netcdf                                    ! netcdf routines
+
+! build-time options
+USE build_options,only:ngen_forcing_active    ! flag for forcing supplied by the NextGen framework
 
 ! derived data types
 USE data_types,only:var_ilength               ! x%var(:)%dat(:)            (i4b)
@@ -37,9 +41,6 @@ USE globalData,only:integerMissing            ! integer missing value
 
 ! access the mapping betweeen GRUs and HRUs
 USE globalData,only:gru_struc                 ! gru-hru mapping structures
-
-! access the minimum and maximum HRUs in the file
-USE globalData,only:ixHRUfile_min,ixHRUfile_max ! first and last HRUs in the forcing file
 
 ! global data on the forcing file
 USE globalData,only:numtim                    ! number time steps
@@ -86,7 +87,6 @@ contains
  ! ************************************************************************************************
  subroutine read_force(iStep,model_decisions,iFile,iRead,ncid,time_data,forcStruct,err,message)
  ! provide access to subroutines
- USE netcdf                                              ! netcdf capability
  USE time_utils_module,only:compJulDay                   ! convert calendar date to julian day
  USE time_utils_module,only:compcalday                   ! convert julian day to calendar date
  USE time_utils_module,only:elapsedSec                   ! calculate the elapsed time
@@ -107,7 +107,6 @@ contains
  integer(i4b)                      :: nRemain            ! number of steps remaining in the simulation
  integer(i4b)                      :: nData              ! number of steps remaining in the file
  integer(i4b)                      :: nRead              ! number of steps in the data read
- integer(i4b)                      :: nHRUlocal          ! number of HRUs in the local simulation
  integer(i4b)                      :: iline              ! loop through lines in the file
  integer(i4b)                      :: jRead              ! index of time in data subset
  integer(i4b)                      :: iGRU,iHRU          ! index of GRU and HRU
@@ -119,6 +118,10 @@ contains
  logical(lgt)                      :: isNewFile          ! .true. if reading a new forcing file
  logical(lgt)                      :: isRead             ! .true. if reading data
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
+ ! ensure accurate mapping between data structures and HRUs in the output files
+ integer(i4b)                      :: iHRU_file_min      ! first required HRU in forcing file
+ integer(i4b)                      :: iHRU_file_max      ! last required HRU in forcing file
+ integer(i4b)                      :: nHRU_read          ! size of contiguous forcing-file read
  ! error control
  integer(i4b)                      :: ierr               ! local error code
  character(len=256)                :: cmessage           ! error message for downwind routine
@@ -128,8 +131,21 @@ contains
  ! initialize new file
  isNewFile = .false.
 
- ! get the number of HRUs in the local simulation
- nHRUlocal = sum(gru_struc(:)%hruCount)
+ ! determine forcing-file HRU range needed by this rank
+ ! NOTE: forcing-file indices are defined by hru_nc (LocalAttributes ordering)
+ !       and are independent of the ordering used in the initial-conditions file.
+
+ iHRU_file_min=huge(1_i4b)
+ iHRU_file_max=0
+
+ do iGRU=1,size(gru_struc)
+   do iHRU=1,gru_struc(iGRU)%hruCount
+     iHRU_file_min=min(iHRU_file_min,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+     iHRU_file_max=max(iHRU_file_max,gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   enddo
+ enddo
+
+ nHRU_read=iHRU_file_max-iHRU_file_min+1
 
  ! determine the julDay of current model step (iStep) we need to read
  if(iStep==1)then
@@ -138,7 +154,7 @@ contains
   currentJulDay = dJulianStart + (data_step*real(iStep-1,dp))/secprday
  end if
 
-#ifdef NGEN_FORCING_ACTIVE
+ if(ngen_forcing_active)then
  ! **********************************************************************************************
  ! ***** part 0-1: if using NGEN forcing will be using forcing read with BMI and only need time
  ! **********************************************************************************************
@@ -146,7 +162,7 @@ contains
   call createForcingTimeData(currentJulDay,time_data,err,message)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-#else
+ else
  ! **********************************************************************************************
  ! ***** part 0: if initial step, then open first file and find initial model time step
  ! *****         loop through as many forcing files as necessary to find the initial model step
@@ -210,7 +226,6 @@ contains
 
  ! re-define data length and arrays if new file
  if(isNewFile)then
-
   ! deallocate space
   if(allocated(fulltimeVec))       deallocate(fulltimeVec)
   if(allocated(fullforcingStruct)) deallocate(fullforcingStruct)
@@ -233,14 +248,13 @@ contains
 
   ! define starting index for the data read
   ixStartRead = iRead
-
  endif  ! if new file
 
  ! update ixStartRead and nRead for readPerStep
  if(model_decisions(iLookDECISIONS%read_force)%iDecision == readPerStep)then
    ixStartRead = iRead
    nRead       = 1
-  endif
+ endif
 
  ! check if we need to read the data
  isRead = (isNewFile .or. model_decisions(iLookDECISIONS%read_force)%iDecision == readPerStep)
@@ -248,8 +262,8 @@ contains
  ! read forcing data
  ! NOTE: reads data into global variables fulltimeVec and fullforcingStruct
  if(isRead)then
-  call readForcingData(ncid,iFile,ixStartRead,nRead,nHRUlocal,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call readForcingData(ncid,iFile,ixStartRead,nRead,iHRU_file_min,nHRU_read,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  endif  ! of reading the forcing data
 
  ! get the index in the data structures
@@ -258,13 +272,13 @@ contains
  ! get forcing structure for the desired time
  forcStruct = fullforcingStruct(jRead)
 
-#endif
+ endif  ! if not using NGEN forcing
 
  ! **********************************************************************************************
  ! ***** part 2: compute time
  ! **********************************************************************************************
 
-#ifndef NGEN_FORCING_ACTIVE
+ if(.not.ngen_forcing_active)then
  ! check that the computed julian day matches the time information in the NetCDF file
  ! NOTE: with NGEN forcing there is no NetCDF time axis; time_data was already filled from
  !       currentJulDay by createForcingTimeData above, and fulltimeVec/forcFileInfo are not
@@ -285,7 +299,7 @@ contains
                  time_data(iLookTIME%imin),dsec, & ! output = minute/second
                  err,cmessage)                     ! output = error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-#endif
+ endif  ! if not using NGEN forcing
 
  ! check to see if any of the time data is missing -- note that it is OK if ih_tz or imin_tz are missing
  if((time_data(iLookTIME%iyyy)==integerMissing) .or. &
@@ -336,13 +350,13 @@ contains
 
  ! test
  if(checkTime)then
-  write(*,'(i4,1x,4(i2,1x),f9.3,1x,i4)') time_data(iLookTIME%iyyy),           & ! year
-                                         time_data(iLookTIME%im),             & ! month
-                                         time_data(iLookTIME%id),             & ! day
-                                         time_data(iLookTIME%ih),             & ! hour
-                                         time_data(iLookTIME%imin),           & ! minute
-                                         fracJulDay,                          & ! fractional julian day for the current time step
-                                         yearLength                             ! number of days in the current year
+  write(*,'(i4,1x,4(i2,1x),f9.3,1x,i4)') time_data(iLookTIME%iyyy), & ! year
+                                         time_data(iLookTIME%im),   & ! month
+                                         time_data(iLookTIME%id),   & ! day
+                                         time_data(iLookTIME%ih),   & ! hour
+                                         time_data(iLookTIME%imin), & ! minute
+                                         fracJulDay,                & ! fractional julian day for the current time step
+                                         yearLength                   ! number of days in the current year
   !pause ' checking time'
  end if
 
@@ -353,7 +367,6 @@ contains
  ! * private subroutine: find first timestep in any of the forcing files...
  ! *************************************************************************
  subroutine getFirstTimestep(currentJulDay,iFile,iRead,ncid,err,message)
- USE netcdf                                          ! netcdf capability
  USE nr_utils_module,only:arth                       ! use to build vectors with regular increments
  implicit none
  ! define input
@@ -450,7 +463,6 @@ contains
  ! * open the NetCDF forcing file and get the time information
  ! *************************************************************************
  subroutine openForcingFile(iFile,infile,ncid,err,message)
- USE netcdf                                              ! netcdf capability
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
  USE time_utils_module,only:fracDay                      ! compute fractional day
  USE time_utils_module,only:extractTime                  ! extract time info from units string
@@ -525,17 +537,15 @@ contains
  ! *************************************************************************
  ! * read the NetCDF forcing data
  ! *************************************************************************
- subroutine readForcingData(ncid,iFile,ixStartRead,nRead,nHRUlocal,err,message)
- USE netcdf                                            ! netcdf capability
- USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
- USE time_utils_module,only:compjulday                 ! convert calendar date to julian day
- USE get_ixname_module,only:get_ixForce                ! identify index of named variable
+ subroutine readForcingData(ncid,iFile,ixStartRead,nRead, &
+                            iHRU_file_min,nHRU_read,err,message)
  ! dummy variables
  integer(i4b) ,intent(in)                :: ncid               ! NetCDF ID
  integer(i4b) ,intent(in)                :: iFile              ! index of forcing file
  integer(i4b) ,intent(in)                :: ixStartRead        ! starting index in data file
  integer(i4b) ,intent(in)                :: nRead              ! number of time steps for the local data read
- integer(i4b) ,intent(in)                :: nHRUlocal          ! number of HRUs in the local simulation
+ integer(i4b) ,intent(in)                :: iHRU_file_min      ! first HRU index in forcing-file read
+ integer(i4b) ,intent(in)                :: nHRU_read          ! number of HRU positions in forcing-file read
  integer(i4b) ,intent(out)               :: err                ! error code
  character(*) ,intent(out)               :: message            ! error message
  ! local variables
@@ -544,12 +554,12 @@ contains
  ! other local variables
  integer(i4b)                            :: iTime              ! time index
  integer(i4b)                            :: iGRU,iHRU          ! index of GRU and HRU
- integer(i4b)                            :: iHRU_global        ! index of HRU in the NetCDF file
- integer(i4b)                            :: iHRU_local         ! index of HRU in the data subset
+ integer(i4b)                            :: iHRU_file          ! index of HRU in the NetCDF file
+ integer(i4b)                            :: iHRU_read          ! index of HRU in the data subset
  integer(i4b)                            :: iline              ! loop through lines in the file
  integer(i4b)                            :: iNC                ! loop through variables in forcing file
  integer(i4b)                            :: iVar               ! index of forcing variable in forcing data vector
- real(rkind),dimension(nHRUlocal,nRead)  :: dataMatrix         ! vector of data
+ real(rkind),dimension(nHRU_read,nRead)  :: dataMatrix         ! vector of data
  real(rkind),parameter                   :: dataMin=-1._rkind  ! minimum allowable data value (all forcing variables should be positive)
  logical(lgt),dimension(size(forc_meta)) :: checkForce         ! flags to check forcing data variables exist
  ! Start procedure here
@@ -577,9 +587,13 @@ contains
   err=nf90_inquire_variable(ncid,iNC,name=varName)
   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing variable name from netCDF: '//trim(nf90_strerror(err)); return; endif
 
-  ! read forcing data for all HRUs and desired number of time steps
-  err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iVar),dataMatrix,start=(/ixHRUfile_min,ixStartRead/),count=(/nHRUlocal,nRead/))
-  if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+  ! read forcing data for the HRU range needed by this rank
+  err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iVar),dataMatrix,start=[iHRU_file_min,ixStartRead],count=[nHRU_read,nRead])
+  if(err/=nf90_noerr)then
+    message=trim(message)//'problem reading forcing data: '// &
+            trim(varName)//'/'//trim(nf90_strerror(err))
+    return
+  endif
 
   ! loop through time
   do iTime=1,nRead
@@ -588,24 +602,30 @@ contains
    do iGRU=1,size(gru_struc)
     do iHRU=1,gru_struc(iGRU)%hruCount
  
-     ! define global HRU
-     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-     iHRU_local  = (iHRU_global - ixHRUfile_min)+1
+     ! map forcing-file HRU index to the local data read
+     iHRU_file = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+     iHRU_read = iHRU_file-iHRU_file_min+1
   
-     ! check the number of HRUs
-     if(iHRU_global > nHRUfile)then
-      message=trim(message)//'HRU index exceeds the number of HRUs in the forcing data file'
-      err=20; return
+     ! check the HRU indices
+ 
+     if(iHRU_file < 1 .or. iHRU_file > nHRUfile)then
+       message=trim(message)//'HRU index is outside the forcing-file HRU dimension'
+       err=20; return
      endif
-  
+ 
+     if(iHRU_read < 1 .or. iHRU_read > nHRU_read)then
+       message=trim(message)//'HRU index is outside the forcing-data read'
+       err=20; return
+     endif
+
      ! check individual data value
-     if(dataMatrix(iHRU_local,iTime) < dataMin)then
+     if(dataMatrix(iHRU_read,iTime) < dataMin)then
       write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varName)//' is less than minimum allowable value ', dataMin
       err=20; return
      endif
   
      ! put the data into structures
-     fullforcingStruct(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = dataMatrix(iHRU_local,iTime)
+     fullforcingStruct(iTime)%gru(iGRU)%hru(iHRU)%var(iVar) = dataMatrix(iHRU_read,iTime)
   
     end do  ! looping through HRUs within a given GRU
    end do  ! looping through GRUs

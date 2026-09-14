@@ -13,5 +13,11 @@
 #export LIBRARY_LINKS="-m64;-Wl,--start-group ${MKLROOT}/lib/libmkl_gf_lp64.a ${MKLROOT}/lib/libmkl_sequential.a ${MKLROOT}/lib/libmkl_core.a -Wl,--end-group;-lpthread;-lm;-ldl" # static sequential library (i.e., no multithreading)
 #export FLAGS_OPT="-m64;-I"${MKLROOT}/include";-flto=1;-fuse-linker-plugin"   # optional compiler flags -- Intel oneMKL builds
 
-cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DUSE_OPENWQ=OFF -DSPECIFY_LAPACK_LINKS=ON #-DCMAKE_BUILD_TYPE=Debug
+cmake -B ../cmake_build -S ../. \
+    -DUSE_SUNDIALS=ON \
+    -DUSE_MPI=OFF \
+    -DUSE_NEXTGEN=OFF \
+    -DUSE_OPENWQ=OFF \
+    -DSPECIFY_LAPACK_LINKS=ON \
+    -DCMAKE_BUILD_TYPE=Release
 cmake --build ../cmake_build --target all -j 

@@ -22,6 +22,97 @@ The important modeling features are:
 SUMMA documentation is available [online](http://summa.readthedocs.io/) and remains a work in progress. Additional SUMMA information including publications, test data sets, and sample applications can be found on the [SUMMA web site](http://www.ral.ucar.edu/projects/summa) at NCAR.
 
 
+## Building SUMMA
+
+SUMMA depends on NetCDF and LAPACK. Optional features pull in further dependencies, described below.
+
+### Getting the source
+
+MPI support lives in the [`parallel-utils`](https://github.com/CH-Earth/parallel-utils) submodule, so clone recursively:
+
+```bash
+git clone --recurse-submodules <repository-url>
+```
+
+If the repository is already cloned, fetch the submodule with:
+
+```bash
+git submodule update --init --recursive
+```
+
+The submodule is required by any build configured with `USE_MPI=ON`, and CMake fails without it. Builds with `USE_MPI=OFF` do not need it.
+
+### Configuring and building
+
+Build with CMake from the `build` directory:
+
+```bash
+cd build
+cmake -B cmake_build -S . -DUSE_SUNDIALS=ON
+make -C cmake_build -j4
+```
+
+Executables are written to `bin/`.
+
+Ready-made scripts for common platforms are in `build/cmake` (`build.mac.bash`, `build.cluster.bash`, `build.pc.bash`, and the `build_ngen.*` variants for NextGen). Run them from that directory, for example `./build.mac.bash`. Each sets the compiler and library paths for its platform; edit the options listed in the `cmake` call to change what gets built.
+
+### Debug builds
+
+All configurations default to `-DCMAKE_BUILD_TYPE=Release`. Change it to `Debug` for a build with `-Og`, backtraces, and array bounds checking:
+
+```bash
+cmake -B cmake_build -S . -DUSE_SUNDIALS=ON -DCMAKE_BUILD_TYPE=Debug
+```
+
+This applies to every configuration, NextGen included. Bounds checking makes the model considerably slower but turns out-of-range array access into an immediate, located error rather than silent memory corruption, so it is worth using when a run crashes or produces implausible values.
+
+### Build options
+
+Each is `OFF` by default and enabled with `-DOPTION=ON`.
+
+| Option | Effect |
+| --- | --- |
+| `USE_SUNDIALS` | Build with the IDA and KINSOL solvers from the SUNDIALS suite. Required to use `num_method` of `ida` or `kinsol`. Needs `SUNDIALS_DIR` set to the SUNDIALS cmake directory if it is not on the default search path. |
+| `USE_MPI` | Additionally build an MPI executable that distributes GRUs across ranks. Requires an MPI Fortran compiler and the `parallel-utils` submodule. Has no effect together with `USE_NEXTGEN`, which builds a library rather than an executable. |
+| `USE_NEXTGEN` | Build the BMI library for the NextGen framework instead of the standalone executables. |
+| `USE_OPENWQ` | Build with the OpenWQ water-quality coupler. |
+| `SPECIFY_LAPACK_LINKS` | Take LAPACK link flags from the `LIBRARY_LINKS` environment variable instead of detecting them automatically. |
+
+The executable name records the options selected:
+
+| Options | Executable |
+| --- | --- |
+| none | `summa.exe` |
+| `USE_SUNDIALS` | `summa_sundials.exe` |
+| `USE_OPENWQ` | `summa_openwq.exe` |
+| `USE_SUNDIALS` + `USE_OPENWQ` | `summa_sundials_openwq.exe` |
+
+`USE_MPI` does not replace the serial executable; it adds a second one alongside it, named `summa_mpi.exe` or `summa_sundials_mpi.exe`. MPI code is confined to a separate driver, so the serial executable carries no MPI dependency.
+
+
+## Running SUMMA
+
+Serial runs take the file manager as the only required argument:
+
+```bash
+./bin/summa_sundials.exe -m /path/to/fileManager.txt
+```
+
+Useful options are `-s <suffix>` to tag the output file names, `-g <startGRU> <countGRU>` to run a contiguous block of GRUs, and `-h <HRU>` to run a single HRU. Run the executable with no arguments for the full list.
+
+### Running with MPI
+
+The MPI executable takes the same arguments and partitions the run domain's GRUs evenly across ranks:
+
+```bash
+mpirun -np 4 ./bin/summa_sundials_mpi.exe -m /path/to/fileManager.txt
+```
+
+Each rank reads only its own GRUs and writes its own output file, tagged with the GRU range it covers, for example `run_1_G01-14_timestep.nc`. Reconstruct the full domain by concatenating the rank files along the `gru` and `hru` dimensions; all other dimensions are file-wide and identical across ranks, so no padding is needed.
+
+Results are independent of the number of ranks. Serial output and reassembled MPI output agree bit-for-bit.
+
+
 ## Credits
 SUMMA's initial implementation is described in two papers published in [Water Resources Research](http://onlinelibrary.wiley.com/journal/10.1002/(ISSN)1944-7973). If you use SUMMA, please credit these two publications.
 

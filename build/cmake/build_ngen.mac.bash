@@ -54,7 +54,13 @@ export SUNDIALS_DIR=../../../sundials/instdir/                # will not be used
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
 cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 
-cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON -DUSE_SUNDIALS=OFF -DSPECIFY_LAPACK_LINKS=ON -DCMAKE_BUILD_TYPE=Release
+cmake -B extern/summa/cmake_build -S extern/summa \
+    -DUSE_SUNDIALS=OFF \
+    -DUSE_MPI=OFF \
+    -DUSE_NEXTGEN=ON \
+    -DUSE_OPENWQ=OFF \
+    -DSPECIFY_LAPACK_LINKS=ON \
+    -DCMAKE_BUILD_TYPE=Release
 cmake --build extern/summa/cmake_build --target all -j
 
 # Build the ngen framework and its C/C++ extern modules with Apple clang (see note above).

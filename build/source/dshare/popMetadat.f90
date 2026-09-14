@@ -1,5 +1,6 @@
 module popMetadat_module
 USE nr_type, integerMissing=>nr_integerMissing
+USE globalData, only: isPrint               ! flag to enable informational screen/log output
 implicit none
 ! define indices in metadata structures
 integer(i4b),parameter   :: nameIndex=1     ! index of the variable name
@@ -1051,12 +1052,12 @@ subroutine read_output_file(err,message)
 
         ! * set frequency to annual
         if(trim(varName)=='surface_elev' .or. trim(varName)=='debris_thick')then
-          if (freqName/='annual')&
+          if (freqName/='annual' .and. isPrint)&
           write(*,*)'WARNING: grid variable '//trim(varName)//': outputting variable in annual file as it does not change on less than annual level'
         elseif(trim(varName)=='cell2hru') then
-          write(*,*)'WARNING: grid structure id not outputted, skipping variable '//trim(varName)
+          if(isPrint) write(*,*)'WARNING: grid structure id not outputted, skipping variable '//trim(varName)
         else
-          write(*,*)'WARNING: temporally constant grid variable '//trim(varName)//': outputting parameter in annual file with no time dimension'
+          if(isPrint) write(*,*)'WARNING: temporally constant grid variable '//trim(varName)//': outputting parameter in annual file with no time dimension'
         endif
         iFreq = iLookFREQ%annual
         freqName = 'annual'
@@ -1069,20 +1070,24 @@ subroutine read_output_file(err,message)
           freqName = trim(lineWords(freqIndex))
         endif
         if(structName=='time' .or. structName=='indx') then
-          if (freqName/='timestep' .and. freqName/='1')&
-          write(*,*)'WARNING: timestep only variable '//trim(varName)//': outputting at timestep level since it cannot be aggregated'
+          if (freqName/='timestep' .and. freqName/='1')then
+            if(isPrint) write(*,*)'WARNING: timestep only variable '//trim(varName)// &
+                                  ': outputting at timestep level since it cannot be aggregated'
+          endif
         else
-          write(*,*)'WARNING: temporally constant variable '//trim(varName)//': outputting parameter in timestep file with no time dimension'
+          if(isPrint) write(*,*)'WARNING: temporally constant variable '//trim(varName)// &
+                                ': outputting parameter in timestep file with no time dimension'
         endif
         iFreq = iLookFREQ%timestep
         freqName = 'timestep'
 
       case('deriv','lookup') ! we don't output these and keep for internal use only, but we could if there was a desire to do so
-        write(*,*)'WARNING: cannot output '//trim(structName)//' structure data, skipping variable '//trim(varName)
+        if(isPrint) write(*,*)'WARNING: cannot output '//trim(structName)//' structure data, skipping variable '//trim(varName)
         cycle
       case('id') ! gruId and hruId are always written with the call to write_hru_info
-        if(trim(varName)/='hruId' .and. trim(varName)/='gruId')&
-        write(*,*)'WARNING: outputting id structure data gruId and hruId only, skipping variable '//trim(varName)
+        if(trim(varName)/='hruId' .and. trim(varName)/='gruId')then
+          if(isPrint) write(*,*)'WARNING: outputting id structure data gruId and hruId only, skipping variable '//trim(varName)
+        endif
         cycle
 
       ! error control

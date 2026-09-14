@@ -24,9 +24,6 @@ module read_param_module
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
-! runtime options
-USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU ! run modes
-
 ! input sizes
 USE globalData,only:maxSoilLayers          ! maximum number of soil layers
 
@@ -51,7 +48,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(iRunMode,checkHRU,startGRU,maxDOM,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
+ subroutine read_param(nGRU_local,nHRU_local,maxDOM,idStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETTINGS_PATH             ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
@@ -60,12 +57,9 @@ contains
  USE var_lookup,only:iLookPARAM,iLookTYPE,iLookID    ! named variables to index elements of the data vectors
  implicit none
  ! define input
- integer(i4b),        intent(in)           :: iRunMode         ! run mode
- integer(i4b),        intent(in)           :: checkHRU         ! index of single HRU if runMode = checkHRU
- integer(i4b),        intent(in)           :: startGRU         ! index of single GRU if runMode = startGRU
+ integer(i4b),        intent(in)           :: nGRU_local       ! number of GRUs assigned to this rank
+ integer(i4b),        intent(in)           :: nHRU_local       ! number of HRUs assigned to this rank
  integer(i4b),        intent(in)           :: maxDOM           ! maximum number of domains in any HRU
- integer(i4b),        intent(in)           :: nHRU             ! number of global HRUs
- integer(i4b),        intent(in)           :: nGRU             ! number of global GRUs
  type(gru_hru_int8),  intent(in)           :: idStruct         ! local labels for hru and gru IDs
  ! define output
  type(gru_hru_dom_doubleVec),intent(inout) :: mparStruct       ! model parameters
@@ -101,6 +95,12 @@ contains
  real(rkind),allocatable                   :: parVector(:)     ! model parameter vector
  logical                                   :: fexist           ! inquire whether the paramTrial file exists
  integer(i4b)                              :: fHRU             ! index of HRU in input file
+ ! mapping from the local domain to the parameter file
+ integer(i4b),allocatable                  :: index_to_hrunc(:)! local HRU -> parameter-file HRU index
+ integer(i4b),allocatable                  :: index_to_grunc(:)! local GRU -> parameter-file GRU index
+ integer(i8b),allocatable                  :: gruId(:)         ! GRU identifiers in the parameter file
+ logical(lgt)                              :: has_gru_id       ! .true. if gruId exists in the parameter file
+ logical(lgt)                              :: found_hru_id     ! .true. if hruId/hruIndex exists in the parameter file
 
  ! Start procedure here
  err=0; message="read_param/"
@@ -153,86 +153,82 @@ contains
  endif
 
  ! check DOM dimension exists, repeat params for each domain if not
- if(nDOM_file==integerMissing .and. maxDOM>nHRU)then
+ if(nDOM_file==integerMissing .and. maxDOM>nHRU_local)then
    write(*,*) 'WARNING: will replicate domain parameters since unable to identify DOM dimension in file '//trim(infile)
  endif
 
- ! check have the correct number of HRUs
- if ((iRunMode==iRunModeFull).and.(nHRU_file/=nHRU)) then
-  message=trim(message)//'incorrect number of HRUs in file '//trim(infile)
-  err=20; return
- endif
- if ((iRunMode==iRunModeHRU).and.(nHRU_file<checkHRU)) then
-  message=trim(message)//'not enough HRUs in file '//trim(infile)
-  err=20; return
- endif
+ ! **********************************************************************************************
+ ! * read the GRU index and build local-to-file mapping
+ ! **********************************************************************************************
 
- ! check have the correct number of GRUs
- if ((iRunMode==iRunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
-  message=trim(message)//'not enough GRUs in file '//trim(infile)
-  err=20; return
- endif
- if ((iRunMode==iRunModeFull).and.(nGRU_file/=nGRU).and.(nGRU_file/=integerMissing)) then
-  message=trim(message)//'incorrect number of GRUs in file '//trim(infile)
-  err=20; return
+ has_gru_id=.false.
+
+ if(nGRU_file/=integerMissing)then
+   allocate(gruId(nGRU_file))
+   err=nf90_inq_varid(ncid,'gruId',iVarId)
+   if(err==nf90_noerr)then
+     has_gru_id=.true.
+     err=nf90_get_var(ncid,iVarId,gruId)
+     if(err/=nf90_noerr)then
+       message=trim(message)//'problem reading gruId'
+       return
+     endif
+     allocate(index_to_grunc(nGRU_local))
+     index_to_grunc=-1
+     do iGRU=1,nGRU_local
+       index_to_grunc(iGRU)=findloc(gruId,gru_struc(iGRU)%gru_id,dim=1)
+       if(index_to_grunc(iGRU)<1)then
+         message=trim(message)//'problem finding GRU in parameter file'
+         err=20; return
+       endif
+     enddo
+   else
+     err=nf90_noerr
+   endif
  endif
 
  ! **********************************************************************************************
- ! * read the HRU index
+ ! * read the HRU index and build local-to-file mapping
  ! **********************************************************************************************
+
+ found_hru_id = .false.
 
  ! loop through the parameters in the NetCDF file
  do iVarId=1,nVars
 
-  ! get the parameter name
-  err=nf90_inquire_variable(ncid, iVarId, name=parName)
-  call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
+   ! get the parameter name
+   err=nf90_inquire_variable(ncid,iVarId,name=parName)
+   call netcdf_err(err,message); if(err/=nf90_noerr)then; err=20; return; endif
 
-  ! special case of the HRU id
-  if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
+   ! special case of the HRU id
+   if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
+     found_hru_id = .true.
 
-   ! read HRUs
-   err=nf90_get_var(ncid, iVarId, hruId)
-   if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
+     ! read HRU IDs from the parameter file
+     err=nf90_get_var(ncid,iVarId,hruId)
+     if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! check HRUs  -- expect HRUs to be in the same order as the local attributes
-   if (iRunMode==iRunModeFull) then
-    do iHRU=1,nHRU
-     iGRU=index_map(iHRU)%gru_ix
-     localHRU_ix=index_map(iHRU)%localHRU_ix
-     if((hruId(iHRU)>0).and.(hruId(iHRU)/=idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId)))then
-      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(iHRU), ')'
-      err=20; return
-     endif
-    end do  ! looping through HRUs
+     ! build mapping from local HRUs to parameter-file HRU indices
+     allocate(index_to_hrunc(nHRU_local))
+     index_to_hrunc=-1
 
-   else if (iRunMode==iRunModeGRU) then
-    do iHRU=1,nHRU
-     iGRU=index_map(iHRU)%gru_ix
-     localHRU_ix=index_map(iHRU)%localHRU_ix
-     fHRU = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
-     if(hruId(fHRU)/=idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId))then
-     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(iHRU), ')'
-     err=20; return
-    endif
-   enddo
+     do iHRU=1,nHRU_local
+       iGRU        = index_map(iHRU)%gru_ix
+       localHRU_ix = index_map(iHRU)%localHRU_ix
+       index_to_hrunc(iHRU)=findloc(hruId,idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId),dim=1)
+       if(index_to_hrunc(iHRU)<1)then
+         err=20; message=trim(message)//'problem finding HRU in parameter file'; return
+       endif
+     enddo
+     exit  ! read the hruID successfully
 
-   else if (iRunMode==iRunModeHRU) then
-    iGRU=index_map(1)%gru_ix
-    localHRU_ix=index_map(1)%localHRU_ix
-    if(hruId(checkHRU)/=idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId))then
-     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(checkHRU), ')'
-     err=20; return
-    endif
+   endif
+ enddo
 
-   ! error check
-   else
-    err = 20; message = 'run mode not recognized'; return;
-   end if
-
-  endif   ! if the HRU id
-
- end do  ! looping through variables in the file
+ if(.not.found_hru_id)then
+   message=trim(message)//'parameter file does not contain hruId or hruIndex'
+   err=20; return
+ endif
 
  ! **********************************************************************************************
  ! * read the local parameters and the basin parameters
@@ -311,13 +307,13 @@ contains
    endif
 
    ! loop through HRUs and domains
-   do iHRU=1,nHRU
+   do iHRU=1,nHRU_local
     do iDOM=1,maxDOM
 
      ! map to the GRUs and HRUs
      iGRU=index_map(iHRU)%gru_ix
      localHRU_ix=index_map(iHRU)%localHRU_ix
-     fHRU = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
+     fHRU = index_to_hrunc(iHRU)
      nDOM = gru_struc(iGRU)%hruInfo(localHRU_ix)%domCount
      if (iDOM>nDOM) cycle ! skip if domain does not exist
 
@@ -338,11 +334,13 @@ contains
      if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
      ! populate parameter structures with the data using the appropriate size of nSoil, and repeating if necessary
+     ! NOTE: parVector is sized for the maximum soil layers in the file, but depth parameters are
+     !       allocated for the layers actually present in this domain, so only the first nSoil are used
      nSoil = gru_struc(iGRU)%hruInfo(localHRU_ix)%domInfo(iDOM)%nSoil
      select case(nDims)
       case(1); mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension
       case(2)
-       if(nDOM_file==integerMissing)then 
+       if(nDOM_file==integerMissing)then
         mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1:nSoil)
        else
         mparStruct%gru(iGRU)%hru(localHRU_ix)%dom(iDOM)%var(ixParam)%dat(:) = parVector(1)
@@ -374,6 +372,12 @@ contains
    ! allow extra variables in the file that are not used
    if(ixParam==integerMissing) cycle
 
+   ! check that basin parameters can be indexed by GRU
+   if(nGRU_file==integerMissing)then
+    message=trim(message)//'basin parameter requires GRU dimension in parameter file'
+    err=20; return
+   endif
+
    ! allocate space for model parameters
    allocate(parVector(nGRU_file),stat=err)
    if(err/=0)then
@@ -385,18 +389,18 @@ contains
    err=nf90_get_var(ncid, iVarId, parVector )
    if(err/=nf90_noerr)then; message=trim(message)//trim(cmessage); return; end if
 
-   ! populate parameter structures
-   if (iRunMode==iRunModeGRU) then
-    do iGRU=1,nGRU
-     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1)
-    end do  ! looping through GRUs
-   else if (iRunMode==iRunModeFull) then
-    do iGRU=1,nGRU
-     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU)
-    end do  ! looping through GRUs
-   else if (iRunMode==iRunModeHRU) then
-    err = 20; message='checkHRU run mode not working'; return;
-   endif
+   ! populate parameter structures, mapping each local GRU to its record in the file
+   do iGRU=1,nGRU_local
+    if(has_gru_id)then
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(index_to_grunc(iGRU))
+    else
+     if(gru_struc(iGRU)%gru_nc<1 .or. gru_struc(iGRU)%gru_nc>nGRU_file)then
+      message=trim(message)//'GRU index is inconsistent with parameter file'
+      err=20; return
+     endif
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(gru_struc(iGRU)%gru_nc)
+    endif
+   end do  ! looping through GRUs
 
    ! deallocate space for model parameters
    deallocate(parVector,stat=err)
@@ -404,10 +408,15 @@ contains
     message=trim(message)//'problem deallocating space for parameter vector'
     err=20; return
    endif
-
   endif  ! reading the basin parameters
 
  end do ! (looping through the parameters in the NetCDF file)
+
+ ! deallocate temporary arrays
+ if(allocated(hruId))           deallocate(hruId)
+ if(allocated(gruId))           deallocate(gruId)
+ if(allocated(index_to_hrunc))  deallocate(index_to_hrunc)
+ if(allocated(index_to_grunc))  deallocate(index_to_grunc)
 
  ! close the NetCDF file
  call nc_file_close(ncid,err,cmessage)

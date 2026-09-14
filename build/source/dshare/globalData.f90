@@ -81,11 +81,11 @@ MODULE globalData
   integer(i4b),parameter,public               :: ixProgress_never=1003              ! named variable to print progress never
   integer(i4b),parameter,public               :: ixProgress_it=1004                 ! named variable to print progress every timestep
   ! define restart frequency
-  integer(i4b),parameter,public               :: ixRestart_iy=1000                  ! named variable to print a re-start file once per year
-  integer(i4b),parameter,public               :: ixRestart_im=1001                  ! named variable to print a re-start file once per month
-  integer(i4b),parameter,public               :: ixRestart_id=1002                  ! named variable to print a re-start file once per day
-  integer(i4b),parameter,public               :: ixRestart_end=1003                 ! named variable to print a re-start file at the end of a run
-  integer(i4b),parameter,public               :: ixRestart_never=1004               ! named variable to print a re-start file never
+  integer(i4b),parameter,public               :: ixRestart_iy=1000                  ! named variable to write a re-start file once per year
+  integer(i4b),parameter,public               :: ixRestart_im=1001                  ! named variable to write a re-start file once per month
+  integer(i4b),parameter,public               :: ixRestart_id=1002                  ! named variable to write a re-start file once per day
+  integer(i4b),parameter,public               :: ixRestart_end=1003                 ! named variable to write a re-start file at the end of a run
+  integer(i4b),parameter,public               :: ixRestart_never=1004               ! named variable to write a re-start file never
   ! define output file frequency
   integer(i4b),parameter,public               :: noNewFiles=1001                    ! no new output files
   integer(i4b),parameter,public               :: newFileEveryOct1=1002              ! create a new file on Oct 1 every year (start of the USA water year)
@@ -208,9 +208,6 @@ MODULE globalData
 
   ! define the model decisions
   type(model_options),save,public                  :: model_decisions(maxvarDecisions)  ! the model decision structure
-  ! define index variables describing the indices of the first and last HRUs in the forcing file
-  integer(i4b),save,public                         :: ixHRUfile_min                     ! minimum index
-  integer(i4b),save,public                         :: ixHRUfile_max                     ! maximum index
   ! define mapping structures
   type(gru2hru_map),allocatable,save,public        :: gru_struc(:)                      ! gru2hru map
   type(hru2gru_map),allocatable,save,public        :: index_map(:)                      ! hru2gru map
@@ -235,6 +232,7 @@ MODULE globalData
   logical(lgt),dimension(maxvarFreq),save,public   :: finalizeStats=.false.             ! flags to finalize statistics
   logical(lgt),save,public                         :: allowRoutingOutput=.false.        ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
   integer(i4b),save,public                         :: maxLayers                         ! maximum number of layers
+  integer(i4b),save,public                         :: maxTotoLayers                     ! maximum number of soil+lake+glacier-ice layers in any domain
   integer(i4b),save,public                         :: maxSnowLayers                     ! maximum number of snow layers
   integer(i4b),save,public                         :: maxSoilLayers                     ! maximum number of soil layers
   integer(i4b),save,public                         :: maxGlaciers                       ! maximum number of glaciers in a GRU
@@ -323,6 +321,7 @@ MODULE globalData
   ! define fixed dimensions
   integer(i4b),parameter,public                    :: nSpecBand=2                       ! number of spectral bands
   integer(i4b),parameter,public                    :: nTimeDelay=2000                   ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
-  ! printing step frequency
+  ! printing
   integer(i4b),parameter,public                    :: print_step_freq = 1000            ! frequency (in time steps) to print number of steps taken in solver
+  logical(lgt),save,public                         :: isPrint = .true.                  ! flag to enable informational screen/log output
 END MODULE globalData

@@ -25,6 +25,10 @@ module summa_setup
 USE globalData,only:integerMissing      ! missing integer
 USE globalData,only:realMissing         ! missing real number
 
+! global data to print data to screen (runtime, can be switched on/off based on context)
+USE globalData, only: isPrint           ! flag to enable informational screen/log output
+USE build_options,only:ngen_forcing_active ! flag for forcing supplied by the NextGen framework
+
 ! access constants
 USE globalData,only:nLakeIceLayers_poss ! number of ice layers in a lake that can accumulate 
 USE globalData,only:nMeltingIceLayers   ! number of glacier ice layers that can have a change in total water content
@@ -100,11 +104,9 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE globalData,only:model_decisions                         ! model decision structure
  USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
  ! run time options
- USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
- USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
- USE globalData,only:iRunMode                                ! define the current running mode
  ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
+ USE globalData,only:maxTotoLayers                           ! maximum number of soil+lake+glacier-ice layers in any domain
  USE globalData,only:maxSoilLayers                           ! maximum number of soil layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
  USE globalData,only:maxGlceLayers                           ! maximum number of glacier ice layers
@@ -160,9 +162,9 @@ subroutine summa_paramSetup(summa1_struc, err, message)
   lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:))%dom(:)%z(:)%var(:)%lookup -- lookup-tables
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
-  nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
-  nDOM                 => summa1_struc%nDOM                  & ! number of global domains (max in any HRU)
+  nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to this rank
+  nHRU_local           => summa1_struc%nHRU_local          , & ! number of HRUs assigned to this rank
+  nDOM                 => summa1_struc%nDOM                  & ! number of domains from the initial conditions file
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -171,18 +173,18 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! initialize the start of the initialization
  call date_and_time(values=startSetup)
 
-#ifdef NGEN_FORCING_ACTIVE
+ if(ngen_forcing_active)then
  ! *****************************************************************************
  ! if using NGEN forcing only need to set the hourly data_step (fixed)
  ! *****************************************************************************
- data_step = 3600._rkind
-#else
+   data_step = 3600._rkind
+ else
  ! *****************************************************************************
  ! *** read description of model forcing datafile used in each HRU
  ! *****************************************************************************
- call ffile_info(nGRU,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-#endif
+   call ffile_info(nGRU_local,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
 
  ! *****************************************************************************
  ! *** read model decisions
@@ -191,12 +193,10 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  call mDecisions(err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
- maxGlaciers = 0
- maxWetlands = 0
- do iGRU=1,nGRU
-   maxGlaciers = max(maxGlaciers, gru_struc(iGRU)%nGlac)
-   maxWetlands = max(maxWetlands, gru_struc(iGRU)%nWtld)
- end do
+ ! NOTE: maxGlaciers, maxWetlands, maxGrid, maxGridX and maxGridY are set file-wide in
+ !       read_mapping_vectors/read_dimensionGrid, and maxSoilLayers, maxLakeLayers,
+ !       maxGlceLayers and maxTotoLayers file-wide in read_icond_nlayers, so that every
+ !       rank agrees on them regardless of which GRUs it was assigned
 
  ! get the maximum number of snow layers
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
@@ -207,23 +207,10 @@ subroutine summa_paramSetup(summa1_struc, err, message)
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)
 
- ! get the maximum number of layers for lake, soil, glacier ice, and total
- !  (max snow layers are fixed as above, snow layers may change)
- maxLayers     = 0
- maxSoilLayers = 0
- maxGlceLayers = 0
- maxLakeLayers = 0
- do iGRU=1,nGRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-    maxLakeLayers = max(maxLakeLayers, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake)
-    maxSoilLayers = max(maxSoilLayers, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil)
-    maxGlceLayers = max(maxGlceLayers, gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce)
-    maxLayers = max(maxLayers, maxSnowLayers+gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake &
-                               + gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce)
-   end do 
-  end do
- end do
+ ! get the maximum total number of layers
+ !  (max snow layers are fixed as above, snow layers may change; the soil/lake/glacier
+ !   ice maxima are file-wide values set in read_icond_nlayers)
+ maxLayers = maxSnowLayers + maxTotoLayers
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU
@@ -233,20 +220,9 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
 
  ! read local attributes for each HRU
- call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,gridStruct,err,cmessage)
+ call read_attrb(trim(attrFile),nGRU_local,attrStruct,typeStruct,idStruct,gridStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! determine the maximum grid size
- maxGrid = 0
- maxGridX = 0
- maxGridY = 0
- do iGRU=1,nGRU
-  maxGrid = max(maxGrid,gru_struc(iGRU)%nGrid)
-  if(gru_struc(iGRU)%nGrid>0)then
-    maxGridX = max(maxGridX,maxval(gru_struc(iGRU)%gridInfo(:)%nx))
-    maxGridY = max(maxGridY,maxval(gru_struc(iGRU)%gridInfo(:)%ny))
-  endif
- end do
 
  ! *****************************************************************************
  ! *** read default model parameters
@@ -299,7 +275,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  end select
 
  ! set default model parameters
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
   do iHRU=1,gru_struc(iGRU)%hruCount
    ! set parameters to their default value
    dparStruct%gru(iGRU)%hru(iHRU)%var(:) = localParFallback(:)%default_val         ! x%hru(:)%var(:)
@@ -331,14 +307,14 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! *****************************************************************************
  ! *** read trial model parameter values for each HRU, and populate initial data structures
  ! *****************************************************************************
- call read_param(iRunMode,checkHRU,startGRU,nDOM,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,cmessage)
+ call read_param(nGRU_local,nHRU_local,nDOM,idStruct,mparStruct,bparStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
  ! *** compute derived model variables for the basin as a whole
  ! *****************************************************************************
  ! loop through GRUs
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
 
   ! calculate the fraction of runoff in future time steps
   call fracFuture(bparStruct%gru(iGRU),        &  ! vector of basin-average model parameters
@@ -400,6 +376,12 @@ subroutine summa_paramSetup(summa1_struc, err, message)
     endif
 
     ! vegetation parameters for upland domain
+    ! NOTE: HVT, HVB, SAIM, and LAIM are process-global tables indexed by vegetation
+    ! class, so HRUs sharing a class overwrite each other here. That is harmless:
+    ! pOverwrite has already read the pristine table values above, and run_oneHRU
+    ! calls REDPRM and then re-writes these entries from the current HRU's parameters
+    ! immediately before the physics. Results are therefore independent of the order
+    ! HRUs are visited, and of the MPI partitioning (verified bit-for-bit).
     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
       ! overwrite the vegetation height
       HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%heightCanopyTop)%dat(1)
@@ -524,7 +506,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
         ! CALL wrf_message( mess )
         LUMATCH=1
      ELSE
-        call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
+        if (isPrint) call wrf_message ( "Skipping over LUTYPE = " // TRIM ( LUTYPE ) )
         DO LC = 1, LUCATS+12
            read(19,*)
         ENDDO
@@ -606,7 +588,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
      ! CALL wrf_message ( mess )
      LUMATCH=1
    ELSE
-    call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
+    if (isPrint) call wrf_message ( "Skipping over SLTYPE = " // TRIM ( SLTYPE ) )
     DO LC = 1, SLCATS
      read(19,*)
     ENDDO

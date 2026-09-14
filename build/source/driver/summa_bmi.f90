@@ -34,6 +34,7 @@ module summabmi
   use bmif_2_0                                                ! BMI libraries standard
 #endif
   USE summa_type, only: summa1_type_dec                       ! master summa data type
+  USE build_options, only: ngen_active, ngen_output_active    ! build-time option flags
   USE data_types, only: gru2hru_map                           ! mapping between the GRUs and HRUs
   USE data_types, only: hru2gru_map                           ! mapping between the GRUs and HRUs
   USE data_types, only: model_options                         ! the model decision structure
@@ -76,7 +77,6 @@ module summabmi
   USE globalData, only: maxDOM                                ! maximum number of domains (every HRU may have multiple) in the run domain
   USE globalData, only: urbanVegCategory                      ! vegetation category for urban areas
 #ifndef NGEN_FORCING_ACTIVE
-  USE globalData, only: ixHRUfile_min, ixHRUfile_max          ! indices of the first and last HRUs in the forcing file
   USE globalData, only: nHRUfile                              ! number of HRUs in the forcing file
   USE globalData, only: forcFileInfo                          ! file info for model forcing data
   USE globalData, only: iFile                                 ! index of current forcing file from forcing file list
@@ -127,7 +127,6 @@ module summabmi
      integer(i4b)                       :: maxDOM                            ! maximum number of domains (every HRU may have multiple) in the run domain
      integer(i4b)                       :: urbanVegCategory                  ! vegetation category for urban areas
 #ifndef NGEN_FORCING_ACTIVE
-     integer(i4b)                       :: ixHRUfile_min, ixHRUfile_max      ! indices of the first and last HRUs in the forcing file
      integer(i4b)                       :: nHRUfile                          ! number of HRUs in the forcing file
      type(file_info), allocatable       :: forcFileInfo(:)                   ! file info for model forcing data
      integer(i4b)                       :: iFile                             ! index of current forcing file from forcing file list
@@ -342,8 +341,6 @@ module summabmi
      this%model%ixRestart = ixRestart
      this%model%newOutputFile = newOutputFile
 #ifndef NGEN_FORCING_ACTIVE
-     this%model%ixHRUfile_min = ixHRUfile_min
-     this%model%ixHRUfile_max = ixHRUfile_max
      this%model%forcFileInfo = forcFileInfo
      this%model%iFile = iFile
      this%model%forcingStep = forcingStep
@@ -397,8 +394,6 @@ module summabmi
      ixProgress = this%model%ixProgress
      ixRestart = this%model%ixRestart
 #ifndef NGEN_FORCING_ACTIVE
-     ixHRUfile_min = this%model%ixHRUfile_min
-     ixHRUfile_max = this%model%ixHRUfile_max
      forcFileInfo = this%model%forcFileInfo
      iFile = this%model%iFile
      forcingStep = this%model%forcingStep
@@ -420,20 +415,20 @@ module summabmi
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
-#ifndef NGEN_ACTIVE
-     if (mod(this%model%timeStep, print_step_freq) == 0)then
-       print *, 'step ---> ', this%model%timeStep
+     if(.not.ngen_active)then
+       if (mod(this%model%timeStep, print_step_freq) == 0)then
+         print *, 'step ---> ', this%model%timeStep
+       endif
      endif
-#endif
      ! run the summa physics for one time step
      call summa_runPhysics(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      ! write the model output
-#ifndef NGEN_OUTPUT_ACTIVE
-     call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
-     call handle_err(err, message)
-#endif
+     if(.not.ngen_output_active)then
+       call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
+       call handle_err(err, message)
+     endif
 
      ! update global variables that change during the model simulation
      this%model%timeStep = this%model%timeStep + 1
@@ -763,7 +758,7 @@ module summabmi
       )
       select case(grid)
       case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
           do jHRU = 1, gru_struc(iGRU)%hruCount
             x((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%longitude)
           end do
@@ -784,7 +779,7 @@ module summabmi
       )
       select case(grid)
       case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
           do jHRU = 1, gru_struc(iGRU)%hruCount
             y((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%latitude)
           end do
@@ -805,7 +800,7 @@ module summabmi
       )
       select case(grid)
       case default
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
           do jHRU = 1, gru_struc(iGRU)%hruCount
             z((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%elevation)
           end do
@@ -852,7 +847,7 @@ module summabmi
 
      select case(grid)
      case default
-       count = 0 ! could be this%model%summa1_struc(n)%nGRU
+       count = 0 ! could be this%model%summa1_struc(n)%nGRU_local
        bmi_status = BMI_SUCCESS
      end select
    end function summa_grid_face_count
@@ -1343,7 +1338,7 @@ module summabmi
           timeStruct%var(iLookTIME%iyyy) = isrc_arr
         end select
       else
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
             select case (name)
@@ -1407,7 +1402,7 @@ module summabmi
           itarget_arr = timeStruct%var(iLookTIME%iyyy)
         end select
       else
-        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU_local
           do jHRU = 1, gru_struc(iGRU)%hruCount
             i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
             target_arr(i) = 0._rkind

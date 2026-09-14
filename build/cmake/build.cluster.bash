@@ -25,5 +25,11 @@ export SUNDIALS_DIR=$HOME/SummaSundials/sundials/instdir/
 # May want to use this flag
 #export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
 
-cmake -B ../cmake_build -S ../. -DUSE_SUNDIALS=ON -DCMAKE_BUILD_TYPE=Release -DSPECIFY_LAPACK_LINKS=OFF
+cmake -B ../cmake_build -S ../. \
+    -DUSE_SUNDIALS=ON \
+    -DUSE_MPI=OFF \
+    -DUSE_NEXTGEN=OFF \
+    -DUSE_OPENWQ=OFF \
+    -DSPECIFY_LAPACK_LINKS=OFF \
+    -DCMAKE_BUILD_TYPE=Release
 cmake --build ../cmake_build --target all -j

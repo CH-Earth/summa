@@ -95,19 +95,19 @@ subroutine openwq_run_time_start(summa1_struc)
   logical(1)                         :: lastHRUFlag
   summaVars: associate(&
       indxStruct     => summa1_struc%indxStruct             , &
-      nGRU           => summa1_struc%nGRU                     &
+      nGRU_local     => summa1_struc%nGRU_local               &
   )
   ! ############################
 
   openWQArrayIndex = 0
   lastHRUFlag = .false.
 
-  do iGRU=1,nGRU
+  do iGRU=1,nGRU_local
     nHRU = gru_struc(iGRU)%hruCount
     do iHRU=1,nHRU
       nDOM = gru_struc(iGRU)%hruInfo(iHRU)%domCount
       do iDOM=1,nDOM
-        if (iGRU == nGRU .and. iHRU == nHRU .and. iDOM == nDOM)then
+        if (iGRU == nGRU_local .and. iHRU == nHRU .and. iDOM == nDOM)then
           lastHRUFlag = .true.
         end if
 
@@ -394,7 +394,7 @@ subroutine openwq_run_space_step(summa1_struc)
   summaVars: associate(&
       timeStruct     => summa1_struc%timeStruct             , &
       fluxStruct     => summa1_struc%fluxStruct             , &
-      nGRU           => summa1_struc%nGRU)
+      nGRU_local     => summa1_struc%nGRU_local)
 
 
 
@@ -411,7 +411,7 @@ subroutine openwq_run_space_step(summa1_struc)
   iy_r = 1
   iy_s = 1
 
-  do iGRU=1,nGRU
+  do iGRU=1,nGRU_local
     do iHRU=1,gru_struc(iGRU)%hruCount
       do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
         hru_index = hru_index + 1
