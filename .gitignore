@@ -77,3 +77,4 @@ test_ngen/domain_provo/simulations/*.nc
 test_ngen/domain_provo/simulations/*.csv
 build/cmake_build_mpi
 build/cmake_build_nosun
+build/cmake_build_mizu

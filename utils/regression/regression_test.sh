@@ -5,11 +5,16 @@ set -euo pipefail
 # User settings
 # ==============================================================================
 
-OUTPUT_DIR="$HOME/data/great-slave-lake/Athabasca-river/results/SUMMA"
+GSL_DIR="$HOME/data/great-slave-lake/Athabasca-river/results/SUMMA"
 
-STABLE_FILE="$OUTPUT_DIR/run_1_stable_serial_timestep.nc"
-DEV_FILE="$OUTPUT_DIR/run_1_dev_serial_timestep.nc"
-MPI1_FILE="$OUTPUT_DIR/run_1_dev_np1_timestep.nc"
+STABLE_FILE="$GSL_DIR/run_1_stable_serial_timestep.nc"
+DEV_FILE="$GSL_DIR/run_1_dev_serial_timestep.nc"
+MPI1_FILE="$GSL_DIR/run_1_dev_np1_timestep.nc"
+
+MIZU_DIR="$HOME/data/century/test/summa_results"
+
+MIZU_ACTIVE_FILE="$MIZU_DIR/run1_coupled_mizu-on_timestep.nc"
+MIZU_INACTIVE_FILE="$MIZU_DIR/run1_coupled_mizu-off_timestep.nc"
 
 # HRU-level variables
 HRU_VARIABLES=(
@@ -29,7 +34,7 @@ GRU_VARIABLES=(
 hru_vars=$(IFS=,; echo "${HRU_VARIABLES[*]}")
 gru_vars=$(IFS=,; echo "${GRU_VARIABLES[*]}")
 
-TMP_DIR="$OUTPUT_DIR/regression_tmp"
+TMP_DIR="${TMPDIR:-/tmp}/summa_regression_$$"
 mkdir -p "$TMP_DIR"
 
 # summary arrays
@@ -81,6 +86,17 @@ compare_files () {
   done
 }
 
+# ==============================================================================
+# 0. MizuRoute on vs MizuRoute off
+# ==============================================================================
+
+compare_files \
+  "$MIZU_ACTIVE_FILE" "$MIZU_INACTIVE_FILE" \
+  "mizuRoute OFF vs mizuRoute ON" \
+  "${HRU_VARIABLES[@]}" "${GRU_VARIABLES[@]}"
+
+SUMMARY_LABEL+=("mizuRoute OFF mizuRoute ON")
+SUMMARY_DIFF+=("$LAST_MAX_DIFF")
 
 # ==============================================================================
 # 1. Stable serial vs development serial
@@ -122,7 +138,7 @@ for np in 2 4 8 12 16; do
   echo "development serial vs MPI np=$np"
   echo "================================================================"
 
-  for mpi_file in "$OUTPUT_DIR"/run_1_dev_np${np}_G*-*_timestep.nc; do
+  for mpi_file in "$GSL_DIR"/run_1_dev_np${np}_G*-*_timestep.nc; do
 
     # --------------------------------------------------------------------------
     # determine the HRU and GRU ranges represented in this processor file

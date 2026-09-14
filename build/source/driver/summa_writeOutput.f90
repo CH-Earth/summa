@@ -20,8 +20,18 @@
 
 module summa_writeOutput ! used to define/write output files
 
+! check if mizuroute is active
+use build_options, only: mizuroute_active
+
+#ifdef MIZUROUTE_ACTIVE
+USE mizuroute_coupling, only: write_mizuroute_output_from_summa
+#endif
+
 ! global data to print data to screen (runtime, can be switched on/off based on context)
 USE globalData, only: isPrint                 ! flag to enable informational screen/log output
+
+! NetCDF file ids
+USE globalData, only: ncid                    ! vector of ncids for NetCDF files (different aggregation periods) 
 
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
@@ -166,8 +176,12 @@ contains
  logical(lgt)                          :: printProgress=.false.       ! flag to print simulation progress
  logical(lgt)                          :: defNewOutputFile=.false.    ! flag to define new output files
  logical(lgt)                          :: is_writingOutput=.false.    ! flag to write model output
+ logical(lgt)                          :: is_fullSeries=.false.       ! flag for full time series
  logical(lgt)                          :: is_bufferedWrite=.false.    ! flag for buffered write
- integer(i4b)                          :: iGRU,iHRU,iDOM              ! indices of GRUs and HRUs
+ logical(lgt)                          :: write_mizuroute=.false.     ! flag to write mizuroute output
+ integer(i4b)                          :: istart_write                ! start file index for time series write
+ integer(i4b)                          :: numtim_write                ! count for time series write
+ integer(i4b)                          :: iGRU,iHRU,iDOM              ! indices of GRUs, HRUs and domains
  integer(i4b)                          :: iVar                        ! index of variable in the data structure
  integer(i4b)                          :: iStruct                     ! index of model structure
  integer(i4b)                          :: iFreq                       ! index of the output frequency
@@ -288,7 +302,8 @@ contains
  if(allowRoutingOutput) maxLengthAll = max(maxLengthAll, nTimeDelay)
 
  ! check if the buffered write
- is_bufferedWrite = (model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries .and. modelTimeStep == numtim)
+ is_fullSeries    = model_decisions(iLookDECISIONS%write_buff)%iDecision == writeFullSeries
+ is_bufferedWrite = (is_fullSeries .and. modelTimeStep == numtim)
 
  ! print progress
  if(printProgress .and. isPrint) write(*,'(i4,1x,5(i2,1x))') timeStruct%var(1:5)
@@ -365,6 +380,7 @@ contains
  ! *** write model output to the NetCDF file
  ! ****************************************************************************
  if(is_writingOutput)then
+  
   do iStruct=1,size(structInfo)  ! loop means we can apply error code at the end
 
    ! ----- write buffered data --------------------------------------------------
@@ -405,6 +421,26 @@ contains
    endif ! (if buffered write)
 
   end do  ! (looping through data structures)
+  
+  ! ----- write mizuRoute output ------------------------------------------------
+
+  write_mizuroute = merge(modelTimeStep == numtim, .true., is_fullSeries)
+ 
+  if(mizuroute_active .and. write_mizuroute)then
+
+   istart_write = merge(     1, modelTimeStep, is_fullSeries)
+   numtim_write = merge(numtim,             1, is_fullSeries)
+
+   call write_mizuroute_output_from_summa(  &
+        ncid(iLookFREQ%timestep),           &
+        istart_write,                       &
+        numtim_write,                       &
+        summa1_struc,                       &
+        err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  endif  ! (if writing mizuRoute)
+
  endif  ! (if writing output)
 
  ! *****************************************************************************

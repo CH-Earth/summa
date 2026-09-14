@@ -48,6 +48,7 @@ cmake -B extern/summa/cmake_build -S extern/summa \
     -DUSE_MPI=OFF \
     -DUSE_NEXTGEN=ON \
     -DUSE_OPENWQ=OFF \
+    -DUSE_MIZUROUTE=OFF \
     -DSPECIFY_LAPACK_LINKS=OFF \
     -DCMAKE_BUILD_TYPE=Release
 cmake --build extern/summa/cmake_build --target all -j

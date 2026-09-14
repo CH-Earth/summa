@@ -33,6 +33,12 @@ module build_options
   logical, parameter, public :: openwq_active = .false.
 #endif
 
+#ifdef MIZUROUTE_ACTIVE
+  logical, parameter, public :: mizuroute_active = .true.
+#else
+  logical, parameter, public :: mizuroute_active = .false.
+#endif
+
 #ifdef ACTORS_ACTIVE
   logical, parameter, public :: actors_active = .true.
 #else

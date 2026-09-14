@@ -21,12 +21,30 @@
 module summa_init
 ! used to declare and allocate summa data structures and initialize model state to known values
 
+! check if mizuroute is active
+use build_options, only: mizuroute_active
+use build_options, only: ngen_forcing_active
+
+#ifdef MIZUROUTE_ACTIVE
+USE mizuroute_coupling, only: init_mizuroute_from_summa
+#endif
+
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
 ! global data to print data to screen (runtime, can be switched on/off based on context)
-USE globalData, only: isPrint                 ! flag to enable informational screen/log output
+USE globalData, only: isPrint        ! flag to enable informational screen/log output
+
+! global data on the forcing file
+USE globalData,only:data_step        ! length of the data step (s)
+
+! output constraints
+USE globalData,only:maxLayers        ! maximum number of layers
+USE globalData,only:maxSoilLayers    ! maximum number of soil layers
+USE globalData,only:maxSnowLayers    ! maximum number of snow layers
+USE globalData,only:maxTotoLayers    ! maximum number of soil+lake+glacier-ice layers in any domain
+USE globalData,only:maxGlaciers      ! maximum number of glaciers in any GRU
 
 ! named variables for run time options
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
@@ -52,6 +70,20 @@ USE summaFileManager,only:STATE_PATH                        ! optional path to s
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
 USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model attributes files
 
+! model decisions
+USE globalData,only:model_decisions                         ! model decision structure
+USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
+
+! named variables to define the decisions for snow layers
+USE mDecisions_module,only:&
+  sameRulesAllLayers,&                  ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  rulesDependLayerIndex                 ! CLM option: combination/sub-dividion rules depend on layer index
+
+! named variables for the output buffer
+USE mDecisions_module,only:&
+ writePerStep,   &                      ! write data per time step (default)
+ writeFullSeries                        ! write all data for a given output file
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -70,6 +102,7 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE summa_util, only:getCommandArguments                     ! process command line arguments
   USE summaFileManager,only:summa_SetTimesDirsAndFiles         ! sets directories and filenames
   USE summa_globalData,only:summa_defineGlobalData             ! used to define global summa data structures
+  USE summa_config,only:load_summa_config                      ! load TOML configuration settings (for parsing later)
   USE time_utils_module,only:elapsedSec                        ! calculate the elapsed time
   ! subroutines and functions: read dimensions (NOTE: NetCDF)
   ! subroutines and functions: parallelization
@@ -81,6 +114,9 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE allocspace_module,only:allocGlobal                       ! module to allocate space for global data structures
   USE allocspace_module,only:allocLocal                        ! module to allocate space for local data structures
   USE allocspace_module,only:alloc_driver_work                 ! module to allocate space for driver work structures
+  ! subroutines and functions: model decisions and forcing file information
+  USE mDecisions_module,only:mDecisions                        ! module to read model decisions
+  USE ffile_info_module,only:ffile_info                        ! module to read information on forcing datafile
   ! timing variables
   USE globalData,only:startInit,endInit                        ! date/time for the start and end of the initialization
   USE globalData,only:elapsedInit                              ! elapsed time for the initialization
@@ -93,12 +129,15 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE globalData,only:finshTime                                ! end time
   USE globalData,only:refTime                                  ! reference time
   USE globalData,only:oldTime                                  ! time from previous step
+  ! buffered write
+  USE globalData,only:numtim                                   ! number of time steps
   ! run time options
   USE globalData,only:startGRU_user => startGRU                ! index of the starting GRU defined using the -g runtime option
   USE globalData,only:checkHRU                                 ! index of the HRU for a single HRU run
   USE globalData,only:iRunMode                                 ! define the current running mode
   ! miscellaneous global data
   USE globalData,only:ncid                                     ! file id of netcdf output file
+  USE globalData,only:gru_struc                                ! gru-hru mapping structures (constructed in read_mapping_vectors)
   USE globalData,only:structInfo                               ! information on the data structures
   USE globalData,only:output_fileSuffix                        ! suffix for the output file
   ! ---------------------------------------------------------------------------------------
@@ -161,8 +200,9 @@ subroutine summa_initialize(summa1_struc, err, message)
     nGRU_local           => summa1_struc%nGRU_local          , & ! number of GRUs assigned to the current rank
     nHRU_local           => summa1_struc%nHRU_local          , & ! number of HRUs assigned to the current rank
     nDOM                 => summa1_struc%nDOM                , & ! number of domains from the initial conditions file
-    ! manager file
-    summaFileManagerFile => summa1_struc%summaFileManagerFile  & ! path/name of file defining directories and files
+    ! manager files
+    summaFileManagerFile => summa1_struc%summaFileManagerFile, & ! path/name of file defining directories and files
+    summaConfigFile      => summa1_struc%summaConfigFile       & ! path/name of summa configuration file
     ) ! assignment to variables in the data structures
     ! ---------------------------------------------------------------------------------------
     ! initialize error control
@@ -185,6 +225,10 @@ subroutine summa_initialize(summa1_struc, err, message)
 
     ! get the command line arguments
     call getCommandArguments(summa1_struc,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! load configuration settings from TOML file
+    call load_summa_config(trim(summaConfigFile), summa1_struc, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! set directories and files -- summaFileManager used as command-line argument
@@ -241,12 +285,13 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! *****************************************************************************
     ! *** construct the local GRU-HRU mapping
     ! *****************************************************************************
-    ! Read the GRU and HRU identifiers needed for this rank and construct the local GRU-HRU/HRU-GRU mapping. 
+    ! Read the GRU and HRU identifiers needed for this rank and construct the local GRU-HRU/HRU-GRU mapping.
     ! nHRU_local is determined from the HRUs belonging to the GRUs assigned to this rank.
-    call read_mapping_vectors(attrFile, &
-                              nGRU_file, nHRU_file, &
-                              startGRU_local, nGRU_local, nHRU_local, &
+    call read_mapping_vectors(attrFile,                                                 &
+                              nGRU_file, nHRU_file,                                     &
+                              startGRU_local, nGRU_local, nHRU_local,                   &
                               merge(checkHRU, integerMissing, iRunMode == iRunModeHRU), &
+                              summa1_struc%gru_struc, summa1_struc%index_map,           & 
                               err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -340,6 +385,72 @@ subroutine summa_initialize(summa1_struc, err, message)
       endif
 
     end do ! iStruct
+
+    ! *****************************************************************************
+    ! if using NGEN forcing only need to set the hourly data_step (fixed)
+    ! *****************************************************************************
+    if (ngen_forcing_active) then
+      data_step = 3600._rkind
+    
+    ! *****************************************************************************
+    ! *** read description of model forcing datafile used in each HRU
+    ! *****************************************************************************
+    else
+      call ffile_info(nGRU_local,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+    
+    ! *****************************************************************************
+    ! *** read model decisions
+    ! *****************************************************************************
+    ! NOTE: Must be after ffile_info because mDecisions uses the data_step
+    call mDecisions(err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    ! get the maximum number of snow layers
+    select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
+     case(sameRulesAllLayers);    maxSnowLayers = 100
+     case(rulesDependLayerIndex)
+       maxSnowLayers = 5
+       if (maxGlaciers>0) maxSnowLayers = int(maxSnowLayers*2.5_rkind) ! increase the number of snow layers for glaciers for firn development in accumulation zone
+     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+    end select ! (option to combine/sub-divide snow layers)
+
+    ! get the maximum total number of layers
+    ! NOTE: maxGlaciers and the soil/lake/glacier-ice maxima are file-wide values set in
+    !       read_mapping_vectors and read_icond_nlayers, so they are the same on every rank
+    maxLayers = maxSnowLayers + maxTotoLayers
+   
+    ! get the number of time steps in the output buffer
+    select case(model_decisions(iLookDECISIONS%write_buff)%iDecision)
+     case (writePerStep);    summa1_struc%n_write = 1
+     case (writeFullSeries); summa1_struc%n_write = numtim
+     case default; err=20; message=trim(message)//'unable to identify option for output buffer'; return
+    end select
+
+    ! save the length of the data window
+    summa1_struc%data_step = data_step
+
+    ! *****************************************************************************
+    ! *** initialize mizuRoute (if mizuRoute is active)
+    ! *****************************************************************************
+    
+    if (mizuroute_active) then
+
+      ! allocate data structure for mizuroute coupling
+      allocate(summa1_struc%coupling(nGRU_local), stat=err)
+      if(err/=0)then
+        message=trim(message)//' [problem allocating mizuroute coupling structure]'
+        return
+      endif
+
+      ! populate mizuroute coupling IDs
+      summa1_struc%coupling(:)%id = summa1_struc%gru_struc(:)%gru_id
+
+      call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif
 
     ! *****************************************************************************
     ! *** define the suffix for the model output file

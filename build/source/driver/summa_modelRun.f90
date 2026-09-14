@@ -32,6 +32,7 @@ USE globalData,only:yes,no           ! .true. and .false.
 USE var_lookup,only:iLookTIME        ! named variables for time data structure
 USE var_lookup,only:iLookDIAG        ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookINDEX       ! look-up values for local column index variables
+USE var_lookup,only:iLookBVAR        ! look-up values for basin variables
 USE summa_util,only:handle_err
 
 ! these are needed because we cannot access them in modules locally if we might use those modules with Actors
@@ -40,6 +41,12 @@ USE globalData,only:yearLength       ! number of days in the current year
 
 ! access domain types
 USE globalData,only:upland           ! horizontal domain type for upland areas
+! check if mizuroute is active
+use build_options, only: mizuroute_active
+
+#ifdef MIZUROUTE_ACTIVE
+use mizuroute_coupling, only: route_mizuroute_from_summa
+#endif
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -296,6 +303,19 @@ contains
  !$omp end do
  end associate summaVars2
  !$omp end parallel
+
+ ! ----- network routing ----------------------------------------------------
+ if (mizuroute_active) then
+
+   ! transfer routed runoff from summa into the coupling structure to pass to mizuRoute
+   do iGRU = 1,summa1_struc%nGRU_local
+     summa1_struc%coupling(iGRU)%qsim = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
+   enddo
+
+   call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   
+ endif  ! (if mizuRoute is active)
 
  ! identify the end of the physics
  call date_and_time(values=endPhysics)
