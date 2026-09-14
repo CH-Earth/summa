@@ -89,7 +89,7 @@ contains
  err=0; message='getCommandArguments/'
 
  if(ngen_active)then
-  ! no command arguments with NGen
+  ! coupled/BMI mode (NextGen, or the MODFLOW 6 coupler): the host program owns the command line, so do not parse it here
   nArgument = 0
   checkHRU = integerMissing
   nGRU_user = 1; nHRU_check = integerMissing

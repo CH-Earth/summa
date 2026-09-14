@@ -289,29 +289,14 @@ else()
   add_executable(${EXEC_NAME} ${MAIN_SUMMA})
   target_compile_options(${EXEC_NAME} PRIVATE ${FLAGS_ALL})
   set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-
-  target_link_libraries(
-    ${EXEC_NAME}
-    PRIVATE
-      summa
-      ${EXT_TARGETS}
-      ${LIBRARY_LINKS}
-  )
+  target_link_libraries(${EXEC_NAME} summa ${EXT_TARGETS} ${LIBRARY_LINKS})
 
   # MPI SUMMA executable
   if(USE_MPI)
-
     add_executable(${EXEC_NAME_MPI} ${MAIN_SUMMA_MPI})
     target_compile_options(${EXEC_NAME_MPI} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_MPI} PROPERTY LINKER_LANGUAGE Fortran)
-
-    target_link_libraries(
-      ${EXEC_NAME_MPI}
-      PRIVATE
-        summa
-        parallel_utils
-    )
-
+    target_link_libraries(${EXEC_NAME_MPI} PRIVATE summa parallel_utils)
   endif()
 
 endif()
