@@ -420,7 +420,7 @@ subroutine summa_paramSetup(summa1_struc, err, message)
    upArea%gru(iGRU)%hru(iHRU) = 0._rkind
    do jHRU=1,gru_struc(iGRU)%hruCount
     ! check if jHRU flows into iHRU; assume no exchange between GRUs
-    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
+    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==idStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
      upArea%gru(iGRU)%hru(iHRU) = upArea%gru(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
     endif   ! (if jHRU is an upstream HRU)
    end do  ! jHRU
