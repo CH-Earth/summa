@@ -97,7 +97,7 @@ contains
   
     type(summa1_type_dec), allocatable :: summa1_struc(:)
     integer(i4b), parameter            :: n=1
-    character(len=256)                 :: cmessage
+    character(len=512)                 :: cmessage
   
     err=0
     message='run_simulation/'
@@ -366,7 +366,7 @@ contains
    
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
-    character(len=256)                         :: cmessage      ! error message of downwind routine
+    character(len=512)                         :: cmessage      ! error message of downwind routine
    
     err=0
     message='run_summa/'

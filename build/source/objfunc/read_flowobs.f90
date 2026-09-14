@@ -1,7 +1,7 @@
 module read_flowobs_module
 
   USE netcdf
-  USE nr_type, only: i4b, i8b, rkind
+  USE nr_type, only: i4b, i8b, rkind, lgt
   USE summa_type, only: summa1_type_dec
 
   use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
@@ -39,6 +39,7 @@ contains
     integer(i4b) :: nTime
     integer(i4b) :: attLen
     integer(i4b) :: err_close
+    logical(lgt) :: file_exists
 
     integer(i8b), allocatable :: timeInt(:)
 
@@ -66,6 +67,15 @@ contains
        .not.allocated(obs%obs_file))then
        message=trim(message)//'observation file path or filename is not defined'
        err=20; return
+    endif
+
+    ! check that the observation file exists
+    inquire(file=trim(obs%obs_path)//trim(obs%obs_file),exist=file_exists)
+
+    if(.not.file_exists)then
+      message=trim(message)//'observation file does not exist: '// &
+              trim(obs%obs_path)//trim(obs%obs_file)
+      err=20; return
     endif
 
     ! check that the variable name is defined

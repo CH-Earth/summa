@@ -39,7 +39,6 @@ USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing real number
 
 ! global data 
-USE globalData, only: initConfig     ! flag to initialize model configuration (read control files etc.)
 USE globalData, only: data_step      ! length of the data step (s)
 USE globalData, only: iulog          ! I/O unit for logging messages 
 
@@ -174,7 +173,7 @@ contains
     elapsedWrite=0._rkind
     elapsedPhysics=0._rkind
   
-    if (initConfig) then
+    if (config%read_config) then
   
       call init_config(config, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -553,12 +552,14 @@ contains
     character(len=256) :: cmessage
   
     err=0; message='init_config/'
-  
+
     ! get command-line arguments
     ! command line arguments establish where configuration files are located
-    call getCommandArguments(config, err, cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+    if(config%read_cli)then
+      call getCommandArguments(config, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
     ! read legacy file manager first, if present
     if(allocated(config%control_file))then
       call summa_SetTimesDirsAndFiles(config%control_file, err, cmessage)
@@ -584,7 +585,6 @@ contains
     call summa_defineGlobalData(err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  
-
   end subroutine init_config
 
 

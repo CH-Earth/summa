@@ -31,8 +31,17 @@
 
 set -euo pipefail
 
+# ----- command-line options -----
+
+quiet=false
+
+if [[ "${1:-}" == "-q" ]]; then
+    quiet=true
+    shift
+fi
+
 if [[ $# -ne 3 ]]; then
-    echo "Usage: $0 forcing.nc topology.nc output.nc"
+    echo "Usage: $0 [-q] forcing.nc topology.nc output.nc"
     exit 1
 fi
 
@@ -61,12 +70,14 @@ if [[ $(printf "%s\n" "$summa_hru_id" | wc -l | tr -d ' ') -ne 1 ]]; then
     exit 1
 fi
 
-echo
-echo "Creating lumped-to-HRU runoff mapping"
-echo "  SUMMA HRU ID : $summa_hru_id"
-echo "  topology     : $topology"
-echo "  output       : $output"
-echo
+if ! $quiet; then
+    echo
+    echo "Creating lumped-to-HRU runoff mapping"
+    echo "  SUMMA HRU ID : $summa_hru_id"
+    echo "  topology     : $topology"
+    echo "  output       : $output"
+    echo
+fi
 
 # ----- temporary file -----
 
@@ -122,4 +133,6 @@ ncks -O -h \
 
 rm -f "$work_file"
 
-echo "Created: $output"
+if ! $quiet; then
+    echo "Created: $output"
+fi

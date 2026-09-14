@@ -161,6 +161,14 @@ contains
         write(iulog,*) "config_file is '"//trim(opts%config_file)//"'."
         i = i + 2
 
+    case ('--manifest')
+      call require_next(i, n_arg, a, v, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     
+      opts%manifest_file = trim(v)
+      write(iulog,*) "manifest_file is '"//trim(opts%manifest_file)//"'."
+      i = i + 2
+
      case ('-s','--suffix')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -301,17 +309,36 @@ contains
     endif
  endif
 
- ! check that provided control or config
- if(.not.allocated(opts%control_file) .and. &
-    .not.allocated(opts%config_file))then
-    message = trim(message)//'either a SUMMA file manager (-m) or TOML configuration file (-c) must be provided'
-    err = 1; return
+ ! check that a control file, configuration file, or run manifest was provided
+ if(.not.allocated(opts%control_file) .and.  &
+    .not.allocated(opts%config_file)  .and.  &
+    .not.allocated(opts%manifest_file))then
+   message = trim(message)// &
+             'a SUMMA file manager (-m), TOML configuration file (-c), or run manifest (--manifest) must be provided'
+   err = 1; return
+ endif
+
+ ! a run manifest and individual configuration file are mutually exclusive
+ if(allocated(opts%manifest_file) .and. allocated(opts%config_file))then
+   message = trim(message)// &
+             '--config and --manifest cannot both be specified'
+   err = 1; return
+ endif
+
+ ! a run manifest and summa control file are mutually exclusive
+ if(allocated(opts%manifest_file) .and. allocated(opts%control_file))then
+  message = trim(message)// &
+            '--control and --manifest cannot both be specified'
+  err = 1; return
  endif
 
  ! warn that mizuRoute requires configuration through TOML
- if(mizuroute_active .and. .not.allocated(opts%config_file))then
-   write(iulog,*) 'WARNING: This executable was built with mizuRoute support, but no TOML'
-   write(iulog,*) '         configuration file (-c) was provided. mizuRoute will not run.'
+ if(mizuroute_active                 .and. &
+   .not.allocated(opts%config_file)  .and. &
+   .not.allocated(opts%manifest_file))then
+   write(iulog,*) 'WARNING: This executable was built with mizuRoute support, but no TOML '
+   write(iulog,*) '         configuration file (-c) or manifest file (--manifest) was '
+   write(iulog,*) '         provided. mizuRoute will not run.'
    write(iulog,*) '         To run coupled mizuRoute, provide the required configuration'
    write(iulog,*) '         in a TOML configuration file.'
  endif
@@ -490,6 +517,9 @@ contains
 
    ! *** file names and output controls
 
+   if(allocated(opts%manifest_file)) &
+     config%manifest_file = opts%manifest_file
+
    if(allocated(opts%control_file)) &
      config%control_file = opts%control_file
 
@@ -601,15 +631,16 @@ contains
  call get_arg(0, exe)
  
  ! command line usage
- print "(//A)",'Usage: '//trim(exe)//' [-m control_file] [-c config_file] '// &
-               '[-n newFileFreq] [-s fileSuffix] [-g startGRU countGRU] '// &
-               '[-h iHRU] [-r freqRestart] [-p freqProgress] [--param name value]'
+ print "(//A)",'Usage: '//trim(exe)//' [-m control_file] [-c config_file] [--manifest manifest_file] '// &
+              '[-n newFileFreq] [-s fileSuffix] [-g startGRU countGRU] '// &
+              '[-h iHRU] [-r freqRestart] [-p freqProgress] [--param name value]'
  
  print "(A,/)", 'Running executable: '//trim(exe)
  print "(A)",  'Running options:'
  print "(A)",  ' -m --control       Define path/name of legacy SUMMA control file'
  print "(A)",  ' -c --config        Define path/name of TOML configuration file'
- print "(A)",  '                     - At least one of --control or --config is required'
+ print "(A)",  ' --manifest         Define path/name of multi-case run manifest'
+ print "(A)",  '                     - At least one of --control, --config, or --manifest is required'
  print "(A)",  '                     - TOML values take precedence over corresponding control-file values'
  print "(A)", '                      - Coupled mizuRoute requires a TOML configuration file'
  print "(A)",  ' -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files'

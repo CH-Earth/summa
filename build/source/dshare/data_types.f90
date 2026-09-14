@@ -48,6 +48,7 @@ MODULE data_types
   logical                        :: show_version = .false.
   
   character(len=:), allocatable  :: tag
+  character(len=:), allocatable  :: manifest_file
   character(len=:), allocatable  :: control_file
   character(len=:), allocatable  :: config_file
   character(len=:), allocatable  :: suffix

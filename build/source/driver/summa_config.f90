@@ -16,9 +16,68 @@ USE mizuroute_config, ONLY: parse_mizuroute_config
 implicit none
 private
 
+public :: read_manifest
 public :: read_summa_config 
 
 contains
+
+  ! **************************************************************************************************
+  ! Read a multi-case SUMMA run manifest.
+  !
+  ! Loads the TOML manifest, extracts the [multi_case] table, and parses the run-level configuration
+  ! used to define and distribute independent SUMMA cases.
+  ! **************************************************************************************************
+  
+  subroutine read_manifest(manifest_file,config,err,message)
+  
+    USE tomlf_all, only: toml_table,toml_error
+    USE tomlf_all, only: toml_load,get_value
+  
+    implicit none
+  
+    character(*),      intent(in)    :: manifest_file
+    type(config_info), intent(inout) :: config
+    integer(i4b),      intent(out)   :: err
+    character(*),      intent(out)   :: message
+  
+    type(toml_table), allocatable :: table
+    type(toml_table), pointer     :: subtable
+    type(toml_error), allocatable :: toml_err
+  
+    integer(i4b)       :: istat
+    character(len=256) :: cmessage
+  
+    err=0
+    message='read_manifest/'
+  
+    ! load the TOML manifest
+    call toml_load(table,trim(manifest_file),error=toml_err)
+  
+    if(allocated(toml_err))then
+      message=trim(message)//"problem loading manifest ['"// &
+              trim(manifest_file)//"']: "//trim(toml_err%message)
+      err=20
+      return
+    endif
+  
+    ! extract the multi-case configuration table
+    call get_value(table,'multi_case',subtable,stat=istat)
+  
+    if(istat/=0 .or. .not.associated(subtable))then
+      message=trim(message)//'manifest does not contain [multi_case]'
+      err=20
+      return
+    endif
+  
+    ! parse the multi-case configuration
+    call parse_manifest(subtable,config,err,cmessage)
+  
+    if(err/=0)then
+      message=trim(message)//trim(cmessage)
+      return
+    endif
+  
+  end subroutine read_manifest
 
   ! **************************************************************************************************
   ! Read SUMMA TOML configuration.
@@ -45,7 +104,11 @@ contains
     ! load configuration values from the TOML file
     call load_summa_config(config_file, config, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
+    ! expand case-specific placeholders
+    call expand_summa_config(config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
     ! apply TOML values that supersede legacy file-manager settings
     call apply_summa_config(config, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -70,7 +133,6 @@ contains
   ! **************************************************************************************************
 
   subroutine load_summa_config(config_file, config, err, message)
-
 
   use tomlf_all, only: toml_table, toml_array, toml_error, toml_key, toml_value ! data types
   use tomlf_all, only: toml_load, get_value, len                                ! procedures
@@ -279,7 +341,10 @@ contains
     case ("simulation.time_zone"         ); call get_value(subtable, trim(key), config%time_zone        , stat=istat)
  
     ! ---- simulation: settings ----
-    case ("simulation.case_name"         ); call get_value(subtable, trim(key), config%case_name        , stat=istat)
+    case ("simulation.home_path"         ); call get_value(subtable, trim(key), config%home_path        , stat=istat)
+    case ("simulation.basin_dir"         ); call get_value(subtable, trim(key), config%basin_dir        , stat=istat)
+    case ("simulation.work_path"         ); call get_value(subtable, trim(key), config%work_path        , stat=istat)
+    case ("simulation.case_name"         ); call get_value(subtable, trim(key), config%case_name        , stat=istat)  
     case ("simulation.use_mizuroute"     ); call get_value(subtable, trim(key), config%use_mizuroute    , stat=istat)
     case ("simulation.write_timeseries"  ); call get_value(subtable, trim(key), config%write_timeseries , stat=istat)
 
@@ -350,10 +415,264 @@ contains
   
   end subroutine parse_summa_config
   
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
+  ! **************************************************************************************************
+  ! Parse the multi-case configuration from a SUMMA run manifest.
+  !
+  ! Extracts settings from the [multi_case] TOML table, including the configuration template,
+  ! case names, and the number of concurrent cases assigned to each compute node.
+  ! **************************************************************************************************
+
+  subroutine parse_manifest(subtable,config,err,message)
   
+    USE tomlf_all, only: toml_table,toml_key,toml_array,get_value
+  
+    implicit none
+  
+    type(toml_table), pointer, intent(in)    :: subtable
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: err
+    character(*),              intent(out)   :: message
+  
+    type(toml_key), allocatable :: keys(:)
+    type(toml_array), pointer   :: case_names
+  
+    integer(i4b)       :: i,istat
+    character(len=256) :: key,cmessage
+  
+    err=0
+    message='parse_manifest/'
+  
+    call subtable%get_keys(keys)
+  
+    do i=1,size(keys)
+ 
+      istat=0 
+      key='multi_case.'//trim(keys(i)%key)
+  
+      select case(trim(key))
+  
+        ! ---- multi-case configuration ----
+        case ("multi_case.cases_per_node"   ); call get_value(subtable,trim(keys(i)%key),config%cases_per_node    , stat=istat)
+        
+        ! ----- path/name of toml template -----
+        case ("multi_case.template_path"    ); call get_value(subtable,trim(keys(i)%key),config%template_path     , stat=istat)
+        case ("multi_case.template_file"    ); call get_value(subtable,trim(keys(i)%key),config%template_file     , stat=istat)
+
+        ! ---- case names ----
+        case ("multi_case.case_names")
+          call get_value(subtable,trim(keys(i)%key),case_names,stat=istat)
+          if(istat==0) then
+            call parse_word_list(case_names,config%case_names,err,cmessage)
+            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          endif
+
+        case default
+          message=trim(message)//"unknown manifest option '"//trim(key)//"'"
+          err=20; return
+  
+      end select
+  
+      if(istat/=0)then
+        message=trim(message)//"unable to read manifest option '"//trim(key)//"'"
+        err=20; return
+      endif
+  
+    enddo
+ 
+    ! ----- validate required manifest settings -----
+
+    if(.not.allocated(config%template_path))then
+      message=trim(message)//'template_path is not defined in the multi-case manifest'
+      err=20; return
+    endif
+
+    if(.not.allocated(config%template_file))then
+      message=trim(message)//'template_file is not defined in the multi-case manifest'
+      err=20; return
+    endif
+
+    if(.not.allocated(config%case_names))then
+      message=trim(message)//'case_names are not defined in the multi-case manifest'
+      err=20; return
+    endif
+
+    if(size(config%case_names)==0)then
+      message=trim(message)//'case_names empty in the multi-case manifest'
+      err=20; return
+    endif
+
+    if(config%cases_per_node < 1)then
+      message=trim(message)//'cases_per_node must be greater than zero'
+      err=20; return
+    endif
+
+  end subroutine parse_manifest
+
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+ 
+  ! **************************************************************************************************
+  ! Expand case-specific placeholders in the SUMMA configuration.
+  !
+  ! Resolves the case-path template using the current case name, then expands supported placeholders
+  ! in configuration strings before the values are applied to SUMMA data structures.
+  ! **************************************************************************************************
+  
+  subroutine expand_summa_config(config,err,message)
+  
+    implicit none
+  
+    type(config_info), intent(inout) :: config              ! SUMMA configuration information
+    integer(i4b),      intent(out)   :: err                 ! error code
+    character(*),      intent(out)   :: message             ! error message
+ 
+    logical(lgt), parameter :: isPrint=.false.              ! temporary diagnostic output 
+    character(len=256) :: cmessage                          ! message returned by called routines
+  
+    err=0
+    message='expand_summa_config/'
+  
+    ! ----- use manifest values to populate case name -----
+
+    if(allocated(config%manifest_file))then
+    
+      if(.not.allocated(config%manifest_casename))then
+        message=trim(message)//'manifest_casename has not been assigned for the current case'
+        err=20; return
+      endif
+    
+      config%case_name=trim(config%manifest_casename)
+    
+    endif
+
+    ! ----- resolve base path templates first -----
+
+    ! home_path must be fully resolved because other paths may depend on it
+    call expand_config_string(config%home_path,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    ! basin_dir may depend on home_path and case_name
+    call expand_config_string(config%basin_dir,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    ! work_path may depend on home_path and basin_dir
+    call expand_config_string(config%work_path,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! ----- check that template variables do not contain unresolved placeholders -----
+
+    if(allocated(config%case_name))then
+      if(index(config%case_name,'{')>0 .or. index(config%case_name,'}')>0)then
+        message=trim(message)//"case_name contains an unresolved template placeholder: '"// &
+                trim(config%case_name)//"'"
+        err=20; return
+      endif
+    endif
+
+    if(allocated(config%home_path))then
+      if(index(config%home_path,'{')>0 .or. index(config%home_path,'}')>0)then
+        message=trim(message)//"home_path contains an unresolved template placeholder: '"// &
+                trim(config%home_path)//"'"
+        err=20; return
+      endif
+    endif
+
+    if(allocated(config%basin_dir))then
+      if(index(config%basin_dir,'{')>0 .or. index(config%basin_dir,'}')>0)then
+        message=trim(message)//"basin_dir contains an unresolved template placeholder: '"// &
+                trim(config%basin_dir)//"'"
+        err=20; return
+      endif
+    endif
+
+    if(allocated(config%work_path))then
+      if(index(config%work_path,'{')>0 .or. index(config%work_path,'}')>0)then
+        message=trim(message)//"work_path contains an unresolved template placeholder: '"// &
+                trim(config%work_path)//"'"
+        err=20; return
+      endif
+    endif
+
+    ! ---- SUMMA paths ----
+    call expand_config_string(config%settings_path,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+    call expand_config_string(config%forcing_path,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+    call expand_config_string(config%output_path,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+    call expand_config_string(config%state_path,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! ---- SUMMA files ----
+    call expand_config_string(config%init_condition,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    call expand_config_string(config%attributes,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    call expand_config_string(config%trial_params,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    call expand_config_string(config%forcing_list,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    if(mizuroute_active)then
+
+      ! ---- mizuRoute paths ----
+      call expand_config_string(config%mizu_info%mrout%namelist_path,config,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     
+      ! ---- hydrofabric paths ----
+      call expand_config_string(config%mizu_info%ntopo%hfabric_path,config,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     
+      ! ---- remapping paths ----
+      call expand_config_string(config%mizu_info%remap%remap_path,config,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    endif
+  
+    ! ---- observation paths and filenames ----
+    call expand_config_string(config%obs%obs_path,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+    call expand_config_string(config%obs%obs_file,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  
+    ! temporary diagnostic output
+    if(isPrint)then
+
+      write(*,'(A)') 'Expanded SUMMA configuration:'
+      write(*,'(A)') '  case_name     = '//trim(config%case_name)
+      write(*,'(A)') '  basin_dir     = '//trim(config%basin_dir)
+      write(*,'(A)') '  settings_path = '//trim(config%settings_path)
+      write(*,'(A)') '  forcing_path  = '//trim(config%forcing_path)
+      write(*,'(A)') '  output_path   = '//trim(config%output_path)
+      write(*,'(A)') '  state_path    = '//trim(config%state_path)
+
+      write(*,'(A)') '  init_condition = '//trim(config%init_condition)
+      write(*,'(A)') '  attributes     = '//trim(config%attributes)
+      write(*,'(A)') '  trial_params   = '//trim(config%trial_params)
+      write(*,'(A)') '  forcing_list   = '//trim(config%forcing_list)
+
+      if(mizuroute_active)then
+        write(*,'(A)') '  namelist_path = '//trim(config%mizu_info%mrout%namelist_path)
+        write(*,'(A)') '  hfabric_path  = '//trim(config%mizu_info%ntopo%hfabric_path)
+        write(*,'(A)') '  remap_path    = '//trim(config%mizu_info%remap%remap_path)
+      endif
+
+      write(*,'(A)') '  obs_path      = '//trim(config%obs%obs_path)
+      write(*,'(A)') '  obs_file      = '//trim(config%obs%obs_file)
+      write(*,*)
+
+    endif
+
+  end subroutine expand_summa_config
+
   ! **************************************************************************************************
   ! Apply SUMMA configuration values parsed from TOML.
   !
@@ -425,8 +744,16 @@ contains
     if(allocated(config%soil_table))       SOILPARM = trim(config%soil_table)
     if(allocated(config%general_table))    GENPARM  = trim(config%general_table)
     if(allocated(config%noahmp_table))     MPTABLE  = trim(config%noahmp_table)
-  
+ 
   end subroutine apply_summa_config
+
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! ---- PARSERS -------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
 
   ! **************************************************************************************************
   ! Parse a TOML array containing a list of words.
@@ -665,5 +992,132 @@ contains
   
   end subroutine parse_parameter_dependencies
 
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! ---- HELPERS -------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------
+
+  ! **************************************************************************************************
+  ! Expand supported placeholders in a configuration string.
+  !
+  ! Replaces case-specific template variables with their resolved values. Unallocated configuration
+  ! strings are ignored.
+  ! **************************************************************************************************
+  
+  subroutine expand_config_string(value,config,err,message)
+  
+    implicit none
+  
+    character(len=:), allocatable, intent(inout)  :: value   ! configuration string to expand
+    type(config_info),              intent(in)    :: config  ! SUMMA configuration information
+    integer(i4b),                   intent(out)   :: err     ! error code
+    character(*),                   intent(out)   :: message ! error message
+  
+    character(len=256)                            :: cmessage
+
+    err=0
+    message='expand_config_string/'
+  
+    ! nothing to expand when this configuration value was not provided
+    if(.not.allocated(value)) return
+
+    ! expand the resolved home path
+    if(index(value,'{home}')>0)then
+      if(.not.allocated(config%home_path))then
+        message=trim(message)//"placeholder '{home}' used but home_path is not defined"
+        err=20; return
+      endif
+
+      call replace_string(value,'{home}',trim(config%home_path),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    ! expand the resolved case name
+    if(index(value,'{case_name}')>0)then
+      if(.not.allocated(config%case_name))then
+        message=trim(message)//"placeholder '{case_name}' used but case_name is not defined"
+        err=20; return
+      endif
+
+      call replace_string(value,'{case_name}',trim(config%case_name),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    ! expand the resolved basin directory
+    if(index(value,'{basin_dir}')>0)then
+      if(.not.allocated(config%basin_dir))then
+        message=trim(message)//"placeholder '{basin_dir}' used but basin_dir is not defined"
+        err=20; return
+      endif
+
+      call replace_string(value,'{basin_dir}',trim(config%basin_dir),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
+    ! expand the resolved work path
+    if(index(value,'{work_path}')>0)then
+      if(.not.allocated(config%work_path))then
+        message=trim(message)//"placeholder '{work_path}' used but work_path is not defined"
+        err=20; return
+      endif
+
+      call replace_string(value,'{work_path}',trim(config%work_path),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+  
+  end subroutine expand_config_string
+
+  ! **************************************************************************************************
+  ! Replace all occurrences of a substring within a string.
+  ! **************************************************************************************************
+
+  subroutine replace_string(string,pattern,replacement,err,message)
+  
+    implicit none
+  
+    character(len=:), allocatable, intent(inout) :: string
+    character(*),                  intent(in)    :: pattern
+    character(*),                  intent(in)    :: replacement
+    integer(i4b),                  intent(out)   :: err
+    character(*),                  intent(out)   :: message
+  
+    integer(i4b), parameter :: maxTry=100
+    integer(i4b) :: iTry
+    integer(i4b) :: ipos
+  
+    err=0
+    message='replace_string/'
+  
+    ! ignore empty search patterns
+    if(len(pattern)==0) return
+ 
+    ! prevent substitutions that reproduce the search pattern
+    if(index(replacement,pattern)>0)then
+      message=trim(message)//"invalid template expansion: placeholder '"//trim(pattern)// &
+              "' resolves to '"//trim(replacement)//"' while expanding '"//trim(string)//"'"
+      err=20; return
+    endif
+  
+    ! replace all occurrences of the search pattern
+    do iTry=1,maxTry
+  
+      ipos=index(string,pattern)
+      if(ipos==0) return
+  
+      string=string(:ipos-1)//trim(replacement)// &
+             string(ipos+len(pattern):)
+  
+    enddo
+  
+    ! maximum number of substitutions exceeded
+    write(message,'(A,A,A,I0,A,A,A)') &
+      "replace_string/maximum number of replacements for pattern '", &
+      trim(pattern),"' exceeded (",maxTry,") in string '",trim(string),"'"
+    err=20
+  
+  end subroutine replace_string
 
 end module summa_config

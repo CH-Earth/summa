@@ -85,6 +85,18 @@ type, public :: config_info
   ! logging
   integer(i4b)                   :: iulog_summa = output_unit ! output unit for log files
 
+  ! configuration flags
+  logical(lgt)                   :: read_cli = .true.       ! .true. = read command-line interface
+  logical(lgt)                   :: read_config = .true.    ! .true. = read configuration files
+
+  ! Multi-case configuration
+  integer(i4b)                   :: cases_per_node = 1      ! Number of concurrent cases per node
+  character(len=:),  allocatable :: manifest_file           ! Path and name of the multi-case manifest
+  character(len=64), allocatable :: case_names(:)           ! Names of cases defined in the manifest
+  character(len=:),  allocatable :: manifest_casename       ! Case name selected from the run manifest
+  character(len=:),  allocatable :: template_path           ! Path to the SUMMA configuration template
+  character(len=:),  allocatable :: template_file           ! SUMMA configuration template filename
+  
   ! SUMMA configuration options from the CLI (-g and -h)
   integer(i4b)                   :: nGRU_user = -1          ! Number of GRUs requested by the user
   integer(i4b)                   :: nHRU_check = 1          ! HRU used for diagnostic checks
@@ -94,10 +106,13 @@ type, public :: config_info
   real(rkind),       allocatable :: param_value(:)          ! Values of parameter overrides
 
   ! Simulation
+  character(len=:), allocatable  :: home_path               ! Root path for user-specific files
+  character(len=:), allocatable  :: basin_dir               ! Directory containing basin-specific input data
   character(len=:), allocatable  :: case_name               ! Name of the simulation case
-  character(len=:), allocatable  :: start_time              ! Simulation start time
-  character(len=:), allocatable  :: end_time                ! Simulation end time
-  character(len=:), allocatable  :: time_zone               ! Time zone used for simulation times
+  character(len=:), allocatable  :: work_path               ! Path for simulation output
+  character(len=:), allocatable  :: start_time              ! Start time of the simulation
+  character(len=:), allocatable  :: end_time                ! End time of the simulation
+  character(len=:), allocatable  :: time_zone               ! Time zone for simulation times
 
   ! SUMMA files and paths
   character(len=:), allocatable  :: settings_path           ! Path containing SUMMA settings files
@@ -109,9 +124,9 @@ type, public :: config_info
   character(len=:), allocatable  :: attributes              ! Local attributes file
   character(len=:), allocatable  :: trial_params            ! Trial parameter file
   character(len=:), allocatable  :: forcing_list            ! Forcing file list
+  
   character(len=:), allocatable  :: decisions               ! Model decisions file
   character(len=:), allocatable  :: output_control          ! Output control file
-
   character(len=:), allocatable  :: local_parameters        ! Local (HRU) parameter information file
   character(len=:), allocatable  :: basin_parameters        ! Basin (GRU) parameter information file
 

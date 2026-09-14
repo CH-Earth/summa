@@ -68,7 +68,7 @@ contains
 
     ! strings
     character(len=4)   :: rankString
-    character(len=256) :: cmessage
+    character(len=512) :: cmessage
 
     character(len=:), allocatable :: outputFileSuffix_orig
     character(len=:), allocatable :: simStartOriginal,simEndOriginal,spinStart
@@ -134,7 +134,24 @@ contains
     output_fileSuffix=outputFileSuffix_orig
     ixRestart=ixRestart_never
 
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    ! report failures from the cold-start spinup
+    if(err/=0)then
+    
+      if(index(cmessage,'getFirstTimestep/')>0 .and. &
+         index(cmessage,'first requested simulation timestep not found')>0)then
+    
+        message=trim(message)// &
+                'one-year cold-start spinup failed because forcing data are not available for the '// &
+                'required spinup period. The configured simulation starts at '//trim(simStartOriginal)// &
+                ', so SUMMA requires forcing data beginning at '//trim(spinStart)//'; '//trim(cmessage)
+        return
+    
+      else
+        message=trim(message)//trim(cmessage)
+        return
+      endif
+    
+    endif
 
   end subroutine spinup_from_cold
 

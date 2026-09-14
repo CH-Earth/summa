@@ -107,7 +107,7 @@ contains
  integer(i4b)                      :: iline              ! loop through lines in the file
  integer(i4b)                      :: jRead              ! index of time in data subset
  integer(i4b)                      :: iGRU,iHRU          ! index of GRU and HRU
- character(len=256),save           :: infile             ! filename
+ character(len=512),save           :: infile             ! filename
  real(rkind)                       :: dsec               ! double precision seconds (not used)
  real(rkind)                       :: dataJulDay         ! julian day of current forcing data step being read
  real(rkind)                       :: startJulDay        ! julian day at the start of the year
@@ -121,7 +121,7 @@ contains
  integer(i4b)                      :: nHRU_read          ! size of contiguous forcing-file read
  ! error control
  integer(i4b)                      :: ierr               ! local error code
- character(len=256)                :: cmessage           ! error message for downwind routine
+ character(len=512)                :: cmessage           ! error message for downwind routine
  ! Start procedure here
  err=0; message="read_force/"
 
@@ -381,12 +381,14 @@ contains
  integer(i4b)                      :: dimId            ! dimension identifier
  integer(i4b)                      :: dimLen           ! dimension length
  ! other local variables
- character(len=256),save           :: infile           ! filename
- character(len=256)                :: cmessage         ! error message for downwind routine
+ character(len=512),save           :: infile           ! filename
+ character(len=512)                :: cmessage         ! error message for downwind routine
  integer(i4b)                      :: nFiles           ! number of forcing files
- real(rkind)                          :: timeVal(1)       ! single time value (restrict time read)
- real(rkind),allocatable              :: fileTime(:)      ! array of time from netcdf file
- real(rkind),allocatable              :: diffTime(:)      ! array of time differences
+ real(rkind)                       :: timeVal(1)       ! single time value (restrict time read)
+ real(rkind),allocatable           :: fileTime(:)      ! array of time from netcdf file
+ real(rkind),allocatable           :: diffTime(:)      ! array of time differences
+ logical(lgt), parameter           :: check=.false.    ! flag to print diagnostic output
+
  ! Start procedure here
  err=0; message="getFirstTimestep/"
 
@@ -435,6 +437,19 @@ contains
   ! find difference of fileTime from currentJulDay
   diffTime=abs(fileTime-currentJulDay)
 
+  ! diagnostic
+  if(check)then
+    write(*,'(A)') '--- getFirstTimestep diagnostic ---'
+    write(*,'(A,A)')     'file:                ',trim(infile)
+    write(*,'(A,F18.8)') 'requested julian day: ',currentJulDay
+    write(*,'(A,F18.8)') 'first file time:      ',fileTime(1)
+    write(*,'(A,F18.8)') 'last file time:       ',fileTime(dimLen)
+    write(*,'(A,F18.8)') 'nearest file time:    ',fileTime(minloc(diffTime,1))
+    write(*,'(A,F18.8)') 'minimum difference:   ',minval(diffTime)
+    write(*,'(A,F18.8)') 'time tolerance:       ',timeDiffTol
+    write(*,'(A)') '-----------------------------------'
+  endif
+
   ! start time is in the current file
   if(any(diffTime < timeDiffTol))then
 
@@ -448,7 +463,10 @@ contains
    if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
 
    ! check that it is not the last file
-   if(iFile==nFiles)then; err=99; message=trim(message)//'first requested simulation timestep not in any forcing file'; return; end if
+   if(iFile==nFiles)then
+     message=trim(message)//'first requested simulation timestep not found; last forcing file checked: '//trim(infile)
+     err=99; return
+   endif
 
   end if  ! first time step is not in any forcing files
 

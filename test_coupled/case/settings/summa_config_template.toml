@@ -1,13 +1,14 @@
-# Example for the Bow River at Banff (CAN_05BB001)
-
+# SUMMA configuration template for multi-case simulations.
+#
 # Common configuration files are maintained under version control, while
 # basin-specific model inputs are stored separately under the data directory.
 # SUMMA resolves several input files relative to settings_path, so settings_path
 # is set to the user's home directory and those files are specified relative to it.
+#
 
 [simulation]
 
-case_name = "CAN_05BB001"
+case_name = "{case_name}"
 
 # Root directory for paths that depend on the local user environment.
 home_path = "/Users/martyn.clark"
@@ -81,17 +82,30 @@ write_Qreach = false
 hfabric_path = "{home}/{basin_dir}/mizuroute_inputs/"
 hfabric_file = "topology.nc"
 
+dname_seg = "seg"
+dname_hru = "hru"
+
+varname_HRUid     = "hruId"
+varname_segId     = "segId"
+varname_hruSegId  = "hruToSegId"
+varname_downSegId = "downSegId"
+
+varname_area   = "area"
+varname_slope  = "slope"
+varname_length = "length"
+
 
 [remapping]
 
 remap_path = "{home}/{basin_dir}/mizuroute_inputs/"
 remap_file = "lumped_to_hru.nc"
 
-dname_hru = "polyid"
+dname_hru      = "polyid"
+dname_data     = "data"
 
 vname_hruid    = "polyid"
-vname_num_qhru = "nOverlaps"
 vname_weight   = "weight"
+vname_num_qhru = "nOverlaps"
 vname_qhruid   = "qhru_id"
 
 
@@ -145,8 +159,3 @@ gap_fraction = 0.25
 [[parameter_dependencies.ordered]]
 parameters = ["theta_res", "critSoilTranspire", "fieldCapacity", "theta_sat"]
 gap_fraction = 0.025
-
-
-
-
-
