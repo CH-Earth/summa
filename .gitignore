@@ -1,24 +1,34 @@
 # object, archive or module files
 *.[oa]
 *.mod
+
 # rtf files
 *.rtf
+
 # summa executable and bin directory
 bin
 summa.exe
 summa_sundials.exe
+
+# Regression test output
+utils/regression/logs/
+
 # temporary files
 *~
 *.swp
+
 # any 'junk' files or directories
 *junk*/
 *junk*
+
 # sublime text workspace and project files
 *.sublime-project
 *.sublime-workspace
+
 # cscope and ctags files
 *cscope*
 .tags*
+
 # OS X .DS_Store files
 .DS_Store
 *-local
@@ -30,23 +40,30 @@ gmon.out
 summa.exe.dSYM*
 summa_sundials.exe.dSYM*
 summaversion.inc
+
 # makefile
 make.out
 Makefile-*
+
 # backup files
 *.backup
+
 # site directory from mkdocs
 site/
+
 # cmake_build containing cmake build objects
 build/cmake_build
 build/cmake_build_openwq
 runinfo.txt
+
 # OpenWQ source code
 build/source/openwq/openwq
 # OpenWQ external dependencies built locally (Armadillo, PhreeqcRM, ...)
 build/source/openwq/_deps
+
 # pre-processing files
 utils/pre-processing/*.nc
+
 # vscode related files
 .vscode
 # NextGen test run output and forcing
@@ -58,3 +75,5 @@ test_ngen/domain_provo/simulations/run_1/SUMMA/*.nc
 test_ngen/domain_provo/simulations/run_1/SUMMA/*.txt
 test_ngen/domain_provo/simulations/*.nc
 test_ngen/domain_provo/simulations/*.csv
+build/cmake_build_mpi
+build/cmake_build_nosun

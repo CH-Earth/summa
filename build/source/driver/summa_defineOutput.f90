@@ -86,8 +86,8 @@ contains
   mparStruct           => summa1_struc%mparStruct        , & ! x%gru(:)%hru(:)%dom(:)%var(:)%dat -- model parameters
   bparStruct           => summa1_struc%bparStruct        , & ! x%gru(:)%var(:)                   -- basin-average parameters
   gridStruct           => summa1_struc%gridStruct        , & ! x%gru(:)%var(:)%var(:)%dat2(:,:)  -- basin grid parameters and variables
-  nGRU                 => summa1_struc%nGRU              , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                & ! number of global hydrologic response units
+  nGRU_local           => summa1_struc%nGRU_local              , & ! number of grouped response units
+  nHRU_local           => summa1_struc%nHRU_local                & ! number of global hydrologic response units
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -119,11 +119,11 @@ contains
  ! *****************************************************************************
 
  ! define the file
- call def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,fileout,err,cmessage)
+ call def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU_local,nHRU_local,fileout,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! write parameters with no time dimension
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
 
   ! write HRU parameters, all written to timestep frequency file
   do iHRU=1,gru_struc(iGRU)%hruCount

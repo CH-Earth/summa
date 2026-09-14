@@ -19,12 +19,16 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 MODULE summa_type
+
 ! used to define master summa data structure
+
 ! *****************************************************************************
 ! * higher-level derived data types
 ! *****************************************************************************
+
 USE nr_type         ! variable types, etc.
-USE data_types,only:&
+
+USE data_types,  only : &
                     ! no spatial dimension
                     var_i,                 & ! x%var(:)            (i4b)
                     var_d,                 & ! x%var(:)            (dp)
@@ -57,13 +61,31 @@ USE data_types,only:&
                     gru_hru_dom_z_vLookup, & ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:)  (dp)
                     ! gru+grid dimension
                     gru_grid_double         ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
+
+! access missing values
+USE globalData,only:integerMissing      ! missing integer
+USE globalData,only:realMissing         ! missing real number
+
 implicit none
+
 private
+
+! ************************************************************************
+! * parallel communication context
+! *****************************************************************************
+
+type, public :: parallel_context_type
+  integer(I4B) :: comm = -1
+  integer(I4B) :: rank = 0
+  integer(I4B) :: size = 1
+end type parallel_context_type
 
 ! ************************************************************************
 ! * master summa data type
 ! *****************************************************************************
 type, public :: summa1_type_dec    
+    ! MPI communication context
+    type(parallel_context_type)      :: parallel                   ! x%comm, x%rank, x%size
     ! define the lookup tables
     type(gru_hru_dom_z_vLookup)      :: lookupStruct               ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:) -- lookup tables
     ! define the statistics structures
@@ -95,10 +117,13 @@ type, public :: summa1_type_dec
     type(gru_hru_i)                  :: computeVegFlux             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
     type(gru_hru_dom_d)              :: dt_init                    ! used to initialize the length of the sub-step for each HRU
     type(gru_hru_d)                  :: upArea                     ! area upslope of each HRU
-    ! define miscellaneous variables
-    integer(i4b)                     :: nGRU                       ! number of grouped response units
-    integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
-    integer(i4b)                     :: nDOM                       ! number of global domains (max in any HRU)
+    ! GRU and HRU dimensions
+    integer(i4b)                     :: nGRU_user = integerMissing ! number of GRUs requested with CLI -g
+    integer(i4b)                     :: nHRU_check = 1             ! number of HRUs requested with CLI -h
+    integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
+    integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
+    integer(i4b)                     :: nDOM                       ! number of domains from the initial conditions file (same on all ranks)
+    ! file manager
     character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
 end type summa1_type_dec
 

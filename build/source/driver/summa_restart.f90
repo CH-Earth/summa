@@ -119,7 +119,7 @@ contains
   gridStruct           => summa1_struc%gridStruct          , & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) -- basin grid parameters and variables
   ! miscellaneous variables
   dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
-  nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
+  nGRU_local           => summa1_struc%nGRU_local                  & ! number of grouped response units
  ) ! assignment to variables in the data structures
  
  ! ---------------------------------------------------------------------------------------
@@ -142,7 +142,7 @@ contains
 
  ! read initial conditions
  call read_icond(restartFile,                   & ! intent(in):    name of initial conditions file
-                 nGRU,                          & ! intent(in):    number of response units
+                 nGRU_local,                          & ! intent(in):    number of response units
                  mparStruct,                    & ! intent(in):    model parameters
                  progStruct,                    & ! intent(inout): model prognostic variables
                  bvarStruct,                    & ! intent(inout): model basin (GRU) variables
@@ -160,7 +160,7 @@ contains
  use_lookup    = .false.
  if(ixNrgConserv/=closedForm) checkEnthalpy = .true. ! check enthalpy either for mixed form energy equation or enthalpy state variable
  if(ixNrgConserv==enthalpyForm) use_lookup  = .true. ! use lookup tables for soil temperature-enthalpy instead of analytical solution
- call check_icond(nGRU,                         & ! intent(in):    number of response units
+ call check_icond(nGRU_local,                         & ! intent(in):    number of response units
                   bvarStruct,                   & ! intent(inout): model basin (GRU) variables
                   progStruct,                   & ! intent(inout): model prognostic variables
                   diagStruct,                   & ! intent(inout): model diagnostic variables
@@ -178,7 +178,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! loop through GRUs
- do iGRU=1,nGRU
+ do iGRU=1,nGRU_local
 
   ! *****************************************************************************
   ! *** compute ancillary variables

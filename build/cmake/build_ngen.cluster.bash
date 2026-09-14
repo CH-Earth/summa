@@ -43,7 +43,13 @@ export SUNDIALS_DIR="$CMAKE_PREFIX_PATH:$HOME/Summa-Actors/utils/dependencies/in
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
 cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 
-cmake -B extern/summa/cmake_build -S extern/summa -DUSE_NEXTGEN=ON -DUSE_SUNDIALS=OFF -DSPECIFY_LAPACK_LINKS=OFF -DCMAKE_BUILD_TYPE=Release
+cmake -B extern/summa/cmake_build -S extern/summa \
+    -DUSE_SUNDIALS=OFF \
+    -DUSE_MPI=OFF \
+    -DUSE_NEXTGEN=ON \
+    -DUSE_OPENWQ=OFF \
+    -DSPECIFY_LAPACK_LINKS=OFF \
+    -DCMAKE_BUILD_TYPE=Release
 cmake --build extern/summa/cmake_build --target all -j
 
 cmake -S . -B cmake_build \

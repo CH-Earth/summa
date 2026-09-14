@@ -92,7 +92,7 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,infile,err,message)
+ subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU_local,nHRU_local,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta  ! metadata structures
@@ -109,8 +109,8 @@ contains
  character(*),intent(in)     :: buildTime                     ! build time
  character(*),intent(in)     :: gitBranch                     ! git branch
  character(*),intent(in)     :: gitHash                       ! git hash
- integer(i4b),intent(in)     :: nGRU                          ! number of GRUs
- integer(i4b),intent(in)     :: nHRU                          ! number of HRUs
+ integer(i4b),intent(in)     :: nGRU_local                          ! number of GRUs assigned to local rank
+ integer(i4b),intent(in)     :: nHRU_local                          ! number of HRUs assigned to local rank
  character(*),intent(in)     :: infile                        ! file suffix
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
@@ -155,7 +155,7 @@ contains
   needGrid = .false.
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
   if(trim(fstring)=='annual') needGrid = .true.
-  call ini_create(nGRU,nHRU,trim(fname),needGrid,ncid(iFreq),err,cmessage)
+  call ini_create(nGRU_local,nHRU_local,trim(fname),needGrid,ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print*,'Created output file: '//trim(fname)
 
@@ -216,7 +216,7 @@ contains
  ! **********************************************************************************************************
  ! private subroutine ini_create: initial create
  ! **********************************************************************************************************
- subroutine ini_create(nGRU,nHRU,infile,needGrid,ncid,err,message)
+ subroutine ini_create(nGRU_local,nHRU_local,infile,needGrid,ncid,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
 ! vector lengths
@@ -236,8 +236,8 @@ contains
 
  implicit none
  ! declare dummy variables
- integer(i4b),intent(in)     :: nGRU            ! number of GRUs
- integer(i4b),intent(in)     :: nHRU            ! number of HRUs
+ integer(i4b),intent(in)     :: nGRU_local            ! number of GRUs
+ integer(i4b),intent(in)     :: nHRU_local            ! number of HRUs
  character(*),intent(in)     :: infile          ! filename
  logical(lgt),intent(in)     :: needGrid        ! if might use grid variables
  integer(i4b),intent(out)    :: ncid            ! netcdf file id
@@ -255,8 +255,8 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
-                             err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
-                             err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU_local,                gru_DimID); message='iCreate[gru]';      call netcdf_err(err,message); if (err/=0) return
+                             err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU_local,                hru_DimID); message='iCreate[hru]';      call netcdf_err(err,message); if (err/=0) return
                              err = nf90_def_dim(ncid, trim(     dom_DimName), maxDOM,              dom_DimID); message='iCreate[dom]';      call netcdf_err(err,message); if (err/=0) return
                              err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited, timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
  if(maxSoilLayers>0)         err = nf90_def_dim(ncid, trim(   depth_DimName), maxSoilLayers,     depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return

@@ -22,6 +22,7 @@ module derivforce_module
 
 ! data types
 USE nr_type
+USE build_options,only:ngen_forcing_active                  ! flag for forcing supplied by the NextGen framework
 USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (rkind)
 USE data_types,only:var_d                                   ! data structure: x%var(:)     (rkind)
 USE data_types,only:var_i                                   ! data structure: x%var(:)     (i4b)
@@ -186,13 +187,13 @@ contains
  err=0; message="derivforce/"
 
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
-#ifdef NGEN_FORCING_ACTIVE
- windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
-#else
- windspd_x = windspd
- windspd_y = 0._rkind
- if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
-#endif
+ if(ngen_forcing_active)then
+   windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
+ else
+   windspd_x = windspd
+   windspd_y = 0._rkind
+   if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
+ endif
  if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
 
 
