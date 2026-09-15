@@ -165,7 +165,6 @@ contains
  type(hru2gru_map) ,allocatable, intent(inout) :: index_map(:)           ! hru2gru map
  integer(i4b)                  , intent(out)   :: err                    ! error code
  character(*)                  , intent(out)   :: message                ! error message
-
  ! local indices and mapping vectors
  integer(i4b)               :: iHRU                   ! HRU counting index in the local run domain
  integer(i4b)               :: iGRU                   ! GRU index in the local run domain
