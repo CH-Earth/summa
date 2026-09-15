@@ -1,0 +1,5 @@
+&parameters
+  file_manager          = "./extern/summa/summa/utils/test/test_ngen/domain_provo/settings/SUMMA/fileManager.txt"
+  attrib_file_HRU_order = 30
+  restart_print_freq    = "e"
+/

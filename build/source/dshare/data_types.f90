@@ -160,6 +160,15 @@ MODULE data_types
  endtype hru2gru_map
 
  ! ***********************************************************************************************************
+ ! Define model coupling structure
+ ! ***********************************************************************************************************
+
+ type, public :: q_coupling
+   integer(i8b)                          :: id                            ! identifier of the runoff element
+   real(rkind)                           :: qsim                          ! simulated runoff for this element (m s-1)
+ end type q_coupling
+
+ ! ***********************************************************************************************************
  ! Define hierarchal derived data types
  ! ***********************************************************************************************************
   ! define derived types to hold look-up tables for each soil layer
@@ -452,8 +461,8 @@ MODULE data_types
  type, public :: gru_hru_dom_i
   type(hru_dom_i),allocatable            :: gru(:)                        ! gru(:)%hru(:)%dom(:)
  endtype gru_hru_dom_i
-
-
+ ! ---------------------------------------------------------------------------------------------------------------------------------------------
+ !
  integer(i4b),parameter :: len_msg=256 ! length of character string used in class definitions
 
  ! ***********************************************************************************************************

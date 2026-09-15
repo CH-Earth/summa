@@ -15,6 +15,7 @@ cmake -B ../cmake_build -S ../. \
     -DUSE_MPI=OFF \
     -DUSE_NEXTGEN=OFF \
     -DUSE_OPENWQ=OFF \
+    -DUSE_MIZUROUTE=OFF \
     -DSPECIFY_LAPACK_LINKS=ON \
     -DCMAKE_BUILD_TYPE=Release
 

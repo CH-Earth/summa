@@ -28,6 +28,7 @@ MODULE summa_type
 
 USE nr_type         ! variable types, etc.
 
+! general summa data types
 USE data_types,  only : &
                     ! no spatial dimension
                     var_i,                 & ! x%var(:)            (i4b)
@@ -60,11 +61,22 @@ USE data_types,  only : &
                     ! gru+hru+dom+z dimension
                     gru_hru_dom_z_vLookup, & ! x%gru(:)%hru(:)%dom(:)%z(:)%var(:)%lookup(:)  (dp)
                     ! gru+grid dimension
-                    gru_grid_double         ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
+                    gru_grid_double,       & ! x%gru(:)%grid(:)%var(:)%dat2(:,:) (dp)
+                    ! mapping between the GRUs and HRUs
+                    gru2hru_map,           & ! x(iGRU)%hruinfo(iHRU)%y
+                    hru2gru_map              ! x(iHRU)%y
+
+! generic runoff coupling structure
+USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
-USE globalData,only:realMissing         ! missing real number
+
+! mizuRoute coupling
+#ifdef MIZUROUTE_ACTIVE
+USE mizuroute_types, only: mizuroute_info
+USE mizuroute_types, only: mizuroute_domain
+#endif
 
 implicit none
 
@@ -123,8 +135,21 @@ type, public :: summa1_type_dec
     integer(i4b)                     :: nGRU_local = 0             ! number of GRUs assigned to this rank
     integer(i4b)                     :: nHRU_local = 0             ! number of HRUs assigned to this rank
     integer(i4b)                     :: nDOM                       ! number of domains from the initial conditions file (same on all ranks)
-    ! file manager
+    ! gru2hru mapping structures
+    type(gru2hru_map), allocatable   :: gru_struc(:)               ! gru2hru map
+    type(hru2gru_map), allocatable   :: index_map(:)               ! hru2gru map
+    ! global time step information
+    real(rkind)                      :: data_step                  ! length of the data window (seconds)
+    integer(i4b)                     :: n_write                    ! length of the output buffer
+    ! generic runoff coupling data
+    type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
+#ifdef MIZUROUTE_ACTIVE
+    type(mizuroute_info)             :: mizu_info                  ! mizuroute information structure
+    type(mizuroute_domain)           :: mizu_domain                ! mizuroute domain data
+#endif
+    ! file managers
     character(len=256)               :: summaFileManagerFile       ! path/name of file defining directories and files
+    character(len=256)               :: summaConfigFile = ''       ! path/name of the TOML configuration file
 end type summa1_type_dec
 
 END MODULE summa_type

@@ -35,6 +35,11 @@ covers the user-facing highlights.
   glaciers or wetlands are unchanged.
 - The number of soil layers no longer has to be the same in every HRU.
 
+### Parallelization
+- New horizontal (spatial) HRU/GRU domain decomposition: a build configured with
+  `-DUSE_MPI=ON` distributes GRUs across MPI ranks, each writing its own range of GRUs/HRUs
+  to output, alongside the existing serial executable (PR #631).
+
 ### Process options
 - New `infRateMax` decision for the maximum infiltration rate (`topmodel_GA`, `GreenAmpt`,
   `noInfExc`), and new `surfRun_SE` decision for saturation-excess surface runoff
@@ -61,8 +66,10 @@ covers the user-facing highlights.
   anything were removed from the output list.
 
 ### Other
+- Optional coupling to mizuRoute for river network routing of basin runoff
+  (`-DUSE_MIZUROUTE=ON`) (PR #632).
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
-- Runs as a NextGen submodule; NextGen test cases are in `test_ngen/`.
+- Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the
   individual flux modules, simplified Jacobian assembly.
 

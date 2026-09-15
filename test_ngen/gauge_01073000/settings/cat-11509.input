@@ -1,5 +1,0 @@
-&parameters
-  file_manager          = "./extern/summa/summa/test_ngen/gauge_01073000/settings/SUMMA/fileManager.txt"
-  attrib_file_HRU_order = 3
-  restart_print_freq    = "e"
-/

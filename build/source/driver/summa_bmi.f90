@@ -1373,9 +1373,6 @@ module summabmi
    end subroutine assign_basin_field
 
    ! non-BMI helper function to get fields, for every HRU in the run.
-   ! NOTE: this used to take a do_nHRU argument and fill only the first do_nHRU entries,
-   !       leaving the rest at -999.  Every caller but the itemsize probe wants them all,
-   !       and all were passing 1, so callers were handed one value followed by -999s.
    subroutine get_basin_field(this, name, target_arr, itarget_arr)
      implicit none
      class (summa_bmi), intent(in) :: this
