@@ -51,9 +51,8 @@ Makefile-*
 # site directory from mkdocs
 site/
 
-# cmake_build containing cmake build objects
-build/cmake_build
-build/cmake_build_openwq
+# cmake build directories (cmake_build, cmake_build_mpi, cmake_build_dbg, ...)
+build/cmake_build*
 runinfo.txt
 
 # OpenWQ source code
@@ -75,6 +74,3 @@ test_ngen/domain_provo/simulations/run_1/SUMMA/*.nc
 test_ngen/domain_provo/simulations/run_1/SUMMA/*.txt
 test_ngen/domain_provo/simulations/*.nc
 test_ngen/domain_provo/simulations/*.csv
-build/cmake_build_mpi
-build/cmake_build_nosun
-build/cmake_build_mizu
