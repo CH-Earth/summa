@@ -44,15 +44,6 @@ endif()
 set(PARENT_DIR "${F_MASTER}")
 set(EXEC_DIR "${F_MASTER}/bin")
 
-# TOML parser
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-
-add_subdirectory(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../external/toml-f
-    ${CMAKE_BINARY_DIR}/toml-f
-)
-
 # Handle optional external libraries
 
 # SUNDIALS
@@ -106,6 +97,16 @@ endif()
 
 # mizuRoute
 if (USE_MIZUROUTE)
+
+    # TOML parser, used only by the mizuRoute configuration reader
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+    add_subdirectory(
+        ${CMAKE_CURRENT_SOURCE_DIR}/../external/toml-f
+        ${CMAKE_BINARY_DIR}/toml-f
+    )
+
     message("ENABLING MIZUROUTE")
 
     set(MIZU_DIR
@@ -239,6 +240,9 @@ endif()
 
 if (USE_MIZUROUTE)
 
+    # the TOML configuration reader is only built with mizuRoute, its only consumer
+    set(SUMMA_ALL ${SUMMA_ALL} ${DRIVER_MIZUROUTE})
+
     # mizuRoute type and interface definitions
     add_library(MIZUROUTE_TYPES STATIC ${MIZU_TYPE})
     target_compile_options(MIZUROUTE_TYPES PRIVATE ${FLAGS_ALL})
@@ -357,12 +361,12 @@ else()
   # SUMMA shared library
   add_library(summa SHARED ${SUMMA_ALL})
   target_compile_options(summa PRIVATE ${FLAGS_ALL})
-  target_link_libraries(summa PRIVATE toml-f-lib PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+  target_link_libraries(summa PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
 
   # Optional mizuRoute coupling
   if (USE_MIZUROUTE)
     target_compile_definitions(summa PRIVATE MIZUROUTE_ACTIVE)
-    target_link_libraries(summa PRIVATE MIZUROUTE_COUPLING)
+    target_link_libraries(summa PRIVATE MIZUROUTE_COUPLING toml-f-lib)
   endif()
 
   # Serial SUMMA executable

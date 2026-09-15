@@ -102,7 +102,9 @@ subroutine summa_initialize(summa1_struc, err, message)
   USE summa_util, only:getCommandArguments                     ! process command line arguments
   USE summaFileManager,only:summa_SetTimesDirsAndFiles         ! sets directories and filenames
   USE summa_globalData,only:summa_defineGlobalData             ! used to define global summa data structures
+#ifdef MIZUROUTE_ACTIVE
   USE summa_config,only:load_summa_config                      ! load TOML configuration settings (for parsing later)
+#endif
   USE time_utils_module,only:elapsedSec                        ! calculate the elapsed time
   ! subroutines and functions: read dimensions (NOTE: NetCDF)
   ! subroutines and functions: parallelization
@@ -228,8 +230,18 @@ subroutine summa_initialize(summa1_struc, err, message)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! load configuration settings from TOML file
+    ! NOTE: the TOML reader is only built with mizuRoute, which is its only consumer.
+    !       Reject -c rather than ignoring it, so the option does not silently do nothing.
+#ifdef MIZUROUTE_ACTIVE
     call load_summa_config(trim(summaConfigFile), summa1_struc, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+#else
+    if(len_trim(summaConfigFile) > 0)then
+      message=trim(message)//'a TOML configuration file was given with -c, but this build has no '// &
+                             'configuration reader; rebuild with -DUSE_MIZUROUTE=ON'
+      err=20; return
+    endif
+#endif
 
     ! set directories and files -- summaFileManager used as command-line argument
     call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)

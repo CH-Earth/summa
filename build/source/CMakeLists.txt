@@ -155,7 +155,6 @@ set(SOLVER_SUNDIALS
 
 # Driver support modules
 set(DRIVER
-    ${DRIVER_DIR}/summa_config.f90
     ${DRIVER_DIR}/summa_setup.f90
     ${DRIVER_DIR}/summa_restart.f90
     ${DRIVER_DIR}/summa_alarms.f90
@@ -171,3 +170,7 @@ set(DRIVER
 set(DRIVER_BMI
     ${DRIVER_DIR}/summa_bmi.f90
     CACHE INTERNAL "DRIVER_BMI")
+# TOML configuration reader: only built with mizuRoute, which is its only consumer
+set(DRIVER_MIZUROUTE
+    ${DRIVER_DIR}/summa_config.f90
+    CACHE INTERNAL "DRIVER_MIZUROUTE")
