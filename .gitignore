@@ -5,6 +5,9 @@
 # rtf files
 *.rtf
 
+# python bytecode cache
+__pycache__/
+
 # summa executable and bin directory
 bin
 summa.exe

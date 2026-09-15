@@ -47,5 +47,6 @@
       "end_time": "2017-12-31 23:00:00",
       "output_interval": 3600
   },
-  "output_root": "./extern/summa/summa/utils/test/test_ngen/domain_provo/simulations/"
+  "output_root": "./extern/summa/summa/utils/test/test_ngen/domain_provo/simulations/",
+  "nexus_output_by_catchment": true
 }

@@ -54,8 +54,32 @@ To compare them:
    `./extern/summa/summa/utils/test/test_ngen/provo_run.sh`
 3. `python3 compare_to_troute.py <mizuroute .../output/*_timestep.nc> <ngen domain_provo/simulations dir with troute_output_*.nc> <mizuroute .../settings/topology.nc>`
 
-**This is not expected to match closely, and that's expected, not a bug.**
-mizuRoute is run here with the kinematic wave method (`methods = "3"` in
+**A close match is not expected, and that's expected, not a bug** -- but it
+should be a *reasonably* close one (median NSE ~0.98 on this domain), not
+wildly off. If you see something like a systematic ~3600x scale difference,
+or several reaches pinned at exactly zero t-route flow for the whole run,
+that's not this -- see the ngen-side history below.
+
+Two ngen-side bugs used to make this comparison meaningless, both since
+fixed:
+
+- Every catchment's flow into its nexus was silently divided by 3600 an
+  extra time in `Catchment_Formulation::update_models()`
+  (`include/core/Layer.hpp`) before ever reaching t-route.
+- At a confluence (a nexus fed by more than one catchment, i.e. any
+  tributary junction), ngen combines every contributing catchment's flow
+  into that nexus's single running total before it's ever written to disk
+  -- so t-route has no way to tell which flowpath a combined value's
+  components belong to. The provo realization configs in this domain
+  (`provo_realization_config_w_summa_bmi*.json`) opt in to
+  `"nexus_output_by_catchment": true`, which writes each catchment's own
+  flow, keyed by its own id, into `nex-*_output.csv` instead of the
+  nexus's combined total -- avoiding the combination rather than trying to
+  undo it. That flag defaults to off (existing behavior, existing
+  consumers, unchanged) everywhere else in ngen.
+
+With both fixed, what's left is genuine routing-scheme difference: mizuRoute
+is run here with the kinematic wave method (`methods = "3"` in
 `test_mizuroute_provo_real_network.sh`), the same method the bundled test
 already validates. t-route defaults to a Muskingum-Cunge-like scheme
 (`compute_kernel: V02-structured` in `provo_routing.yaml`) that uses real
