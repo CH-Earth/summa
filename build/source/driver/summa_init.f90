@@ -21,10 +21,9 @@
 module summa_init
 ! used to declare and allocate summa data structures and initialize model state to known values
 
-! check if mizuroute is active
+! check what is active
 use build_options, only: mizuroute_active
 use build_options, only: ngen_forcing_active
-
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: init_mizuroute_from_summa
 #endif
@@ -232,16 +231,16 @@ subroutine summa_initialize(summa1_struc, err, message)
     ! load configuration settings from TOML file
     ! NOTE: the TOML reader is only built with mizuRoute, which is its only consumer.
     !       Reject -c rather than ignoring it, so the option does not silently do nothing.
-#ifdef MIZUROUTE_ACTIVE
-    call load_summa_config(trim(summaConfigFile), summa1_struc, err, cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-#else
-    if(len_trim(summaConfigFile) > 0)then
-      message=trim(message)//'a TOML configuration file was given with -c, but this build has no '// &
-                             'configuration reader; rebuild with -DUSE_MIZUROUTE=ON'
-      err=20; return
+    if(mizuroute_active)then
+      call load_summa_config(trim(summaConfigFile), summa1_struc, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else
+      if(len_trim(summaConfigFile) > 0)then
+        message=trim(message)//'a TOML configuration file was given with -c, but this build has no '// &
+                               'configuration reader; rebuild with -DUSE_MIZUROUTE=ON'
+        err=20; return
+      endif
     endif
-#endif
 
     ! set directories and files -- summaFileManager used as command-line argument
     call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)
