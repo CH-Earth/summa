@@ -398,8 +398,7 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
 
   err=0; message='alloc_driver_work/'
 
-  allocate(dt_init%gru(nGRU_local), upArea%gru(nGRU_local), &
-           computeVegFlux%gru(nGRU_local), stat=err)
+  allocate(dt_init%gru(nGRU_local), upArea%gru(nGRU_local), computeVegFlux%gru(nGRU_local), stat=err)
   if(err/=0)then; message=trim(message)//'problem allocating GRU structures'; return; endif
 
   do iGRU=1,nGRU_local

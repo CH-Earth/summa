@@ -30,6 +30,7 @@ cmake -B ../cmake_build -S ../. \
     -DUSE_MPI=OFF \
     -DUSE_NEXTGEN=OFF \
     -DUSE_OPENWQ=OFF \
+    -DUSE_MIZUROUTE=OFF \
     -DSPECIFY_LAPACK_LINKS=OFF \
     -DCMAKE_BUILD_TYPE=Release
 cmake --build ../cmake_build --target all -j

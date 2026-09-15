@@ -61,11 +61,6 @@ USE mDecisions_module,only:&
   enthalpyForm,  &                      ! use enthalpy with soil temperature-enthalpy lookup tables
   enthalpyFormAN                        ! use enthalpy with soil temperature-enthalpy analytical solution
 
-! named variables to define the decisions for snow layers
-USE mDecisions_module,only:&
-  sameRulesAllLayers,&                  ! SNTHERM option: same combination/sub-dividion rules applied to all layers
-  rulesDependLayerIndex                 ! CLM option: combination/sub-dividion rules depend on layer index
-
 ! named variables to define LAI decisions
 USE mDecisions_module,only:&
  monthlyTable,&                         ! LAI/SAI taken directly from a monthly table for different vegetation classes
@@ -86,13 +81,11 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! subroutines and functions
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
- USE mDecisions_module,only:mDecisions                       ! module to read model decisions
- USE ffile_info_module,only:ffile_info                       ! module to read information on forcing datafile
  USE read_attrb_module,only:read_attrb                       ! module to read local attributes
  USE read_pinit_module,only:read_pinit                       ! module to read initial model parameter values
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
- USE read_param_module,only:read_param                       ! module to read model parameter sets
+ USE summa_read_param_module,only:read_param                 ! module to read model parameter sets
  USE convertEnthalpyTemp_module,only:T2H_lookup_snWat        ! module to calculate a look-up table for the snow temperature-enthalpy conversion
  USE convertEnthalpyTemp_module,only:T2L_lookup_soil         ! module to calculate a look-up table for the soil temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
@@ -173,44 +166,8 @@ subroutine summa_paramSetup(summa1_struc, err, message)
  ! initialize the start of the initialization
  call date_and_time(values=startSetup)
 
- if(ngen_forcing_active)then
- ! *****************************************************************************
- ! if using NGEN forcing only need to set the hourly data_step (fixed)
- ! *****************************************************************************
-   data_step = 3600._rkind
- else
- ! *****************************************************************************
- ! *** read description of model forcing datafile used in each HRU
- ! *****************************************************************************
-   call ffile_info(nGRU_local,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- endif
-
- ! *****************************************************************************
- ! *** read model decisions
- ! *****************************************************************************
- ! NOTE: Must be after ffile_info because mDecisions uses the data_step
- call mDecisions(err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- 
- ! NOTE: maxGlaciers, maxWetlands, maxGrid, maxGridX and maxGridY are set file-wide in
- !       read_mapping_vectors/read_dimensionGrid, and maxSoilLayers, maxLakeLayers,
- !       maxGlceLayers and maxTotoLayers file-wide in read_icond_nlayers, so that every
- !       rank agrees on them regardless of which GRUs it was assigned
-
- ! get the maximum number of snow layers
- select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
-  case(sameRulesAllLayers);    maxSnowLayers = 100
-  case(rulesDependLayerIndex)
-    maxSnowLayers = 5
-    if (maxGlaciers>0) maxSnowLayers = int(maxSnowLayers*2.5_rkind) ! increase the number of snow layers for glaciers for firn development in accumulation zone
-  case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
- end select ! (option to combine/sub-divide snow layers)
-
- ! get the maximum total number of layers
- !  (max snow layers are fixed as above, snow layers may change; the soil/lake/glacier
- !   ice maxima are file-wide values set in read_icond_nlayers)
- maxLayers = maxSnowLayers + maxTotoLayers
+ ! NOTE: ffile_info, mDecisions and the layer maxima now run in summa_initialize, because
+ !       mizuRoute initialization needs data_step and the model decisions before this point
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU

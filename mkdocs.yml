@@ -17,6 +17,12 @@ nav:
 - Configuration:
   - SUMMA Configuration: 'configuration/SUMMA_configuration.md'
   - SUMMA Model Decisions: 'configuration/SUMMA_model_decisions.md'
+- mizuRoute:
+  - Overview: mizuroute/index.md
+  - Coupling design: mizuroute/design.md
+  - Coupling architecture: mizuroute/coupling.md
+  - Building mizuRoute: mizuroute/build.md
+  - Running with mizuRoute: mizuroute/running.md
 - Input/Output:
   - SUMMA Input: 'input_output/SUMMA_input.md'
   - SUMMA Output: 'input_output/SUMMA_output.md'

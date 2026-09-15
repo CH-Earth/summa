@@ -92,13 +92,14 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash,nGRU_local,nHRU_local,infile,err,message)
+ subroutine def_output(using_buffer,summaVersion,buildTime,gitBranch,gitHash, &
+                       nGRU_local,nHRU_local,fprefix,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:time_meta,forc_meta,attr_meta,type_meta  ! metadata structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,mpar_meta  ! metadata structures
  USE globalData,only:indx_meta,bpar_meta,bvar_meta,grid_meta  ! metadata structures
  USE globalData,only:model_decisions                          ! model decisions
- USE globalData,only:ncid                                     ! netcdf file id
+ USE globalData,only:ncid                                     ! vector of IDs for different netcdf files (different time aggregations)
  USE globalData,only:outFreq                                  ! output frequencies
  USE globalData,only:maxGrid                                  ! maximum number of grids in a GRU
  USE var_lookup,only:maxvarFreq                               ! # of available output frequencies
@@ -109,9 +110,9 @@ contains
  character(*),intent(in)     :: buildTime                     ! build time
  character(*),intent(in)     :: gitBranch                     ! git branch
  character(*),intent(in)     :: gitHash                       ! git hash
- integer(i4b),intent(in)     :: nGRU_local                          ! number of GRUs assigned to local rank
- integer(i4b),intent(in)     :: nHRU_local                          ! number of HRUs assigned to local rank
- character(*),intent(in)     :: infile                        ! file suffix
+ integer(i4b),intent(in)     :: nGRU_local                    ! number of GRUs assigned to local rank
+ integer(i4b),intent(in)     :: nHRU_local                    ! number of HRUs assigned to local rank
+ character(*),intent(in)     :: fprefix                       ! file prefix
  integer(i4b),intent(out)    :: err                           ! error code
  character(*),intent(out)    :: message                       ! error message
  ! local variables
@@ -153,7 +154,7 @@ contains
 
   ! create file
   needGrid = .false.
-  fname   = trim(infile)//'_'//trim(fstring)//'.nc'
+  fname   = trim(fprefix)//'_'//trim(fstring)//'.nc'
   if(trim(fstring)=='annual') needGrid = .true.
   call ini_create(nGRU_local,nHRU_local,trim(fname),needGrid,ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if

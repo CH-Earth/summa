@@ -28,19 +28,33 @@ SUMMA depends on NetCDF and LAPACK. Optional features pull in further dependenci
 
 ### Getting the source
 
-MPI support lives in the [`parallel-utils`](https://github.com/CH-Earth/parallel-utils) submodule, so clone recursively:
+Optional features live in git submodules under `external/`, so clone recursively:
 
 ```bash
 git clone --recurse-submodules <repository-url>
 ```
 
-If the repository is already cloned, fetch the submodule with:
+If the repository is already cloned, fetch them with:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-The submodule is required by any build configured with `USE_MPI=ON`, and CMake fails without it. Builds with `USE_MPI=OFF` do not need it.
+Each submodule is only needed by the option that uses it, and CMake fails at configure
+time if you enable that option without it. A build with all options off needs no
+submodules at all.
+
+| Submodule | Needed by |
+| --- | --- |
+| [`parallel-utils`](https://github.com/CH-Earth/parallel-utils) | `USE_MPI=ON` |
+| [`mizuRoute`](https://github.com/ESCOMP/mizuRoute) | `USE_MIZUROUTE=ON` |
+| [`toml-f`](https://github.com/toml-f/toml-f) | `USE_MIZUROUTE=ON` (reads the TOML configuration file) |
+
+To fetch just one:
+
+```bash
+git submodule update --init external/parallel-utils
+```
 
 ### Configuring and building
 
@@ -76,6 +90,7 @@ Each is `OFF` by default and enabled with `-DOPTION=ON`.
 | `USE_MPI` | Additionally build an MPI executable that distributes GRUs across ranks. Requires an MPI Fortran compiler and the `parallel-utils` submodule. Has no effect together with `USE_NEXTGEN`, which builds a library rather than an executable. |
 | `USE_NEXTGEN` | Build the BMI library for the NextGen framework instead of the standalone executables. |
 | `USE_OPENWQ` | Build with the OpenWQ water-quality coupler. |
+| `USE_MIZUROUTE` | Build with mizuRoute river network routing. Requires the `mizuRoute` and `toml-f` submodules, and a TOML configuration file at run time. |
 | `SPECIFY_LAPACK_LINKS` | Take LAPACK link flags from the `LIBRARY_LINKS` environment variable instead of detecting them automatically. |
 
 The executable name records the options selected:
@@ -111,6 +126,26 @@ mpirun -np 4 ./bin/summa_sundials_mpi.exe -m /path/to/fileManager.txt
 Each rank reads only its own GRUs and writes its own output file, tagged with the GRU range it covers, for example `run_1_G01-14_timestep.nc`. Reconstruct the full domain by concatenating the rank files along the `gru` and `hru` dimensions; all other dimensions are file-wide and identical across ranks, so no padding is needed.
 
 Results are independent of the number of ranks. Serial output and reassembled MPI output agree bit-for-bit.
+
+### Running with mizuRoute
+
+A build configured with `USE_MIZUROUTE=ON` routes basin runoff through a river network and
+writes reach-level streamflow into the usual SUMMA output files. It needs a TOML
+configuration file in addition to the file manager, passed with `-c`:
+
+```bash
+./bin/summa_sundials.exe -m /path/to/fileManager.txt -c /path/to/config.toml
+```
+
+The TOML file carries the mizuRoute settings; the file manager continues to describe the
+SUMMA side of the run. See `docs/mizuroute/` for the configuration format, the coupling
+design, and the routing options.
+
+The `-c` option only exists in builds configured with `USE_MIZUROUTE=ON`. Passing it to a
+build without mizuRoute is an error rather than a silent no-op, so a run cannot quietly
+ignore the configuration you gave it.
+
+mizuRoute routing is currently serial: it is not combined with `USE_MPI`.
 
 
 ## Credits
