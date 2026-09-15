@@ -70,6 +70,10 @@ utils/test/test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.nc
 utils/test/test_ngen/gauge_01073000/simulations/run_1/SUMMA/*.txt
 utils/test/test_ngen/domain_provo/forcing/*.nc
 utils/test/test_ngen/domain_provo/forcing/SUMMA_input/*.nc
+# ...except the small (Oct-Dec 2017 only) forcing files checked in for the
+# mizuRoute/t-route comparison tests -- see utils/test/test_mizuroute/README.md
+!utils/test/test_ngen/domain_provo/forcing/forcings.nc
+!utils/test/test_ngen/domain_provo/forcing/SUMMA_input/ngen_forcings_summa_format.nc
 utils/test/test_ngen/domain_provo/simulations/run_1/SUMMA/*.nc
 utils/test/test_ngen/domain_provo/simulations/run_1/SUMMA/*.txt
 utils/test/test_ngen/domain_provo/simulations/*.nc

@@ -44,7 +44,7 @@
   },
   "time": {
       "start_time": "2017-10-01 1:00:00",
-      "end_time": "2022-09-30 23:00:00",
+      "end_time": "2017-12-31 23:00:00",
       "output_interval": 3600
   },
   "output_root": "./extern/summa/summa/utils/test/test_ngen/domain_provo/simulations/",
