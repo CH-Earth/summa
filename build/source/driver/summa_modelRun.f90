@@ -42,10 +42,9 @@ USE globalData,only:yearLength       ! number of days in the current year
 ! access domain types
 USE globalData,only:upland           ! horizontal domain type for upland areas
 ! check if mizuroute is active
-use build_options, only: mizuroute_active
-
+USE build_options, only: mizuroute_active
 #ifdef MIZUROUTE_ACTIVE
-use mizuroute_coupling, only: route_mizuroute_from_summa
+USE mizuroute_coupling, only: route_mizuroute_from_summa
 #endif
 
 ! safety: set private unless specified otherwise

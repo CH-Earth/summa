@@ -74,8 +74,8 @@ USE globalData,only:integerMissing      ! missing integer
 
 ! mizuRoute coupling
 #ifdef MIZUROUTE_ACTIVE
-use mizuroute_types, only: mizuroute_info
-use mizuroute_types, only: mizuroute_domain
+USE mizuroute_types, only: mizuroute_info
+USE mizuroute_types, only: mizuroute_domain
 #endif
 
 implicit none

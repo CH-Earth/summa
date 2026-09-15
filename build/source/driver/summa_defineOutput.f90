@@ -34,13 +34,12 @@ USE globalData,only:grid_meta                 ! grid metadata structure
 ! named variables
 USE var_lookup,only:iLookTIME                 ! named variables for time data structure
 USE var_lookup,only:iLookFREQ                 ! named variables for the frequency structure
-
 USE globalData,only:ncid                      ! vector of IDs for different netcdf files (different time aggregations)
 
 USE build_options, only: mizuroute_active
 
 #ifdef MIZUROUTE_ACTIVE
-use mizuroute_coupling, only: define_mizuroute_output_from_summa
+USE mizuroute_coupling, only: define_mizuroute_output_from_summa
 #endif
 
 ! safety: set private unless specified otherwise

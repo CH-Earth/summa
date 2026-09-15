@@ -22,7 +22,6 @@ module summa_writeOutput ! used to define/write output files
 
 ! check if mizuroute is active
 use build_options, only: mizuroute_active
-
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: write_mizuroute_output_from_summa
 #endif
