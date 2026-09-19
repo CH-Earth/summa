@@ -1,0 +1,11 @@
+! -------------
+!  attributes
+! -------------
+hruId
+
+! -----------
+! timestep vars
+! -----------
+pptrate                   | 1
+averageRoutedRunoff       | 1
+scalarTotalET             | 1

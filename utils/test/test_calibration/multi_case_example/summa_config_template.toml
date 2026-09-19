@@ -11,7 +11,8 @@
 case_name = "{case_name}"
 
 # Root directory for paths that depend on the local user environment.
-home_path = "/Users/martyn.clark"
+#  -- this can be overwritten using the command-line argument --home
+home_path = "path/to/file/"
 
 # Directory containing basin-specific model inputs. This directory is relative
 # to settings_path rather than an absolute filesystem path.
@@ -50,17 +51,17 @@ forcing_list   = "{basin_dir}/summa_inputs/forcingFileList.txt"
 
 # Common SUMMA configuration files maintained under version control.
 # These are also resolved relative to settings_path.
-decisions        = "models/summa/test_coupled/case/settings/modelDecisions.txt"
-output_control   = "models/summa/test_coupled/case/settings/outputControl_short.txt"
+decisions        = "models/summa/utils/test/test_calibration/settings/modelDecisions.txt"
+output_control   = "models/summa/utils/test/test_calibration/settings/outputControl_short.txt"
 
-trial_params     = "models/summa/test_coupled/case/settings/trialParams.nc"
-local_parameters = "models/summa/test_coupled/case/settings/localParamInfo.txt"
-basin_parameters = "models/summa/test_coupled/case/settings/basinParamInfo.txt"
+trial_params     = "models/summa/utils/test/test_calibration/settings/trialParams.nc"
+local_parameters = "models/summa/utils/test/test_calibration/settings/localParamInfo.txt"
+basin_parameters = "models/summa/utils/test/test_calibration/settings/basinParamInfo.txt"
 
-vegetation_table = "models/summa/test_coupled/case/settings/TBL_VEGPARM.TBL"
-soil_table       = "models/summa/test_coupled/case/settings/TBL_SOILPARM.TBL"
-general_table    = "models/summa/test_coupled/case/settings/TBL_GENPARM.TBL"
-noahmp_table     = "models/summa/test_coupled/case/settings/TBL_MPTABLE.TBL"
+vegetation_table = "models/summa/utils/test/test_calibration/settings/TBL_VEGPARM.TBL"
+soil_table       = "models/summa/utils/test/test_calibration/settings/TBL_SOILPARM.TBL"
+general_table    = "models/summa/utils/test/test_calibration/settings/TBL_GENPARM.TBL"
+noahmp_table     = "models/summa/utils/test/test_calibration/settings/TBL_MPTABLE.TBL"
 
 
 [mizuRoute]
