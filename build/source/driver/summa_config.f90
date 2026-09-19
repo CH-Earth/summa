@@ -370,8 +370,10 @@ contains
           if(ierr/=0) then; message=trim(message)//trim(cmessage); return; endif
         endif   
 
-      ! ---- objective function: flag to write aligned sim/obs time series  ----
+      ! ---- objective function: number of parameter samples ----
       case ("calibration.n_samples"        ); call get_value(subtable, trim(key), calib%n_samples         , stat=istat)
+
+      ! ---- objective function: flag to write aligned sim/obs time series  ----
       case ("calibration.write_aligned"    ); call get_value(subtable, trim(key), calib%write_aligned     , stat=istat)
       
       ! ---- default case (something in the table that is not specified above) -----

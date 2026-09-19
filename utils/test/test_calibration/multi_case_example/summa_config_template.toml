@@ -123,6 +123,8 @@ vname_obsflow = "q_obs"
 metric         = "kge"
 obs_transform  = "none"
 
+n_samples      = 1000
+
 start_date     = "1983-10-01"
 end_date       = "1990-09-30"
 
