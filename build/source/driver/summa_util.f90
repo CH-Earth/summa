@@ -156,6 +156,13 @@ contains
       write(iulog,*) "manifest_file is '"//trim(opts%manifest_file)//"'."
       i = i + 2
 
+    case ('--home')
+      call require_next(i, n_arg, a, v, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      opts%home_path = trim(v)
+      write(iulog,*) "home_path is '"//trim(opts%home_path)//"'."
+      i = i + 2
+
      case ('-s','--suffix')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -455,10 +462,13 @@ contains
      return
    endif
 
-   ! *** file names and output controls
-   if(allocated(opts%manifest_file)) config%manifest_file = opts%manifest_file
-   if(allocated(opts%control_file)) config%control_file = opts%control_file
-   if(allocated(opts%config_file)) config%config_file = opts%config_file
+   ! *** file paths/names
+   if(allocated(opts%home_path))     config%home_path_override = opts%home_path
+   if(allocated(opts%manifest_file)) config%manifest_file      = opts%manifest_file
+   if(allocated(opts%control_file))  config%control_file       = opts%control_file
+   if(allocated(opts%config_file))   config%config_file        = opts%config_file
+   
+   ! *** output controls
    if(allocated(opts%suffix)) output_fileSuffix = opts%suffix
    newOutputFile = opts%new_file
    ixProgress    = opts%progress
@@ -542,16 +552,17 @@ contains
  
  ! command line usage
  print "(//A)",'Usage: '//trim(exe)//' [-m control_file] [-c config_file] [--manifest manifest_file] '// &
-              '[-n newFileFreq] [-s fileSuffix] [-g startGRU countGRU] '// &
+              '[--home home_path] [-n newFileFreq] [-s fileSuffix] [-g startGRU countGRU] '// &
               '[-h iHRU] [-r freqRestart] [-p freqProgress] [--param name value]'
  print "(A,/)", 'Running executable: '//trim(exe)
  print "(A)",  'Running options:'
  print "(A)",  ' -m --control       Define path/name of legacy SUMMA control file'
  print "(A)",  ' -c --config        Define path/name of TOML configuration file'
  print "(A)",  ' --manifest         Define path/name of multi-case run manifest'
+ print "(A)",  ' --home             Override the home path defined in the TOML configuration'
  print "(A)",  '                     - At least one of --control, --config, or --manifest is required'
  print "(A)",  '                     - TOML values take precedence over corresponding control-file values'
- print "(A)", '                      - Coupled mizuRoute requires a TOML configuration file'
+ print "(A)",  '                     - Coupled mizuRoute requires a TOML configuration file'
  print "(A)",  ' -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files'
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'

@@ -24,29 +24,37 @@ contains
   ! Loads the TOML manifest, extracts the [multi_case] table, and parses the run-level configuration
   ! used to define and distribute independent SUMMA cases.
   ! **************************************************************************************************
-  subroutine read_manifest(manifest_file,config,err,message)
+  subroutine read_manifest(config,err,message)
     USE tomlf_all, only: toml_table,toml_error
     USE tomlf_all, only: toml_load,get_value
     implicit none
   
-    character(*),      intent(in)    :: manifest_file
     type(config_info), intent(inout) :: config
     integer(i4b),      intent(out)   :: err
     character(*),      intent(out)   :: message
     type(toml_table), allocatable :: table
     type(toml_table), pointer     :: subtable
     type(toml_error), allocatable :: toml_err
-    integer(i4b)       :: istat
-    character(len=256) :: cmessage
+    character(len=:), allocatable :: manifest_temp
+    integer(i4b)         :: istat
+    character(len=256)   :: cmessage
   
     err=0
     message='read_manifest/'
-  
+
+    ! construct the full path to the manifest
+    if(config%manifest_file(1:1) == '/')then
+     manifest_temp = trim(config%manifest_file)
+    else
+     manifest_temp = trim(config%cwd)//'/'//trim(config%manifest_file)
+    endif
+    config%manifest_file = trim(manifest_temp)
+
     ! load the TOML manifest
-    call toml_load(table,trim(manifest_file),error=toml_err)
+    call toml_load(table,trim(config%manifest_file),error=toml_err)
     if(allocated(toml_err))then
       message=trim(message)//"problem loading manifest ['"// &
-              trim(manifest_file)//"']: "//trim(toml_err%message)
+              trim(config%manifest_file)//"']: "//trim(toml_err%message)
       err=20
       return
     endif
@@ -85,10 +93,13 @@ contains
   
     err = 0
     message = 'read_summa_config/'
-  
+
     ! load configuration values from the TOML file
     call load_summa_config(config_file, config, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! apply command-line overrides
+    if(allocated(config%home_path_override)) config%home_path = config%home_path_override
 
     ! expand case-specific placeholders
     call expand_summa_config(config,err,cmessage)
@@ -395,7 +406,7 @@ contains
     character(*),              intent(out)   :: message
     type(toml_key), allocatable :: keys(:)
     type(toml_array), pointer   :: case_names
-    integer(i4b)       :: i,istat
+    integer(i4b)       :: i,idx,istat
     character(len=256) :: key,cmessage
   
     err=0
@@ -412,7 +423,6 @@ contains
         case ("multi_case.cases_per_node"   ); call get_value(subtable,trim(keys(i)%key),config%cases_per_node    , stat=istat)
         
         ! ----- path/name of toml template -----
-        case ("multi_case.template_path"    ); call get_value(subtable,trim(keys(i)%key),config%template_path     , stat=istat)
         case ("multi_case.template_file"    ); call get_value(subtable,trim(keys(i)%key),config%template_file     , stat=istat)
 
         ! ---- case names ----
@@ -435,12 +445,13 @@ contains
       endif
   
     enddo
- 
+
+    ! ----- set the template path (template file assumed to be in the same directory as the manifest) -----
+
+    idx = scan(trim(config%manifest_file), '/', back=.true.)
+    config%template_path = config%manifest_file(:idx)
+
     ! ----- validate required manifest settings -----
-    if(.not.allocated(config%template_path))then
-      message=trim(message)//'template_path is not defined in the multi-case manifest'
-      err=20; return
-    endif
 
     if(.not.allocated(config%template_file))then
       message=trim(message)//'template_file is not defined in the multi-case manifest'

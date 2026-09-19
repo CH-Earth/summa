@@ -87,6 +87,7 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Initialize MPI
   ! ---------------------------------------------------------------------------------------
+
   call MPI_Init(mpi_err)
   call check_mpi(-1,mpi_err,'MPI_Init failed')
 
@@ -103,6 +104,11 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Read run configuration
   ! ---------------------------------------------------------------------------------------
+  
+  ! get the current working directory
+  call get_environment_variable('PWD',config%cwd,status=err)
+  if(err/=0) call abort_mpi(world_parallel%rank, 'unable to determine current working directory')
+
   ! process command-line arguments once before configuring individual cases
   call getCommandArguments(config,err,message)
   if(err/=0) call abort_mpi(world_parallel%rank,trim(message))
@@ -112,7 +118,7 @@ program summa_driver_opt
 
   ! read the multi-case manifest when specified on the command line
   if(allocated(config%manifest_file))then
-    call read_manifest(config%manifest_file,config,err,message)
+    call read_manifest(config,err,message)
     if(err/=0) call abort_mpi(world_parallel%rank,trim(message))
   endif
 
