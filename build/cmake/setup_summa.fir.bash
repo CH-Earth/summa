@@ -50,20 +50,30 @@ mkdir -p "$SLURM_TMPDIR/data/century/test"
 mkdir -p "$SLURM_TMPDIR/data/camels-spat/observations"
 
 # Copy archives as single files to minimize Lustre metadata I/O
+
+echo "[$(hostname)] Copying Century archive..."
 cp "$HOME/data/century/test/exp01.tar" \
    "$SLURM_TMPDIR/data/century/test/"
+echo "[$(hostname)] Century archive copied"
 
+echo "[$(hostname)] Copying observations archive..."
 cp "$HOME/data/camels-spat/observations/obs-daily.tar" \
    "$SLURM_TMPDIR/data/camels-spat/observations/"
+echo "[$(hostname)] Observations archive copied"
 
 # Extract archives from node-local storage
+
+echo "[$(hostname)] Extracting Century archive..."
 tar --warning=no-unknown-keyword \
     -xf "$SLURM_TMPDIR/data/century/test/exp01.tar" \
     -C "$SLURM_TMPDIR/data/century/test/"
+echo "[$(hostname)] Century archive extracted"
 
+echo "[$(hostname)] Extracting observations archive..."
 tar --warning=no-unknown-keyword \
     -xf "$SLURM_TMPDIR/data/camels-spat/observations/obs-daily.tar" \
     -C "$SLURM_TMPDIR/data/camels-spat/observations/"
+echo "[$(hostname)] Observations archive extracted"
 
 # Create case-specific runtime output directories
 for case_dir in "$SLURM_TMPDIR"/data/century/test/exp01/domain/*; do

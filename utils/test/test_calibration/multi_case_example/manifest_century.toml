@@ -20,5 +20,12 @@ cases_per_node = 4
 # ----------------
 
 case_names = [
-  "CAN_01AD003", "CAN_01AM001", "CAN_01BJ010", "CAN_01DG003"
+  "CAN_01AD003",
+  "CAN_01AM001",
+  "CAN_01BJ010",
+  "CAN_01DG003",
+  "CAN_01FB001",
+  "CAN_02BA003",
+  "CAN_02DD015",
+  "CAN_02FB010"
 ]

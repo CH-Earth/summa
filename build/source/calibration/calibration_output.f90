@@ -43,13 +43,18 @@ contains
   !
   ! Parameter and objective values are written by global trial index along the fixed sample dimension.
   ! **************************************************************************************************
-  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,case,metric,obs_transform,ncid,ierr,message)
+  subroutine create_calibration_output(filename,spec,nSamples,nWorkers, &
+                                       node_index,global_case_group,          &
+                                       case_name,metric,obs_transform,        &
+                                       ncid,ierr,message)
     implicit none
     character(*),         intent(in)  :: filename
     type(parameter_spec), intent(in)  :: spec
     integer(i4b),         intent(in)  :: nSamples
     integer(i4b),         intent(in)  :: nWorkers
-    character(*),         intent(in)  :: case
+    integer(i4b),         intent(in)  :: node_index
+    integer(i4b),         intent(in)  :: global_case_group
+    character(*),         intent(in)  :: case_name
     character(*),         intent(in)  :: metric
     character(*),         intent(in)  :: obs_transform
     integer(i4b),         intent(out) :: ncid
@@ -207,9 +212,13 @@ contains
       ! -----------------------------------------------------------------------------------------------
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'title','SUMMA calibration parameter trials')
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_att(ncid,NF90_GLOBAL,'case_name',trim(case))
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'case_name',trim(case_name))
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'mpi_workers',nWorkers)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'node_index',node_index)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'global_case_group',global_case_group)
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','physical')
       if(ierr/=nf90_noerr) exit netcdf_block

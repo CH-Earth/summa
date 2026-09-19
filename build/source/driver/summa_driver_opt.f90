@@ -467,14 +467,15 @@ contains
     ! ---------------------------------------------------------------------------------------
     if(instance_parallel%rank == 0)then
       calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_calibration.nc'
-      call create_calibration_output(calib_file,param_spec,nSamples,instance_parallel%size-1,           &
-                                     config%case_name,config%calib%metric,config%calib%obs_transform,   &
+      call create_calibration_output(calib_file,param_spec,nSamples,                                   &
+                                     instance_parallel%size-1,node_index,global_case_group,            &
+                                     config%case_name,config%calib%metric,config%calib%obs_transform,  &
                                      ncid_calib,err,message)
       if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     else
       ncid_calib=-1
     endif
-  
+ 
     ! ---------------------------------------------------------------------------------------
     ! Evaluate parameter samples
     ! ---------------------------------------------------------------------------------------
