@@ -19,7 +19,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 module summa_simulation
 
-USE nr_type, only: i4b, rkind
+USE nr_type, only: i4b, rkind, lgt
 USE summa_type, only: config_info
 USE summa_type, only: summa1_type_dec
 USE summa_type, only: parallel_context_type
@@ -31,6 +31,7 @@ USE summa_forcing, only: summa_readForcing
 USE summa_modelRun, only: summa_runPhysics
 USE summa_writeOutput, only: summa_writeOutputFiles
 
+USE globalData, only: solver_error
 USE globalData, only: integerMissing
 USE globalData, only: realMissing
 USE globalData, only: iulog
@@ -116,7 +117,7 @@ contains
   subroutine evaluate_objective(config,                            & ! SUMMA configuration structure
                                 domain_parallel,                   & ! MPI context for domain parallelism
                                 instance_parallel,                 & ! MPI context for model-instance parallelism
-                                sample_id, param_name,param_value, & ! sample ID + parameter names and values
+                                sample_id,param_name,param_value,  & ! sample ID + parameter names and values
                                 metric,                            & ! objective function value
                                 err, message)                        ! error code and message
     use iso_fortran_env, only: output_unit, error_unit
@@ -155,19 +156,32 @@ contains
     real(rkind), allocatable           :: timeAligned(:)     ! common time vector
     real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period 
     real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
+    real(rkind)                        :: default_metric     ! value for failed/missing metric
+    logical(lgt)                       :: solver_failed      ! flag if the solver failed
     character(len=256)                 :: cmessage           ! error message of downwind routine
     logical                            :: hasObs             ! .true. if streamflow observations are configured
   
     err=0
     message='evaluate_objective/'
  
+    ! specify default objective function
+    select case(trim(config%calib%metric))
+      case ("kge", "kgep", "nse"); default_metric = -9999_rkind
+      case ("mae", "rmse");        default_metric =  9999_rkind
+      case default
+        message=trim(message)//'unsupported calibration metric "'//trim(config%calib%metric)// &
+                               '"; expected one of: kge, kgep, nse, mae, rmse'// &
+                               ' (note: case sensitive)'
+        err=20; return
+    end select
+
     ! allocate top-level SUMMA structure
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then
       message=trim(message)//'problem allocating top-level summa structure'
       return
     endif
-  
+
     ! populate domain and model-instance parallel contexts
     summa1_struc(n)%domain_parallel=domain_parallel
     summa1_struc(n)%instance_parallel=instance_parallel
@@ -193,13 +207,27 @@ contains
     if(allocated(summa1_struc(n)%config%obs%obs_file))then
       if(len_trim(summa1_struc(n)%config%obs%obs_file) > 0) hasObs = .true.
     endif
+    
     if(.not.hasObs)then
-      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+      ! run summa and handle solver error
+      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err, cmessage)
+      if(err/=0)then
+        if(err==solver_error)then
+          err = 0
+        else
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+      endif
+      
+      ! no observations: finalize and return
       call finalize_summa(summa1_struc(n),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       if(allocated(summa1_struc)) deallocate(summa1_struc)
+      metric = default_metric
       return
+
     endif
 
     ! calibration run: send model chatter to stderr so stdout carries only the metric.
@@ -214,8 +242,17 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
     ! run SUMMA
-    call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err, cmessage)
+    solver_failed = (err == solver_error)
+
+    ! propagate non-recoverable errors
+    if(err/=0 .and. .not.solver_failed)then
+      message=trim(message)//trim(cmessage)
+      return
+    endif
+    
+    ! recoverable solver error
+    if(solver_failed) err=0
 
     ! align simulated and observed streamflow
     call align_timeseries(timeSim,flowSim,timeSimUnits,flowSimUnits, &
@@ -227,11 +264,15 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    
     ! compute objective function
-    call compute_metric(flowObsAligned,flowSimAligned,                 &
-                        summa1_struc(n)%config%calib%metric,           &
-                        summa1_struc(n)%config%calib%obs_transform,    &
-                        metric,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(.not.solver_failed)then
+      call compute_metric(flowObsAligned,flowSimAligned,                 &
+                          summa1_struc(n)%config%calib%metric,           &
+                          summa1_struc(n)%config%calib%obs_transform,    &
+                          metric,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else
+      metric = default_metric
+    endif
 
     ! write aligned evaluation time series and objective value
     if(summa1_struc(n)%config%write_timeseries)then
