@@ -436,6 +436,7 @@ contains
     integer(i4b)       :: ncid_calib
     character(len=256) :: calib_file
     integer(i4b) :: mpi_err
+    integer(i4b) :: istat
  
     ! parameters
     type(parameter_spec)        :: param_spec
@@ -447,12 +448,6 @@ contains
     real(rkind)              :: F_best
     integer(i4b)             :: sample_best
     
-    ! persistent scratch
-    integer(i4b)        :: istat
-    character(len=1024) :: scratch_path
-    character(len=1024) :: scratch_output
-    character(len=64)   :: job_id
-
     ! ---------------------------------------------------------------------------------------
     ! Initialize 
     ! ---------------------------------------------------------------------------------------
@@ -461,22 +456,6 @@ contains
     err=0
     message='run_case/'
     mpi_err=0
-
-    ! identify persistent output location
-    
-    call get_environment_variable('SCRATCH',scratch_path,status=istat)
-    if(istat/=0)then
-      message=trim(message)//'SCRATCH environment variable is not defined'
-      err=20; return
-    endif
-
-    call get_environment_variable('SLURM_JOB_ID',job_id,status=istat)
-    if(istat/=0)then
-      message=trim(message)//'SLURM_JOB_ID environment variable is not defined'
-      err=20; return
-    endif
-    
-    scratch_output=trim(scratch_path)//'/calibration/'//trim(job_id)
 
     ! ---------------------------------------------------------------------------------------
     ! Configure SUMMA
@@ -499,7 +478,7 @@ contains
     config%iulog_summa=iulog
     write(rankString,'(I4.4)') instance_parallel%rank
     log_file=trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)// '_rank'//rankString//'.log'
-    call execute_command_line('mkdir -p "'//trim(OUTPUT_PATH)//'logs"')
+    call execute_command_line('mkdir -p "'//trim(OUTPUT_PATH)//'/logs"')
     open(unit=iulog,file=trim(log_file),status='replace',action='write')
   
     ! ---------------------------------------------------------------------------------------
@@ -580,26 +559,29 @@ contains
     ! Copy completed case output to persistent storage and remove temporary logs
     ! ---------------------------------------------------------------------------------------
     if(instance_parallel%rank == 0)then
+
+      ! copy completed calibration output when persistent storage is requested
+      if(allocated(config%persistent_output))then
     
-      ! create persistent output directory
-      call execute_command_line( &
-        'mkdir -p "'//trim(scratch_output)//'"', &
-        exitstat=istat)
-    
-      if(istat/=0)then
-        call abort_mpi(instance_parallel%rank, &
-                       'unable to create calibration output directory: '//trim(scratch_output))
-      endif
-    
-      ! copy completed calibration file to persistent scratch
-      call execute_command_line( &
-        'cp "'//trim(calib_file)//'" "'//trim(scratch_output)//'/"', &
-        exitstat=istat)
-    
-      if(istat/=0)then
-        call abort_mpi(instance_parallel%rank, &
-                       'unable to copy calibration output for case '//trim(config%case_name))
-      endif
+        ! create persistent output directory
+        call execute_command_line('mkdir -p "'//trim(config%persistent_output)//'"', &
+                                  exitstat=istat)
+      
+        if(istat/=0)then
+          call abort_mpi(instance_parallel%rank, &
+                         'unable to create calibration output directory: '//trim(config%persistent_output))
+        endif
+      
+        ! copy completed calibration file to persistent scratch
+        call execute_command_line('cp "'//trim(calib_file)//'" "'//trim(config%persistent_output)//'/"', &
+                                  exitstat=istat)
+      
+        if(istat/=0)then
+          call abort_mpi(instance_parallel%rank, &
+                         'unable to copy calibration output for case '//trim(config%case_name))
+        endif
+   
+      endif ! (if creating persistent output)
     
       ! remove temporary rank-specific log files
       call execute_command_line( &

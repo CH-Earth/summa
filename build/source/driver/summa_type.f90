@@ -94,6 +94,7 @@ type, public :: config_info
   ! paths for a specific experiment
   character(len=1024)            :: cwd                     ! Current working directory
   character(len=:),  allocatable :: home_path_override      ! Command-line override for home_path
+  character(len=:),  allocatable :: persistent_output       ! Directory for persistent output
   ! configuration flags
   logical(lgt)                   :: read_cli = .true.       ! .true. = read command-line interface
   logical(lgt)                   :: read_config = .true.    ! .true. = read configuration files

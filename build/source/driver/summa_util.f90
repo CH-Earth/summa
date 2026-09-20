@@ -163,6 +163,13 @@ contains
       write(iulog,*) "home_path is '"//trim(opts%home_path)//"'."
       i = i + 2
 
+    case ('--persistent-output')
+      call require_next(i, n_arg, a, v, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      opts%persistent_output = trim(v)
+      write(iulog,*) "persistent_output is '"//trim(opts%persistent_output)//"'."
+      i = i + 2
+
      case ('-s','--suffix')
        call require_next(i, n_arg, a, v, err, cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -463,10 +470,11 @@ contains
    endif
 
    ! *** file paths/names
-   if(allocated(opts%home_path))     config%home_path_override = opts%home_path
-   if(allocated(opts%manifest_file)) config%manifest_file      = opts%manifest_file
-   if(allocated(opts%control_file))  config%control_file       = opts%control_file
-   if(allocated(opts%config_file))   config%config_file        = opts%config_file
+   if(allocated(opts%home_path))         config%home_path_override = opts%home_path
+   if(allocated(opts%persistent_output)) config%persistent_output  = opts%persistent_output
+   if(allocated(opts%manifest_file))     config%manifest_file      = opts%manifest_file
+   if(allocated(opts%control_file))      config%control_file       = opts%control_file
+   if(allocated(opts%config_file))       config%config_file        = opts%config_file
    
    ! *** output controls
    if(allocated(opts%suffix)) output_fileSuffix = opts%suffix
@@ -556,22 +564,23 @@ contains
               '[-h iHRU] [-r freqRestart] [-p freqProgress] [--param name value]'
  print "(A,/)", 'Running executable: '//trim(exe)
  print "(A)",  'Running options:'
- print "(A)",  ' -m --control       Define path/name of legacy SUMMA control file'
- print "(A)",  ' -c --config        Define path/name of TOML configuration file'
- print "(A)",  ' --manifest         Define path/name of multi-case run manifest'
- print "(A)",  ' --home             Override the home path defined in the TOML configuration'
- print "(A)",  '                     - At least one of --control, --config, or --manifest is required'
- print "(A)",  '                     - TOML values take precedence over corresponding control-file values'
- print "(A)",  '                     - Coupled mizuRoute requires a TOML configuration file'
- print "(A)",  ' -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files'
- print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
- print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
- print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
- print "(A)",  ' -r --restart       Define frequency [y,m,d,e,never] to write restart files'
- print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
- print "(A)",  ' --param name value Override a model parameter; may be specified multiple times'
- print "(A)",  ' -v --version       Display version information of the current build'
- print "(A)",  ' --help             Display command-line usage'
+ print "(A)",  ' -m --control        Define path/name of legacy SUMMA control file'
+ print "(A)",  ' -c --config         Define path/name of TOML configuration file'
+ print "(A)",  ' --manifest          Define path/name of multi-case run manifest'
+ print "(A)",  '                      - At least one of --control, --config, or --manifest is required'
+ print "(A)",  '                      - TOML values take precedence over corresponding control-file values'
+ print "(A)",  '                      - Coupled mizuRoute requires a TOML configuration file'
+ print "(A)",  ' --home              Override the home path defined in the TOML configuration'
+ print "(A)",  ' --persistent-output Copy completed calibration output to this directory'
+ print "(A)",  ' -n --newFile        Define frequency [noNewFiles,newFileEveryOct1] of new output files'
+ print "(A)",  ' -s --suffix         Add fileSuffix to the output files'
+ print "(A)",  ' -g --gru            Run a subset of countGRU GRUs starting from index startGRU'
+ print "(A)",  ' -h --hru            Run a single HRU with index of iHRU'
+ print "(A)",  ' -r --restart        Define frequency [y,m,d,e,never] to write restart files'
+ print "(A)",  ' -p --progress       Define frequency [m,d,h,never] to print progress'
+ print "(A)",  ' --param name value  Override a model parameter; may be specified multiple times'
+ print "(A)",  ' -v --version        Display version information of the current build'
+ print "(A)",  ' --help              Display command-line usage'
  stop 0
  end subroutine printCommandHelp
 
