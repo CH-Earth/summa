@@ -160,5 +160,5 @@ parameters   = ["heightCanopyBottom", "heightCanopyTop"]
 gap_fraction = 0.25
 
 [[parameter_dependencies.ordered]]
-parameters = ["theta_res", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+parameters = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
 gap_fraction = 0.025
