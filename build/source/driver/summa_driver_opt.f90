@@ -328,6 +328,10 @@ program summa_driver_opt
   ! ---------------------------------------------------------------------------------------
   ! Finalize MPI
   ! ---------------------------------------------------------------------------------------
+ 
+  call MPI_Barrier(world_parallel%comm,mpi_err)
+  call check_mpi(world_parallel%rank,mpi_err,'MPI_Barrier failed before MPI_Finalize')
+ 
   call MPI_Finalize(mpi_err)
   call check_mpi(world_parallel%rank,mpi_err,'MPI_Finalize failed')
 
@@ -389,25 +393,55 @@ contains
     ! ---------------------------------------------------------------------------------------
     ! Local variables
     ! ---------------------------------------------------------------------------------------
+    
+    ! files
     character(len=4)   :: rankString
     character(len=256) :: log_file
-    type(parameter_spec)        :: param_spec
-    type(parameter_search_info) :: search
-    character(len=64), allocatable :: param_name(:)
-    real(rkind), allocatable :: x_best(:)
-    real(rkind)              :: F_best
-    integer(i4b)             :: sample_best
     integer(i4b)       :: ncid_calib
     character(len=256) :: calib_file
     integer(i4b) :: mpi_err
-  
+ 
+    ! parameters
+    type(parameter_spec)        :: param_spec
+    type(parameter_search_info) :: search
+    character(len=64), allocatable :: param_name(:)
+    
+    ! objective function
+    real(rkind), allocatable :: x_best(:)
+    real(rkind)              :: F_best
+    integer(i4b)             :: sample_best
+    
+    ! persistent scratch
+    integer(i4b)        :: istat
+    character(len=1024) :: scratch_path
+    character(len=1024) :: scratch_output
+    character(len=64)   :: job_id
+
     ! ---------------------------------------------------------------------------------------
-    ! Initialize error control
+    ! Initialize 
     ! ---------------------------------------------------------------------------------------
+    
+    ! initialize error control
     err=0
     message='run_case/'
     mpi_err=0
-  
+
+    ! identify persistent output location
+    
+    call get_environment_variable('SCRATCH',scratch_path,status=istat)
+    if(istat/=0)then
+      message=trim(message)//'SCRATCH environment variable is not defined'
+      err=20; return
+    endif
+
+    call get_environment_variable('SLURM_JOB_ID',job_id,status=istat)
+    if(istat/=0)then
+      message=trim(message)//'SLURM_JOB_ID environment variable is not defined'
+      err=20; return
+    endif
+    
+    scratch_output=trim(scratch_path)//'/calibration/'//trim(job_id)
+
     ! ---------------------------------------------------------------------------------------
     ! Configure SUMMA
     ! ---------------------------------------------------------------------------------------
@@ -428,7 +462,7 @@ contains
     log_unit=iulog
     config%iulog_summa=iulog
     write(rankString,'(I4.4)') instance_parallel%rank
-    log_file=trim(OUTPUT_PATH)//'logs/'//trim(config%case_name)// '_rank'//rankString//'.log'
+    log_file=trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)// '_rank'//rankString//'.log'
     call execute_command_line('mkdir -p "'//trim(OUTPUT_PATH)//'logs"')
     open(unit=iulog,file=trim(log_file),status='replace',action='write')
   
@@ -501,6 +535,47 @@ contains
     !       that redirects iulog would otherwise leave this file open and get stderr
     !       closed in its place.
     close(log_unit);  iulog=error_unit
+
+    ! ensure all ranks have closed their files before case-level cleanup
+    call MPI_Barrier(instance_parallel%comm,mpi_err)
+    call check_mpi(instance_parallel%rank,mpi_err,'unable to synchronize case cleanup')
+    
+    ! ---------------------------------------------------------------------------------------
+    ! Copy completed case output to persistent storage and remove temporary logs
+    ! ---------------------------------------------------------------------------------------
+    if(instance_parallel%rank == 0)then
+    
+      ! create persistent output directory
+      call execute_command_line( &
+        'mkdir -p "'//trim(scratch_output)//'"', &
+        exitstat=istat)
+    
+      if(istat/=0)then
+        call abort_mpi(instance_parallel%rank, &
+                       'unable to create calibration output directory: '//trim(scratch_output))
+      endif
+    
+      ! copy completed calibration file to persistent scratch
+      call execute_command_line( &
+        'cp "'//trim(calib_file)//'" "'//trim(scratch_output)//'/"', &
+        exitstat=istat)
+    
+      if(istat/=0)then
+        call abort_mpi(instance_parallel%rank, &
+                       'unable to copy calibration output for case '//trim(config%case_name))
+      endif
+    
+      ! remove temporary rank-specific log files
+      call execute_command_line( &
+        'rm -f "'//trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)//'_rank"*.log', &
+        exitstat=istat)
+    
+      if(istat/=0)then
+        call abort_mpi(instance_parallel%rank, &
+                       'unable to remove calibration logs for case '//trim(config%case_name))
+      endif
+    
+    endif
 
   end subroutine run_case
 
