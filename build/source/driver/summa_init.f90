@@ -464,8 +464,11 @@ contains
   
         ! populate mizuroute coupling IDs
         summa1_struc%coupling(:)%id = summa1_struc%gru_struc(:)%gru_id
+       
+        ! initialize mizuroute
         call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       
        endif
       endif
   
