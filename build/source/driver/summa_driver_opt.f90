@@ -36,9 +36,14 @@ program summa_driver_opt
   USE iso_fortran_env, only: error_unit
   USE iso_fortran_env, only: output_unit
 
-  ! parameter sampling
+  ! dispatch parameter samples
   USE summa_parameter_sampling, only: initialize_parameter_evaluation
   USE summa_parameter_sampling, only: dispatch_parameter_samples
+
+  ! dispatch cases (basins)
+  USE dynamic_case_dispatch, only: init_case_counter
+  USE dynamic_case_dispatch, only: get_next_case
+  USE dynamic_case_dispatch, only: finalize_case_counter
 
   ! MPI
   USE mpi, only: MPI_Init,MPI_Finalize
@@ -75,11 +80,12 @@ program summa_driver_opt
   integer(i4b) :: nCaseGroups                              ! Total number of case groups
   integer(i4b) :: ranks_per_case                           ! MPI ranks assigned to each case
   integer(i4b) :: leader_color                             ! Color used to construct node-leader communicator
-  integer(i4b) :: iCase                                    ! Index of the current case
+  integer(i4b) :: case_index                               ! index of the case assigned to an instance group
+  integer(i4b) :: iDispatch                                ! number of case-dispatch attempts by an instance group
   integer(i4b) :: requested_cases                          ! cases_per_node as configured, before any reduction
   integer(i4b) :: nCases                                   ! Total number of cases available for execution
-  integer(i4b) :: first_case                               ! First case assigned to this case group
-  integer(i4b) :: case_stride                              ! Interval between cases assigned to this case group
+  integer(i4b) :: next_case                                ! global index of the next unassigned calibration case
+  integer      :: case_win                                 ! (must be standard integer) MPI window exposing the global case counter
   integer(i4b)        :: err=0                             ! SUMMA error code
   integer(i4b)        :: mpi_err=0                         ! MPI error code
   character(len=1024) :: message=''                        ! SUMMA error message
@@ -289,41 +295,71 @@ program summa_driver_opt
   endif
 
   ! ---------------------------------------------------------------------------------------
-  ! Define case execution loop
+  ! Run SUMMA cases
   ! ---------------------------------------------------------------------------------------
-  if(allocated(config%manifest_file))then
-    ! multi-case run: assign each case group a subset of cases from the manifest
-    nCases      = size(config%case_names)
-    first_case  = global_case_group+1
-    case_stride = nCaseGroups
-  else
-    ! single-case run: execute the case defined by the standard configuration
-    nCases      = 1
-    first_case  = 1
-    case_stride = 1
-  endif
-
-  ! ---------------------------------------------------------------------------------------
-  ! Run assigned SUMMA cases
-  ! ---------------------------------------------------------------------------------------
-  ! process the cases assigned to this case group sequentially
-  do iCase=first_case,nCases,case_stride
-
-    ! set the case name and config file from the manifest for multi-case runs
-    if(allocated(config%manifest_file))then
-      config%manifest_casename=trim(config%case_names(iCase))
-      config%config_file=trim(config%template_path)//trim(config%template_file)
-      if(instance_parallel%rank==0) write(output_unit,'(A)') 'Running case: '//trim(config%manifest_casename)
-    endif
   
-    ! initialize and execute parameter calibration for the current SUMMA case
-    call run_case(config,                    & ! SUMMA configuration structure
-                  domain_parallel,           & ! MPI context for domain parallelism
-                  instance_parallel,         & ! MPI context for model-instance parallelism
-                  err,message)                 ! error code and message
-    if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+  ! multi-case run
 
-  enddo
+  if(allocated(config%manifest_file))then
+  
+    ! number of cases available for dynamic assignment
+    nCases = size(config%case_names)
+  
+    ! initialize the global case counter
+    call init_case_counter(world_parallel,next_case,case_win,err,message)
+    if(err/=0) call abort_mpi(world_parallel%rank,trim(message))
+  
+    ! dynamically assign cases to instance groups
+    do iDispatch=1,nCases
+  
+      ! instance leader claims the next available case
+      if(instance_parallel%rank == 0)then
+        call get_next_case(case_win,nCases,case_index,err,message)
+        if(err/=0) call abort_mpi(world_parallel%rank,trim(message))
+      endif
+  
+      ! broadcast the assigned case to all ranks in this instance group
+      call MPI_Bcast(case_index,1,MPI_INTEGER,0,instance_parallel%comm,mpi_err)
+      call check_mpi(world_parallel%rank,mpi_err,'unable to broadcast case index')
+  
+      ! zero indicates that all cases have already been assigned
+      if(case_index == 0) exit
+  
+      ! configure the assigned case
+      config%manifest_casename = trim(config%case_names(case_index))
+      config%config_file       = trim(config%template_path)//trim(config%template_file)
+  
+      if(instance_parallel%rank == 0)then
+        write(output_unit,'(A,I0,A,A)') &
+          'Case group ',global_case_group, &
+          ' running case: ',trim(config%manifest_casename)
+      endif
+  
+      ! execute all parameter evaluations for this case
+      call run_case(config,                    &
+                    domain_parallel,           &
+                    instance_parallel,         &
+                    err,message)
+  
+      if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+  
+    end do
+  
+    ! all ranks collectively release the global case counter
+    call finalize_case_counter(case_win,err,message)
+    if(err/=0) call abort_mpi(world_parallel%rank,trim(message))
+  
+  else
+  
+    ! standard single-case run
+    call run_case(config,                    &
+                  domain_parallel,           &
+                  instance_parallel,         &
+                  err,message)
+  
+    if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+  
+  endif
 
   ! ---------------------------------------------------------------------------------------
   ! Finalize MPI
