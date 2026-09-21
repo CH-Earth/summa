@@ -1,0 +1,9 @@
+sbatch --job-name=summa-n1-c4 --nodes=1 --ntasks=192  --time=12:00:00 scripts/summa_scaling.slurm 4
+sbatch --job-name=summa-n2-c4 --nodes=2 --ntasks=384  --time=6:00:00  scripts/summa_scaling.slurm 4
+sbatch --job-name=summa-n4-c4 --nodes=4 --ntasks=768  --time=3:00:00  scripts/summa_scaling.slurm 4
+sbatch --job-name=summa-n8-c4 --nodes=8 --ntasks=1536 --time=2:00:00  scripts/summa_scaling.slurm 4
+
+sbatch --job-name=summa-n2-c1 --nodes=2 --ntasks=384 --time=6:00:00 scripts/summa_scaling.slurm 1
+sbatch --job-name=summa-n2-c2 --nodes=2 --ntasks=384 --time=6:00:00 scripts/summa_scaling.slurm 2
+sbatch --job-name=summa-n2-c4 --nodes=2 --ntasks=384 --time=6:00:00 scripts/summa_scaling.slurm 4
+sbatch --job-name=summa-n2-c8 --nodes=2 --ntasks=384 --time=6:00:00 scripts/summa_scaling.slurm 8

@@ -43,6 +43,8 @@ MODULE data_types
   logical                        :: show_help    = .false.
   logical                        :: show_version = .false.
   character(len=:), allocatable  :: tag
+  character(len=:), allocatable  :: home_path
+  character(len=:), allocatable  :: persistent_output
   character(len=:), allocatable  :: manifest_file
   character(len=:), allocatable  :: control_file
   character(len=:), allocatable  :: config_file
@@ -97,7 +99,7 @@ MODULE data_types
   character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
   type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
   type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
-  integer(i4b)                   :: n_samples = 5000    ! number of parameter samples to evaluate
+  integer(i4b)                   :: n_samples = 1000    ! number of parameter samples to evaluate
   logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
  end type calib_info
 

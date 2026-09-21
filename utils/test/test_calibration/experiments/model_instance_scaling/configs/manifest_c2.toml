@@ -14,7 +14,7 @@
 
 template_file = "summa_config_template.toml"
 
-cases_per_node = 4
+cases_per_node = 2
 
 # Simulation cases
 # ----------------

@@ -25,16 +25,19 @@ USE nr_type                            ! variable types, etc.
 USE summa_type, only: summa1_type_dec  ! top-level summa data type
 USE summa_type, only: config_info      ! summa configuation info
 
-! check if mizuroute is active
+! compile options
+use build_options, only: toml_active
 use build_options, only: mizuroute_active
 use build_options, only: ngen_forcing_active
+
+! only couple with mizuroute if mizuroute is compiled
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: init_mizuroute_from_summa
 #endif
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
-USE globalData, only: isPrint               ! flag to enable informational screen/log output
+USE globalData, only: isPrint        ! flag to enable informational screen/log output
 USE globalData,only:realMissing      ! missing real number
 
 ! global data 
@@ -461,8 +464,11 @@ contains
   
         ! populate mizuroute coupling IDs
         summa1_struc%coupling(:)%id = summa1_struc%gru_struc(:)%gru_id
+       
+        ! initialize mizuroute
         call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       
        endif
       endif
   
@@ -553,14 +559,14 @@ contains
     !       file-manager run does not drag in the toml-f submodule. Reject -c rather than
     !       ignoring it, so the option never silently does nothing.
     if(allocated(config%config_file))then
-#ifdef TOML_ACTIVE
-      call read_summa_config(trim(config%config_file), config, err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-#else
-      message=trim(message)//'a TOML configuration file was given with -c, but this build '// &
-                             'has no configuration reader; rebuild with -DUSE_TOML=ON'
-      err=20; return
-#endif
+      if(toml_active)then
+        call read_summa_config(trim(config%config_file), config, err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      else
+        message=trim(message)//'a TOML configuration file was given with -c, but this build '// &
+                               'has no configuration reader; rebuild with -DUSE_TOML=ON'
+        err=20; return
+      endif
     endif
 
     ! check that the output directory exists
