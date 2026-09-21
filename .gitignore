@@ -13,8 +13,9 @@ bin
 summa.exe
 summa_sundials.exe
 
-# Regression test output
-utils/test/test_regression/logs/
+# Ignore log directories anywhere in the repository
+**/log/
+**/logs/
 
 # NetCDF restart files
 *_restart_*.nc
