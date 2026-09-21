@@ -408,13 +408,14 @@ contains
     ! SUMMA paths/filenames
     USE summaFileManager, only: OUTPUT_PATH
     USE summaFileManager, only: MODEL_INITCOND
-    ! SUMMA parameter information
-    USE parameter_search, only: parameter_spec,parameter_search_info
     ! SUMMA subroutines/functions
     USE summa_init,   only: init_config
     USE summa_spinup, only: spinup_from_cold
     USE calibration_output_module, only: create_calibration_output
     USE calibration_output_module, only: close_calibration_output
+    ! General parameter information
+    USE parameter_search, only: parameter_spec,parameter_search_info
+    USE parameter_search, only: search_state_type
     implicit none
     ! ---------------------------------------------------------------------------------------
     ! Dummy arguments
@@ -444,8 +445,7 @@ contains
     character(len=64), allocatable :: param_name(:)
     
     ! objective function
-    real(rkind), allocatable :: x_best(:)
-    real(rkind)              :: F_best
+    type(search_state_type)  :: search_state
     integer(i4b)             :: sample_best
     
     ! ---------------------------------------------------------------------------------------
@@ -506,7 +506,7 @@ contains
                                          instance_parallel, & ! MPI instance-parallel context
                                          param_spec,search, & ! parameter specification and search information
                                          param_name,        & ! complete SUMMA parameter-name vector
-                                         x_best,F_best,     & ! current best solution and objective value
+                                         search_state,      & ! information from previously evaluated parameter sets 
                                          sample_best,       & ! sample index associated with current best solution
                                          err,message)         ! error code and message
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
@@ -533,8 +533,9 @@ contains
                                     instance_parallel,          & ! MPI context for model-instance parallelism
                                     param_spec,search,          & ! parameter specification and search information
                                     param_name,ncid_calib,      & ! parameter names and calibration output
-                                    x_best,F_best,sample_best,  & ! current best solution and objective value; sample index
-                                    nSamples,err,message)         ! total number of parameter samples; error code and message
+                                    search_state,               & ! information from previously evaluated parameter sets 
+                                    sample_best,nSamples,       & ! sample index, total number of parameter samples
+                                    err,message)                  ! error code and message
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
   
     ! ---------------------------------------------------------------------------------------

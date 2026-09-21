@@ -48,7 +48,8 @@ module summa_parameter_sampling
   ! parameter-search information
   USE parameter_search, only: parameter_spec
   USE parameter_search, only: parameter_search_info
-
+  USE parameter_search, only: search_state_type
+  
   implicit none
   private
 
@@ -64,10 +65,6 @@ module summa_parameter_sampling
   public :: initialize_parameter_evaluation
   public :: dispatch_parameter_samples
 
-  ! public SUMMA parameter samplers
-  public :: generate_parameter_sample
-  public :: generate_dds_sample
-
 contains
 
   ! **************************************************************************************************
@@ -78,12 +75,12 @@ contains
   ! and non-sampled parameters required by calibration constraints. On the dispatcher rank, also
   ! initializes the random-number generator used for parameter sampling.
   !
-  ! Initializes parameter information shared across evaluations and establishes
-  ! dispatcher-owned state used to track the current best solution.
+  ! Initializes parameter information shared across evaluations and establishes the dispatcher-owned
+  ! state used by the parameter-search algorithm.
   ! **************************************************************************************************
-  subroutine initialize_parameter_evaluation(config,instance_parallel, &
+  subroutine initialize_parameter_evaluation(config,instance_parallel,     &
                                              param_spec,search,param_name, &
-                                             x_best,F_best,sample_best, &
+                                             search_state,sample_best,     &
                                              err,message)
     USE parameter_search, only: initialize_parameter_search
     USE summa_parameter_spec, only: get_summa_parameter_spec
@@ -93,8 +90,7 @@ contains
     type(parameter_spec),        intent(out) :: param_spec         ! complete SUMMA parameter specification
     type(parameter_search_info), intent(out) :: search             ! sampled parameter search information
     character(len=64), allocatable, intent(out) :: param_name(:)   ! complete SUMMA parameter names
-    real(rkind), allocatable, intent(out) :: x_best(:)             ! best decision-variable vector
-    real(rkind),              intent(out) :: F_best                ! best objective value
+    type(search_state_type),     intent(out) :: search_state       ! information from previously evaluated parameter sets
     integer(i4b),             intent(out) :: sample_best           ! sample index associated with best objective
     integer(i4b), intent(out) :: err                               ! error code
     character(*), intent(out) :: message                           ! error message
@@ -141,15 +137,10 @@ contains
       seed=42
       call random_seed(put=seed)
 
-      ! initialize best parameter vector on the dispatcher
-      allocate(x_best(size(search%param_names)),stat=err)
-      if(err/=0)then
-        message=trim(message)//'unable to allocate best parameter vector'
-        return
-      endif
-      x_best=0._rkind
-      F_best=-huge(1._rkind)
+      ! initialize parameter-search state on the dispatcher
+      search_state%elite_fitness=-huge(1._rkind)
       sample_best=0
+    
     endif
 
   end subroutine initialize_parameter_evaluation
@@ -166,7 +157,7 @@ contains
                                         instance_parallel,         &
                                         param_spec,search,         &
                                         param_name,ncid_calib,     &
-                                        x_best,F_best,sample_best, &
+                                        search_state,sample_best,  &
                                         nSamples,err,message)
     ! parameter search
     USE parameter_search, only: parameter_spec,parameter_search_info
@@ -183,9 +174,8 @@ contains
     type(parameter_search_info),    intent(in)    :: search             ! parameter-search configuration and metadata
     character(len=64),              intent(in)    :: param_name(:)      ! complete SUMMA parameter-name vector
     integer(i4b),                   intent(in)    :: ncid_calib         ! calibration output NetCDF file ID
-    real(rkind), allocatable,       intent(inout) :: x_best(:)          ! current best decision-variable vector
-    real(rkind),                    intent(inout) :: F_best             ! objective value associated with x_best
-    integer(i4b),                   intent(inout) :: sample_best        ! sample index associated with F_best
+    type(search_state_type),        intent(inout) :: search_state       ! information from previously evaluated parameter sets
+    integer(i4b),                   intent(inout) :: sample_best        ! sample index associated with elite fitness
     integer(i4b),                   intent(in)    :: nSamples           ! total number of parameter trials
     integer(i4b),                   intent(out)   :: err                ! error code
     character(*),                   intent(out)   :: message            ! error message
@@ -266,7 +256,10 @@ contains
         if(next_sample <= nSamples)then
 
           ! generate the next parameter sample and complete SUMMA override vector
-          call generate_parameter_sample(param_spec,search, param_value,param_override, err,cmessage)
+          call generate_parameter_sample(param_spec,search,search_state, &
+                                         next_sample,nSamples,           &
+                                         param_value,param_override,     &
+                                         err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! save parameter samples (rank 0)
@@ -298,12 +291,28 @@ contains
         call date_and_time(values=endModelRun(:,sample_id))
 
         ! update best parameter sample
-        if(objective > F_best)then
-          F_best=objective                     ! update best objective value
-          x_best=param_samples(:,sample_id)    ! update best decision-variable vector
-          sample_best=sample_id                ! record sample associated with current best
-          write(output_unit,'(A,I0,A,F14.6)') 'new DDS best: sample=',sample_best,', objective=',F_best
+        if(objective > search_state%elite_fitness)then
+
+          search_state%elite_fitness=objective
+
+          if(.not.allocated(search_state%elite_individual))then
+            allocate(search_state%elite_individual(size(param_samples,1)),stat=err)
+            if(err/=0)then
+              message=trim(message)//'unable to allocate elite individual'
+              return
+            endif
+          endif
+
+          search_state%elite_individual=param_samples(:,sample_id)
+          sample_best=sample_id
+
+          write(output_unit,'(A,I0,A,F14.6)') &
+            'new elite: sample=',sample_best, &
+            ', objective=',search_state%elite_fitness
+
         endif
+        
+        ! write parameter set, objective function, and timing
         call write_calibration_output(ncid_calib,                   &
                                       sample_id, worker,            &
                                       param_name,                   &
@@ -322,25 +331,11 @@ contains
         if(next_sample <= nSamples)then
 
           ! generate the next parameter sample and complete SUMMA override vector
-          select case(trim(sampling_method))
-
-            case ('dds')
-              call generate_dds_sample(param_spec,search,             &
-                                       x_best,                         &
-                                       next_sample,nSamples,           &
-                                       param_value,param_override,     &
-                                       err,cmessage)
-              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-         
-            case ('random')
-              call generate_parameter_sample(param_spec,search, param_value,param_override, err,cmessage)
-              if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-         
-            case default
-              message=trim(message)//'unknown parameter sampling method: '//trim(sampling_method)
-              err=20; return
-       
-          end select
+          call generate_parameter_sample(param_spec,search,search_state, &
+                                         next_sample,nSamples,           &
+                                         param_value,param_override,     &
+                                         err,cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! save parameter samples (rank 0)
           param_samples(:,next_sample)=param_value       ! retain sampled decision-variable vector
@@ -393,6 +388,7 @@ contains
 
   end subroutine dispatch_parameter_samples
 
+
   ! **************************************************************************************************
   ! Generate a SUMMA parameter sample.
   !
@@ -401,32 +397,47 @@ contains
   ! parameter vector contains only parameters included in the search, whereas the override vector
   ! also includes non-sampled parameters required by calibration constraints.
   ! **************************************************************************************************
-  subroutine generate_parameter_sample(param_spec,search, param_value,param_override, err,message)
-    ! parameter sampling
-    USE parameter_search, only: sample_parameters
-    ! SUMMA parameter overrides
+  subroutine generate_parameter_sample(param_spec,search,search_state, &
+                                       next_sample,nSamples,           &
+                                       param_value,param_override,     &
+                                       err,message)
+
+    USE parameter_search, only: parameter_spec
+    USE parameter_search, only: parameter_search_info
+    USE parameter_search, only: search_state_type
+    USE parameter_search, only: generate_search_sample
     USE summa_parameter_spec, only: build_summa_parameter_overrides
+   
     implicit none
-    ! dummy variables
-    type(parameter_spec),        intent(in)  :: param_spec        ! SUMMA parameter specification
-    type(parameter_search_info), intent(in)  :: search            ! parameter-search information
-    real(rkind),                 intent(out) :: param_value(:)    ! sampled parameter values
-    real(rkind),                 intent(out) :: param_override(:) ! complete SUMMA parameter overrides
-    integer(i4b),                intent(out) :: err               ! error code
-    character(*),                intent(out) :: message           ! error message
-    ! local variables
+   
+    type(parameter_spec),        intent(in)  :: param_spec
+    type(parameter_search_info), intent(in)  :: search
+    type(search_state_type),     intent(in)  :: search_state
+    integer(i4b),                intent(in)  :: next_sample
+    integer(i4b),                intent(in)  :: nSamples
+    real(rkind),                 intent(out) :: param_value(:)
+    real(rkind),                 intent(out) :: param_override(:)
+    integer(i4b),                intent(out) :: err
+    character(*),                intent(out) :: message
+   
     character(len=256) :: cmessage
-  
+   
     err=0
     message='generate_parameter_sample/'
-  
-    ! generate a feasible parameter vector in the parameter-search space
-    call sample_parameters(search,param_value,err,cmessage)
+   
+    ! generate the next sampled parameter vector
+    call generate_search_sample(sampling_method, &
+                                search,          &
+                                search_state,    &
+                                next_sample,     &
+                                nSamples,        &
+                                param_value,     &
+                                err,cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
     endif
-  
+   
     ! construct the complete SUMMA parameter override vector
     call build_summa_parameter_overrides(param_spec,         &
                                          search%param_names, &
@@ -437,59 +448,8 @@ contains
       message=trim(message)//trim(cmessage)
       return
     endif
-  
+   
   end subroutine generate_parameter_sample
-
-  ! **************************************************************************************************
-  ! Generate a parameter sample using Dynamically Dimensioned Search (DDS).
-  !
-  ! Generates a new candidate decision-variable vector by perturbing the current best solution using
-  ! DDS, then constructs the complete SUMMA parameter override vector. The DDS perturbation operates
-  ! only on sampled parameters, while the complete override vector also includes any constraint-only
-  ! parameters required to maintain valid SUMMA parameter relationships.
-  ! **************************************************************************************************
-  subroutine generate_dds_sample(param_spec,search,x_best,i,m, param_value,param_override,err,message)
-    ! DDS parameter sampling
-    USE parameter_search, only: perturb_parameters_dds
-    ! SUMMA parameter overrides
-    USE summa_parameter_spec, only: build_summa_parameter_overrides
-    implicit none
-    type(parameter_spec),        intent(in)  :: param_spec       ! complete SUMMA parameter specification
-    type(parameter_search_info), intent(in)  :: search           ! parameter-search information
-    real(rkind),                 intent(in)  :: x_best(:)        ! current best DDS decision-variable vector
-    integer(i4b),                intent(in)  :: i                ! current function-evaluation number
-    integer(i4b),                intent(in)  :: m                ! maximum number of function evaluations
-    real(rkind),                 intent(out) :: param_value(:)   ! new sampled decision-variable vector
-    real(rkind),                 intent(out) :: param_override(:)! complete SUMMA parameter override vector
-    integer(i4b),                intent(out) :: err              ! error code
-    character(*),                intent(out) :: message          ! error message
-    real(rkind), parameter      :: r = 0.2_rkind                 ! DDS neighborhood perturbation size 
-    character(len=256)          :: cmessage                      ! message returned by called routines
-  
-    err=0
-    message='generate_dds_sample/'
-    call perturb_parameters_dds(search,        & ! generate DDS candidate
-                                x_best,        & ! current best solution
-                                i,             & ! current evaluation
-                                m,             & ! evaluation budget
-                                r,             & ! perturbation size
-                                param_value,   & ! new candidate
-                                err,cmessage)    ! error information
-    if(err/=0)then
-      message=trim(message)//trim(cmessage)
-      return
-    endif
-    call build_summa_parameter_overrides(param_spec,         & ! construct full SUMMA parameter vector
-                                         search%param_names, & ! sampled parameter names
-                                         param_value,        & ! sampled parameter values
-                                         param_override,     & ! complete SUMMA overrides
-                                         err,cmessage)         ! error information
-    if(err/=0)then
-      message=trim(message)//trim(cmessage)
-      return
-    endif
-  
-  end subroutine generate_dds_sample
 
   ! --------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------

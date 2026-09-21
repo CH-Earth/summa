@@ -6,6 +6,22 @@ module parameter_search
   private
 
   ! **************************************************************************************************
+  ! State information used to generate parameter samples during a search.
+  !
+  ! The elite individual contains the parameter vector with the best fitness identified during the
+  ! search. The population contains a collection of parameter vectors and their associated fitness
+  ! values. Different search methods use different components of this structure. For example, DDS
+  ! generates new samples by perturbing the elite individual, whereas population-based methods such
+  ! as genetic algorithms and differential evolution generate new samples from the population.
+  ! **************************************************************************************************
+  type, public :: search_state_type
+    real(rkind), allocatable :: elite_individual(:)
+    real(rkind)              :: elite_fitness
+    real(rkind), allocatable :: population(:,:)
+    real(rkind), allocatable :: fitness(:)
+  end type search_state_type
+
+  ! **************************************************************************************************
   ! Information describing one model parameter.
   !
   ! The model-specific layer populates this structure. Parameters with sampled=.true. are included
@@ -76,6 +92,7 @@ module parameter_search
   end type parameter_search_info
 
   public :: initialize_parameter_search
+  public :: generate_search_sample
   public :: sample_parameters
   public :: perturb_parameters
   public :: perturb_parameters_dds
@@ -425,6 +442,80 @@ contains
     enddo
 
   end subroutine initialize_constraints
+
+  ! **************************************************************************************************
+  ! Generate the next parameter sample for the selected search method.
+  !
+  ! The search method determines how the next individual is generated from the current search state.
+  ! Random sampling draws independently from the feasible parameter space. DDS perturbs the current
+  ! elite individual. If no elite individual has yet been established, DDS generates an independent
+  ! random sample to initialize the search.
+  ! **************************************************************************************************
+  subroutine generate_search_sample(method,search,state,i,m,param_values,err,message)
+    implicit none
+
+    character(*),                intent(in)    :: method
+    type(parameter_search_info), intent(in)    :: search
+    type(search_state_type),     intent(in)    :: state
+    integer(i4b),                intent(in)    :: i
+    integer(i4b),                intent(in)    :: m
+    real(rkind),                 intent(out)   :: param_values(:)
+    integer(i4b),                intent(out)   :: err
+    character(*),                intent(out)   :: message
+
+    real(rkind), parameter :: dds_r=0.2_rkind
+    character(len=256) :: cmessage
+
+    err=0
+    message='generate_search_sample/'
+
+    select case(trim(method))
+
+      case ('random')
+
+        call sample_parameters(search,param_values,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+
+      case ('dds')
+
+        ! Initialize DDS with independent random samples until an elite individual exists.
+        if(.not.allocated(state%elite_individual))then
+
+          call sample_parameters(search,param_values,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//trim(cmessage)
+            return
+          endif
+
+        else
+
+          call perturb_parameters_dds(search,                 &
+                                      state%elite_individual, &
+                                      i,                      &
+                                      m,                      &
+                                      dds_r,                  &
+                                      param_values,           &
+                                      err,cmessage)
+          if(err/=0)then
+            message=trim(message)//trim(cmessage)
+            return
+          endif
+
+        endif
+
+      case default
+
+        message=trim(message)//'unknown parameter sampling method: '//trim(method)
+        err=20
+        return
+
+    end select
+
+  end subroutine generate_search_sample
+
 
   ! **************************************************************************************************
   ! Sample parameters uniformly over the feasible search space.
