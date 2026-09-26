@@ -19,6 +19,12 @@ mkdir -p "$SLURM_TMPDIR/models/summa/utils/test/test_calibration"
 cp -a "$HOME/models/summa/utils/test/test_calibration" \
       "$SLURM_TMPDIR/models/summa/utils/test"
 
+mkdir -p "$SLURM_TMPDIR/models/summa/utils/test/test_calibration/experiments"
+
+cp -r \
+  "$HOME/models/summa/utils/test/test_calibration/experiments/model_instance_scaling" \
+  "$SLURM_TMPDIR/models/summa/utils/test/test_calibration/experiments/"
+
 # ----------------------------------------------------------------------
 # Stage model inputs and observations to node-local storage
 # ----------------------------------------------------------------------
