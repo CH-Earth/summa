@@ -148,7 +148,7 @@ contains
     integer(i4b),intent(out)              :: err                ! error code
     character(*),intent(out)              :: message            ! error message
     ! local variables
-    character(LEN=256)                    :: cmessage           ! error message of downwind routine
+    character(LEN=1024)                   :: cmessage           ! error message of downwind routine
     character(len=256)                    :: restartFile        ! restart file name
     character(len=256)                    :: attrFile           ! attributes file name
     character(len=128)                    :: fmtGruOutput       ! a format string used to write start and end GRU in output file names
@@ -535,8 +535,8 @@ contains
     integer(i4b)           , intent(out)   :: err
     character(*)           , intent(out)   :: message
   
-    logical(lgt)       :: exists
-    character(len=256) :: cmessage
+    logical(lgt)        :: exists
+    character(len=1024) :: cmessage
   
     err=0; message='init_config/'
 

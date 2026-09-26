@@ -2,6 +2,7 @@ module summa_parameter_spec
 
   USE nr_type,          only: i4b, rkind, lgt
   USE summa_type,       only: config_info
+  USE globalData,       only: iulog
 
   USE parameter_search, only: parameter_spec
 
@@ -83,13 +84,13 @@ contains
     ! Add sampled calibration parameters.
     ! -----------------------------------------------------------------------------------------------
     do i=1,size(config%calib%param_list)
-      ix = find_parameter(trim(config%calib%param_list(i)), param_names(1:nParam))
+      ix = find_parameter(trim(config%calib%param_list(i)%name), param_names(1:nParam))
       if(ix > 0)then
-        message=trim(message)//'duplicate calibration parameter: '// trim(config%calib%param_list(i))
+        message=trim(message)//'duplicate calibration parameter: '// trim(config%calib%param_list(i)%name)
         err=20; return
       endif
       nParam = nParam + 1
-      param_names(nParam) = trim(config%calib%param_list(i))
+      param_names(nParam) = trim(config%calib%param_list(i)%name)
       sampled(nParam)     = .true.
     enddo
 
@@ -138,29 +139,54 @@ contains
     enddo
 
     ! -----------------------------------------------------------------------------------------------
-    ! Apply configured parameter transformations.
+    ! Apply configured calibration parameter bounds and transformations.
     !
-    ! Transformations are meaningful only for sampled parameters.
+    ! Calibration bounds specified in the TOML replace the native SUMMA search bounds
+    ! and may extend beyond them. Emit a warning when the configured range exceeds
+    ! the native SUMMA bounds.
     ! -----------------------------------------------------------------------------------------------
-    if(allocated(config%calib%param_transform))then
-      do i=1,size(config%calib%param_transform)
-        ix = find_parameter(trim(config%calib%param_transform(i)%name), param_names(1:nParam))
+    if(allocated(config%calib%param_list))then
+    
+      do i=1,size(config%calib%param_list)
+    
+        ix = find_parameter(trim(config%calib%param_list(i)%name), &
+                            param_names(1:nParam))
+    
         if(ix == 0)then
-          message=trim(message)// &
-                  'parameter transformation defined for unknown parameter: '// &
-                  trim(config%calib%param_transform(i)%name)
-          err=20; return
+          message=trim(message)//'calibration parameter not found: '// &
+                  trim(config%calib%param_list(i)%name)
+          err=20
+          return
         endif
-        if(.not.spec%params(ix)%sampled)then
-          message=trim(message)// &
-                  'parameter transformation defined for non-sampled parameter: '// &
-                  trim(config%calib%param_transform(i)%name)
-          err=20; return
+    
+        ! warn if calibration bounds exceed native SUMMA bounds
+        if(config%calib%param_list(i)%lower_bound < spec%params(ix)%lower .or. &
+           config%calib%param_list(i)%upper_bound > spec%params(ix)%upper)then
+    
+          write(iulog,'(A,A,A,2(ES12.4,1X),A,2(ES12.4,1X))') &
+            'WARNING: calibration bounds exceed native SUMMA bounds for ', &
+            trim(config%calib%param_list(i)%name),                         &
+            ': calibration = ',                                            &
+            config%calib%param_list(i)%lower_bound,                        &
+            config%calib%param_list(i)%upper_bound,                        &
+            ', native = ',                                                 &
+            spec%params(ix)%lower,                                         &
+            spec%params(ix)%upper
+    
         endif
-        spec%params(ix)%transformation = trim(config%calib%param_transform(i)%transformation)
+    
+        ! apply calibration-specific bounds
+        spec%params(ix)%lower = config%calib%param_list(i)%lower_bound
+        spec%params(ix)%upper = config%calib%param_list(i)%upper_bound
+    
+        ! apply calibration-specific transformation
+        spec%params(ix)%transformation = &
+          trim(config%calib%param_list(i)%transformation)
+    
       enddo
+    
     endif
-
+    
     ! -----------------------------------------------------------------------------------------------
     ! Convert named SUMMA constraints to master-registry indices.
     ! -----------------------------------------------------------------------------------------------

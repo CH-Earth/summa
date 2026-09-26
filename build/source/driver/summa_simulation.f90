@@ -87,7 +87,7 @@ contains
     ! locals
     type(summa1_type_dec), allocatable :: summa1_struc(:)
     integer(i4b), parameter            :: n=1
-    character(len=512)                 :: cmessage
+    character(len=1024)                :: cmessage
   
     err=0
     message='run_simulation/'
@@ -157,7 +157,7 @@ contains
     real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period 
     real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
     logical(lgt)                       :: solver_failed      ! flag if the solver failed
-    character(len=256)                 :: cmessage           ! error message of downwind routine
+    character(len=1024)                :: cmessage           ! error message of downwind routine
     logical                            :: hasObs             ! .true. if streamflow observations are configured
   
     err=0
@@ -309,7 +309,7 @@ contains
     real(rkind)            , intent(in)       :: param_value(:)
     integer(i4b)           , intent(out)      :: err
     character(*)           , intent(out)      :: message
-    character(len=256) :: cmessage
+    character(len=1024) :: cmessage
 
     err = 0
     message = 'initialize_summa/'
@@ -351,7 +351,7 @@ contains
     character(*), intent(out)                  :: message       ! error message
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
-    character(len=512)                         :: cmessage      ! error message of downwind routine
+    character(len=1024)                        :: cmessage      ! error message of downwind routine
    
     err=0
     message='run_summa/'
@@ -416,7 +416,7 @@ contains
     integer(i4b),          intent(out)   :: err
     character(*),          intent(out)   :: message
     integer(i4b)                         :: iFreq
-    character(len=256)                   :: cmessage
+    character(len=1024)                  :: cmessage
 
     err = 0
     message = 'finalize_summa/'
