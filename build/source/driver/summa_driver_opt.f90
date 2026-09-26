@@ -463,7 +463,10 @@ contains
    
     ! use stderr until the configuration and output paths are known
     iulog=error_unit
-   
+  
+    ! set case root (for printing)
+    config%is_case_root = (instance_parallel%rank == 0)
+
     ! read the configuration files to establish file paths, simulation settings, and calibration options
     call init_config(config,err,message)
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))

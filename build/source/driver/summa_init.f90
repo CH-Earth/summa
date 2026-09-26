@@ -171,7 +171,10 @@ contains
  
     ! initialize the netcdf file id
     ncid(:) = integerMissing
-  
+ 
+    ! set case root (for printing)
+    config%is_case_root = (summa1_struc%instance_parallel%rank == 0)
+
     ! initialize the elapsed time for cumulative quantities
     elapsedRead=0._rkind
     elapsedWrite=0._rkind
@@ -521,7 +524,7 @@ contains
   ! Subsequent simulations can reuse the initialized configuration without rereading
   ! the command line or rebuilding global metadata.
   ! **************************************************************************************************
-  subroutine init_config(config ,err, message)
+  subroutine init_config(config, err, message)
     USE summaFileManager, only: OUTPUT_PATH
     USE summa_util,       only: getCommandArguments
     USE summaFileManager, only: summa_SetTimesDirsAndFiles

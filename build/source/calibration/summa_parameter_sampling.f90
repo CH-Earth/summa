@@ -194,6 +194,7 @@ contains
     integer(i4b) :: sample_id
     integer(i4b) :: next_sample
     integer(i4b) :: nComplete
+    integer(i4b), parameter :: one = 1_i4b
     logical(lgt) :: stop_worker
     ! objective value
     real(rkind) :: objective
@@ -256,8 +257,9 @@ contains
         if(next_sample <= nSamples)then
 
           ! generate the next parameter sample and complete SUMMA override vector
+          ! NOTE: nComplete=1 so that p = 1 - log(1) / log(nSamples) = 1
           call generate_parameter_sample(param_spec,search,search_state, &
-                                         next_sample,nSamples,           &
+                                         one,nSamples,                   &
                                          param_value,param_override,     &
                                          err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -332,7 +334,7 @@ contains
 
           ! generate the next parameter sample and complete SUMMA override vector
           call generate_parameter_sample(param_spec,search,search_state, &
-                                         next_sample,nSamples,           &
+                                         nComplete,nSamples,             &
                                          param_value,param_override,     &
                                          err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -398,7 +400,7 @@ contains
   ! also includes non-sampled parameters required by calibration constraints.
   ! **************************************************************************************************
   subroutine generate_parameter_sample(param_spec,search,search_state, &
-                                       next_sample,nSamples,           &
+                                       nComplete,nSamples,             &
                                        param_value,param_override,     &
                                        err,message)
 
@@ -413,7 +415,7 @@ contains
     type(parameter_spec),        intent(in)  :: param_spec
     type(parameter_search_info), intent(in)  :: search
     type(search_state_type),     intent(in)  :: search_state
-    integer(i4b),                intent(in)  :: next_sample
+    integer(i4b),                intent(in)  :: nComplete
     integer(i4b),                intent(in)  :: nSamples
     real(rkind),                 intent(out) :: param_value(:)
     real(rkind),                 intent(out) :: param_override(:)
@@ -429,7 +431,7 @@ contains
     call generate_search_sample(sampling_method, &
                                 search,          &
                                 search_state,    &
-                                next_sample,     &
+                                nComplete,       &
                                 nSamples,        &
                                 param_value,     &
                                 err,cmessage)

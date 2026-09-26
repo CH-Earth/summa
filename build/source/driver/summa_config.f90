@@ -198,17 +198,19 @@ contains
         
           call parse_calibration_parameters(subtable,config,err,cmessage) 
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-          
-          write(iulog,*) 'Calibration parameters:'
-          write(iulog,'(3X,2X,A24,2X,A16,2X,A16,2X,A)') &
-          'Parameter', 'Lower bound', 'Upper bound', 'Transformation'
-          do k=1,size(config%calib%param_list)
-            write(iulog,'(I3,2X,A24,2X,F16.9,2X,F16.9,2X,A)') &
-              k, trim(config%calib%param_list(k)%name),     &
-              config%calib%param_list(k)%lower_bound,       &
-              config%calib%param_list(k)%upper_bound,       &
-              trim(config%calib%param_list(k)%transformation)
-          enddo
+     
+          if(config%is_case_root)then     
+            write(iulog,*) 'Calibration parameters:'
+            write(iulog,'(3X,2X,A24,2X,A16,2X,A16,2X,A)') &
+            'Parameter', 'Lower bound', 'Upper bound', 'Transformation'
+            do k=1,size(config%calib%param_list)
+              write(iulog,'(I3,2X,A24,2X,F16.9,2X,F16.9,2X,A)') &
+                k, trim(config%calib%param_list(k)%name),     &
+                config%calib%param_list(k)%lower_bound,       &
+                config%calib%param_list(k)%upper_bound,       &
+                trim(config%calib%param_list(k)%transformation)
+            enddo
+          endif
 
           cycle
         
