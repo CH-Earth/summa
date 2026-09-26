@@ -98,6 +98,8 @@ contains
     call load_summa_config(config_file, config, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    write(*,*) 'DEBUG loaded metric = [', trim(config%calib%metric), ']'
+
     ! apply command-line overrides
     if(allocated(config%home_path_override)) config%home_path = config%home_path_override
 
@@ -139,7 +141,6 @@ contains
     integer(i4b)       :: i,j,k
     character(len=256) :: cmessage
     logical(lgt)       :: mizuroute_config_present = .false.
-    logical(lgt)       :: hasObs                      ! .true. if streamflow observations are configured
 
     err = 0
     message = 'load_summa_config/'
@@ -257,29 +258,34 @@ contains
       write(iulog,*) '         mizuRoute, hydrofabric, and remapping sections if routing is not required.'
     endif
 
-    ! ----- set default objective function settings -----
+    ! ----- set calibration defaults and derived metric settings -----
 
-    ! NOTE: only when observations are configured. A configuration file is also used for a
-    !       plain run or for mizuRoute alone, and neither has an objective function to
-    !       evaluate, so warning about unset objective settings there is just noise.
-    hasObs = .false.
+    ! set default obs transformation when obs are avaailable
     if(allocated(config%obs%obs_file))then
-      if(len_trim(config%obs%obs_file) > 0) hasObs = .true.
-    endif
-
-    if(hasObs)then
-      ! set default objective-function metric
-      if(.not.allocated(config%calib%metric))then
-        config%calib%metric = 'kge'
-        write(iulog,*) 'WARNING: objective metric not specified; using kge'
-      endif
-
-      ! set default obs transformation
       if(.not.allocated(config%calib%obs_transform))then
         config%calib%obs_transform = 'none'
         write(iulog,*) 'WARNING: observation transformation not specified; using none'
       endif
     endif
+    
+    ! set default objective-function metric
+    if(.not.allocated(config%calib%metric))then
+      config%calib%metric = 'kge'
+      write(iulog,*) 'WARNING: objective metric not specified; using kge'
+    endif
+
+    ! set default metric value
+    select case(trim(config%calib%metric))
+      case ("kge", "kgep", "nse")
+        config%calib%default_metric = -9999._rkind
+      case ("mae", "rmse")
+        config%calib%default_metric = 9999._rkind
+      case default
+        message=trim(message)//'unsupported calibration metric "'//trim(config%calib%metric)// &
+                               '"; expected one of: kge, kgep, nse, mae, rmse'// &
+                               ' (note: case sensitive)'
+        err=20; return
+    end select
 
   end subroutine load_summa_config
   

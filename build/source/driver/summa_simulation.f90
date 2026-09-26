@@ -156,7 +156,6 @@ contains
     real(rkind), allocatable           :: timeAligned(:)     ! common time vector
     real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period 
     real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
-    real(rkind)                        :: default_metric     ! value for failed/missing metric
     logical(lgt)                       :: solver_failed      ! flag if the solver failed
     character(len=256)                 :: cmessage           ! error message of downwind routine
     logical                            :: hasObs             ! .true. if streamflow observations are configured
@@ -164,17 +163,6 @@ contains
     err=0
     message='evaluate_objective/'
  
-    ! specify default objective function
-    select case(trim(config%calib%metric))
-      case ("kge", "kgep", "nse"); default_metric = -9999_rkind
-      case ("mae", "rmse");        default_metric =  9999_rkind
-      case default
-        message=trim(message)//'unsupported calibration metric "'//trim(config%calib%metric)// &
-                               '"; expected one of: kge, kgep, nse, mae, rmse'// &
-                               ' (note: case sensitive)'
-        err=20; return
-    end select
-
     ! allocate top-level SUMMA structure
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then
@@ -225,7 +213,7 @@ contains
       call finalize_summa(summa1_struc(n),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       if(allocated(summa1_struc)) deallocate(summa1_struc)
-      metric = default_metric
+      metric = summa1_struc(n)%config%calib%default_metric
       return
 
     endif
@@ -271,7 +259,7 @@ contains
                           metric,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     else
-      metric = default_metric
+      metric = summa1_struc(n)%config%calib%default_metric
     endif
 
     ! write aligned evaluation time series and objective value
@@ -393,13 +381,11 @@ contains
       ! transfer SUMMA fluxes to OpenWQ
       if(openwq_active) call openwq_run_space_step(summa_struct)
 
-      ! save streamflow time series (unavailable when mizuRoute is not active)
-      if(mizuroute_active)then ! build-time capability
-       if(summa_struct%config%use_mizuroute)then
-        timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
-        call get_mizuroute_streamflow(modelTimeStep, summa_struct, flowSim(modelTimeStep))
-       endif
-      endif
+      ! save streamflow time series
+      call get_streamflow(modelTimeStep, summa_struct, &
+                          timeSim(modelTimeStep),flowSim(modelTimeStep), &
+                          err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
       ! write the model output
       call summa_writeOutputFiles(modelTimeStep, summa_struct, err, cmessage)
@@ -473,5 +459,57 @@ contains
     call sleep(2)
 
   end subroutine finalize_summa
+
+  ! ---------------------------------------------------------------------------------------------------
+  ! ---------------------------------------------------------------------------------------------------
+  ! ---- HELPER SUBROUTINES ---------------------------------------------------------------------------
+  ! ---------------------------------------------------------------------------------------------------
+  ! ---------------------------------------------------------------------------------------------------
+
+  subroutine get_streamflow(modelTimeStep,summa_struct,timeSim,flowSim,err,message)
+
+  USE var_lookup, only: iLookFORCE
+  USE var_lookup, only: iLookBVAR
+
+  implicit none
+
+  integer(i4b),          intent(in)    :: modelTimeStep
+  type(summa1_type_dec), intent(inout) :: summa_struct
+  real(rkind),           intent(out)   :: timeSim
+  real(rkind),           intent(out)   :: flowSim
+  integer(i4b),          intent(out)   :: err
+  character(*),          intent(out)   :: message
+
+  logical(lgt) :: get_routed
+  integer(i4b) :: iGRU
+
+  err=0
+  message='get_streamflow/'
+
+  ! if streamflow is routed using mizuroute
+  get_routed = mizuroute_active .and. summa_struct%config%use_mizuroute
+
+  ! simulation time
+  timeSim = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
+
+  ! get streamflow from mizuroute
+  if(get_routed)then
+    call get_mizuroute_streamflow(modelTimeStep,summa_struct,flowSim)
+
+  ! get streamflow from SUMMA routed runoff
+  else
+
+    flowSim = 0._rkind
+
+    do iGRU=1,size(summa_struct%bvarStruct%gru)
+      flowSim = flowSim + &
+        summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1) * &
+        summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+    enddo
+    
+  endif
+
+end subroutine get_streamflow
+
 
 end module summa_simulation
