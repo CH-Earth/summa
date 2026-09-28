@@ -378,7 +378,7 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
     ! NOTE: H is the mixture enthalpy of snow liquid and ice
     !  do the same for glacier ice if necessary (more than one melting ice layer)
     needLookup_ice = .false.
-    if(nMeltingIceLayers - gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce > 1) needLookup_ice = .true.
+    if(nMeltingIceLayers > 1 .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce > 0) needLookup_ice = .true.
     if(nLakeIceLayers_poss > 1 .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake > 0 ) needLookup_ice = .true. 
     call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),needLookup_ice,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

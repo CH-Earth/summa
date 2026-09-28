@@ -39,6 +39,10 @@ covers the user-facing highlights.
   scaffolded but not yet active). Data structures gained a `dom` dimension throughout; the
   restart and attributes files gained `dom`, `glac` and glacier-grid variables. Runs without
   glaciers or wetlands are unchanged.
+- Glacier area evolves during a run: once a year a shallow-ice flow model with debris
+  transport is run on a per-glacier grid and the glacier domains are rebuilt from the result
+  (see [glacier geometry updates](configuration/SUMMA_configuration.md#glacier-geometry-updates)).
+  Four new GRU parameters control the debris model; all have defaults.
 - The number of soil layers no longer has to be the same in every HRU.
 
 ### Parallelization
@@ -109,6 +113,14 @@ covers the user-facing highlights.
 
 ## Pre-release
 ### Major changes
+- Fixed: writing a restart file failed for any run with more than one GRU and a glacier grid.
+- A soil layer's lateral outflow is capped at the drainable water it holds over the data step.
+- The infiltration closure under saturation scales to the depth of the zone it averages over, so
+  a thin glacier debris column closes off as a soil column does.
+- Exfiltration returns the surplus a nearly full column cannot store whatever face it arrived
+  through, not only the lateral inflow. This closes the water balance of a glacier debris column
+  fed by melt from below; a free-draining soil column is unchanged, since the relief only opens
+  once available storage falls below 2 mm.
 - General cleanup and shortening of computFlux.f90, vegNrgFlux.f90, snowSoilNrgFlux.f90, vegLiqFlux.f90, snowLiqFlux.f90, soilLiqFlux.f90, groundwatr.f90, and bigAquifer.f90 
 - Added object-oriented methods to simplify flux routine calls in computFlux and improve modularity
     - classes for each flux routine were added to data_types.f90

@@ -1,0 +1,1613 @@
+                                   MODFLOW 6
+                U.S. GEOLOGICAL SURVEY MODULAR HYDROLOGIC MODEL
+                       VERSION 6.8.0.dev0+6ad3122c.dirty
+                               ***DEVELOP MODE***
+
+        MODFLOW 6 compiled Sep  1 2026 17:20:28 with GCC version 15.2.0
+
+This software is preliminary or provisional and is subject to 
+revision. It is being provided to meet the need for timely best 
+science. The software has not received final approval by the U.S. 
+Geological Survey (USGS). No warranty, expressed or implied, is made 
+by the USGS or the U.S. Government as to the functionality of the 
+software and related material nor shall the fact of release 
+constitute any such warranty. The software is provided on the 
+condition that neither the USGS nor the U.S. Government shall be held 
+liable for any damages resulting from the authorized or unauthorized 
+use of the software.
+
+
+As a work of the United States Government, this USGS product is 
+in the public domain within the United States. You can copy, 
+modify, distribute, and perform the work, even for commercial 
+purposes, all without asking permission. Additionally, USGS 
+waives copyright and related rights in the work worldwide 
+through CC0 1.0 Universal Public Domain Dedication 
+(https://creativecommons.org/publicdomain/zero/1.0/).
+
+The following GNU Lesser General Public License (LGPL) libraries
+are used in this USGS product:
+
+    SPARSKIT version 2.0
+      ilut, luson, and qsplit 
+      (https://www-users.cse.umn.edu/~saad/software/SPARSKIT/)
+
+    RCM - Reverse Cuthill McKee Ordering
+      (https://people.math.sc.edu/Burkardt/f_src/rcm/rcm.html)
+
+    BLAS - Basic Linear Algebra Subprograms Level 1
+      (https://people.math.sc.edu/Burkardt/f_src/blas1_d/blas1_d.html)
+
+    SPARSEKIT - Sparse Matrix Utility Package
+      amux, dperm, dvperm, rperm, and cperm
+      (https://people.sc.fsu.edu/~jburkardt/f77_src/sparsekit/sparsekit.html)
+
+The following BSD-3 License libraries are used in this USGS product:
+
+    Modern Fortran DAG Library
+      Copyright (c) 2018, Jacob Williams
+      All rights reserved.
+      (https://github.com/jacobwilliams/daglib)
+
+MODFLOW 6 compiler options: -fdiagnostics-color=always -cpp -I
+src/libmf6_external.a.p -I src/libmf6core.a.p -I src -I ../src -I .
+-D__DYNAMIC__ -D __APPLE__ -fPIC -mmacosx-version-min=26.0.0 -mcpu=apple-m1
+-mlittle-endian -mabi=lp64 -O3 -O1 -Wall -Wpedantic -Wcharacter-truncation
+-Wno-unused-dummy-argument -Wno-intrinsic-shadow -Wno-maybe-uninitialized
+-Wno-uninitialized -std=f2018 -fall-intrinsics -ffpe-summary=overflow
+-ffpe-trap=overflow,zero,invalid -J src/libmf6core.a.p
+
+System command used to initiate simulation:
+/Users/amedin/Research/MODFLOW/modflow6/srcextern/summa/bin/summa_modflow6.exe /Users/amedin/Research/MODFLOW/modflow6/srcextern/summa/utils/test/test_mflow/domain_sagehen1/settings/SUMMA/fileManager.txt /Users/amedin/Research/MODFLOW/modflow6/srcextern/summa/utils/test/test_mflow/domain_sagehen1/summa_modflow6.config
+
+MODFLOW was compiled using uniform precision.
+
+Real Variables
+  KIND: 8
+  TINY (smallest non-zero value):    2.225074-308
+  HUGE (largest value):    1.797693+308
+  PRECISION: 15
+  SIZE IN BITS: 64
+
+Integer Variables
+  KIND: 4
+  HUGE (largest value): 2147483647
+  SIZE IN BITS: 32
+
+Long Integer Variables
+  KIND: 8
+  HUGE (largest value): 9223372036854775807
+  SIZE IN BITS: 64
+
+Logical Variables
+  KIND: 4
+  SIZE IN BITS: 32
+
+
+ OPENED mfsim.nam
+ FILE TYPE:NAM6               UNIT 1002   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # MODFLOW 6 simulation name file - Sagehen, configured for the SUMMA coupler
+ #   * single GWF model "SAGEHEN", DIS grid
+ #   * TDIS in SECONDS, MODFLOW time step = SUMMA forcing data_step (3600 s here)
+ #   * RCH package "RCHA" with READASARRAYS  (recharge supplied by SUMMA each step)
+ # Built from the ex-gwf-sagehen array files in this directory.
+
+ OPENED sagehen.tdis
+ FILE TYPE:TDIS6              UNIT 1003   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # Time discretisation - SECONDS, one stress period of 744 hourly steps.
+ # The coupler advances MODFLOW exactly once per SUMMA forcing data step, so:
+ #   * the MODFLOW time step length (here perlen/nstp) must equal SUMMA's data_step
+ #     - the forcing file's data_step attribute, 3600 s for this Sagehen forcing;
+ #   * the total number of MODFLOW steps (744) must be >= SUMMA's numtim (number of
+ #     data steps in the simulated period).
+ #   72 steps * 3600 s = 259200 s  (2019-08-01 00:00 .. 2019-08-03 23:00, hourly)
+ #   short shallow-water-table coupling test; bump to 744 / 2678400.0 for the full month
+ #  perlen      nstp   tsmult
+
+ OPENED sagehen.nam
+ FILE TYPE:GWF6               UNIT 1004   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # GWF model name file for model SAGEHEN.
+ # Newton-Raphson for the unconfined (convertible) layer.
+
+ OPENED sagehen.dis
+ FILE TYPE:DIS6               UNIT 1005   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # Structured discretisation: 1 layer, 73 rows, 81 cols, 90 m cells.
+ # IDOMAIN (idomain1.txt) = 0 where the native ibnd1.txt is 0, else 1.
+ # TOP/BOTM/arrays are the native ex-gwf-sagehen text arrays (row-major, 73 x 81).
+
+ OPENED sagehen.npf
+ FILE TYPE:NPF6               UNIT 1009   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # Node property flow.  ICELLTYPE 1 -> convertible (unconfined) with Newton.
+ # kh1.txt / kv1.txt hold the upstream ex-gwf-sagehen values in m/DAY (0.005-0.3);
+ # this model runs TIME_UNITS SECONDS, so FACTOR 1/86400 converts them to m/s.
+
+ OPENED sagehen.sto
+ FILE TYPE:STO6               UNIT 1012   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # Storage - transient, convertible (water-table) storage from sy1.txt.
+ # SY is the active parameter for the water-table layer; SS is kept small (1e-7) so the
+ # few cells that start above land surface do not release a destabilising confined-storage
+ # pulse in the first hours of the transient.
+
+ OPENED sagehen.ic
+ FILE TYPE:IC6                UNIT 1014   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # Initial conditions - starting heads from strt1.txt (m).
+
+ OPENED sagehen.oc
+ FILE TYPE:OC6                UNIT 1016   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # Output control - keep it light for a coupler smoke test: heads/budget every
+ # 24th step (daily) plus the last step.  Bump to ALL if you need every step.
+
+ OPENED sagehen.rcha
+ FILE TYPE:RCH6               UNIT 1018   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # Array-based recharge (READASARRAYS).  The SUMMA coupler overwrites the RECHARGE
+ # array in memory (SAGEHEN/RCHA/RECHARGE) every time step with the regridded SUMMA
+ # soil-column drainage, in m/s.  The constant below is only the pre-coupling default
+ # used when running mf6 stand-alone; it is a small non-zero background rate so the
+ # water table does not collapse (and diverge) over a long zero-recharge stand-alone run.
+
+ OPENED sagehen.chd
+ FILE TYPE:CHD6               UNIT 1020   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ # Constant-head cells - the three outlet cells that carry ibnd1.txt == -1,
+ # held at their strt1.txt value (see chd1.txt: layer row col head).
+
+ READING SIMULATION OPTIONS
+    MAXIMUM NUMBER OF ERRORS THAT WILL BE STORED IS 1000
+ END OF SIMULATION OPTIONS
+
+ READING SIMULATION TIMING
+
+ TDIS -- TEMPORAL DISCRETIZATION PACKAGE,
+ VERSION 1 : 11/13/2014 - INPUT READ FROM MEMPATH: __INPUT__/SIM/TDIS                                
+ PROCESSING TDIS OPTIONS
+    SIMULATION TIME UNIT IS SECONDS
+ END OF TDIS OPTIONS
+ PROCESSING TDIS DIMENSIONS
+    1 STRESS PERIOD(S) IN SIMULATION
+ END OF TDIS DIMENSIONS
+ PROCESSING TDIS PERIODDATA
+
+
+ STRESS PERIOD     LENGTH       TIME STEPS     MULTIPLIER FOR DELT
+ ----------------------------------------------------------------------------
+        1         259200.0         72                    1.000
+ END OF TDIS PERIODDATA
+ END OF SIMULATION TIMING
+
+ READING SIMULATION MODELS
+    GWF6 model 1 will be created
+ END OF SIMULATION MODELS
+
+ READING SIMULATION EXCHANGES
+ END OF SIMULATION EXCHANGES
+
+ READING SOLUTIONGROUP
+
+ Creating solution: SLN_1           
+
+ OPENED sagehen.ims
+ FILE TYPE:IMS   UNIT 1022   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+ END OF SOLUTIONGROUP
+
+ OPENED chd1.txt
+ FILE TYPE:OPEN/CLOSE   UNIT 1023   STATUS:OLD                 
+ FORMAT:FORMATTED              ACCESS:SEQUENTIAL          
+ ACTION:READ                
+
+
+PROCESSING MODEL CONNECTIONS
+
+ IMS -- ITERATIVE MODEL SOLUTION PACKAGE, VERSION 6, 4/28/2017
+         INPUT READ FROM UNIT 1022
+ # Iterative model solution.  Steep unconfined terrain solved with Newton
+ # (NEWTON UNDER_RELAXATION is set in sagehen.nam).  DBD under-relaxation +
+ # backtracking on the outer loop keeps the water table stable as SUMMA
+ # recharge switches on and off between coupling steps.
+
+ PROCESSING IMS OPTIONS
+ END OF IMS OPTIONS
+
+ PROCESSING IMS NONLINEAR
+ END OF IMS NONLINEAR DATA
+ **UNDER-RELAXATION WILL BE USED***
+
+
+ PROCESSING LINEAR DATA
+ END OF LINEAR DATA
+ ***IMS LINEAR SOLVER WILL BE USED***
+
+ IMSLINEAR -- UNSTRUCTURED LINEAR SOLUTION PACKAGE, VERSION 8, 04/28/2017
+ An asymmetric matrix will be solved
+
+ OUTER ITERATION CONVERGENCE CRITERION    (DVCLOSE) =    0.100000E-01
+ MAXIMUM NUMBER OF OUTER ITERATIONS        (MXITER) = 200
+ SOLVER PRINTOUT INDEX                     (IPRIMS) = 1
+ NONLINEAR ITERATION METHOD            (NONLINMETH) = 3
+ LINEAR SOLUTION METHOD                   (LINMETH) = 1
+ UNDER-RELAXATION WEIGHT REDUCTION FACTOR   (THETA) =    0.700000E+00
+ UNDER-RELAXATION WEIGHT INCREASE INCREMENT (KAPPA) =    0.100000E+00
+ UNDER-RELAXATION PREVIOUS HISTORY FACTOR   (GAMMA) =    0.000000E+00
+ UNDER-RELAXATION MOMENTUM TERM         (AMOMENTUM) =    0.000000E+00
+ MAXIMUM NUMBER OF BACKTRACKS            (NUMTRACK) = 20
+ BACKTRACKING TOLERANCE FACTOR               (BTOL) =    0.105000E+01
+ BACKTRACKING REDUCTION FACTOR             (BREDUC) =    0.200000E+00
+ BACKTRACKING RESIDUAL LIMIT              (RES_LIM) =    0.100000E+01
+
+       SOLUTION BY THE BICONJUGATE-GRADIENT STABILIZED METHOD
+ ------------------------------------------------------------------
+ MAXIMUM OF 200 CALLS OF SOLUTION ROUTINE
+ MAXIMUM OF 100 INTERNAL ITERATIONS PER CALL TO SOLUTION ROUTINE
+ LINEAR ACCELERATION METHOD            = BCGS      
+ MATRIX PRECONDITIONING TYPE           = INCOMPLETE LU       
+ MATRIX SCALING APPROACH               = NO SCALING          
+ MATRIX REORDERING APPROACH            = ORIGINAL ORDERING        
+ NUMBER OF ORTHOGONALIZATIONS          = 0
+ HEAD CHANGE CRITERION FOR CLOSURE     =    0.10000E-02
+ RESIDUAL CHANGE CRITERION FOR CLOSURE =    0.10000E+00
+ RESIDUAL CONVERGENCE OPTION           = 0
+ RESIDUAL CONVERGENCE NORM             = INFINITY NORM   
+ RELAXATION FACTOR                     =    0.00000E+00
+
+
+
+
+    Solving:  Stress period:     1    Time step:     1
+
+1
+ STRESS PERIOD NO. 1, LENGTH =   259200.0    
+ ------------------------------------------
+ NUMBER OF TIME STEPS = 72
+ MULTIPLIER FOR DELT =     1.000
+ INITIAL TIME STEP SIZE =   3600.000    
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.62611507      0.62611507                       *                                   
+ Model                              1          2                                                       -5.07651588E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.99461160E-04  9.99461160E-04                       *                                   
+ Model                              2          1                                                       -3.44639375E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 1 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:     2
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       14.961522       14.961522                       *                                   
+ Model                              1          2                                                            -1.1461063                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.81372990E-04  9.81372990E-04                       *                                   
+ Model                              2          1                                                       -3.45360468E-06       *                    1_GWF-(1,41,62)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 2 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:     3
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       11.515023       11.515023                       *                                   
+ Model                              1          2                                                           -0.88274640                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.71853998E-04  9.71853998E-04                       *                                   
+ Model                              2          1                                                       -2.09664245E-06       *                    1_GWF-(1,41,62)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 3 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:     4
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.9431407       1.9431407                       *                                   
+ Model                              1          2                                                           -0.15143414                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.72135345E-04  9.72135345E-04                       *                                   
+ Model                              2          1                                                       -9.58129931E-08       *                    1_GWF-(1,41,62)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 4 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:     5
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.7777270       1.7777270                       *                                   
+ Model                              1          2                                                           -0.13877710                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.70443218E-04  9.70443218E-04                       *                                   
+ Model                              2          1                                                       -8.32410478E-08       *                    1_GWF-(1,41,62)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 5 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:     6
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.6419790       1.6419790                       *                                   
+ Model                              1          2                                                           -0.12838755                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.68878991E-04  9.68878991E-04                       *                                   
+ Model                              2          1                                                       -7.34844434E-08       *                    1_GWF-(1,41,62)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 6 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:     7
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.5268119       1.5268119                       *                                   
+ Model                              1          2                                                           -0.11957115                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.67423763E-04  9.67423763E-04                       *                                   
+ Model                              2          1                                                       -6.56073098E-08       *                    1_GWF-(1,41,62)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 7 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:     8
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.4273578       1.4273578                       *                                   
+ Model                              1          2                                                           -0.11195589                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.66062911E-04  9.66062911E-04                       *                                   
+ Model                              2          1                                                       -5.91019216E-08       *                    1_GWF-(1,41,62)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 8 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:     9
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.3404431       1.3404431                       *                                   
+ Model                              1          2                                                           -0.10529922                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.64784690E-04  9.64784690E-04                       *                                   
+ Model                              2          1                                                       -5.46760930E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 9 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    10
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.2639021       1.2639021                       *                                   
+ Model                              1          2                                                       -9.94356511E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.63579339E-04  9.63579339E-04                       *                                   
+ Model                              2          1                                                       -5.19924015E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 10 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    11
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.1962616       1.1962616                       *                                   
+ Model                              1          2                                                       -9.42526062E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.62438446E-04  9.62438446E-04                       *                                   
+ Model                              2          1                                                       -4.96045232E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 11 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    12
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.1366089       1.1366089                       *                                   
+ Model                              1          2                                                       -8.96804036E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.61354352E-04  9.61354352E-04                       *                                   
+ Model                              2          1                                                       -4.74810804E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 12 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    13
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.0844776       1.0844776                       *                                   
+ Model                              1          2                                                       -8.56835074E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.60320136E-04  9.60320136E-04                       *                                   
+ Model                              2          1                                                       -4.55963800E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 13 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    14
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.0400070       1.0400070                       *                                   
+ Model                              1          2                                                       -8.22727698E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.59328280E-04  9.59328280E-04                       *                                   
+ Model                              2          1                                                       -4.39606538E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 14 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    15
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.0045163       1.0045163                       *                                   
+ Model                              1          2                                                       -7.95494230E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.58370181E-04  9.58370181E-04                       *                                   
+ Model                              2          1                                                       -4.26125553E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 15 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    16
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.98318694      0.98318694                       *                                   
+ Model                              1          2                                                       -7.79105805E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.57432126E-04  9.57432126E-04                       *                                   
+ Model                              2          1                                                       -4.17091996E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 16 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    17
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0       1.0030939       1.0030939                       *                                   
+ Model                              1          2                                                       -7.94301623E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.56473678E-04  9.56473678E-04                       *                                   
+ Model                              2          1                                                       -4.20689048E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 17 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    18
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.76757530      0.76757530                       *                                   
+ Model                              1          2                                                       -6.13734500E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.55749065E-04  9.55749065E-04                       *                                   
+ Model                              2          1                                                       -3.46014986E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 18 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    19
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.64334778      0.64334778                       *                                   
+ Model                              1          2                                                       -5.18304521E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.55139955E-04  9.55139955E-04                       *                                   
+ Model                              2          1                                                       -3.05158210E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 19 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    20
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.57325737      0.57325737                       *                                   
+ Model                              1          2                                                       -4.64361050E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.54596902E-04  9.54596902E-04                       *                                   
+ Model                              2          1                                                       -2.81081611E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 20 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    21
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.51490837      0.51490837                       *                                   
+ Model                              1          2                                                       -4.19377669E-02                            1_GWF-(1,41,21)
+ Backtracking                       2                     0          0  9.54109818E-04  9.54109818E-04                       *                                   
+ Model                              2          1                                                       -2.60652087E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 21 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    22
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.46579296      0.46579296                       *                                   
+ Model                              1          2                                                       -3.94282754E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.53669984E-04  9.53669984E-04                       *                                   
+ Model                              2          1                                                       -2.43089744E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 22 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    23
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.42352563      0.42352563                       *                                   
+ Model                              1          2                                                       -3.77304642E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.53270943E-04  9.53270943E-04                       *                                   
+ Model                              2          1                                                       -2.27694272E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 23 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    24
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.38602765      0.38602765                       *                                   
+ Model                              1          2                                                       -3.62139586E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.52908220E-04  9.52908220E-04                       *                                   
+ Model                              2          1                                                       -2.13804014E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 24 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    25
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.35213868      0.35213868                       *                                   
+ Model                              1          2                                                       -3.48339053E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.52578439E-04  9.52578439E-04                       *                                   
+ Model                              2          1                                                       -2.01057446E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 25 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    26
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.32258840      0.32258840                       *                                   
+ Model                              1          2                                                       -3.36190298E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.52277473E-04  9.52277473E-04                       *                                   
+ Model                              2          1                                                       -1.89720595E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 26 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    27
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.29528188      0.29528188                       *                                   
+ Model                              1          2                                                       -3.24876904E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.52003276E-04  9.52003276E-04                       *                                   
+ Model                              2          1                                                       -1.79106792E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 27 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    28
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.27000435      0.27000435                       *                                   
+ Model                              1          2                                                       -3.14312314E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.51753987E-04  9.51753987E-04                       *                                   
+ Model                              2          1                                                       -1.69152372E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 28 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    29
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.24825859      0.24825859                       *                                   
+ Model                              1          2                                                       -3.05092886E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.51526240E-04  9.51526240E-04                       *                                   
+ Model                              2          1                                                       -1.60355285E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 29 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    30
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.23023721      0.23023721                       *                                   
+ Model                              1          2                                                       -2.97308260E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.51316456E-04  9.51316456E-04                       *                                   
+ Model                              2          1                                                       -1.52840585E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 30 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    31
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.21412205      0.21412205                       *                                   
+ Model                              1          2                                                       -2.90242335E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.51122861E-04  9.51122861E-04                       *                                   
+ Model                              2          1                                                       -1.45976173E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 31 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    32
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.19967129      0.19967129                       *                                   
+ Model                              1          2                                                       -2.83802487E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.50943901E-04  9.50943901E-04                       *                                   
+ Model                              2          1                                                       -1.39673375E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 32 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    33
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.18670708      0.18670708                       *                                   
+ Model                              1          2                                                       -2.77921358E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.50778188E-04  9.50778188E-04                       *                                   
+ Model                              2          1                                                       -1.33895810E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 33 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    34
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.17505466      0.17505466                       *                                   
+ Model                              1          2                                                       -2.72532345E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.50624499E-04  9.50624499E-04                       *                                   
+ Model                              2          1                                                       -1.28566171E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 34 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    35
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.16457038      0.16457038                       *                                   
+ Model                              1          2                                                       -2.67581081E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.50481747E-04  9.50481747E-04                       *                                   
+ Model                              2          1                                                       -1.23661721E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 35 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    36
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.15512741      0.15512741                       *                                   
+ Model                              1          2                                                       -2.63019664E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.50348964E-04  9.50348964E-04                       *                                   
+ Model                              2          1                                                       -1.19121069E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 36 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    37
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.14663957      0.14663957                       *                                   
+ Model                              1          2                                                       -2.58817141E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.50225261E-04  9.50225261E-04                       *                                   
+ Model                              2          1                                                       -1.14921477E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 37 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    38
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.13899817      0.13899817                       *                                   
+ Model                              1          2                                                       -2.54932616E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.50109849E-04  9.50109849E-04                       *                                   
+ Model                              2          1                                                       -1.11015197E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 38 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    39
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.13211530      0.13211530                       *                                   
+ Model                              1          2                                                       -2.51333632E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.50002019E-04  9.50002019E-04                       *                                   
+ Model                              2          1                                                       -1.07402229E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 39 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    40
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.12593548      0.12593548                       *                                   
+ Model                              1          2                                                       -2.48001873E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.49901111E-04  9.49901111E-04                       *                                   
+ Model                              2          1                                                       -1.04037099E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 40 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    41
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.12697953      0.12697953                       *                                   
+ Model                              1          2                                                       -2.47944747E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.49798908E-04  9.49798908E-04                       *                                   
+ Model                              2          1                                                       -1.03450475E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 41 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    42
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.12421824      0.12421824                       *                                   
+ Model                              1          2                                                       -2.46152604E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.49699798E-04  9.49699798E-04                       *                                   
+ Model                              2          1                                                       -1.01410933E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 42 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    43
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.12552342      0.12552342                       *                                   
+ Model                              1          2                                                       -2.46220713E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.49599101E-04  9.49599101E-04                       *                                   
+ Model                              2          1                                                       -1.00928901E-08       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 43 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    44
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.11890546      0.11890546                       *                                   
+ Model                              1          2                                                       -2.42639694E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.49505997E-04  9.49505997E-04                       *                                   
+ Model                              2          1                                                       -9.74546310E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 44 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    45
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.11461752      0.11461752                       *                                   
+ Model                              1          2                                                       -2.40095999E-02                            1_GWF-(1,41,66)
+ Backtracking                       2                     0          0  9.49417863E-04  9.49417863E-04                       *                                   
+ Model                              2          1                                                       -9.48580237E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 45 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    46
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.11123136      0.11123136                       *                                   
+ Model                              1          2                                                        2.40265656E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.49333703E-04  9.49333703E-04                       *                                   
+ Model                              2          1                                                       -9.26138455E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 46 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    47
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.10807845      0.10807845                       *                                   
+ Model                              1          2                                                        2.41023332E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.49253300E-04  9.49253300E-04                       *                                   
+ Model                              2          1                                                       -9.04651642E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 47 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    48
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.10436350      0.10436350                       *                                   
+ Model                              1          2                                                        2.42092766E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.49177428E-04  9.49177428E-04                       *                                   
+ Model                              2          1                                                       -8.80868356E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 48 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    49
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0      0.10071162      0.10071162                       *                                   
+ Model                              1          2                                                        2.43176926E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.49106105E-04  9.49106105E-04                       *                                   
+ Model                              2          1                                                       -8.61950866E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 49 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    50
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  9.63348487E-02  9.63348487E-02                       *                                   
+ Model                              1          2                                                        2.44703822E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.49040463E-04  9.49040463E-04                       *                                   
+ Model                              2          1                                                       -8.30846147E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 50 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    51
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  9.15213481E-02  9.15213481E-02                       *                                   
+ Model                              1          2                                                        2.46577752E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48981340E-04  9.48981340E-04                       *                                   
+ Model                              2          1                                                       -8.01833266E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 51 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    52
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  8.73195516E-02  8.73195516E-02                       *                                   
+ Model                              1          2                                                        2.48247470E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48928215E-04  9.48928215E-04                       *                                   
+ Model                              2          1                                                       -7.79073162E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 52 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    53
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  8.43508384E-02  8.43508384E-02                       *                                   
+ Model                              1          2                                                        2.49296607E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48879529E-04  9.48879529E-04                       *                                   
+ Model                              2          1                                                       -7.52083906E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 53 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    54
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  8.26109230E-02  8.26109230E-02                       *                                   
+ Model                              1          2                                                        2.49634185E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48833488E-04  9.48833488E-04                       *                                   
+ Model                              2          1                                                       -7.35917638E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 54 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    55
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  8.10617102E-02  8.10617102E-02                       *                                   
+ Model                              1          2                                                        2.49883860E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48789873E-04  9.48789873E-04                       *                                   
+ Model                              2          1                                                       -7.20660864E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 55 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    56
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.96561918E-02  7.96561918E-02                       *                                   
+ Model                              1          2                                                        2.50070670E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48748518E-04  9.48748518E-04                       *                                   
+ Model                              2          1                                                       -7.06040737E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 56 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    57
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.83540806E-02  7.83540806E-02                       *                                   
+ Model                              1          2                                                        2.50218405E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48709321E-04  9.48709321E-04                       *                                   
+ Model                              2          1                                                       -6.91943569E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 57 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    58
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.71732639E-02  7.71732639E-02                       *                                   
+ Model                              1          2                                                        2.50310138E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48672133E-04  9.48672133E-04                       *                                   
+ Model                              2          1                                                       -6.78414835E-09       *                    1_GWF-(1,35,58)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 58 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    59
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.61099419E-02  7.61099419E-02                       *                                   
+ Model                              1          2                                                        2.50343285E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48636803E-04  9.48636803E-04                       *                                   
+ Model                              2          1                                                       -6.65750122E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 59 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    60
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.51369097E-02  7.51369097E-02                       *                                   
+ Model                              1          2                                                        2.50334056E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48603217E-04  9.48603217E-04                       *                                   
+ Model                              2          1                                                       -6.54199539E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 60 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    61
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.42448725E-02  7.42448725E-02                       *                                   
+ Model                              1          2                                                        2.50286001E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48571273E-04  9.48571273E-04                       *                                   
+ Model                              2          1                                                       -6.43080966E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 61 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    62
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.34256156E-02  7.34256156E-02                       *                                   
+ Model                              1          2                                                        2.50202281E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48540873E-04  9.48540873E-04                       *                                   
+ Model                              2          1                                                       -6.32212505E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 62 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    63
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.27172469E-02  7.27172469E-02                       *                                   
+ Model                              1          2                                                        2.50043997E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48511826E-04  9.48511826E-04                       *                                   
+ Model                              2          1                                                       -6.22048901E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 63 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    64
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.23124076E-02  7.23124076E-02                       *                                   
+ Model                              1          2                                                        2.49621708E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48483460E-04  9.48483460E-04                       *                                   
+ Model                              2          1                                                       -6.13658813E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 64 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    65
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.52153566E-02  7.52153566E-02                       *                                   
+ Model                              1          2                                                        2.46352219E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48448607E-04  9.48448607E-04                       *                                   
+ Model                              2          1                                                       -6.24140739E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 65 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    66
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.51556597E-02  7.51556597E-02                       *                                   
+ Model                              1          2                                                        2.45625185E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48413704E-04  9.48413704E-04                       *                                   
+ Model                              2          1                                                       -6.17751539E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 66 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    67
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.49187337E-02  7.49187337E-02                       *                                   
+ Model                              1          2                                                        2.45040838E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48379069E-04  9.48379069E-04                       *                                   
+ Model                              2          1                                                       -6.10702955E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 67 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    68
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.63535927E-02  7.63535927E-02                       *                                   
+ Model                              1          2                                                        2.43174312E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48341465E-04  9.48341465E-04                       *                                   
+ Model                              2          1                                                       -6.11953510E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 68 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    69
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.68256358E-02  7.68256358E-02                       *                                   
+ Model                              1          2                                                        2.42067744E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48302819E-04  9.48302819E-04                       *                                   
+ Model                              2          1                                                       -6.08315531E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 69 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    70
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.52591612E-02  7.52591612E-02                       *                                   
+ Model                              1          2                                                        2.42479658E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48266928E-04  9.48266928E-04                       *                                   
+ Model                              2          1                                                       -6.00311978E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 70 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    71
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.41431058E-02  7.41431058E-02                       *                                   
+ Model                              1          2                                                        2.42593742E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48233034E-04  9.48233034E-04                       *                                   
+ Model                              2          1                                                       -3.30528565E-08       *                    1_GWF-(1,30,44)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 71 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+    Solving:  Stress period:     1    Time step:    72
+
+
+ SLN_1 OUTER ITERATION SUMMARY
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                OUTER      INNER  BACKTRACK  BACKTRACK        INCOMING        OUTGOING                    STEP   MAXIMUM CHANGE MODEL-(CELLID) OR
+ OUTER ITERATION STEP       ITERATION  ITERATION       FLAG ITERATIONS        RESIDUAL        RESIDUAL  MAXIMUM CHANGE SUCCESS             MODEL-PACKAGE-(NUMBER)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Backtracking                       1                     0          0  7.28989760E-02  7.28989760E-02                       *                                   
+ Model                              1          2                                                        2.42853974E-02                            1_GWF-(1,40,67)
+ Backtracking                       2                     0          0  9.48201493E-04  9.48201493E-04                       *                                   
+ Model                              2          1                                                       -5.72299541E-09       *                    1_GWF-(1,42,69)
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+ 2 CALLS TO NUMERICAL SOLUTION IN TIME STEP 72 STRESS PERIOD 1
+ 3 TOTAL ITERATIONS
+
+
+ Solution SLN_1 summary
+ ----------------------------------------------------------------------
+ Total formulate time:  0.94927999999998347E-1 seconds
+ Total solution time:   0.41011000000001019E-1 seconds
+
+
+ MEMORY MANAGER TOTAL STORAGE BY DATA TYPE, IN MEGABYTES
+ -------------------------------
+                    ALLOCATED   
+ DATA TYPE           MEMORY     
+ -------------------------------
+ Character        6.78400000E-03
+ Logical          4.80000000E-05
+ Integer          0.70648000    
+ Real             1.7533600     
+ -------------------------------
+ Total            2.4666720     
+ Virtual          0.0000000     
+ -------------------------------
+
+
+
+ Run end date and time (yyyy/mm/dd hh:mm:ss): 2026/09/25  0:11:14
+ Elapsed run time:  0.335 Seconds
+ Normal termination of simulation.

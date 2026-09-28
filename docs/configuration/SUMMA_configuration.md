@@ -105,3 +105,31 @@ earlier SUMMA versions. Domain counts, types, areas and initial layer structure 
 [initial conditions file](../input_output/SUMMA_input.md#infile_initial_conditions). Lake
 layers are represented in the layer bookkeeping alongside snow, soil and glacier ice, but a
 full lake column is likewise not yet active.
+
+#### Glacier geometry updates
+
+Glacier support switches on when `nGlac` is greater than zero in the
+[local attributes file](../input_output/SUMMA_input.md#infile_local_attributes), which then
+also supplies a per-glacier grid (bed elevation, growth mask, and a cell-to-HRU map) and the
+[initial conditions file](../input_output/SUMMA_input.md#infile_initial_conditions) supplies the
+initial surface elevation and debris thickness on that grid. Between updates the glacier
+domains are ordinary SUMMA columns with fixed area. Once a year, on the first day of the month
+when glacier mass is lowest (October north of 25°N, April south of 25°S, January in between),
+`glacAreaChange` rebuilds the geometry:
+
+1. The mass change accumulated in each glacier domain since the last update is fitted as a
+   piecewise-linear function of domain elevation, separately for clean and debris-covered
+   domains, and the elevation where it crosses zero becomes the equilibrium-line altitude.
+2. A shallow-ice-approximation flow model (Jarosch et al., 2013) is run on the glacier grid
+   over the elapsed year with that mass balance, together with an englacial debris advection
+   and emergence model (Anderson and Anderson, 2016; Mayer and Licciulli, 2021).
+3. The new surface is mapped back to the domains: each gets a new area, mean elevation,
+   slope, aspect, contour length, debris thickness and ablation fraction, and its layers are
+   adjusted to the new ice thickness. When an HRU has two clean domains their area ratio is
+   kept, with the higher cells going to the higher domain.
+
+The debris model is controlled by four GRU-level parameters in the
+[basin parameters file](../input_output/SUMMA_input.md#infile_basin_parameters):
+`debrisConc` (englacial debris concentration, kg m-3), `wallErosionRate` (mm yr-1),
+`debrisCritStress` (Pa) and `latMoraineWidth` (m). All have defaults, so they only need to be
+set when the defaults do not suit a particular glacier.

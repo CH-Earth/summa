@@ -1624,6 +1624,8 @@ subroutine update_volFracLiq_derivatives
   real(rkind) :: dCompLimiter_dHead       ! derivative of compression limiter w.r.t. mean positive head (m-1)
   real(rkind),parameter :: compHeadCutoff=1._rkind   ! positive head where compression closure begins (m)
   real(rkind),parameter :: compHeadWidth =0.02_rkind ! smoothing width for compression closure (m)
+  real(rkind)           :: compHeadCutoff_use        ! the cutoff actually used, never deeper than the zone itself (m)
+  real(rkind)           :: compHeadWidth_use         ! the smoothing width that goes with it (m)
   real(rkind),parameter :: headSmooth =1.e-4_rkind   ! smoothing for max(psi,0) approximation (m)
   real(rkind) :: posHead(1:in_surfaceFlux % nSoil)   ! smooth positive part of matric head (m)
   real(rkind) :: dPosHead_dPsi(1:in_surfaceFlux % nSoil) ! derivative of smooth positive head w.r.t. matric head (-)
@@ -1683,12 +1685,16 @@ subroutine update_volFracLiq_derivatives
     posHead(ixTop:ixBot) = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b)) ! smooth positive part of matric head (m)
     dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
 
+    ! the closure cannot ask for more head than the zone is deep, nor a width that outruns its cutoff
+    compHeadCutoff_use = min(compHeadCutoff, rootZoneDepth)
+    compHeadWidth_use  = min(compHeadWidth, 0.25_rkind*compHeadCutoff_use)
+
     ! compute derivatives of mean positive head w.r.t. water state variables
     dCompHead_dWat(:) = 0._rkind
     compHeadRootZone = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
-    compArg = (compHeadRootZone - compHeadCutoff)/compHeadWidth
+    compArg = (compHeadRootZone - compHeadCutoff_use)/compHeadWidth_use
     compLimiter = 1._rkind/(1._rkind + exp(2._rkind*compArg))
-    dCompLimiter_dHead = -(2._rkind/compHeadWidth)*compLimiter*(1._rkind - compLimiter)
+    dCompLimiter_dHead = -(2._rkind/compHeadWidth_use)*compLimiter*(1._rkind - compLimiter)
     dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth) * dPosHead_dPsi(ixTop:ixBot)
 
     ! apply compression limiter to infiltration area and compute derivatives

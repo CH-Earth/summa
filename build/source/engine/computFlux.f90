@@ -206,6 +206,7 @@ subroutine computFlux(&
   character(LEN=256)                 :: cmessage                    ! error message of downwind routine
   real(rkind)                        :: surface_flux                ! surface flux (m s-1) into snow or ice
   real(rkind)                        :: bottom_flux                 ! bottom flux (m s-1) out of snow or ice
+  logical(lgt)                       :: do_snow                     ! flag to denote if doing snow layers
   ! ---------------------- classes for flux subroutine arguments (classes defined in data_types module) ----------------------
   !      ** intent(in) arguments **       ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_vegNrgFlux) :: in_vegNrgFlux;                                            type(out_type_vegNrgFlux) :: out_vegNrgFlux ! vegNrgFlux arguments
@@ -634,7 +635,8 @@ contains
    surface_flux = 0._rkind ! no surface flux for glacier ice layers since impermeable
    bottom_flux = 0._rkind ! no bottom flux for glacier ice layers
    nStart = nSnow + nLake + nSoil
-   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,.true.,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   do_snow = .false. ! not doing snow layers here
+   call in_snowLakeGlceLiqFlux%initialize(nGlce-noThetaChange,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data) ! only compute liquid water fluxes for top layers
   end associate
  end subroutine initialize_glceLiqFlux
@@ -680,7 +682,7 @@ contains
  end subroutine finalize_glceLiqFlux
  ! **** end glceLiqFlux ****
 
-    ! **** frozen lakeLiqFlux ****
+ ! **** frozen lakeLiqFlux ****
  subroutine initialize_frzlakeLiqFlux
   associate(&
    noThetaChange               => indx_data%var(iLookINDEX%noThetaChange)%dat(1),    & ! intent(in): [int] number of layers with no change in total water content (bottom layers)
@@ -688,7 +690,8 @@ contains
    surface_flux = 0._rkind ! no surface flux for glacier ice layers since impermeable
    bottom_flux = 0._rkind ! no bottom flux for frozen lake layers
    nStart = nSnow
-   call in_snowLakeGlceLiqFlux%initialize(nLake-noThetaChange,nStart,nGlce>0,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   do_snow = .false. ! not doing snow layers here
+   call in_snowLakeGlceLiqFlux%initialize(nLake-noThetaChange,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
   end associate
  end subroutine initialize_frzlakeLiqFlux
@@ -742,7 +745,8 @@ contains
    nLake_frz = 0
    if(lake_frozen) nLake_frz = nLake-noThetaChange
    nStart = nSnow + nLake_frz
-   call in_snowLakeGlceLiqFlux%initialize(nLake-nLake_frz,nStart,nGlce>0,.false.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   do_snow = .false. ! not doing snow layers here
+   call in_snowLakeGlceLiqFlux%initialize(nLake-nLake_frz,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
   end associate
  end subroutine initialize_lakeLiqFlux
@@ -792,7 +796,8 @@ contains
    bottom_flux = 0._rkind ! bottom flux for snow layers (m s-1)
    !if (nLake==0 .and. nSoil==0) bottom_flux = scalarGlceMelt ! leave this here in case want to couple with glacier ice melt for slush layer, will change derivatives
    nStart = 0
-   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,nGlce>0,.true.,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+   do_snow = .true. ! doing snow layers here
+   call in_snowLakeGlceLiqFlux%initialize(nSnow,nStart,nGlce>0,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
    call io_snowLakeGlceLiqFlux%initialize(flux_data,deriv_data)
   end associate
  end subroutine initialize_snowLiqFlux

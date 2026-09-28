@@ -40,11 +40,15 @@ USE globalData,only: nBands         ! length of the leading dimension of the ban
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
+! access named variables to describe the state variables
+USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
+
 ! indices of elements of data structure
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
 USE multiconst,only:&
@@ -591,7 +595,7 @@ contains
 
     ! check convergence
     ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
-    converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
+    converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
     if (converged) return
 
     ! early return if not computing the line search
@@ -888,7 +892,7 @@ contains
    if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
 
    ! check convergence
-   converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
+   converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,resVecNew,xInc,stateVecNew,out_SS4HG)
 
   end associate
 
@@ -1127,7 +1131,7 @@ contains
  ! *********************************************************************************************************
  ! module function checkConv: check convergence based on the residual vector
  ! *********************************************************************************************************
- function checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
+ function checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,rVec,xInc,xVec,out_SS4HG)
   implicit none
   ! result
   logical(lgt)                 :: checkConv                   ! flag to denote convergence
@@ -1138,6 +1142,7 @@ contains
   type(var_dlength),intent(in) :: mpar_data                   ! model parameters
   type(var_ilength),intent(in) :: indx_data                   ! indices defining model states and layers
   type(var_dlength),intent(in) :: prog_data                   ! prognostic variables for a local HRU
+  type(var_dlength),intent(in) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(in)       :: rVec(:)                     ! residual vector (mixed units)
   real(rkind),intent(in)       :: xInc(:)                     ! iteration increment (mixed units)
   real(rkind),intent(in)       :: xVec(:)                     ! state vector (mixed units)
@@ -1161,6 +1166,8 @@ contains
   logical(lgt)                 :: matricConv                  ! flag for matric head convergence
   logical(lgt)                 :: energyConv                  ! flag for energy convergence
   logical(lgt)                 :: aquiferConv                 ! flag for aquifer water balance convergence
+  integer(i4b)                 :: iMat                        ! index of a matric head state in the state subset
+  integer(i4b),dimension(mSoil):: ixSoilMat                   ! soil layer carrying each matric head state
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
@@ -1185,7 +1192,10 @@ contains
    ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all energy states
    ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
    ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat           ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
-   ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat         &  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
+   ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat  ,&  ! intent(in): [i4b(:)] type of each state in the state subset
+   ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat    ,&  ! intent(in): [i4b(:)] index in the full state vector of each state in the subset
+   ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat     ,&  ! intent(in): [i4b(:)] index of each state within its own domain
+   dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat       &  ! intent(in): [dp(:)]  derivative in water content w.r.t. matric potential (m-1)
    &) 
 
    ! check convergence based on the canopy water balance
@@ -1222,10 +1232,17 @@ contains
     liquidConv = .true.
    end if
 
+   ixSoilMat = ixControlVolume( ixMapSubset2Full(ixMatOnly) ) ! soil layer of each matric head state in the subset
+
    ! check convergence based on the iteration increment for matric head
    ! NOTE: scale by matric head to avoid unnecessarily tight convergence when there is no water or there is saturated flow (matric head is very large)
    if (size(ixMatOnly)>0) then
     psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
+    do iMat=1,size(ixMatOnly)
+     if (ixStateType_subset(ixMatOnly(iMat))/=iname_lmpLayer) cycle
+     loosen = absConvTol_liquid/( absConvTol_matric*max(abs(dVolTot_dPsi0(ixSoilMat(iMat))),epsilon(1._rkind)) )
+     psiScale(iMat) = max(psiScale(iMat),loosen) ! a frozen layer's liquid matric potential moves almost no water
+    end do
     matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
     matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
    else
@@ -1235,7 +1252,7 @@ contains
 
    ! check convergence based on the soil water balance error (m)
    if (size(ixMatOnly)>0) then
-    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+nLake+ixMatricHead) )
+    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+nLake+ixSoilMat) )
     ! (tighter convergence for the scalar solution)
     if (scalarSolution) then
       watbalConv = (abs(soilWatBalErr) < absConvTol_liquid*scalarTighten)  ! absolute error in total soil water balance (m)

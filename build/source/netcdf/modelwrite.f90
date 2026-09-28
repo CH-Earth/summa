@@ -1036,12 +1036,15 @@ contains
       end select
       if (err/=0) message=trim(message)//'writing variable:'//trim(bvar_meta(iVar)%varName); call netcdf_err(err,message); if (err/=0) return; err=0; message='writeRestart/'
     end do
-
-    ! include grids
-    call writeRestartGrid(ncid, nGRU_local, gruDimID, grid_meta, grid_data, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
   
  end do  ! iGRU loop
+
+ ! include grids: writeRestartGrid loops over every GRU itself, so it is called once, after the GRU loop,
+ ! rather than inside it, where the second GRU would find the grid dimension already defined
+ if (maxGlaciers > 0)then
+   call writeRestartGrid(ncid, nGRU_local, gruDimID, grid_meta, grid_data, err, cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
 
  ! write dimensions and ID for file
  call write_id_info(ncid, gruDimID, hruDimID, domDimID, nglDimID, err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
@@ -1111,6 +1114,10 @@ contains
 
  ! grid variables
  ngdx = (/iLookGRID%surface_elev, iLookGRID%debris_thick/) ! array of desired variable indices
+
+ ! the prognostic, basin and index variables have already been written, so the file is in data mode
+ err = nf90_redef(ncid); message='iRedef[grid]'; call netcdf_err(err,message); if(err/=0)return
+ err=0; message='writeRestartGrid/'
 
  ! define dimensions
  err = nf90_def_dim(ncid,trim(gridDimName)   ,maxGrid     , gridDimID);message='iCreate[grid]'    ; call netcdf_err(err,message); if(err/=0)return

@@ -41,7 +41,9 @@ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
 ! physical constants
 USE multiconst,only:&
                     iden_ice,       & ! intrinsic density of ice             (kg m-3)
-                    iden_water        ! intrinsic density of liquid water    (kg m-3)
+                    iden_water,     & ! intrinsic density of liquid water    (kg m-3)
+                    Cp_ice,         & ! specific heat of ice                 (J kg-1 K-1)
+                    Cp_water          ! specific heat of liquid water        (J kg-1 K-1)
 
 ! access the derived types to define the data structures
 USE data_types,only:&
@@ -161,180 +163,169 @@ contains
  mergedLayers=.false.
 
  ! initialize the number of layers
- nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
- nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
- nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
- nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
- nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
-
- kLayer=0 ! initialize first layer to test (top layer)
+ nSnow    = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nLake    = indx_data%var(iLookINDEX%nLake)%dat(1)
+ nSoil    = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nGlce    = indx_data%var(iLookINDEX%nGlce)%dat(1)
+ nLayers  = indx_data%var(iLookINDEX%nLayers)%dat(1)
+ ! NOTE: lake layers are never merged here: the ice cover of a lake is created, thickened and broken up by lakeIceCover
  doGlac=.false. ! initialize flag for glacier ice
- if (nSnow+nLake==0 .and. nGlce>0) then ! should FIX for merging lake ice layers also
-   kLayer=nSnow+nLake+nSoil ! start with top glacier ice layer
+ if (nSnow+nLake==0 .and. nGlce>0) then
    doGlac=.true.
    topLayer=nSnow+nLake+nSoil+1
-   botLayer=nLayers
+   botLayer=nSnow+nLake+nSoil+nGlce-noThetaChange
  else
    topLayer=1
    botLayer=nSnow
  end if
+ kLayer = topLayer-1 ! initialize first layer to test (top layer)
  do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
 
   ! set number of layers to check
-  if (doGlac) then
-   nCheck=nSnow+nSoil+nLake+nGlce-noThetaChange
-  else if(ix_snowLayers == rulesDependLayerIndex .and. nSnow > maxLayers)then
-   ! special case of >maxLayers layers: add an offset to use maximum threshold from layer above
-   nCheck=maxLayers
+  if(doGlac)then
+    nCheck=botLayer
+  elseif(ix_snowLayers == rulesDependLayerIndex .and. nSnow > maxLayers)then
+    ! special case of >maxLayers layers: add an offset to use maximum threshold from layer above
+    nCheck=maxLayers
   else
-   nCheck=nSnow
+    nCheck=nSnow
   end if
 
   ! loop through snow/firn/ice layers
   do iLayer=kLayer+1,nCheck
 
-   ! associate local variables with the information in the data structures
-   ! NOTE: do this here, since the layer variables are re-defined
-   associate(&
-   mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat         , &    ! depth of each layer (m)
-   mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat    , &    ! volumetric fraction of ice in each layer  (-)
-   mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat      &    ! volumetric fraction of liquid water in each layer (-)
-   ) ! (associating local variables with the information in the data structures)
-
-   ! check if the layer depth is less than the depth threshold
-   if (doGlac) then
-      removeLayer = (mLayerDepth(iLayer) < zminLayer(iLayer-nSnow-nLake-nSoil))
+    ! NOTE: the layer state is read through the accessors, since the layer vectors are reallocated as layers are removed
+    ! check if the layer depth is less than the depth threshold
+    if(doGlac)then
+      removeLayer = (depth(iLayer) < zminLayer(iLayer-nSnow-nLake-nSoil))
     else
       select case(ix_snowLayers)
-       case(sameRulesAllLayers);    removeLayer = (mLayerDepth(iLayer) < zmin)
-       case(rulesDependLayerIndex); removeLayer = (mLayerDepth(iLayer) < zminLayer(iLayer))
-       case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
-     end select ! (option to combine/sub-divide snow layers)
-   end if
-
-   ! check if we have too much melt
-   ! NOTE: assume that this is the top snow layer; need more trickery to relax this assumption
-   if(tooMuchMelt .and. iLayer==topLayer) removeLayer = .true.
-
-   ! check if need to remove a layer
-   if(removeLayer)then
-
-    ! flag that we modified a layer
-    mergedLayers=.true.
-
-    ! ***** handle special case of a single layer
-    if(nSnow==1)then ! here assuming would not be merging glacier ice layers if had snow
-     ! set the variables defining "snow without a layer"
-     ! NOTE: ignoring cold content!!! Need to fix later...
-     scalarSnowDepth = mLayerDepth(1)
-     scalarSWE       = (mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water)*mLayerDepth(1)
-     ! remove the top layer from all model variable vectors
-     ! NOTE: nSnow-1 = 0, so routine removes layer #1
-     call rmLyAllVars(doGlac,prog_data,prog_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     call rmLyAllVars(doGlac,diag_data,diag_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     call rmLyAllVars(doGlac,flux_data,flux_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     call rmLyAllVars(doGlac,indx_data,indx_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-     if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
-     ! update the total number of layers
-     nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
-     nLake   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_lake)
-     nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
-     nGlce   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_glce)
-     nLayers = nSnow + nLake + nSoil + nGlce
-     ! save the number of layers
-     indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
-     indx_data%var(iLookINDEX%nLake)%dat(1)   = nLake
-     indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
-     indx_data%var(iLookINDEX%nGlce)%dat(1)   = nGlce
-     indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
-     ! update coordinate variables
-     call calcHeight(&
-                     ! input/output: data structures
-                     indx_data,   & ! intent(in): layer type
-                     prog_data,   & ! intent(inout): model variables for a local HRU
-                     ! output: error control
-                     err,cmessage)
-     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-     ! exit the do loop (no more snow layers to remove)
-     return
-    else if (doGlac .and. nGlce==1+noThetaChange)then
-     err=20; message=trim(message)//'Melted entire water state of glacier, need to start with thicker top layers';return
-    end if  ! (special case of 1 layer --> snow without a layer)
-      
-    ! ***** identify the layer to combine
-    if(iLayer==topLayer)then
-     jLayer = iLayer+1  ! upper-most layer, combine with its lower neighbor
-    elseif(iLayer==botLayer)then
-     jLayer = botLayer-1  ! lower-most layer, combine with its upper neighbor
-    else
-     if(mLayerDepth(iLayer-1)<mLayerDepth(iLayer+1))then; jLayer = iLayer-1; else; jLayer = iLayer+1; end if
+        case(sameRulesAllLayers);    removeLayer = (depth(iLayer) < zmin)
+        case(rulesDependLayerIndex); removeLayer = (depth(iLayer) < zminLayer(iLayer))
+        case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+      end select ! (option to combine/sub-divide snow layers)
     end if
 
-    ! ***** combine layers
-    ! identify the layer closest to the surface
-    kLayer=min(iLayer,jLayer)
-    ! combine layer with identified neighbor
-    call layer_combine(doGlac,mpar_data,prog_data,diag_data,flux_data,indx_data,kLayer,err,cmessage)
-    if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
+    ! check if we have too much melt
+    ! NOTE: assume that this is the top snow layer; need more trickery to relax this assumption
+    if(tooMuchMelt .and. iLayer==topLayer) removeLayer = .true.
 
-    ! update the number of snow layers
-    nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
-    nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
-    nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
-    nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
-    nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
-    if (doGlac) then
-      botLayer=nSoil+nGlce
-    else
-      botLayer=nSnow
-    end if
+    ! check if need to remove a layer
+    if(removeLayer)then
 
-    ! exit the loop to try again
-    exit
+      ! flag that we modified a layer
+      mergedLayers=.true.
 
-   end if  ! (if layer is below the mass threshold)
+      ! ***** handle special case of a single layer
+      if(nSnow==1)then ! here assuming would not be merging glacier ice layers if had snow
+        ! set the variables defining "snow without a layer"
+        ! NOTE: ignoring cold content!!! Need to fix later...
+        scalarSnowDepth = depth(1)
+        scalarSWE       = (ice(1)*iden_ice + liq(1)*iden_water)*depth(1)
+        ! remove the top layer from all model variable vectors
+        ! NOTE: nSnow-1 = 0, so routine removes layer #1
+        call rmLyAllVars(doGlac,prog_data,prog_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+        call rmLyAllVars(doGlac,diag_data,diag_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+        call rmLyAllVars(doGlac,flux_data,flux_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+        call rmLyAllVars(doGlac,indx_data,indx_meta,nSnow-1,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+        if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
+        ! update the total number of layers
+        nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+        nLayers = nSnow + nLake + nSoil + nGlce
+        ! save the number of layers
+        indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+        indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
+        ! update coordinate variables
+        call calcHeight(&
+                        ! input/output: data structures
+                        indx_data,   & ! intent(in): layer type
+                        prog_data,   & ! intent(inout): model variables for a local HRU
+                        ! output: error control
+                        err,cmessage)
+        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+        ! exit the do loop (no more snow layers to remove)
+        return
+      else if (doGlac .and. nGlce==1+noThetaChange)then
+        err=20; message=trim(message)//'Melted entire water state of glacier, need to start with thicker top layers';return
+      end if  ! (special case of 1 layer --> snow without a layer)
+       
+      ! ***** identify the layer to combine
+      if(iLayer==topLayer)then
+       jLayer = iLayer+1  ! upper-most layer, combine with its lower neighbor
+      elseif(iLayer==botLayer)then
+       jLayer = botLayer-1  ! lower-most layer, combine with its upper neighbor
+      else
+       if(depth(iLayer-1)<depth(iLayer+1))then; jLayer = iLayer-1; else; jLayer = iLayer+1; end if
+      end if
 
-   kLayer=iLayer ! ksnow is used for completion test, so include here
+      ! ***** combine layers
+      ! identify the layer closest to the surface
+      kLayer=min(iLayer,jLayer)
+      ! combine layer with identified neighbor
+      call layer_combine(doGlac,mpar_data,prog_data,diag_data,flux_data,indx_data,kLayer,err,cmessage)
+      if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
 
-   ! end association of local variables with the information in the data structures
-   end associate
+      ! update the number of snow layers
+      nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+      nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
+      nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+      nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
+      nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+      if(doGlac)then
+        botLayer=nSnow+nLake+nSoil+nGlce-noThetaChange
+      else
+        botLayer=nSnow
+      end if
 
+      ! exit the loop to try again
+      exit
+    end if  ! (if layer is below the mass threshold)
+    kLayer=iLayer ! ksnow is used for completion test, so include here
   end do ! (looping through snow layers)
 
   ! exit if finished
   if(kLayer==nCheck)exit
-
  end do ! continuous do
 
  ! handle special case of > maxLayers layers in the CLM option
  if(nSnow > maxLayers .and. ix_snowLayers == rulesDependLayerIndex)then
-  ! flag that layers were merged
-  mergedLayers=.true.
-  ! initial check to ensure everything is wonderful in the universe
-  if(nSnow /= maxLayers+1)then; err=5; message=trim(message)//'special case of >maxLayers layers: expect only one more'; return; end if
-  ! combine maxLayers-th layer with layer below
-  call layer_combine(doGlac,mpar_data,prog_data,diag_data,flux_data,indx_data,maxLayers,err,cmessage)
-  ! update the number of snow layers
-  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
-  nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
-  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
-  nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
-  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
-  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
-  ! another check
-  if(nSnow /= maxLayers)then; err=5; message=trim(message)//'special case of >maxLayers layers: expect to reduced layers to exactly maxLayers'; return; end if
+   ! flag that layers were merged
+   mergedLayers=.true.
+   ! initial check to ensure everything is wonderful in the universe
+   if(nSnow /= maxLayers+1)then; err=5; message=trim(message)//'special case of >maxLayers layers: expect only one more'; return; end if
+   ! combine maxLayers-th layer with layer below
+   call layer_combine(doGlac,mpar_data,prog_data,diag_data,flux_data,indx_data,maxLayers,err,cmessage)
+   ! update the number of snow layers
+   nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+   nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+   if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
+   ! another check
+   if(nSnow /= maxLayers)then; err=5; message=trim(message)//'special case of >maxLayers layers: expect to reduced layers to exactly maxLayers'; return; end if
  end if
 
  ! check that there are no more than maxLayers layers in the CLM option
  if(ix_snowLayers == rulesDependLayerIndex)then
-  if(nSnow > maxLayers)then
-   message=trim(message)//'expect no more than maxLayers layers when combination/sub-division rules depend on the layer index (CLM option)'
-   err=20; return
-  end if
+   if(nSnow > maxLayers)then
+     message=trim(message)//'expect no more than maxLayers layers when combination/sub-division rules depend on the layer index (CLM option)'
+     err=20; return
+   end if
  end if
 
  ! end association to variables in the data structure
  end associate
+
+ contains
+
+  ! accessors to the layer state, valid across the reallocation of the layer vectors (an associate name would be left
+  ! pointing at the old allocation once a layer is added or removed)
+  function depth(i); integer(i4b),intent(in) :: i; real(rkind) :: depth; depth = prog_data%var(iLookPROG%mLayerDepth)%dat(i);      end function depth
+  function temp(i);  integer(i4b),intent(in) :: i; real(rkind) :: temp;  temp  = prog_data%var(iLookPROG%mLayerTemp)%dat(i);       end function temp
+  function liq(i);   integer(i4b),intent(in) :: i; real(rkind) :: liq;   liq   = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i); end function liq
+  function ice(i);   integer(i4b),intent(in) :: i; real(rkind) :: ice;   ice   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i); end function ice
+  subroutine setDepth(i,x); integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerDepth)%dat(i)      = x; end subroutine setDepth
+  subroutine setTemp(i,x);  integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerTemp)%dat(i)       = x; end subroutine setTemp
+  subroutine setLiq(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i) = x; end subroutine setLiq
+  subroutine setIce(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i) = x; end subroutine setIce
 
  end subroutine layerMerge
 
@@ -380,6 +371,7 @@ contains
  real(rkind)                     :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
  real(rkind)                     :: cEnthalpy                ! combined layer enthalpy (J m-3)
  real(rkind)                     :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
+ real(rkind)                     :: heatCap(2)               ! heat capacity of the ice and liquid water in the two layers (J m-2 K-1)
  real(rkind),parameter           :: eTol=1.e-1_rkind         ! tolerance for the enthalpy-->temperature conversion (J m-3)
  integer(i4b)                    :: nSnow                    ! number of snow layers
  integer(i4b)                    :: nLake                    ! number of lake layers
@@ -387,22 +379,19 @@ contains
  integer(i4b)                    :: nGlce                    ! number of glacier ice layers
  integer(i4b)                    :: nLayers                  ! total number of layers
  real(rkind)                     :: frz_scale_use            ! scaling parameter for the snow or glce freezing curve (K-1)
+ integer(i4b)                    :: k                        ! index of the two layers to combine
 
  ! initialize error control
  err=0; message="layer_combine/"
 
  ! associate local variables with information in the data structures
+ ! NOTE: the layer state is read and written through the accessors, since the layer vectors are reallocated when the layer is removed
  associate(&
  ! model parameters
- snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1), & ! scaling parameter for the freezing curve for snow (K-1)
- ! model state variables
- mLayerTemp       => prog_data%var(iLookPROG%mLayerTemp)%dat       , & ! temperature of each layer (K)
- mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat      , & ! depth of each layer (m)
- mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat , & ! volumetric fraction of ice in each layer  (-)
- mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat   & ! volumetric fraction of liquid water in each layer (-)
+ snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)  & ! scaling parameter for the freezing curve for snow (K-1)
  ) ! (association of local variables with information in the data structures)
 
- ! initialize the number of snow layers
+ ! initialize the number of layers
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
  nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
@@ -416,22 +405,22 @@ contains
  end if
 
  ! compute combined depth
- cDepth       = mLayerDepth(iLayer) + mLayerDepth(iLayer+1)
+ cDepth = depth(iLayer) + depth(iLayer+1)
 
- ! compute mass of each layer (kg m-2)
- massIce(1:2) = iden_ice*mLayerVolFracIce(iLayer:iLayer+1)*mLayerDepth(iLayer:iLayer+1)
- massLiq(1:2) = iden_water*mLayerVolFracLiq(iLayer:iLayer+1)*mLayerDepth(iLayer:iLayer+1)
-
- ! compute bulk density of water (kg m-3)
- bulkDenWat(1:2) = (massIce(1:2) + massLiq(1:2))/mLayerDepth(iLayer:iLayer+1)
- cBulkDenWat     = (mLayerDepth(iLayer)*bulkDenWat(1) + mLayerDepth(iLayer+1)*bulkDenWat(2))/cDepth
+ ! compute mass of each layer (kg m-2), and the bulk density of water (kg m-3)
+ do k=1,2
+   massIce(k)    = iden_ice*ice(iLayer+k-1)*depth(iLayer+k-1)
+   massLiq(k)    = iden_water*liq(iLayer+k-1)*depth(iLayer+k-1)
+   bulkDenWat(k) = (massIce(k) + massLiq(k))/depth(iLayer+k-1)
+ end do
+ cBulkDenWat     = (depth(iLayer)*bulkDenWat(1) + depth(iLayer+1)*bulkDenWat(2))/cDepth
 
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iLayer),  bulkDenWat(1),frz_scale_use)
- l2Enthalpy = T2enthalpy_snLaGlWat(mLayerTemp(iLayer+1),bulkDenWat(2),frz_scale_use)
+ l1Enthalpy = T2enthalpy_snLaGlWat(temp(iLayer),  bulkDenWat(1),frz_scale_use)
+ l2Enthalpy = T2enthalpy_snLaGlWat(temp(iLayer+1),bulkDenWat(2),frz_scale_use)
 
  ! compute combined enthalpy (J m-3)
- cEnthalpy = (mLayerDepth(iLayer)*l1Enthalpy + mLayerDepth(iLayer+1)*l2Enthalpy)/cDepth
+ cEnthalpy = (depth(iLayer)*l1Enthalpy + depth(iLayer+1)*l2Enthalpy)/cDepth
 
  ! convert enthalpy (J m-3) to temperature (K)
  call enthalpy2T_snLaGlWat(cEnthalpy,cBulkDenWat,frz_scale_use,cTemp,.not.doGlac,err,cmessage)
@@ -446,8 +435,8 @@ contains
 
  ! check temperature is within the two temperatures
  ! NOTE: use tolerance, for cases of merging a layer that has just been split
- if(cTemp > max(mLayerTemp(iLayer),mLayerTemp(iLayer+1))+eTol)then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
- if(cTemp < min(mLayerTemp(iLayer),mLayerTemp(iLayer+1))-eTol)then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
+ if(cTemp > max(temp(iLayer),temp(iLayer+1))+eTol)then; err=20; message=trim(message)//'merged temperature > max(temp1,temp2)'; return; end if
+ if(cTemp < min(temp(iLayer),temp(iLayer+1))-eTol)then; err=20; message=trim(message)//'merged temperature < min(temp1,temp2)'; return; end if
 
  ! compute volumetric fraction of liquid water
  fLiq = fracliquid(cTemp,frz_scale_use)
@@ -455,6 +444,19 @@ contains
  ! compute volumetric fraction of ice and liquid water
  cVolFracLiq =          fLiq *cBulkDenWat/iden_water
  cVolFracIce = (1._rkind - fLiq)*cBulkDenWat/iden_ice
+
+ ! glacier ice: keep the ice and liquid water as they are, with the temperature that conserves the sensible heat (exact for
+ ! a fixed composition). The liquid in melting ice is held at its residual content by drainage, and the ice freezing curve
+ ! is so steep there that the liquid re-derived above from the merged temperature turns the temperature tolerance of the
+ ! solver into a change of ice and liquid at every merge (the enthalpy conversion above is kept for its checks).
+ if(doGlac)then
+  do k=1,2
+    heatCap(k) = Cp_ice*massIce(k) + Cp_water*massLiq(k)
+  end do
+  cTemp       = (heatCap(1)*temp(iLayer) + heatCap(2)*temp(iLayer+1))/(heatCap(1) + heatCap(2))
+  cVolFracIce = (massIce(1) + massIce(2))/(iden_ice*cDepth)
+  cVolFracLiq = (massLiq(1) + massLiq(2))/(iden_water*cDepth)
+ end if
 
  ! end association of local variables with information in the data structures
  end associate
@@ -465,9 +467,12 @@ contains
  call rmLyAllVars(doGlac,flux_data,flux_meta,iLayer,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  call rmLyAllVars(doGlac,indx_data,indx_meta,iLayer,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
- ! define the combined layer as snow/ice
- if (nSnow>0)  indx_data%var(iLookINDEX%layerType)%dat(iLayer) = iname_snow
- if (nSnow==0) indx_data%var(iLookINDEX%layerType)%dat(iLayer) = iname_glce
+ ! define the combined layer as snow/glacier ice
+ if (nSnow>0)then
+   indx_data%var(iLookINDEX%layerType)%dat(iLayer) = iname_snow
+ else
+   indx_data%var(iLookINDEX%layerType)%dat(iLayer) = iname_glce
+ end if
 
  ! save the number of layers in the data structures
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
@@ -477,7 +482,7 @@ contains
  indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1) &
                                           + indx_data%var(iLookINDEX%nGlce)%dat(1) + indx_data%var(iLookINDEX%nLake)%dat(1)
 
- ! update the number of snow layers
+ ! update the number of \layers
  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
  nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
@@ -485,10 +490,10 @@ contains
  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
  ! ***** put state variables for the combined layer in the appropriate place
- prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer)       = cTemp
- prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer)      = cDepth
- prog_data%var(iLookPROG%mLayerVolFracIce)%dat(iLayer) = cVolFracIce
- prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(iLayer) = cVolFracLiq
+ call setTemp(iLayer, cTemp)
+ call setDepth(iLayer, cDepth)
+ call setIce(iLayer, cVolFracIce)
+ call setLiq(iLayer, cVolFracLiq)
 
  ! ***** adjust coordinate variables
  call calcHeight(&
@@ -499,6 +504,19 @@ contains
                  err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
+ contains
+
+  ! accessors to the layer state, valid across the reallocation of the layer vectors (an associate name would be left
+  ! pointing at the old allocation once a layer is added or removed)
+  function depth(i); integer(i4b),intent(in) :: i; real(rkind) :: depth; depth = prog_data%var(iLookPROG%mLayerDepth)%dat(i);      end function depth
+  function temp(i);  integer(i4b),intent(in) :: i; real(rkind) :: temp;  temp  = prog_data%var(iLookPROG%mLayerTemp)%dat(i);       end function temp
+  function liq(i);   integer(i4b),intent(in) :: i; real(rkind) :: liq;   liq   = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i); end function liq
+  function ice(i);   integer(i4b),intent(in) :: i; real(rkind) :: ice;   ice   = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i); end function ice
+  subroutine setDepth(i,x); integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerDepth)%dat(i)      = x; end subroutine setDepth
+  subroutine setTemp(i,x);  integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerTemp)%dat(i)       = x; end subroutine setTemp
+  subroutine setLiq(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(i) = x; end subroutine setLiq
+  subroutine setIce(i,x);   integer(i4b),intent(in) :: i; real(rkind),intent(in) :: x; prog_data%var(iLookPROG%mLayerVolFracIce)%dat(i) = x; end subroutine setIce
+
  end subroutine layer_combine
 
 
@@ -507,6 +525,7 @@ contains
  ! ***********************************************************************************************************
  ! removes layer "iLayer+1" and sets layer "iLayer" to a missing value
  ! (layer "iLayer" will be filled with a combined layer later)
+ ! iLayer indexes the whole column; the snow and glacier domain vectors start at the top of their domain
  ! ***********************************************************************************************************
  subroutine rmLyAllVars(doGlac,dataStruct,metaStruct,iLayer,nSnow,nGlce,nLayers,err,message)
  USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
@@ -521,8 +540,8 @@ contains
  class(*),intent(inout)          :: dataStruct     ! data structure
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
  ! input: snow layer indices
- integer(i4b),intent(in)         :: iLayer          ! new layer
- integer(i4b),intent(in)         :: nSnow,nGlce,nLayers ! number of snow, soil, glacier ice layers, total number of layers
+ integer(i4b),intent(in)         :: iLayer          ! new layer (index in the whole column)
+ integer(i4b),intent(in)         :: nSnow,nGlce,nLayers ! number of snow, glacier ice layers, total number of layers
  ! output: error control
  integer(i4b),intent(out)        :: err            ! error code
  character(*),intent(out)        :: message        ! error message
@@ -530,6 +549,7 @@ contains
  integer(i4b)                    :: iVar           ! variable index
  integer(i4b)                    :: ix_lower       ! lower bound of the vector
  integer(i4b)                    :: ix_upper       ! upper bound of the vector
+ integer(i4b)                    :: ix_rm          ! index of the new layer within the vector
  real(rkind),allocatable         :: tempVec_rkind(:)  ! temporary vector (double precision)
  integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
  character(LEN=256)              :: cmessage       ! error message of downwind routine
@@ -547,21 +567,21 @@ contains
  ! ***** loop through model variables and remove one layer
  do iVar=1,size(metaStruct)
 
-  ! define bounds
+  ! define bounds, and the index of the new layer within the vector (the glacier domain vectors start below the layers above the glacier)
   if (doGlac)then
    select case(metaStruct(iVar)%varType)
-    case(iLookVarType%midGlce); ix_lower=1; ix_upper=nGlce
-    case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-    case(iLookVarType%ifcGlce); ix_lower=0; ix_upper=nGlce
-    case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+    case(iLookVarType%midGlce); ix_lower=1; ix_upper=nGlce;   ix_rm=iLayer-(nLayers-nGlce)
+    case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers; ix_rm=iLayer
+    case(iLookVarType%ifcGlce); ix_lower=0; ix_upper=nGlce;   ix_rm=iLayer-(nLayers-nGlce)
+    case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers; ix_rm=iLayer
     case default; cycle  ! no need to remove soil layers or scalar variables
    end select
   else
     select case(metaStruct(iVar)%varType)
-     case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
-     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers
-     case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow
-     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
+     case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow;   ix_rm=iLayer
+     case(iLookVarType%midToto); ix_lower=1; ix_upper=nLayers; ix_rm=iLayer
+     case(iLookVarType%ifcSnow); ix_lower=0; ix_upper=nSnow;   ix_rm=iLayer
+     case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers; ix_rm=iLayer
      case default; cycle  ! no need to remove soil layers or scalar variables
     end select
    end if
@@ -577,9 +597,9 @@ contains
     allocate(tempVec_rkind(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
-    if(iLayer>=ix_lower)  tempVec_rkind(iLayer)              = realMissing ! set merged layer to missing (fill in later)
-    if(iLayer>ix_lower)   tempVec_rkind(ix_lower:iLayer-1)   = dataStruct%var(iVar)%dat(ix_lower:iLayer-1)
-    if(iLayer+1<ix_upper) tempVec_rkind(iLayer+1:ix_upper-1) = dataStruct%var(iVar)%dat(iLayer+2:ix_upper)  ! skip iLayer+1
+    if(ix_rm>=ix_lower)  tempVec_rkind(ix_rm)              = realMissing ! set merged layer to missing (fill in later)
+    if(ix_rm>ix_lower)   tempVec_rkind(ix_lower:ix_rm-1)   = dataStruct%var(iVar)%dat(ix_lower:ix_rm-1)
+    if(ix_rm+1<ix_upper) tempVec_rkind(ix_rm+1:ix_upper-1) = dataStruct%var(iVar)%dat(ix_rm+2:ix_upper)  ! skip ix_rm+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
     deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
@@ -598,9 +618,9 @@ contains
     allocate(tempVec_i4b(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
-    if(iLayer>=ix_lower)  tempVec_i4b(iLayer)              = integerMissing ! set merged layer to missing (fill in later)
-    if(iLayer>ix_lower)   tempVec_i4b(ix_lower:iLayer-1)   = dataStruct%var(iVar)%dat(ix_lower:iLayer-1)
-    if(iLayer+1<ix_upper) tempVec_i4b(iLayer+1:ix_upper-1) = dataStruct%var(iVar)%dat(iLayer+2:ix_upper)  ! skip iLayer+1
+    if(ix_rm>=ix_lower)  tempVec_i4b(ix_rm)              = integerMissing ! set merged layer to missing (fill in later)
+    if(ix_rm>ix_lower)   tempVec_i4b(ix_lower:ix_rm-1)   = dataStruct%var(iVar)%dat(ix_lower:ix_rm-1)
+    if(ix_rm+1<ix_upper) tempVec_i4b(ix_rm+1:ix_upper-1) = dataStruct%var(iVar)%dat(ix_rm+2:ix_upper)  ! skip ix_rm+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
     deallocate(dataStruct%var(iVar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if

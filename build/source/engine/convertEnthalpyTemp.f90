@@ -73,6 +73,10 @@ public::T2enthTemp_veg
 public::T2enthTemp_snLaGl
 public::T2enthTemp_soil
 public::enthTemp_or_enthalpy
+
+! the soil lookup table of the HRU last built, kept to be reused where the parameters repeat
+real(rkind),allocatable,save,private :: lastSoilPar(:,:)    ! (4,nSoil) parameters the table was built from
+real(rkind),allocatable,save,private :: lastSoilTab(:,:,:)  ! (nLook,3,nSoil) temperature, integral, second derivative
 public::enthalpy2T_cas
 public::enthalpy2T_veg
 public::enthalpy2T_snLaGl
@@ -201,6 +205,8 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
   real(rkind)                   :: vGn_m                ! van Genuchten "m" parameter (-)
   real(rkind)                   :: vFracLiq             ! volumetric fraction of liquid water (-)
   real(rkind)                   :: matricHead           ! matric head (m)
+  real(rkind),allocatable       :: soilPar(:,:)         ! van Genuchten parameters this table is built from
+  logical(lgt)                  :: reuse                ! the previous HRU was built from the same parameters
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="T2L_lookup_soil/"
@@ -229,6 +235,29 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
 
     end do ! (looping through variables)
   end do ! (looping through soil layers)
+
+  ! the table is a function of the van Genuchten parameters alone, and a domain of many HRUs on
+  ! one soil rebuilds the same 8*(nLook-1)*nIntegr8 integrations for each of them
+  allocate(soilPar(4,nSoil), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating the soil parameter signature'; return; end if
+  soilPar(1,:) = mpar_data%var(iLookPARAM%theta_sat)%dat(1:nSoil)
+  soilPar(2,:) = mpar_data%var(iLookPARAM%theta_res)%dat(1:nSoil)
+  soilPar(3,:) = mpar_data%var(iLookPARAM%vGn_alpha)%dat(1:nSoil)
+  soilPar(4,:) = mpar_data%var(iLookPARAM%vGn_n)%dat(1:nSoil)
+  reuse = .false.
+  if(allocated(lastSoilPar))then
+    if(size(lastSoilPar,2)==nSoil) reuse = all(lastSoilPar == soilPar)
+  end if
+
+  if(reuse)then
+    do iSoil=1,nSoil
+      lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup = lastSoilTab(:,1,iSoil)
+      lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup  = lastSoilTab(:,2,iSoil)
+      lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup      = lastSoilTab(:,3,iSoil)
+    end do
+    deallocate(soilPar)
+    return
+  end if
 
   ! loop through soil layers
   do iSoil=1,nSoil
@@ -296,6 +325,18 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
     end associate
 
   end do  ! (looping through soil layers)
+
+  if(allocated(lastSoilPar)) deallocate(lastSoilPar)
+  if(allocated(lastSoilTab)) deallocate(lastSoilTab)
+  allocate(lastSoilPar(4,nSoil), lastSoilTab(nLook,3,nSoil), stat=err)
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating the stored soil lookup table'; return; end if
+  lastSoilPar = soilPar
+  do iSoil=1,nSoil
+    lastSoilTab(:,1,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup
+    lastSoilTab(:,2,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup
+    lastSoilTab(:,3,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup
+  end do
+  deallocate(soilPar)
 end subroutine T2L_lookup_soil
 
 

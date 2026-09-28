@@ -1,0 +1,809 @@
+                                   MODFLOW 6
+                U.S. GEOLOGICAL SURVEY MODULAR HYDROLOGIC MODEL
+                          GROUNDWATER FLOW MODEL (GWF)
+                       VERSION 6.8.0.dev0+6ad3122c.dirty
+                               ***DEVELOP MODE***
+
+        MODFLOW 6 compiled Sep  1 2026 17:20:28 with GCC version 15.2.0
+
+This software is preliminary or provisional and is subject to 
+revision. It is being provided to meet the need for timely best 
+science. The software has not received final approval by the U.S. 
+Geological Survey (USGS). No warranty, expressed or implied, is made 
+by the USGS or the U.S. Government as to the functionality of the 
+software and related material nor shall the fact of release 
+constitute any such warranty. The software is provided on the 
+condition that neither the USGS nor the U.S. Government shall be held 
+liable for any damages resulting from the authorized or unauthorized 
+use of the software.
+
+
+As a work of the United States Government, this USGS product is 
+in the public domain within the United States. You can copy, 
+modify, distribute, and perform the work, even for commercial 
+purposes, all without asking permission. Additionally, USGS 
+waives copyright and related rights in the work worldwide 
+through CC0 1.0 Universal Public Domain Dedication 
+(https://creativecommons.org/publicdomain/zero/1.0/).
+
+The following GNU Lesser General Public License (LGPL) libraries
+are used in this USGS product:
+
+    SPARSKIT version 2.0
+      ilut, luson, and qsplit 
+      (https://www-users.cse.umn.edu/~saad/software/SPARSKIT/)
+
+    RCM - Reverse Cuthill McKee Ordering
+      (https://people.math.sc.edu/Burkardt/f_src/rcm/rcm.html)
+
+    BLAS - Basic Linear Algebra Subprograms Level 1
+      (https://people.math.sc.edu/Burkardt/f_src/blas1_d/blas1_d.html)
+
+    SPARSEKIT - Sparse Matrix Utility Package
+      amux, dperm, dvperm, rperm, and cperm
+      (https://people.sc.fsu.edu/~jburkardt/f77_src/sparsekit/sparsekit.html)
+
+The following BSD-3 License libraries are used in this USGS product:
+
+    Modern Fortran DAG Library
+      Copyright (c) 2018, Jacob Williams
+      All rights reserved.
+      (https://github.com/jacobwilliams/daglib)
+
+MODFLOW 6 compiler options: -fdiagnostics-color=always -cpp -I
+src/libmf6_external.a.p -I src/libmf6core.a.p -I src -I ../src -I .
+-D__DYNAMIC__ -D __APPLE__ -fPIC -mmacosx-version-min=26.0.0 -mcpu=apple-m1
+-mlittle-endian -mabi=lp64 -O3 -O1 -Wall -Wpedantic -Wcharacter-truncation
+-Wno-unused-dummy-argument -Wno-intrinsic-shadow -Wno-maybe-uninitialized
+-Wno-uninitialized -std=f2018 -fall-intrinsics -ffpe-summary=overflow
+-ffpe-trap=overflow,zero,invalid -J src/libmf6core.a.p
+
+System command used to initiate simulation:
+/Users/amedin/Research/MODFLOW/modflow6/srcextern/summa/bin/summa_modflow6.exe /Users/amedin/Research/MODFLOW/modflow6/srcextern/summa/utils/test/test_mflow/domain_sagehen1/settings/SUMMA/fileManager_deeproot.txt /Users/amedin/Research/MODFLOW/modflow6/srcextern/summa/utils/test/test_mflow/domain_sagehen1/summa_modflow6_deeproot.config
+
+MODFLOW was compiled using uniform precision.
+
+Real Variables
+  KIND: 8
+  TINY (smallest non-zero value):    2.225074-308
+  HUGE (largest value):    1.797693+308
+  PRECISION: 15
+  SIZE IN BITS: 64
+
+Integer Variables
+  KIND: 4
+  HUGE (largest value): 2147483647
+  SIZE IN BITS: 32
+
+Long Integer Variables
+  KIND: 8
+  HUGE (largest value): 9223372036854775807
+  SIZE IN BITS: 64
+
+Logical Variables
+  KIND: 4
+  SIZE IN BITS: 32
+
+ NAMEFILE OPTIONS:
+    NEWTON-RAPHSON method enabled for the model.
+    NEWTON-RAPHSON UNDER-RELAXATION based on the bottom elevation of the model will be applied to the model.
+    FLOWS WILL BE SAVED TO BUDGET FILE SPECIFIED IN OUTPUT CONTROL
+ END NAMEFILE OPTIONS:
+
+ DIS -- STRUCTURED GRID DISCRETIZATION PACKAGE, VERSION 2 : 3/27/2014 - INPUT READ FROM MEMPATH: __INPUT__/SAGEHEN/DIS                             
+
+
+ NPF -- NODE PROPERTY FLOW PACKAGE, VERSION 1, 3/30/2015 INPUT READ FROM MEMPATH: __INPUT__/SAGEHEN/NPF                             
+
+
+ IC -- Initial Conditions Package, Version 8, 3/28/2015 input read from mempath: __INPUT__/SAGEHEN/IC                              
+
+
+ Setting Discretization Options
+    Model length unit [0=UND, 1=FEET, 2=METERS, 3=CENTIMETERS] set as 2
+ End Setting Discretization Options
+
+ Setting Discretization Dimensions
+    NLAY = 1
+    NROW = 73
+    NCOL = 81
+ End Setting Discretization Dimensions
+
+ Setting Discretization Griddata
+    DELR set from input file
+    DELC set from input file
+    TOP set from input file
+    BOTM set from input file
+    IDOMAIN set from input file
+ End Setting Discretization Griddata
+
+
+ The specified IDOMAIN results in a reduced number of cells.
+ Number of user nodes: 5913
+ Number of nodes in solution: 3387
+
+
+ Setting NPF Options
+    Cell-by-cell flow information will be saved to binary file whenever ICBCFL is not zero.
+ End Setting NPF Options
+
+ Setting NPF Griddata
+    ICELLTYPE set from input file
+    K set from input file
+    K33 set from input file
+    K22 not provided.  Setting K22 = K.
+ End Setting NPF Griddata
+
+
+ DRN -- DRN PACKAGE, VERSION 8, 2/22/2014 INPUT READ FROM MEMPATH: __INPUT__/SAGEHEN/DRN                             
+
+ PROCESSING DRN BASE OPTIONS
+    FLOWS WILL BE SAVED TO BUDGET FILE SPECIFIED IN OUTPUT CONTROL
+ END OF DRN BASE OPTIONS
+
+ PROCESSING DRN OPTIONS
+ END OF DRN OPTIONS
+
+ PROCESSING DRN BASE DIMENSIONS
+    MAXBOUND =    3384
+ END OF DRN BASE DIMENSIONS
+
+ RCH -- RCH PACKAGE, VERSION 8, 2/22/2014 INPUT READ FROM MEMPATH: __INPUT__/SAGEHEN/RCHA                            
+
+ PROCESSING RCH BASE OPTIONS
+    PACKAGE INPUT WILL BE READ AS LAYER ARRAYS.
+    FLOWS WILL BE SAVED TO BUDGET FILE SPECIFIED IN OUTPUT CONTROL
+ END OF RCH BASE OPTIONS
+
+ PROCESSING RCHA OPTIONS
+ END OF RCHA OPTIONS
+
+ EVT -- EVT PACKAGE, VERSION 8, 2/22/2014 INPUT READ FROM MEMPATH: __INPUT__/SAGEHEN/EVTA                            
+
+ PROCESSING EVT BASE OPTIONS
+    PACKAGE INPUT WILL BE READ AS LAYER ARRAYS.
+    FLOWS WILL BE SAVED TO BUDGET FILE SPECIFIED IN OUTPUT CONTROL
+ END OF EVT BASE OPTIONS
+
+ PROCESSING EVTA OPTIONS
+ END OF EVTA OPTIONS
+
+ CHD -- CHD PACKAGE, VERSION 8, 2/22/2014 INPUT READ FROM MEMPATH: __INPUT__/SAGEHEN/CHD                             
+
+ PROCESSING CHD BASE OPTIONS
+ END OF CHD BASE OPTIONS
+
+ PROCESSING CHD BASE DIMENSIONS
+    MAXBOUND =       3
+ END OF CHD BASE DIMENSIONS
+    STRT set from input file
+
+ STO -- STORAGE PACKAGE, VERSION 1, 5/19/2014 INPUT READ FROM MEMPATH: __INPUT__/SAGEHEN/STO                             
+
+
+ PROCESSING STORAGE OPTIONS
+    CELL-BY-CELL FLOW INFORMATION WILL BE SAVED TO BINARY FILE WHENEVER ICBCFL IS NOT ZERO.
+ END OF STORAGE OPTIONS
+    BINARY GRID INFORMATION WILL BE WRITTEN TO:
+      UNIT NUMBER: 1028
+      FILE NAME: sagehen.dis.grb
+
+ OPENED sagehen.dis.grb
+ FILE TYPE:DATA(BINARY)   UNIT 1028   STATUS:REPLACE             
+ FORMAT:UNFORMATTED            ACCESS:STREAM              
+ ACTION:READWRITE           
+
+      THE LAST TIME STEP WILL BE PRINTED
+      THE LAST TIME STEP WILL BE PRINTED
+
+ PROCESSING OC OPTIONS
+
+    BUDGET INFORMATION WILL BE WRITTEN TO:
+      UNIT NUMBER: 1029
+      FILE NAME: sagehen.cbc
+
+ OPENED sagehen.cbc
+ FILE TYPE:DATA(BINARY)   UNIT 1029   STATUS:REPLACE             
+ FORMAT:UNFORMATTED            ACCESS:STREAM              
+ ACTION:READWRITE           
+
+    HEAD INFORMATION WILL BE WRITTEN TO:
+      UNIT NUMBER: 1030
+      FILE NAME: sagehen.hds
+
+ OPENED sagehen.hds
+ FILE TYPE:DATA(BINARY)   UNIT 1030   STATUS:REPLACE             
+ FORMAT:UNFORMATTED            ACCESS:STREAM              
+ ACTION:READWRITE           
+
+ END OF OC OPTIONS
+
+start timestep kper="1" kstp="1" mode="normal"
+
+
+ BEGIN READING OUTPUT CONTROL FOR STRESS PERIOD 1
+      THE FOLLOWING FREQUENCY WILL BE SAVED: 24
+      THE FOLLOWING FREQUENCY WILL BE SAVED: 24
+      THE FOLLOWING FREQUENCY WILL BE SAVED: 24
+      THE LAST TIME STEP WILL BE SAVED
+      THE FOLLOWING FREQUENCY WILL BE SAVED: 24
+      THE LAST TIME STEP WILL BE SAVED
+
+ END READING OUTPUT CONTROL FOR STRESS PERIOD 1
+
+
+ PROCESSING STORAGE PERIOD DATA
+ END PROCESSING STORAGE PERIOD DATA
+
+
+ STRESS PERIOD 1 IS STEADY-STATE
+
+ UBDSV1 SAVING           STO-SS ON UNIT   1029 AT TIME STEP      1, STRESS PERIOD      1
+ UBDSV1 SAVING           STO-SY ON UNIT   1029 AT TIME STEP      1, STRESS PERIOD      1
+ UBDSV1 SAVING     FLOW-JA-FACE ON UNIT   1029 AT TIME STEP      1, STRESS PERIOD      1
+ UBDSV06 SAVING              DRN IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE DRN              ON UNIT   1029 AT TIME STEP      1, STRESS PERIOD      1
+ UBDSV06 SAVING             RCHA IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE RCHA             ON UNIT   1029 AT TIME STEP      1, STRESS PERIOD      1
+ UBDSV06 SAVING            EVTA  IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE EVTA             ON UNIT   1029 AT TIME STEP      1, STRESS PERIOD      1
+ UBDSV06 SAVING              CHD IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE CHD              ON UNIT   1029 AT TIME STEP      1, STRESS PERIOD      1
+
+ HEAD WILL BE SAVED ON UNIT 1030 AT END OF TIME STEP    1, STRESS PERIOD    1
+
+
+  VOLUME BUDGET FOR ENTIRE MODEL AT END OF TIME STEP    1, STRESS PERIOD   1
+  ---------------------------------------------------------------------------------------------------
+
+     CUMULATIVE VOLUME      L**3       RATES FOR THIS TIME STEP      L**3/T          PACKAGE NAME    
+     ------------------                 ------------------------                     ----------------
+
+           IN:                                      IN:
+           ---                                      ---
+              STO-SS =           0.0000                STO-SS =           0.0000     STORAGE                          
+              STO-SY =           0.0000                STO-SY =           0.0000     STORAGE                          
+                 DRN =           0.0000                   DRN =           0.0000     DRN                              
+                RCHA =           0.2741                  RCHA =           0.2741     RCHA                             
+                EVTA =           0.0000                  EVTA =           0.0000     EVTA                             
+                 CHD =           0.0000                   CHD =           0.0000     CHD                              
+
+            TOTAL IN =           0.2741              TOTAL IN =           0.2741
+
+          OUT:                                     OUT:
+          ----                                     ----
+              STO-SS =           0.0000                STO-SS =           0.0000     STORAGE                          
+              STO-SY =           0.0000                STO-SY =           0.0000     STORAGE                          
+                 DRN =           0.2707                   DRN =           0.2707     DRN                              
+                RCHA =           0.0000                  RCHA =           0.0000     RCHA                             
+                EVTA =           0.0000                  EVTA =           0.0000     EVTA                             
+                 CHD =       3.4499E-03                   CHD =       3.4499E-03     CHD                              
+
+           TOTAL OUT =           0.2741             TOTAL OUT =           0.2741
+
+            IN - OUT =      -1.7341E-07              IN - OUT =      -1.7341E-07
+
+ PERCENT DISCREPANCY =          -0.00     PERCENT DISCREPANCY =          -0.00
+
+
+
+
+         TIME SUMMARY AT END OF TIME STEP    1 IN STRESS PERIOD    1
+                    SECONDS     MINUTES      HOURS       DAYS        YEARS
+                    -----------------------------------------------------------
+   TIME STEP LENGTH  1.0000     1.66667E-02 2.77778E-04 1.15741E-05 3.16881E-08
+ STRESS PERIOD TIME  1.0000     1.66667E-02 2.77778E-04 1.15741E-05 3.16881E-08
+         TOTAL TIME  1.0000     1.66667E-02 2.77778E-04 1.15741E-05 3.16881E-08
+
+
+end timestep
+
+
+start timestep kper="2" kstp="1" mode="normal"
+
+
+ OUTPUT CONTROL FOR STRESS PERIOD 2 IS REPEATED USING SETTINGS FROM A PREVIOUS STRESS PERIOD.
+
+
+ PROCESSING STORAGE PERIOD DATA
+ END PROCESSING STORAGE PERIOD DATA
+
+
+ STRESS PERIOD 2 IS TRANSIENT
+
+
+end timestep
+
+
+start timestep kper="2" kstp="2" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="3" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="4" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="5" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="6" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="7" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="8" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="9" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="10" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="11" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="12" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="13" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="14" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="15" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="16" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="17" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="18" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="19" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="20" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="21" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="22" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="23" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="24" mode="normal"
+
+ UBDSV1 SAVING           STO-SS ON UNIT   1029 AT TIME STEP     24, STRESS PERIOD      2
+ UBDSV1 SAVING           STO-SY ON UNIT   1029 AT TIME STEP     24, STRESS PERIOD      2
+ UBDSV1 SAVING     FLOW-JA-FACE ON UNIT   1029 AT TIME STEP     24, STRESS PERIOD      2
+ UBDSV06 SAVING              DRN IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE DRN              ON UNIT   1029 AT TIME STEP     24, STRESS PERIOD      2
+ UBDSV06 SAVING             RCHA IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE RCHA             ON UNIT   1029 AT TIME STEP     24, STRESS PERIOD      2
+ UBDSV06 SAVING            EVTA  IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE EVTA             ON UNIT   1029 AT TIME STEP     24, STRESS PERIOD      2
+ UBDSV06 SAVING              CHD IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE CHD              ON UNIT   1029 AT TIME STEP     24, STRESS PERIOD      2
+
+ HEAD WILL BE SAVED ON UNIT 1030 AT END OF TIME STEP   24, STRESS PERIOD    2
+
+end timestep
+
+
+start timestep kper="2" kstp="25" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="26" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="27" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="28" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="29" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="30" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="31" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="32" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="33" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="34" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="35" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="36" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="37" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="38" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="39" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="40" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="41" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="42" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="43" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="44" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="45" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="46" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="47" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="48" mode="normal"
+
+ UBDSV1 SAVING           STO-SS ON UNIT   1029 AT TIME STEP     48, STRESS PERIOD      2
+ UBDSV1 SAVING           STO-SY ON UNIT   1029 AT TIME STEP     48, STRESS PERIOD      2
+ UBDSV1 SAVING     FLOW-JA-FACE ON UNIT   1029 AT TIME STEP     48, STRESS PERIOD      2
+ UBDSV06 SAVING              DRN IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE DRN              ON UNIT   1029 AT TIME STEP     48, STRESS PERIOD      2
+ UBDSV06 SAVING             RCHA IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE RCHA             ON UNIT   1029 AT TIME STEP     48, STRESS PERIOD      2
+ UBDSV06 SAVING            EVTA  IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE EVTA             ON UNIT   1029 AT TIME STEP     48, STRESS PERIOD      2
+ UBDSV06 SAVING              CHD IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE CHD              ON UNIT   1029 AT TIME STEP     48, STRESS PERIOD      2
+
+ HEAD WILL BE SAVED ON UNIT 1030 AT END OF TIME STEP   48, STRESS PERIOD    2
+
+end timestep
+
+
+start timestep kper="2" kstp="49" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="50" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="51" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="52" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="53" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="54" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="55" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="56" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="57" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="58" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="59" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="60" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="61" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="62" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="63" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="64" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="65" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="66" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="67" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="68" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="69" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="70" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="71" mode="normal"
+
+
+end timestep
+
+
+start timestep kper="2" kstp="72" mode="normal"
+
+ UBDSV1 SAVING           STO-SS ON UNIT   1029 AT TIME STEP     72, STRESS PERIOD      2
+ UBDSV1 SAVING           STO-SY ON UNIT   1029 AT TIME STEP     72, STRESS PERIOD      2
+ UBDSV1 SAVING     FLOW-JA-FACE ON UNIT   1029 AT TIME STEP     72, STRESS PERIOD      2
+ UBDSV06 SAVING              DRN IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE DRN              ON UNIT   1029 AT TIME STEP     72, STRESS PERIOD      2
+ UBDSV06 SAVING             RCHA IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE RCHA             ON UNIT   1029 AT TIME STEP     72, STRESS PERIOD      2
+ UBDSV06 SAVING            EVTA  IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE EVTA             ON UNIT   1029 AT TIME STEP     72, STRESS PERIOD      2
+ UBDSV06 SAVING              CHD IN MODEL SAGEHEN          PACKAGE SAGEHEN         CONNECTED TO MODEL SAGEHEN          PACKAGE CHD              ON UNIT   1029 AT TIME STEP     72, STRESS PERIOD      2
+
+ HEAD WILL BE SAVED ON UNIT 1030 AT END OF TIME STEP   72, STRESS PERIOD    2
+
+
+  VOLUME BUDGET FOR ENTIRE MODEL AT END OF TIME STEP   72, STRESS PERIOD   2
+  ---------------------------------------------------------------------------------------------------
+
+     CUMULATIVE VOLUME      L**3       RATES FOR THIS TIME STEP      L**3/T          PACKAGE NAME    
+     ------------------                 ------------------------                     ----------------
+
+           IN:                                      IN:
+           ---                                      ---
+              STO-SS =         118.7869                STO-SS =       1.2299E-06     STORAGE                          
+              STO-SY =     1575485.5700                STO-SY =       1.8166E-02     STORAGE                          
+                 DRN =           0.0000                   DRN =           0.0000     DRN                              
+                RCHA =       46963.6290                  RCHA =           0.2698     RCHA                             
+                EVTA =           0.0000                  EVTA =           0.0000     EVTA                             
+                 CHD =           0.0000                   CHD =           0.0000     CHD                              
+
+            TOTAL IN =     1622567.9859              TOTAL IN =           0.2880
+
+          OUT:                                     OUT:
+          ----                                     ----
+              STO-SS =           3.1403                STO-SS =       1.3609E-05     STORAGE                          
+              STO-SY =       50337.5205                STO-SY =           0.2171     STORAGE                          
+                 DRN =        2607.1256                   DRN =       4.1807E-02     DRN                              
+                RCHA =     1566128.1532                  RCHA =           0.0000     RCHA                             
+                EVTA =        2604.3121                  EVTA =       2.3035E-02     EVTA                             
+                 CHD =         837.4152                   CHD =       3.2238E-03     CHD                              
+
+           TOTAL OUT =     1622517.6669             TOTAL OUT =           0.2852
+
+            IN - OUT =          50.3190              IN - OUT =       2.7519E-03
+
+ PERCENT DISCREPANCY =           0.00     PERCENT DISCREPANCY =           0.96
+
+
+
+
+         TIME SUMMARY AT END OF TIME STEP   72 IN STRESS PERIOD    2
+                    SECONDS     MINUTES      HOURS       DAYS        YEARS
+                    -----------------------------------------------------------
+   TIME STEP LENGTH  3600.0      60.000      1.0000     4.16667E-02 1.14077E-04
+ STRESS PERIOD TIME 2.59200E+05  4320.0      72.000      3.0000     8.21355E-03
+         TOTAL TIME 2.59201E+05  4320.0      72.000      3.0000     8.21358E-03
+
+
+end timestep
+

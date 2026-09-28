@@ -4,14 +4,6 @@
 hruId
 latitude
 longitude     
-
-! -----------
-! timestep vars
-! -----------
-hruId
-latitude
-longitude
-
 ! -----------
 ! timestep vars
 ! -----------

@@ -26,6 +26,7 @@ nav:
 - Input/Output:
   - SUMMA Input: 'input_output/SUMMA_input.md'
   - SUMMA Output: 'input_output/SUMMA_output.md'
+  - SUMMA Parameters: 'input_output/SUMMA_parameters.md'
 - Development:
   - SUMMA Contributions: 'development/SUMMA_contributing.md'
   - SUMMA and Git: 'development/SUMMA_and_git.md'

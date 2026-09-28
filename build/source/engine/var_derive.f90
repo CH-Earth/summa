@@ -217,13 +217,12 @@ contains
 
  end do  ! (looping thru layers)
 
- ! check that root density is within some reasonable version of machine tolerance
- ! This is the case when root density is greater than 1. Can only happen with powerLaw option.
+ ! trim any excess root density above one; a deficit is roots below the soil column
  error = sum(mLayerRootDensity) - 1._rkind
  if (error > 2._rkind*epsilon(rootingDepth_use)) then
   message=trim(message)//'problem with the root density calculation'
   err=20; return
- else
+ else if (error > 0._rkind) then
   mLayerRootDensity = mLayerRootDensity - error/real(nSoil,kind(rkind))
  end if
 

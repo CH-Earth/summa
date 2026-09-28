@@ -316,7 +316,6 @@ subroutine coupled_em(&
   logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
   real(rkind), allocatable             :: depthGlceTopLayer(:)     ! depth of the top glacier ice layers at the start of the time step (m)
   integer(i4b)                         :: noThetaChange            ! number of layers with no change in total water content (bottom layers)
-  logical(lgt)                         :: divideLayer              ! flag to denote that a layer was divided
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="coupled_em/"
@@ -1816,52 +1815,22 @@ subroutine coupled_em(&
         ! save the glacier ice water equivalent change
         scalarGlceWE = scalarGlceWE + balanceGlceWE - balanceGlceWE0
 
-        ! Reset the layers, ice content will have changed if layers merged
-        if (size(depthGlceTopLayer)<nGlce-noThetaChange)then
-          do iLayer = 1, nGlce-noThetaChange-size(depthGlceTopLayer)
-            call layerDivide(&
-                    ! input/output: model data structures
-                    .true.,                      & ! intent(in):    flag to denote that we are dividing glacier ice layers
-                    maxGlceLayers,               & ! intent(in):    maximum number of ice layers
-                    model_decisions,             & ! intent(in):    model decisions
-                    mpar_data,                   & ! intent(in):    model parameters
-                    indx_data,                   & ! intent(inout): type of each layer
-                    prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                    diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
-                    flux_data,                   & ! intent(inout): model fluxes for a local HRU
-                    ! output
-                    divideLayer,                 & ! intent(out): flag to denote that layers were modified
-                    err,cmessage)                  ! intent(out): error control
-            if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+        ! reset the glacier depths (the top layers keep a prescribed depth, the ice they lost to melt replaced from beneath),
+        ! and recalculate the layer heights
+        ! NOTE: if a top layer was merged within the step, the layer count is restored first by restoreGlceLayers at the end
+        !       of the step, once these associations to the layer vectors are out of scope (the vectors are reallocated)
+        if(size(depthGlceTopLayer) == nGlce-noThetaChange)then
+          mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = depthGlceTopLayer
+          do jLayer=nSnow+nLake+nSoil+1,nLayers
+            iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
+            mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._rkind
           end do
+        end if
 
-          ! save the number of layers
-          nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
-          ! compute the indices for the model state variables
-          call indexState(computeVegFlux,                    & ! intent(in):    flag to denote if computing the vegetation flux
-                          includeAquifer,                    & ! intent(in):    flag to denote if included the aquifer
-                          nSnow,nLake,nSoil,nGlce,nLayers,   & ! intent(in):    number of layers, and total number of layers
-                          indx_data,                         & ! intent(inout): indices defining model states and layers
-                          err,cmessage)                        ! intent(out):   error control
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-        else if(size(depthGlceTopLayer)>nGlce-noThetaChange)then ! this should not happen
-          err=20; message=trim(message)//'glacier top ice layers divided, started too thick'; return
-        endif
-
-        ! reset the glacier depths
-        mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = depthGlceTopLayer
-        ! recalculate the layer heights
-        do jLayer=nSnow+nLake+nSoil+1,nLayers
-          iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
-          mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._rkind
-        end do
-        
       else ! no glacier layers
         scalarGlceWE = 0._rkind
         balanceGlceWE = 0._rkind
       end if ! if glce layers exist
-      if(allocated(depthGlceTopLayer)) deallocate(depthGlceTopLayer)
       
       ! -----
       ! * balance checks for the aquifer...
@@ -1946,6 +1915,11 @@ subroutine coupled_em(&
 
   end associate canopy  ! end association to canopy parameters
 
+  ! restore the number and the prescribed depths of the top glacier ice layers if any were merged within the step
+  call restoreGlceLayers(err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  if(allocated(depthGlceTopLayer)) deallocate(depthGlceTopLayer)
+
   ! overwrite flux data with timestep-average value for all flux_mean vars, hard-coded to happen
   if(.not.backwardsCompatibility)then
     do iVar=1,size(flux_mean%var)
@@ -1966,6 +1940,66 @@ subroutine coupled_em(&
   diag_data%var(iLookDIAG%wallClockTime)%dat(1) = elapsed_time
 
 contains
+
+ subroutine restoreGlceLayers(err,message)
+  ! *** Restore the top glacier ice layers to the depths they had at the start of the step ***
+  ! The top glacier layers keep a prescribed depth: the ice they lose to melt is replaced from the glacier beneath (the
+  ! mass change is in scalarGlceWE). A top layer thinned below zminLayer is merged into the one beneath by layerMerge
+  ! within the step; here the count is restored by dividing the top layer back (layerDivide duplicates its state and
+  ! every other vector of the layer, so the step's diagnostics stay defined), and the depths and heights are reset.
+  integer(i4b),intent(out)   :: err       ! error code
+  character(*),intent(out)   :: message   ! error message
+  integer(i4b)               :: iLayer    ! layer index
+  logical(lgt)               :: divideLayer ! flag to denote that a layer was divided
+  err=0; message='restoreGlceLayers/'
+  if(nGlce==0 .or. .not.allocated(depthGlceTopLayer)) return
+  if(size(depthGlceTopLayer) == nGlce-noThetaChange) return ! no layers merged: the depths were reset in place
+  if(size(depthGlceTopLayer) < nGlce-noThetaChange)then ! this should not happen
+    err=20; message=trim(message)//'more top glacier ice layers than at the start of the step'; return
+  end if
+
+  ! divide the top layer back until the count is restored
+  do iLayer = 1, size(depthGlceTopLayer)-(nGlce-noThetaChange)
+    call layerDivide(&
+                  ! input/output: model data structures
+                  .true.,                      & ! intent(in):    flag to denote that we are dividing glacier ice layers
+                  maxGlceLayers,               & ! intent(in):    maximum number of ice layers
+                  model_decisions,             & ! intent(in):    model decisions
+                  mpar_data,                   & ! intent(in):    model parameters
+                  indx_data,                   & ! intent(inout): type of each layer
+                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                  flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                  ! output
+                  divideLayer,                 & ! intent(out): flag to denote that layers were modified
+                  err,cmessage)                  ! intent(out): error control
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    if(.not.divideLayer)then; err=20; message=trim(message)//'expected to divide the top glacier ice layer'; return; end if
+  end do
+  ! save the number of layers, and recompute the indices for the model state variables
+  nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
+  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+  call indexState(computeVegFlux,                    & ! intent(in):    flag to denote if computing the vegetation flux
+                  includeAquifer,                    & ! intent(in):    flag to denote if included the aquifer
+                  nSnow,nLake,nSoil,nGlce,nLayers,   & ! intent(in):    number of layers, and total number of layers
+                  indx_data,                         & ! intent(inout): indices defining model states and layers
+                  err,cmessage)                        ! intent(out):   error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+  ! reset the glacier depths, and recalculate the layer heights
+  ! NOTE: through the data structure, since the vectors were just reallocated
+  associate(&
+   mLayerDepth  => prog_data%var(iLookPROG%mLayerDepth)%dat  ,& ! depth of each layer (m)
+   iLayerHeight => prog_data%var(iLookPROG%iLayerHeight)%dat ,& ! height of the layer interfaces (m)
+   mLayerHeight => prog_data%var(iLookPROG%mLayerHeight)%dat  & ! height of the layer mid-points (m)
+   )
+   mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = depthGlceTopLayer
+   do iLayer=nSnow+nLake+nSoil+1,nLayers
+     iLayerHeight(iLayer) = iLayerHeight(iLayer-1) + mLayerDepth(iLayer)
+     mLayerHeight(iLayer) = (iLayerHeight(iLayer-1) + iLayerHeight(iLayer))/2._rkind
+   end do
+  end associate
+ end subroutine restoreGlceLayers
 
  subroutine initialize_coupled_em
   ! *** Initialize steps for coupled_em subroutine ***

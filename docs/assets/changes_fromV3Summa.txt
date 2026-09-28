@@ -266,3 +266,17 @@ AFTER tag of v4.0.0-exp-Sundials
  66) Automatic parameter calibration, PR #639
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
+ 67) Fix the restart file write for a multi-GRU run with glaciers, commit 29dc01f6 Sep 24, 2026
+     writeRestartGrid loops over every GRU itself, so it is called once after writeRestart's GRU loop, not inside it.
+ 68) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
+     The smooth minimum q_max*tanh(q/q_max), monotone where a logistic one is not, with its derivatives in dBaseflow_d*.
+ 69) Scale the infiltration closure under saturation to the depth of the zone it averages over, commit a52791c6 Sep 24, 2026
+     Cutoff min(1 m, rootZoneDepth) and width min(0.02 m, a quarter of it), so a debris veneer closes as a soil column does.
+ 70) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit a7126fbc Sep 24, 2026
+     exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
+     Closes the debris-column water balance, so gulkana restart-cycles (five tested); a qTopmodl upland is unchanged in
+      practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
+-71) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 081450d9 Sep 25, 2026
+     scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
+-72) homegrown solver scale convergence criteria matric head to avoid unnecessarily tight convergence when there is no water or there is saturated flow (matric head is very large), commit 38b62097 Sep 26, 2026
+     psiScale of an iname_lmpLayer state is loosened to absConvTol_liquid/(absConvTol_matric*dVolTot_dPsi0), never tighter than the old relative test.

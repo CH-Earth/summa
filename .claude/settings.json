@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -q -m 'Add changes_fromV3Summa entry 71 for the root density normalisation fix *)"
+    ]
+  }
+}

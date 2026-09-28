@@ -1,0 +1,103 @@
+                                   MODFLOW 6
+                U.S. GEOLOGICAL SURVEY MODULAR HYDROLOGIC MODEL
+                       VERSION 6.8.0.dev0+6ad3122c.dirty
+                               ***DEVELOP MODE***
+
+        MODFLOW 6 compiled Sep  1 2026 17:20:28 with GCC version 15.2.0
+
+This software is preliminary or provisional and is subject to 
+revision. It is being provided to meet the need for timely best 
+science. The software has not received final approval by the U.S. 
+Geological Survey (USGS). No warranty, expressed or implied, is made 
+by the USGS or the U.S. Government as to the functionality of the 
+software and related material nor shall the fact of release 
+constitute any such warranty. The software is provided on the 
+condition that neither the USGS nor the U.S. Government shall be held 
+liable for any damages resulting from the authorized or unauthorized 
+use of the software.
+
+
+ MODFLOW runs in SEQUENTIAL mode
+
+ Run start date and time (yyyy/mm/dd hh:mm:ss): 2026/09/25  0:11:13
+
+ Writing simulation list file: mfsim.lst
+ Using Simulation name file: mfsim.nam
+
+    Solving:  Stress period:     1    Time step:     1
+    Solving:  Stress period:     1    Time step:     2
+    Solving:  Stress period:     1    Time step:     3
+    Solving:  Stress period:     1    Time step:     4
+    Solving:  Stress period:     1    Time step:     5
+    Solving:  Stress period:     1    Time step:     6
+    Solving:  Stress period:     1    Time step:     7
+    Solving:  Stress period:     1    Time step:     8
+    Solving:  Stress period:     1    Time step:     9
+    Solving:  Stress period:     1    Time step:    10
+    Solving:  Stress period:     1    Time step:    11
+    Solving:  Stress period:     1    Time step:    12
+    Solving:  Stress period:     1    Time step:    13
+    Solving:  Stress period:     1    Time step:    14
+    Solving:  Stress period:     1    Time step:    15
+    Solving:  Stress period:     1    Time step:    16
+    Solving:  Stress period:     1    Time step:    17
+    Solving:  Stress period:     1    Time step:    18
+    Solving:  Stress period:     1    Time step:    19
+    Solving:  Stress period:     1    Time step:    20
+    Solving:  Stress period:     1    Time step:    21
+    Solving:  Stress period:     1    Time step:    22
+    Solving:  Stress period:     1    Time step:    23
+    Solving:  Stress period:     1    Time step:    24
+    Solving:  Stress period:     1    Time step:    25
+    Solving:  Stress period:     1    Time step:    26
+    Solving:  Stress period:     1    Time step:    27
+    Solving:  Stress period:     1    Time step:    28
+    Solving:  Stress period:     1    Time step:    29
+    Solving:  Stress period:     1    Time step:    30
+    Solving:  Stress period:     1    Time step:    31
+    Solving:  Stress period:     1    Time step:    32
+    Solving:  Stress period:     1    Time step:    33
+    Solving:  Stress period:     1    Time step:    34
+    Solving:  Stress period:     1    Time step:    35
+    Solving:  Stress period:     1    Time step:    36
+    Solving:  Stress period:     1    Time step:    37
+    Solving:  Stress period:     1    Time step:    38
+    Solving:  Stress period:     1    Time step:    39
+    Solving:  Stress period:     1    Time step:    40
+    Solving:  Stress period:     1    Time step:    41
+    Solving:  Stress period:     1    Time step:    42
+    Solving:  Stress period:     1    Time step:    43
+    Solving:  Stress period:     1    Time step:    44
+    Solving:  Stress period:     1    Time step:    45
+    Solving:  Stress period:     1    Time step:    46
+    Solving:  Stress period:     1    Time step:    47
+    Solving:  Stress period:     1    Time step:    48
+    Solving:  Stress period:     1    Time step:    49
+    Solving:  Stress period:     1    Time step:    50
+    Solving:  Stress period:     1    Time step:    51
+    Solving:  Stress period:     1    Time step:    52
+    Solving:  Stress period:     1    Time step:    53
+    Solving:  Stress period:     1    Time step:    54
+    Solving:  Stress period:     1    Time step:    55
+    Solving:  Stress period:     1    Time step:    56
+    Solving:  Stress period:     1    Time step:    57
+    Solving:  Stress period:     1    Time step:    58
+    Solving:  Stress period:     1    Time step:    59
+    Solving:  Stress period:     1    Time step:    60
+    Solving:  Stress period:     1    Time step:    61
+    Solving:  Stress period:     1    Time step:    62
+    Solving:  Stress period:     1    Time step:    63
+    Solving:  Stress period:     1    Time step:    64
+    Solving:  Stress period:     1    Time step:    65
+    Solving:  Stress period:     1    Time step:    66
+    Solving:  Stress period:     1    Time step:    67
+    Solving:  Stress period:     1    Time step:    68
+    Solving:  Stress period:     1    Time step:    69
+    Solving:  Stress period:     1    Time step:    70
+    Solving:  Stress period:     1    Time step:    71
+    Solving:  Stress period:     1    Time step:    72
+
+ Run end date and time (yyyy/mm/dd hh:mm:ss): 2026/09/25  0:11:14
+ Elapsed run time:  0.335 Seconds
+
+ Normal termination of simulation.
