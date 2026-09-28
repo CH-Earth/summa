@@ -731,10 +731,32 @@ subroutine opSplittin(&
      end if
     end do
 
+    ! a split solution applies each layer's baseflow from that layer's own solve, so the column total must be their sum
+    if (ixCoupling/=fullyCoupled) call rebuild_soil_baseflow
+
     ! use step halving if unable to complete the fully coupled solution in one substep
     if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
    end associate
   end subroutine finalize_coupling
+
+  subroutine rebuild_soil_baseflow
+   ! *** scalarSoilBaseflow, and total runoff where it carries it, from the mLayerBaseflow the states were advanced with ***
+   associate(&
+    scalarSoilBaseflow => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1),& ! intent(inout): [dp] total baseflow from the soil profile (m s-1)
+    scalarTotalRunoff  => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1), & ! intent(inout): [dp] total runoff (m s-1)
+    scalarGlacierMelt  => flux_data%var(iLookFLUX%scalarGlacierMelt)%dat(1), & ! intent(inout): [dp] glacier melt plus debris outflow (m s-1)
+    scalarSurfaceRunoff=> flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1),& ! intent(in):   [dp] surface runoff (m s-1)
+    scalarSoilDrainage => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1), & ! intent(in):    [dp] drainage from the soil profile (m s-1)
+    scalarGlceMelt     => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1),    & ! intent(in):    [dp] glacier ice melt (m s-1)
+    ixAqWat            => indx_data%var(iLookINDEX%ixAqWat)%dat(1)           ) ! intent(in):    [i4b] index of the aquifer storage state
+    if (nSoil==0) return
+    scalarSoilBaseflow = sum(flux_data%var(iLookFLUX%mLayerBaseflow)%dat(1:nSoil))
+    if (ixAqWat==integerMissing) then ! with an aquifer state, total runoff is surface + aquifer baseflow instead
+     scalarTotalRunoff = scalarSurfaceRunoff + scalarSoilBaseflow + scalarSoilDrainage - scalarGlceMelt
+     if (nGlce>0) scalarGlacierMelt = scalarTotalRunoff
+    end if
+   end associate
+  end subroutine rebuild_soil_baseflow
 
   subroutine initialize_stateTypeSplitting
    ! *** Initial steps to prepare for iterations of the stateTypeSplit split method ***
