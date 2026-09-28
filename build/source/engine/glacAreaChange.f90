@@ -301,7 +301,9 @@ subroutine glacAreaChange(&
 
     ! run the flow model, which updates surface and debris
     call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, debrisConc, &
-                       wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag)
+                       wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag, &
+                       err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     totVolume = totVolume + volume ! includes debris, not currently used
 
     ! new glacier geometry
@@ -581,7 +583,8 @@ end subroutine argsort_desc
 !   Follows the implementation of Jarosch et al., 2013
 ! ************************************************************************************************
 subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, debrisConc, &
-                         wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag)
+                         wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag, &
+                         err, message)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: t_total, dx, dy, B(nx,ny)
@@ -592,6 +595,8 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
   logical(lgt), intent(in) :: printFlag
   real(rkind), intent(out) :: volume
+  integer(i4b), intent(out) :: err                ! error code
+  character(*), intent(out) :: message             ! error message
   ! Local variables
   real(rkind) :: dt, t, max_dt, min_dt, deltat, debris_half_dt, div_q(nx,ny), dt_cfl, meanS
   real(rkind) :: gamma, m_dot(nx,ny), H(nx,ny), lat_rockfall(nx,ny)
@@ -607,6 +612,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   integer(i4b) :: i, j, isteps
   integer(i4b) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
 
+  err=0; message='run_flowModel/'
   gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
   max_dt = 31._rkind * secprday ! max timestep in seconds, a month
   min_dt = 3600._rkind ! min timestep in seconds, 1 hour
@@ -695,12 +701,15 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
 
     ! check that the glacier is in boundaries, fix small violations, how small is arbitrary
     if(any((S - B) > verySmall .and. glacierMask==0_i4b))then
-      if(any((S - B) > 10._rkind .and. glacierMask==0_i4b)) stop 'Glacier exceeds boundaries in flow model'
+      if(any((S - B) > 10._rkind .and. glacierMask==0_i4b))then
+        message=trim(message)//'glacier exceeds boundaries in flow model'
+        err=20; return
+      endif
       S = merge(B, S, (S - B) > verySmall .and. glacierMask==0_i4b)
     endif
     ! check that glacier surface is not infinite (unstable), bring down to mean glacier height
     if(any(((S - B) > 1.e6_rkind .or. isnan(S-B)) .and. glacierMask==1_i4b))then
-      meanS = sum(merge(S, 0._rkind, glacierMask==1_i4b .and. (S-B)<1.e6_rkind)) / count((S-B)<=1.e6_rkind)
+      meanS = sum(merge(S, 0._rkind, glacierMask==1_i4b .and. (S-B)<1.e6_rkind)) / count(glacierMask==1_i4b .and. (S-B)<1.e6_rkind)
       S = merge(S, meanS, ((S - B)) <= 1.e6_rkind)
     endif
 
