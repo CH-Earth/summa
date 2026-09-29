@@ -32,9 +32,12 @@ module summa_c_api
 
   ! Calibration parameters. Names must match SUMMA's parameter tables
   ! (localParamInfo.txt / basinParamInfo.txt); see calibration/README.md.
-  integer, parameter :: N_PARAMS = 3
+  integer, parameter :: N_PARAMS = 15
   character(len=64), parameter :: PARAM_NAMES(N_PARAMS) = &
-      [character(len=64) :: "k_soil", "theta_sat", "vGn_n"]
+      [character(len=64) :: "k_soil", "theta_sat", "aquiferBaseflowExp", &
+       "aquiferBaseflowRate", "qSurfScale", "summerLAI", "frozenPrecipMultip", &
+       "Fcapil", "tempCritRain", "heightCanopyTop", "heightCanopyBottom", &
+       "windReductionParam", "vGn_n", "routingGammaScale", "routingGammaShape"]
 
 contains
 

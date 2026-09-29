@@ -14,7 +14,10 @@ import ctypes
 from pathlib import Path
 
 # Must match PARAM_NAMES in summa_c_api.f90, in the same order
-PARAM_NAMES = ["k_soil", "theta_sat", "vGn_n"]
+PARAM_NAMES = ["k_soil", "theta_sat", "aquiferBaseflowExp",
+               "aquiferBaseflowRate", "qSurfScale", "summerLAI", "frozenPrecipMultip",
+               "Fcapil", "tempCritRain", "heightCanopyTop", "heightCanopyBottom",
+               "windReductionParam", "vGn_n", "routingGammaScale", "routingGammaShape"]
 N_PARAMS = len(PARAM_NAMES)
 
 # Adjust extension per platform: .dylib (mac), .so (linux), .dll (windows)
@@ -22,8 +25,9 @@ LIB_PATH = Path(__file__).parent / "libsumma.dylib"
 
 # Repo root, so master/config paths work regardless of cwd
 REPO_ROOT = Path(__file__).parent.parent
-MASTER_FILE = REPO_ROOT / "test_coupled" / "settings" / "summa_fileManager.txt"
-CONFIG_FILE = REPO_ROOT / "test_coupled" / "settings" / "summa_config_test.toml"
+import os
+MASTER_FILE = Path(os.environ.get("SUMMA_MASTER", REPO_ROOT / "test_coupled" / "settings" / "summa_fileManager.txt"))
+CONFIG_FILE = Path(os.environ.get("SUMMA_CONFIG", REPO_ROOT / "test_coupled" / "settings" / "summa_config_test.toml"))
 
 _lib = ctypes.CDLL(str(LIB_PATH))
 
