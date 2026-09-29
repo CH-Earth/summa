@@ -1,0 +1,37 @@
+# J() configuration for the Ross domain (lumped: 1 HRU, 1 segment, no remapping)
+# Based on test_coupled/settings/summa_config_test.toml
+
+[observations]
+obs_path      = "<ROSS_DIR>/observations/"
+obs_file      = "Ross_daily_flow_observations.nc"
+vname_obsflow = "q_obs"
+
+[objective]
+metric         = "kge"
+transformation = "none"
+start_date = "2011-01-01"   # CALIBRATION_PERIOD from config_ross.yaml
+end_date   = "2015-12-31"   # (evaluation period: 2016-01-01 to 2024-12-31)
+
+[mizuRoute]
+namelist_path = "<ROSS_DIR>/settings/mizuRoute/"
+namelist_file = "param.nml.default"
+dt            = 3600
+methods       = "3"         # KW; coupled mizuRoute supports only 3, 4, 5 (Ross on Anvil used IRF)
+write_qbasin  = false
+write_Qreach  = true
+
+[hydrofabric]
+hfabric_path      = "<ROSS_DIR>/settings/mizuRoute/"
+hfabric_file      = "topology.nc"
+dname_hru         = "hru"
+dname_seg         = "seg"
+varname_HRUid     = "hruId"
+varname_segId     = "segId"
+varname_hruSegId  = "hruToSegId"
+varname_downSegId = "downSegId"
+varname_area      = "area"
+varname_slope     = "slope"
+varname_length    = "length"
+seg_outlet        = 1
+
+# No [remapping] section: Ross runoff goes directly from HRU 1 to segment 1.
