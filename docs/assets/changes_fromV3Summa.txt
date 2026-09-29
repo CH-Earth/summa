@@ -278,5 +278,4 @@ AFTER tag of v4.0.0-exp-Sundials
       practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
 -71) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 081450d9 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
--72) homegrown solver scale convergence criteria matric head to avoid unnecessarily tight convergence when there is no water or there is saturated flow (matric head is very large), commit 38b62097 Sep 26, 2026
-     psiScale of an iname_lmpLayer state is loosened to absConvTol_liquid/(absConvTol_matric*dVolTot_dPsi0), never tighter than the old relative test.
+     
