@@ -14,12 +14,25 @@ rm -rf "$SLURM_TMPDIR/models/summa/bin"
 cp -a "$HOME/models/summa/bin" \
       "$SLURM_TMPDIR/models/summa/"
 
-# Always refresh calibration utilities
-mkdir -p "$SLURM_TMPDIR/models/summa/utils/test"
+# ----------------------------------------------------------------------
+# Refresh shared inputs
+# ----------------------------------------------------------------------
 
-rm -rf "$SLURM_TMPDIR/models/summa/utils/test/test_calibration"
-cp -a "$HOME/models/summa/utils/test/test_calibration" \
-      "$SLURM_TMPDIR/models/summa/utils/test/"
+mkdir -p "$SLURM_TMPDIR/data/century/MM/exp01"
+
+echo "[$(hostname)] Refreshing common inputs..."
+
+rm -rf "$SLURM_TMPDIR/data/century/MM/exp01/common_inputs"
+
+cp -a "$HOME/data/century/MM/exp01/common_inputs" \
+      "$SLURM_TMPDIR/data/century/MM/exp01/"
+
+echo "[$(hostname)] Refreshing configuration files..."
+
+rm -rf "$SLURM_TMPDIR/data/century/MM/exp01/settings"
+
+cp -a "$HOME/data/century/MM/exp01/settings" \
+      "$SLURM_TMPDIR/data/century/MM/exp01/"
 
 # ----------------------------------------------------------------------
 # Stage model inputs
