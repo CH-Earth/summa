@@ -148,6 +148,7 @@ contains
     real(rkind), allocatable           :: timeSim(:)         ! simulated time
     real(rkind), allocatable           :: flowSim(:)         ! simulated streamflow
     real(rkind), allocatable           :: timeObs(:)         ! observed time
+    real(rkind), allocatable           :: timeBounds(:,:)    ! observed time bounds
     real(rkind), allocatable           :: flowObs(:)         ! observed streamflow
     character(len=:), allocatable      :: timeSimUnits       ! simulated time units
     character(len=:), allocatable      :: flowSimUnits       ! simulated flow units
@@ -226,7 +227,7 @@ contains
     if(iulog == output_unit) iulog = error_unit
 
     ! read observed streamflow
-    call read_flow_observations(summa1_struc(n), timeObs,flowObs, timeObsUnits,flowObsUnits, err,cmessage)
+    call read_flow_observations(summa1_struc(n), timeObs, timeBounds, flowObs, timeObsUnits, flowObsUnits, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
     ! run SUMMA
@@ -247,6 +248,7 @@ contains
                           timeObs,flowObs,timeObsUnits,flowObsUnits, &
                           summa1_struc(n)%config%calib%start_date,   &
                           summa1_struc(n)%config%calib%end_date,     &
+                          timeBounds,                                &
                           timeAligned,flowSimAligned,flowObsAligned, &
                           err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
