@@ -278,4 +278,4 @@ AFTER tag of v4.0.0-exp-Sundials
       practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
 -71) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 081450d9 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
-     
+-72) thermConductivity.f90 bottom-interface conductivity derivatives on the layer above, so a presTemp lower boundary converges, commit ab6b3c22 Sep 30, 2026
