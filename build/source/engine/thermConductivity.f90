@@ -580,10 +580,10 @@ subroutine thermConductivity(&
       ! ***** the lower boundary
       if (iLayer==nLayers) then ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
         iLayerThermalC(nLayers) = mLayerThermalC(nLayers)
-        dThermalC_dWatBelow(iLayer) = dThermalC_dWat(iLayer)
-        dThermalC_dTempBelow(iLayer) = dThermalC_dNrg(iLayer)
-        dThermalC_dWatAbove(iLayer) = realMissing
-        dThermalC_dTempAbove(iLayer) = realMissing
+        dThermalC_dWatAbove(iLayer) = dThermalC_dWat(iLayer)
+        dThermalC_dTempAbove(iLayer) = dThermalC_dNrg(iLayer)
+        dThermalC_dWatBelow(iLayer) = realMissing
+        dThermalC_dTempBelow(iLayer) = realMissing
       ! ***** internal layers
       else
         ! get temporary variables
