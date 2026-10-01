@@ -539,6 +539,7 @@ subroutine eval8summa(&
                     scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
                     checkLWBalance,            & ! intent(in):    flag to check longwave balance
                     scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
+                    dt,                        & ! intent(in):    length of the whole step the melt pond and glacier excess water drain over (s)
                     ! input: state variables
                     scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                     scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)

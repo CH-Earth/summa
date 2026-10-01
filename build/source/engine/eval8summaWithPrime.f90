@@ -589,6 +589,7 @@ subroutine eval8summaWithPrime(&
                     scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
                     .false.,                   & ! intent(in):    do not check longwave balance
                     scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
+                    dt,                        & ! intent(in):    length of the whole step the melt pond and glacier excess water drain over (s)
                     ! input: state variables
                     scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                     scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)

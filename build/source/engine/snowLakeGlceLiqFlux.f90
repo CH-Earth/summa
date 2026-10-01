@@ -112,6 +112,7 @@ subroutine snowLakeGlceLiqFlux(&
     ! input: water flux at the bottom if already computed
     bottom_flux             => in_snowLakeGlceLiqFlux % bottom_flux,             & ! intent(in): liquid water flux at the bottom if already computed (m s-1)
     ! input: model state vector
+    whole_step              => in_snowLakeGlceLiqFlux % whole_step,              & ! intent(in): length of the whole step glacier excess water drains over (s)
     mLayerVolFracLiqTrial   => in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial,   & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
     ! input: layer indices
     ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat,              & ! intent(in):    list of indices for all model layers
@@ -119,6 +120,7 @@ subroutine snowLakeGlceLiqFlux(&
     ixGlceOnlyHyd    => indx_data%var(iLookINDEX%ixGlceOnlyHyd)%dat,             & ! intent(in):    index in the state subset for hydrology state variables in the glacier ice domain
     ! input: snow properties and parameters
     mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nStart+1:nStart+nLayers), & ! intent(in):    volumetric ice content at the start of the time step (-)
+    mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat(nStart+1:nStart+nLayers),      & ! intent(in):    depth of each layer (m)
     Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
     k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
     mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                                & ! intent(in):    exponent for meltwater flow (-)
@@ -219,8 +221,8 @@ subroutine snowLakeGlceLiqFlux(&
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         else  ! not the bottom layer
           availCap  = min(mLayerVolFracLiqTrial(iLayer+1),mLayerThetaResid(iLayer+1)) ! available capacity
-          iLayerLiqFluxSnLaGl(iLayer) = -(mLayerVolFracLiqTrial(iLayer+1) - availCap)
-          iLayerLiqFluxSnLaGlDeriv(iLayer) = merge(-1._rkind,0._rkind,mLayerVolFracLiqTrial(iLayer+1)>mLayerThetaResid(iLayer+1)) ! after cancelation, derivative is -1
+          iLayerLiqFluxSnLaGl(iLayer) = -(mLayerVolFracLiqTrial(iLayer+1) - availCap)*mLayerDepth(iLayer+1)/whole_step ! excess above residual drains over the whole step (m s-1)
+          iLayerLiqFluxSnLaGlDeriv(iLayer) = merge(-mLayerDepth(iLayer+1)/whole_step,0._rkind,mLayerVolFracLiqTrial(iLayer+1)>mLayerThetaResid(iLayer+1))
           ! ** liquid water to passes through ice layers immediately
           iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer+1) + iLayerLiqFluxSnLaGl(iLayer)
         end if
