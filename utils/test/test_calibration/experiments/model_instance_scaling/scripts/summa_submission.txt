@@ -7,3 +7,10 @@ sbatch --job-name=summa-n2-c1 --nodes=2 --ntasks=384 --time=6:00:00 scripts/summ
 sbatch --job-name=summa-n2-c2 --nodes=2 --ntasks=384 --time=6:00:00 scripts/summa_scaling.slurm 2
 sbatch --job-name=summa-n2-c4 --nodes=2 --ntasks=384 --time=6:00:00 scripts/summa_scaling.slurm 4
 sbatch --job-name=summa-n2-c8 --nodes=2 --ntasks=384 --time=6:00:00 scripts/summa_scaling.slurm 8
+
+
+sbatch --job-name=summa-n2-c2 --nodes=2 --ntasks=384 --time=3:00:00 scripts/summa_scaling.slurm 2
+sbatch --job-name=summa-n2-c4 --nodes=2 --ntasks=384 --time=3:00:00 scripts/summa_scaling.slurm 4
+sbatch --job-name=summa-n2-c6 --nodes=2 --ntasks=384 --time=3:00:00 scripts/summa_scaling.slurm 6
+
+

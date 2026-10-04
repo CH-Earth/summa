@@ -438,7 +438,8 @@ contains
   
         ! ---- multi-case configuration ----
         case ("multi_case.cases_per_node"   ); call get_value(subtable,trim(keys(i)%key),config%cases_per_node    , stat=istat)
-        
+        case ("multi_case.n_runs"           ); call get_value(subtable,trim(keys(i)%key),config%n_runs            , stat=istat)
+
         ! ----- path/name of toml template -----
         case ("multi_case.template_file"    ); call get_value(subtable,trim(keys(i)%key),config%template_file     , stat=istat)
 
@@ -465,8 +466,14 @@ contains
 
     ! ----- set the template path (template file assumed to be in the same directory as the manifest) -----
 
-    idx = scan(trim(config%manifest_file), '/', back=.true.)
-    config%template_path = config%manifest_file(:idx)
+    idx = max( scan(trim(config%manifest_file), '/',       back=.true.), & ! mac/linux
+               scan(trim(config%manifest_file), achar(92), back=.true.)  ) ! windows
+
+    if(idx > 0)then
+      config%template_path = config%manifest_file(:idx)
+    else
+      config%template_path = ''
+    endif
 
     ! ----- validate required manifest settings -----
 
@@ -487,6 +494,11 @@ contains
 
     if(config%cases_per_node < 1)then
       message=trim(message)//'cases_per_node must be greater than zero'
+      err=20; return
+    endif
+
+    if(config%n_runs < 1)then
+      message=trim(message)//'n_runs must be greater than zero'
       err=20; return
     endif
 

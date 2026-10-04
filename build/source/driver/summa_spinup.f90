@@ -58,6 +58,7 @@ contains
     integer(i4b),                intent(out)   :: err                ! error code
     character(*),                intent(out)   :: message            ! error message
     ! strings
+    character(len=4)   :: run_string
     character(len=4)   :: rankString
     character(len=512) :: cmessage
     character(len=:), allocatable :: outputFileSuffix_orig
@@ -92,9 +93,10 @@ contains
     SIM_END_TM=simStartOriginal
 
     ! use rank-specific output filenames during the common spinup
+    write(run_string,'(I4.4)') config%run_index
     write(rankString,'(I4.4)') instance_parallel%rank
     outputFileSuffix_orig=trim(output_fileSuffix)
-    output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_rank'//rankString
+    output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_run'//run_string//'_rank'//rankString
 
     ! write the common restart state on rank 0 only
     ixRestart=merge(ixRestart_end, ixRestart_never, instance_parallel%rank == 0)

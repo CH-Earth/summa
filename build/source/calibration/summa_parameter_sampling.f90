@@ -134,7 +134,7 @@ contains
         message=trim(message)//'unable to allocate random-number seed'
         return
       endif
-      seed=42
+      seed=42 + config%run_index - 1
       call random_seed(put=seed)
 
       ! initialize parameter-search state on the dispatcher

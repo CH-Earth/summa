@@ -16,28 +16,7 @@ set -euo pipefail
 # Experiment configuration
 # ----------------------------------------------------------------------
 
-if [ "$#" -ne 1 ]; then
-  echo "Usage: sbatch [options] $0 <cases_per_node>"
-  echo "Example: sbatch --nodes=2 --ntasks=384 $0 4"
-  exit 1
-fi
-
-CASES_PER_NODE="$1"
-
-case "$CASES_PER_NODE" in
-  1|2|4|8)
-    ;;
-  *)
-    echo "ERROR: cases_per_node must be one of: 1, 2, 4, 8"
-    exit 1
-    ;;
-esac
-
-RANKS_PER_NODE=192
-RANKS_PER_CASE=$((RANKS_PER_NODE / CASES_PER_NODE))
-WORKERS_PER_CASE=$((RANKS_PER_CASE - 1))
-
-MANIFEST="$HOME/data/century/MM/exp01/settings/manifest_c${CASES_PER_NODE}.toml"
+MANIFEST="$HOME/data/century/MM/exp01/settings/manifest_century.toml"
 
 # ----------------------------------------------------------------------
 # Runtime environment
@@ -53,9 +32,6 @@ echo "Job name:         $SLURM_JOB_NAME"
 echo "Nodes:            $SLURM_JOB_NUM_NODES"
 echo "Node list:        $SLURM_JOB_NODELIST"
 echo "Tasks:            $SLURM_NTASKS"
-echo "Cases/node:       $CASES_PER_NODE"
-echo "Ranks/case:       $RANKS_PER_CASE"
-echo "Workers/case:     $WORKERS_PER_CASE"
 echo "Manifest:         $MANIFEST"
 echo "--------------------------------------------------"
 

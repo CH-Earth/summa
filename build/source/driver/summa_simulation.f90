@@ -142,6 +142,7 @@ contains
     type(summa1_type_dec), allocatable :: summa1_struc(:)    ! top-level SUMMA data structure
     integer(i4b), parameter            :: n=1                ! number of SUMMA data structures
     integer(i4b)                       :: i                  ! looping
+    character(len=4)                   :: runString          ! include run in the output filename
     character(len=4)                   :: rankString         ! include rank in the output filename
     character(len=6)                   :: sampleString       ! include sample index in the output filename
     character(len=:), allocatable      :: outputFileSuffix_orig  ! orig suffix (to restore output suffix)
@@ -184,6 +185,10 @@ contains
     if(sample_id > 0)then
       write(sampleString,'(I6.6)') sample_id
       output_fileSuffix=trim(output_fileSuffix)//'_sample'//sampleString
+    endif
+    if(summa1_struc(n)%config%n_runs > 0)then
+      write(runString,'(I4.4)') summa1_struc(n)%config%run_index
+      output_fileSuffix=trim(output_fileSuffix)//'_run'//runString
     endif
 
     ! initialize SUMMA

@@ -80,7 +80,8 @@ program summa_driver_opt
   integer(i4b) :: nCaseGroups                              ! Total number of case groups
   integer(i4b) :: ranks_per_case                           ! MPI ranks assigned to each case
   integer(i4b) :: leader_color                             ! Color used to construct node-leader communicator
-  integer(i4b) :: case_index                               ! index of the case assigned to an instance group
+  integer(i4b) :: case_index                               ! dispatched work-item index 
+  integer(i4b) :: manifest_case_index                      ! index of case listed in the manifest 
   integer(i4b) :: iDispatch                                ! number of case-dispatch attempts by an instance group
   integer(i4b) :: requested_cases                          ! cases_per_node as configured, before any reduction
   integer(i4b) :: nCases                                   ! Total number of cases available for execution
@@ -303,7 +304,7 @@ program summa_driver_opt
   if(allocated(config%manifest_file))then
   
     ! number of cases available for dynamic assignment
-    nCases = size(config%case_names)
+    nCases = size(config%case_names) * config%n_runs
   
     ! initialize the global case counter
     call init_case_counter(world_parallel,next_case,case_win,err,message)
@@ -325,8 +326,18 @@ program summa_driver_opt
       ! zero indicates that all cases have already been assigned
       if(case_index == 0) exit
   
+      ! map logical work item to physical basin and independent optimzation start
+      manifest_case_index = (case_index - 1) / config%n_runs + 1
+      config%run_index    = mod(case_index - 1,config%n_runs) + 1
+
+      write(*,'(A,I0,A,A,A)') 'rank ',world_parallel%rank, &
+        ' template_path=[',trim(config%template_path),']'
+    
+      write(*,'(A,I0,A,A,A)') 'rank ',world_parallel%rank, &
+        ' template_file=[',trim(config%template_file),']'
+
       ! configure the assigned case
-      config%manifest_casename = trim(config%case_names(case_index))
+      config%manifest_casename = trim(config%case_names(manifest_case_index))
       config%config_file       = trim(config%template_path)//trim(config%template_file)
   
       if(instance_parallel%rank == 0)then
@@ -334,7 +345,10 @@ program summa_driver_opt
           'Case group ',global_case_group, &
           ' running case: ',trim(config%manifest_casename)
       endif
-  
+
+      write(*,'(A,I0,A,A,A)') 'rank ',world_parallel%rank, &
+          ' config_file=[',trim(config%config_file),']'
+
       ! execute all parameter evaluations for this case
       call run_case(config,                    &
                     domain_parallel,           &
@@ -436,6 +450,7 @@ contains
     character(len=256) :: log_file
     integer(i4b)       :: ncid_calib
     character(len=256) :: calib_file
+    character(len=4)   :: runString
     integer(i4b) :: mpi_err
     integer(i4b) :: istat
  
@@ -474,13 +489,16 @@ contains
 
     ! the sample budget is a configuration setting, so it is only known now
     nSamples = config%calib%n_samples
-    
+
+    ! get the run index as character string to avoid collision in filenames
+    write(runString,'(I4.4)') config%run_index
+
     ! configure rank-specific logging
     iulog=99
     log_unit=iulog
     config%iulog_summa=iulog
     write(rankString,'(I4.4)') instance_parallel%rank
-    log_file=trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)// '_rank'//rankString//'.log'
+    log_file=trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)//'_run'//runString// '_rank'//rankString//'.log'
     call execute_command_line('mkdir -p "'//trim(OUTPUT_PATH)//'/logs"')
     open(unit=iulog,file=trim(log_file),status='replace',action='write')
   
@@ -518,7 +536,7 @@ contains
     ! Create calibration output file
     ! ---------------------------------------------------------------------------------------
     if(instance_parallel%rank == 0)then
-      calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_calibration.nc'
+      calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString//'_calibration.nc'
       call create_calibration_output(calib_file,param_spec,nSamples,                                   &
                                      instance_parallel%size-1,node_index,global_case_group,            &
                                      config%case_name,config%calib%metric,config%calib%obs_transform,  &
