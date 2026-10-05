@@ -876,7 +876,7 @@ subroutine fluxJacAdd(&
           aJac(ixInd(full,watState,nrgState),nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
 
          ! - include derivatives w.r.t. ground evaporation
-          if(nSnow==0 .and. iLayer==1)then 
+          if(nSnow+nLake==0 .and. iLayer==1)then 
             aJac(ixInd(full,ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixInd(full,ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
           endif
         endif   !(if both the energy and water states for the current layer are within the state subset)
