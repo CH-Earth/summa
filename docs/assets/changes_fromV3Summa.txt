@@ -279,3 +279,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -71) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 081450d9 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
 -72) imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit 0deb361e Oct 1, 2026
+ 73) summa_bmi.f90 adds land_surface_water__runoff_volume_flux_mh (m h-1) as the ngen main output, commit 3c7285a9 Oct 5, 2026
