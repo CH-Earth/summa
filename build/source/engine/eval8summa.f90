@@ -38,6 +38,8 @@ USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of
 
 ! constants
 USE multiconst,only:&
+                    Cp_ice,     & ! specific heat of ice                 (J kg-1 K-1)
+                    Cp_water,   & ! specific heat of liquid water        (J kg-1 K-1)
                     LH_fus,     & ! latent heat of fusion                (J kg-1)
                     iden_water, & ! intrinsic density of liquid water    (kg m-3)
                     gravity,    & ! gravitational acceleration           (m s-2)
@@ -821,6 +823,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: small_delMatric            ! flag to constain matric head change to be less than zMaxMatricIncrement
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
   logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
+  logical(lgt)                             :: enthalpy_snow              ! flag to take the snow temperature increment along the enthalpy curve
+  real(rkind)                              :: watRatio                   ! start-of-iteration over trial total water of a snow layer (-)
   real(rkind)                              :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
   ! -----------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -889,6 +893,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT, works best if on
         epsT                = 1.e-7_rkind ! small interval above/below critical (K), works better if larger
         water_bounds        = .true.      ! flag to force water bounds, works best if on
+        enthalpy_snow       = .false.     ! flag to take the snow temperature increment along the enthalpy curve
       case(homegrown)
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
         zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)
@@ -898,6 +903,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT
         epsT                = 1.e-7_rkind ! small interval above/below critical (K)
         water_bounds        = .true.      ! flag to force water bounds
+        enthalpy_snow       = .true.      ! flag to take the snow temperature increment along the enthalpy curve
       case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or homegrown (or itertive, which is homegrown)'; return
     end select
     
@@ -931,6 +937,21 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         end do ! (loop through soil layers)
       endif
     endif ! (small matric head change)
+
+    ! ** snow: treat the Newton temperature increment as an enthalpy increment and invert the freezing curve exactly
+    if(enthalpy_snow .and. nSnowOnlyNrg>0)then
+      do iLayer=1,nSnow
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
+        ixNrg = ixSnLaSoGlNrg(iLayer)
+        ixLiq = ixSnLaSoGlHyd(iLayer)
+        watRatio = 1._rkind
+        if(ixLiq/=integerMissing)then
+          if(ixStateType_subset(ixLiq)==iname_watLayer .and. stateVecPrev(ixLiq)+xInc(ixLiq) > 0._rkind) &
+            watRatio = max(0.5_rkind, min(2._rkind, stateVecPrev(ixLiq)/(stateVecPrev(ixLiq)+xInc(ixLiq))))
+        endif
+        xInc(ixNrg) = snowEnthStep(stateVecPrev(ixNrg), xInc(ixNrg)*watRatio, snowfrz_scale) - stateVecPrev(ixNrg)
+      end do
+    endif
 
     ! ** stop just above or just below the freezing point if crossing
     if(detect_events)then
@@ -1114,5 +1135,47 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
 
 end subroutine imposeConstraints
 
+
+! ***************************************************************************************************************************************
+! private function snowEnthStep: snow temperature after an enthalpy increment h'(T0)*dT on the closed-form freezing curve (K)
+!   returns T0+dT unchanged when the target reaches 0 C, so the freezing-point clip still applies
+! ***************************************************************************************************************************************
+function snowEnthStep(T0,dT,fc_param) result(T1)
+  USE convertEnthalpyTemp_module,only:T2enthalpy_snLaGlWat ! enthalpy of a liquid and ice mixture (J m-3, per unit bulk density here)
+  implicit none
+  real(rkind),intent(in) :: T0          ! temperature at the start of the iteration (K)
+  real(rkind),intent(in) :: dT          ! Newton temperature increment (K)
+  real(rkind),intent(in) :: fc_param    ! freezing curve parameter (K-1)
+  real(rkind)            :: T1          ! temperature on the enthalpy curve (K)
+  real(rkind)            :: hTarget     ! target specific enthalpy (J kg-1)
+  real(rkind)            :: g,Tn,Tlo,Thi
+  integer(i4b)           :: iter
+  T1 = T0 + dT
+  if(T0 >= Tfreeze .or. dT == 0._rkind) return
+  hTarget = T2enthalpy_snLaGlWat(T0,1._rkind,fc_param) + dhdT(T0)*dT
+  if(hTarget >= 0._rkind) return  ! enthalpy is zero at Tfreeze with all water liquid
+  if(dT > 0._rkind)then
+    Tlo = T0; Thi = Tfreeze
+  else
+    Thi = T0; Tlo = T0 + (hTarget - T2enthalpy_snLaGlWat(T0,1._rkind,fc_param))/Cp_ice ! dh/dT >= Cp_ice
+  endif
+  T1 = min(max(T0 + dT, Tlo), Thi)
+  do iter=1,50
+    g = T2enthalpy_snLaGlWat(T1,1._rkind,fc_param) - hTarget
+    if(g > 0._rkind)then; Thi = T1; else; Tlo = T1; endif
+    Tn = T1 - g/dhdT(T1)
+    if(Tn <= Tlo .or. Tn >= Thi) Tn = 0.5_rkind*(Tlo + Thi)
+    if(abs(Tn - T1) < 1.e-12_rkind) exit
+    T1 = Tn
+  end do
+  T1 = Tn
+contains
+  function dhdT(Tk) ! derivative of the specific enthalpy w.r.t. temperature below freezing (J kg-1 K-1)
+    real(rkind),intent(in) :: Tk
+    real(rkind)            :: dhdT,fLiq
+    fLiq = 1._rkind/(1._rkind + (fc_param*(Tfreeze - Tk))**2_i4b)
+    dhdT = Cp_ice + (Cp_water - Cp_ice)*fLiq + LH_fus*2._rkind*fc_param**2_i4b*(Tfreeze - Tk)*fLiq**2_i4b
+  end function dhdT
+end function snowEnthStep
 
 end module eval8summa_module
