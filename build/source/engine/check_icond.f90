@@ -347,7 +347,7 @@ contains
      scalarTheta = scalarCanopyIce + scalarCanopyLiq
 
      if(checkEnthalpy)then ! enthalpy as state variable or in residual
-       if(no_icond_enth)then ! no enthalpy in icond file
+       if(no_icond_enth .or. scalarCanopyEnthalpy==realMissing)then ! no enthalpy in icond file, or a domain that has not run
          call T2enthTemp_cas(&
                     scalarCanairTemp,       & ! intent(in): canopy air temperature (K)
                     scalarCanairEnthalpy)     ! intent(out): enthalpy of the canopy air space (J m-3)
@@ -465,7 +465,7 @@ contains
         if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
         if(checkEnthalpy)then ! enthalpy as state variable or in residual
-          if(no_icond_enth)then ! no enthalpy in icond file
+          if(no_icond_enth .or. mLayerEnthalpy(iLayer)==realMissing)then ! no enthalpy in icond file, or a domain that has not run
             call T2enthTemp_snLaGl(&
                         iLayer>nLayers-noThetaChange,   & ! intent(in):  flag that no liquid water in layer
                         frz_scale_use,                  & ! intent(in):  scaling parameter for the freezing curve  (K-1)
@@ -493,7 +493,7 @@ contains
        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
        if(checkEnthalpy)then ! enthalpy as state variable or in residual
-         if(no_icond_enth)then ! no enthalpy in icond file
+         if(no_icond_enth .or. mLayerEnthalpy(iLayer)==realMissing)then ! no enthalpy in icond file, or a domain that has not run
            call T2enthTemp_soil(&
                        use_lookup,                      & ! intent(in):  flag to use the lookup table for soil enthalpy
                        soil_dens_intr(iSoil),           & ! intent(in):  intrinsic soil density (kg m-3)
