@@ -172,7 +172,6 @@ subroutine computJacob(&
     dCanopyNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanWat)%dat(1)   ,& ! intent(in): [dp]     derivative in net canopy fluxes w.r.t. canopy total water content
     ! derivatives in canopy water w.r.t canopy temperature
     dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)         ,& ! intent(in): [dp]     derivative in volumetric liquid water content w.r.t. temperature
-    dFracLiqVeg_dTkCanopy        => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy)%dat(1)    ,& ! intent(in): [dp]     derivative in fraction of (throughfall + drainage)  w.r.t. temperature
     ! derivatives in energy fluxes at the interface of layers w.r.t. water state in layers above and below
     dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove)%dat          ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer above
     dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat          ,& ! intent(in): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
@@ -180,7 +179,6 @@ subroutine computJacob(&
     dVolTot_dPsi0                => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat               ,& ! intent(in): [dp(:)]  derivatives in total water content w.r.t. total water matric potential
     dCompress_dPsi               => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat              ,& ! intent(in): [dp(:)]  derivatives in compressibility w.r.t matric head
     ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
-    dFracLiqWat_dTk              => deriv_data%var(iLookDERIV%dFracLiqWat_dTk)%dat             ,& ! intent(in): [dp(:)]  derivatives in fraction of liquid w.r.t. temperature
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat            ,& ! intent(in): [dp(:)]  derivatives in volumetric liquid water content w.r.t. temperature
     ! derivative in bulk heat capacity w.r.t. relevant state variables
     dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0)%dat         ,& ! intent(in): [dp(:)]  derivatives in bulk heat capacity w.r.t. matric potential
