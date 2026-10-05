@@ -437,6 +437,11 @@ Chooses the state variable / residual formulation for energy conservation.
 `enthalpyForm` / `enthalpyFormAN` require `num_method` to be `homegrown`, `kinsol` or `ida`.
 With the `itertive` alias, the value is forced to `closedForm` for backward compatibility.
 
+If `nrgConserv` is omitted, `ida` uses `enthalpyForm`. With temperature as the IDA state, the error
+control is in kelvin, which does not bound the energy of snow, ice or canopy water on its freezing
+curve: a looser tolerance then lets a layer melt or freeze far more than its energy allows. The
+backward Euler solvers (`homegrown`, `kinsol`) still need `nrgConserv` set.
+
 <a id="aquiferini"></a>
 ## 40. aquiferIni — initial aquifer fill level
 

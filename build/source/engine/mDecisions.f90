@@ -440,6 +440,14 @@ subroutine mDecisions(err,message)
     case('closedForm'    ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm     ! use temperature with closed form heat capacity
     case('enthalpyForm'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyForm   ! use enthalpy with soil temperature-enthalpy lookup tables
     case('enthalpyFormAN'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFormAN ! use enthalpy with soil temperature-enthalpy analytical solution
+    case('notPopulatedYet', '')
+      if (model_decisions(iLookDECISIONS%num_method)%iDecision==ida)then
+        model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyForm ! IDA error control needs energy, not temperature, near the freezing curve
+      elseif (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
+        model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility
+      else
+        err=10; message=trim(message)//"nrgConserv must be given for a backward Euler solution (closedForm, enthalpyForm or enthalpyFormAN)"; return
+      endif
     case default
       if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
         model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility
