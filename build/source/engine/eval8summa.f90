@@ -30,6 +30,7 @@ USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! named variables to describe the state variable type
 USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
+USE globalData,only:iname_watCanopy ! named variable defining the total water state variable for the canopy
 USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer  ! named variable defining the total water matric potential state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid water matric potential state variable for soil layers
@@ -823,7 +824,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: small_delMatric            ! flag to constain matric head change to be less than zMaxMatricIncrement
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
   logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
-  real(rkind)                              :: watRatio                   ! start-of-iteration over trial total water of a snow layer (-)
+  real(rkind)                              :: watTrial                   ! total water at the start of the iteration, snow (-) or canopy (kg m-2)
+  real(qp)                                 :: watInc                     ! iteration increment in total water, snow (-) or canopy (kg m-2)
   real(rkind)                              :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
   ! -----------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -861,6 +863,9 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     nGlceOnlyHyd       => indx_data%var(iLookINDEX%nGlceOnlyHyd  )%dat(1)      ,& ! intent(in): [i4b]    number of hydrology variables in the glacier ice domain
     ! snow parameters
     snowfrz_scale      => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)       ,& ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
+    specificHeatVeg    => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)     ,& ! intent(in):  [dp]    specific heat of vegetation (J kg-1 K-1)
+    maxMassVegetation  => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1)   ,& ! intent(in):  [dp]    maximum mass of vegetation (kg m-2)
+    scalarCanopyWat    => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)      ,& ! intent(in):  [dp]    canopy total water at the start of the step (kg m-2)
     ! soil parameters
     theta_sat          => mpar_data%var(iLookPARAM%theta_sat)%dat              ,& ! intent(in): [dp(:)]  soil porosity (-)
     theta_res          => mpar_data%var(iLookPARAM%theta_res)%dat              ,& ! intent(in): [dp(:)]  residual volumetric water content (-)
@@ -935,19 +940,25 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
       endif
     endif ! (small matric head change)
 
-    ! ** snow: treat the Newton temperature increment as an enthalpy increment and invert the freezing curve exactly
+    ! ** snow and canopy: treat the Newton temperature increment as an enthalpy increment and invert the freezing curve exactly
     if(nSnowOnlyNrg>0)then
       do iLayer=1,nSnow
         if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         ixNrg = ixSnLaSoGlNrg(iLayer)
         ixLiq = ixSnLaSoGlHyd(iLayer)
-        watRatio = 1._rkind
+        watTrial = mLayerVolFracWat(iLayer); watInc = 0._qp
         if(ixLiq/=integerMissing)then
-          if(ixStateType_subset(ixLiq)==iname_watLayer .and. stateVecPrev(ixLiq)+xInc(ixLiq) > 0._rkind) &
-            watRatio = max(0.5_rkind, min(2._rkind, stateVecPrev(ixLiq)/(stateVecPrev(ixLiq)+xInc(ixLiq))))
+          if(ixStateType_subset(ixLiq)==iname_watLayer)then; watTrial = stateVecPrev(ixLiq); watInc = xInc(ixLiq); endif
         endif
-        xInc(ixNrg) = snowEnthStep(stateVecPrev(ixNrg), xInc(ixNrg)*watRatio, snowfrz_scale) - stateVecPrev(ixNrg)
+        xInc(ixNrg) = enthStep(stateVecPrev(ixNrg), xInc(ixNrg), snowfrz_scale, 0._rkind, watTrial, watTrial + watInc, .false.) - stateVecPrev(ixNrg)
       end do
+    endif
+    if(ixVegNrg/=integerMissing)then
+      watTrial = scalarCanopyWat; watInc = 0._qp
+      if(ixVegHyd/=integerMissing)then
+        if(ixStateType_subset(ixVegHyd)==iname_watCanopy)then; watTrial = stateVecPrev(ixVegHyd); watInc = xInc(ixVegHyd); endif
+      endif
+      xInc(ixVegNrg) = enthStep(stateVecPrev(ixVegNrg), xInc(ixVegNrg), snowfrz_scale, specificHeatVeg*maxMassVegetation, watTrial, watTrial + watInc, .true.) - stateVecPrev(ixVegNrg)
     endif
 
     ! ** stop just above or just below the freezing point if crossing
@@ -1134,45 +1145,59 @@ end subroutine imposeConstraints
 
 
 ! ***************************************************************************************************************************************
-! private function snowEnthStep: snow temperature after an enthalpy increment h'(T0)*dT on the closed-form freezing curve (K)
-!   returns T0+dT unchanged when the target reaches 0 C, so the freezing-point clip still applies
+! private function enthStep: temperature after the enthalpy increment (cDry + W0*h'(T0))*dT of dry mass and total water W on the
+!   closed-form freezing curve, solving cDry*(T1-T0) + W1*(h(T1)-h(T0)) = (cDry + W0*h'(T0))*dT (K)
+!   cDry and W in the same units (J K-1 and kg, per m2 or m3); without aboveFreeze, a target reaching 0 C returns T0+dT
 ! ***************************************************************************************************************************************
-function snowEnthStep(T0,dT,fc_param) result(T1)
-  USE convertEnthalpyTemp_module,only:T2enthalpy_snLaGlWat ! enthalpy of a liquid and ice mixture (J m-3, per unit bulk density here)
+function enthStep(T0,dT,fc_param,cDry,W0,W1,aboveFreeze) result(T1)
+  USE convertEnthalpyTemp_module,only:T2enthalpy_snLaGlWat ! specific enthalpy of a liquid and ice mixture (J kg-1 with unit density)
   implicit none
-  real(rkind),intent(in) :: T0          ! temperature at the start of the iteration (K)
-  real(rkind),intent(in) :: dT          ! Newton temperature increment (K)
-  real(rkind),intent(in) :: fc_param    ! freezing curve parameter (K-1)
-  real(rkind)            :: T1          ! temperature on the enthalpy curve (K)
-  real(rkind)            :: hTarget     ! target specific enthalpy (J kg-1)
-  real(rkind)            :: g,Tn,Tlo,Thi
-  integer(i4b)           :: iter
+  real(rkind),intent(in)  :: T0          ! temperature at the start of the iteration (K)
+  real(qp),intent(in)     :: dT          ! Newton temperature increment (K)
+  real(rkind),intent(in)  :: fc_param    ! freezing curve parameter (K-1)
+  real(rkind),intent(in)  :: cDry        ! heat capacity of the dry mass
+  real(rkind),intent(in)  :: W0          ! total water at the start of the iteration
+  real(qp),intent(in)     :: W1          ! total water at the trial iterate
+  logical(lgt),intent(in) :: aboveFreeze ! flag if the temperature may rise above freezing
+  real(rkind)             :: T1          ! temperature on the enthalpy curve (K)
+  real(rkind)             :: h0,rhs,Wn,g,Tn,Tlo,Thi,cMin
+  integer(i4b)            :: iter
   T1 = T0 + dT
-  if(T0 >= Tfreeze .or. dT == 0._rkind) return
-  hTarget = T2enthalpy_snLaGlWat(T0,1._rkind,fc_param) + dhdT(T0)*dT
-  if(hTarget >= 0._rkind) return  ! enthalpy is zero at Tfreeze with all water liquid
-  if(dT > 0._rkind)then
-    Tlo = T0; Thi = Tfreeze
+  Wn = real(W1,rkind)
+  if(dT == 0._qp .or. W0 <= 0._rkind .or. Wn <= 0._rkind) return
+  if(.not.aboveFreeze .and. T0 >= Tfreeze) return
+  h0  = T2enthalpy_snLaGlWat(T0,1._rkind,fc_param)
+  rhs = (cDry + W0*dhdT(T0))*dT
+  if(.not.aboveFreeze .and. Wn*h0 + rhs >= 0._rkind) return ! enthalpy is zero at Tfreeze with all water liquid
+  cMin = cDry + Wn*min(Cp_ice,Cp_water)                       ! lower bound of the slope of the left side
+  if(dT > 0._qp)then
+    Tlo = T0; Thi = T0 + rhs/cMin
   else
-    Thi = T0; Tlo = T0 + (hTarget - T2enthalpy_snLaGlWat(T0,1._rkind,fc_param))/Cp_ice ! dh/dT >= Cp_ice
+    Thi = T0; Tlo = T0 + rhs/cMin
   endif
-  T1 = min(max(T0 + dT, Tlo), Thi)
+  if(.not.aboveFreeze) Thi = min(Thi,Tfreeze)
+  T1 = min(max(T0 + real(dT,rkind), Tlo), Thi)
+  Tn = T1
   do iter=1,50
-    g = T2enthalpy_snLaGlWat(T1,1._rkind,fc_param) - hTarget
+    g = cDry*(T1 - T0) + Wn*(T2enthalpy_snLaGlWat(T1,1._rkind,fc_param) - h0) - rhs
     if(g > 0._rkind)then; Thi = T1; else; Tlo = T1; endif
-    Tn = T1 - g/dhdT(T1)
+    Tn = T1 - g/(cDry + Wn*dhdT(T1))
     if(Tn <= Tlo .or. Tn >= Thi) Tn = 0.5_rkind*(Tlo + Thi)
     if(abs(Tn - T1) < 1.e-12_rkind) exit
     T1 = Tn
   end do
   T1 = Tn
 contains
-  function dhdT(Tk) ! derivative of the specific enthalpy w.r.t. temperature below freezing (J kg-1 K-1)
+  function dhdT(Tk) ! derivative of the specific enthalpy w.r.t. temperature (J kg-1 K-1)
     real(rkind),intent(in) :: Tk
     real(rkind)            :: dhdT,fLiq
-    fLiq = 1._rkind/(1._rkind + (fc_param*(Tfreeze - Tk))**2_i4b)
-    dhdT = Cp_ice + (Cp_water - Cp_ice)*fLiq + LH_fus*2._rkind*fc_param**2_i4b*(Tfreeze - Tk)*fLiq**2_i4b
+    if(Tk >= Tfreeze)then
+      dhdT = Cp_water
+    else
+      fLiq = 1._rkind/(1._rkind + (fc_param*(Tfreeze - Tk))**2_i4b)
+      dhdT = Cp_ice + (Cp_water - Cp_ice)*fLiq + LH_fus*2._rkind*fc_param**2_i4b*(Tfreeze - Tk)*fLiq**2_i4b
+    endif
   end function dhdT
-end function snowEnthStep
+end function enthStep
 
 end module eval8summa_module
