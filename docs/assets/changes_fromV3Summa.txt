@@ -278,4 +278,8 @@ AFTER tag of v4.0.0-exp-Sundials
       practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
 -71) var_derive.f90 root density normalisation only trims an excess, no longer fills a deficit, commit 081450d9 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
--72) imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit 0deb361e Oct 1, 2026
+-72) imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit b7f1d2ae Oct 1, 2026
+-73) Jacobian fixes
+     -1) frozen-soil conductivity derivative should include the ice impedance, commit 90450fcb Oct 5, 2026
+     -2) when transpiration latent flux is toward the leaves (condensation) derivative should add to canopy evaporation derivative, commit 788eacb8 Oct 5, 2026
+-74) imposeConstraints takes the BE snow (layer and canopy) temperature step along the enthalpy curve, commit 3cdbe7ea and 9b7696f2 Oct 5, 2026
