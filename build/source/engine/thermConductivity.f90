@@ -564,7 +564,7 @@ subroutine thermConductivity(&
                                    lambda_air   * mLayerVolFracAir(iLayer)         ! air component
           ! compute derivatives
           dThermalC_dWat(iLayer) = lambda_ice*dVolFracIce_dWat + lambda_water*dVolFracLiq_dWat + lambda_air*(-dVolFracIce_dWat - dVolFracLiq_dWat)
-          dThermalC_dNrg(iLayer) = (lambda_ice - lambda_water) * dVolFracIce_dTk
+          dThermalC_dNrg(iLayer) = lambda_ice*dVolFracIce_dTk + lambda_water*dVolFracLiq_dTk + lambda_air*(-dVolFracIce_dTk - dVolFracLiq_dTk)
 
         ! * error check
         case default; err=20; message=trim(message)//'unable to identify type of layer to compute thermal conductivity'; return
