@@ -69,27 +69,26 @@ To compare them:
 should be a *reasonably* close one (median NSE ~0.98 on this domain), not
 wildly off. If you see something like a systematic ~3600x scale difference,
 or several reaches pinned at exactly zero t-route flow for the whole run,
-that's not this -- see the ngen-side history below.
+that's not this -- see the two coupling details below.
 
-Two ngen-side bugs used to make this comparison meaningless, both since
-fixed:
+- **Units.** ngen (`include/core/Layer.hpp`) and t-route both assume a
+  module's main output variable is a runoff rate in m/h, the convention
+  CFE, LSTM and dHBV2 follow. SUMMA's BMI therefore also exposes
+  `land_surface_water__runoff_volume_flux_mh` (the same runoff as
+  `land_surface_water__runoff_volume_flux`, in `m h-1` instead of `m s-1`),
+  and the realization configs use it as `main_output_variable`. Using the
+  m/s variable instead makes routed flow ~3600x too small.
+- **Confluences.** At a nexus fed by more than one catchment (any
+  tributary junction), ngen sums the contributing catchments' flows into
+  the single `nex-*_output.csv` value, so t-route can't tell which
+  flowpath each part belongs to, and several reaches get zero flow. The
+  provo routing config (`provo_routing.yaml`) therefore reads the
+  per-catchment `cat-*.csv` files instead
+  (`qlat_file_pattern_filter: "cat-*"`, `qlat_file_value_col:
+  land_surface_water__runoff_volume_flux_mh`). This needs a t-route that
+  supports `cat-*` input (CIROH-UA/t-route `ngiab`, PR #29).
 
-- Every catchment's flow into its nexus was silently divided by 3600 an
-  extra time in `Catchment_Formulation::update_models()`
-  (`include/core/Layer.hpp`) before ever reaching t-route.
-- At a confluence (a nexus fed by more than one catchment, i.e. any
-  tributary junction), ngen combines every contributing catchment's flow
-  into that nexus's single running total before it's ever written to disk
-  -- so t-route has no way to tell which flowpath a combined value's
-  components belong to. The provo realization configs in this domain
-  (`provo_realization_config_w_summa_bmi*.json`) opt in to
-  `"nexus_output_by_catchment": true`, which writes each catchment's own
-  flow, keyed by its own id, into `nex-*_output.csv` instead of the
-  nexus's combined total -- avoiding the combination rather than trying to
-  undo it. That flag defaults to off (existing behavior, existing
-  consumers, unchanged) everywhere else in ngen.
-
-With both fixed, what's left is genuine routing-scheme difference: mizuRoute
+With both handled, what's left is genuine routing-scheme difference: mizuRoute
 is run here with the kinematic wave method (`methods = "3"` in
 `test_mizuroute_provo_real_network.sh`), the same method the bundled test
 already validates. t-route defaults to a Muskingum-Cunge-like scheme

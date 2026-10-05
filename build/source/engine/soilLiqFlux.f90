@@ -581,6 +581,8 @@ subroutine diagv_node(in_diagv_node,out_diagv_node)
   real(rkind)                      :: dHydCondMicro_dMatric     ! derivative in hydraulic conductivity of micropores w.r.t matric head (s-1)
   real(rkind)                      :: dHydCondMicro_dTemp       ! derivative in hydraulic conductivity of micropores w.r.t temperature (m s-1 K-1)
   real(rkind)                      :: dIceImpede_dLiq           ! derivative in ice impedence factor w.r.t. volumetric liquid water content (-)
+  real(rkind)                      :: dIce_dPsiLiq              ! derivative in volumetric ice w.r.t. liquid matric head at fixed temperature (m-1)
+  real(rkind)                      :: availPore                 ! pore space not filled by ice, above residual (-)
   real(rkind)                      :: hydCond_noIce             ! hydraulic conductivity in the absence of ice (m s-1)
   real(rkind)                      :: dK_dPsi__noIce            ! derivative in hydraulic conductivity w.r.t matric head, in the absence of ice (s-1)
   real(rkind)                      :: relSatMP                  ! relative saturation of macropores (-)
@@ -665,6 +667,7 @@ contains
    ! input: state and diagnostic variables
    scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
    scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
+   scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
    ! input: pre-computed derivatives
    dTheta_dTk    => in_diagv_node % dTheta_dTk   , & ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
    dPsiLiq_dTemp => in_diagv_node % dPsiLiq_dTemp, & ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
@@ -713,7 +716,12 @@ contains
    if (scalarVolFracIceTrial > verySmaller) then
      dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
      dHydCondMicro_dTemp   = dPsiLiq_dTemp*dK_dPsi__noIce  ! m s-1 K-1
-     dHydCondMicro_dMatric = hydCond_noIce*dIceImpede_dLiq*scalardTheta_dPsi + dK_dPsi__noIce*iceImpedeFac
+     ! at fixed temperature more total water is more ice, which raises the liquid head (liquidHead) and the impedance
+     availPore    = theta_sat - scalarVolFracIceTrial - theta_res
+     dIce_dPsiLiq = 0._rkind
+     if (scalarMatricHeadLiqTrial < 0._rkind .and. scalarVolFracLiqTrial - theta_res > verySmaller) &
+       dIce_dPsiLiq = availPore**2_i4b/(scalarVolFracLiqTrial - theta_res)*dTheta_dPsi(scalarMatricHeadLiqTrial,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
+     dHydCondMicro_dMatric = -hydCond_noIce*log(10._rkind)*f_impede*iceImpedeFac*dIce_dPsiLiq + dK_dPsi__noIce*iceImpedeFac
    else
      dHydCondMicro_dTemp   = 0._rkind
      dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)

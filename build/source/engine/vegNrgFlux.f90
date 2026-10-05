@@ -1035,6 +1035,12 @@ subroutine vegNrgFlux(&
           dCanopyEvaporation_dTCanair = dLatHeatCanopyEvap_dTCanair/LH_vap   ! (kg m-2 s-1 K-1)
           dCanopyEvaporation_dTCanopy = dLatHeatCanopyEvap_dTCanopy/LH_vap   ! (kg m-2 s-1 K-1)
           dCanopyEvaporation_dTGround = dLatHeatCanopyEvap_dTGround/LH_vap   ! (kg m-2 s-1 K-1)
+          if (scalarLatHeatCanopyTrans > 0._rkind) then ! condensation on the transpiring leaves joins the canopy water
+            dCanopyEvaporation_dCanWat  = dCanopyEvaporation_dCanWat  + dLatHeatCanopyTrans_dCanWat/LH_vap
+            dCanopyEvaporation_dTCanair = dCanopyEvaporation_dTCanair + dLatHeatCanopyTrans_dTCanair/LH_vap
+            dCanopyEvaporation_dTCanopy = dCanopyEvaporation_dTCanopy + dLatHeatCanopyTrans_dTCanopy/LH_vap
+            dCanopyEvaporation_dTGround = dCanopyEvaporation_dTGround + dLatHeatCanopyTrans_dTGround/LH_vap
+          end if
         else ! sublimation
           dCanopyEvaporation_dCanWat  = 0._rkind  ! (s-1)
           dCanopyEvaporation_dTCanair = 0._rkind  ! (kg m-2 s-1 K-1)

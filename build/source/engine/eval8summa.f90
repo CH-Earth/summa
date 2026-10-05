@@ -30,6 +30,7 @@ USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! named variables to describe the state variable type
 USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for layers
+USE globalData,only:iname_watCanopy ! named variable defining the total water state variable for the canopy
 USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for layers
 USE globalData,only:iname_matLayer  ! named variable defining the total water matric potential state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid water matric potential state variable for soil layers
@@ -38,6 +39,8 @@ USE globalData,only:icefrz_mult     ! freezing curve scaling factor multipier of
 
 ! constants
 USE multiconst,only:&
+                    Cp_ice,     & ! specific heat of ice                 (J kg-1 K-1)
+                    Cp_water,   & ! specific heat of liquid water        (J kg-1 K-1)
                     LH_fus,     & ! latent heat of fusion                (J kg-1)
                     iden_water, & ! intrinsic density of liquid water    (kg m-3)
                     gravity,    & ! gravitational acceleration           (m s-2)
@@ -404,6 +407,13 @@ subroutine eval8summa(&
                     ! output: error control
                     err,cmessage)                   ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    ! the enthalpy residual has no product-rule terms in the step changes, which belong to the closed-form residual
+    if(ixNrgConserv/=closedForm)then
+      deriv_data%var(iLookDERIV%mLayerdTemp_dt)%dat       = 0._rkind
+      deriv_data%var(iLookDERIV%mLayerdWat_dt)%dat        = 0._rkind
+      deriv_data%var(iLookDERIV%scalarCanopydTemp_dt)%dat = 0._rkind
+      deriv_data%var(iLookDERIV%scalarCanopydWat_dt)%dat  = 0._rkind
+    endif
 
     if(updateStateCp)then
       ! update heat capacity Cp and its derivatives
@@ -474,7 +484,7 @@ subroutine eval8summa(&
                           mLayerTempTrial,       & ! intent(in):    trial temperature of layer temperature (K)
                           mLayerMatricHeadTrial, & ! intent(in):    trial value for total water matric potential (m)                         
                           mLayerdTheta_dTk,      & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                          mLayerdTheta_dPsi,     & ! intent(in):    derivative in volumetric liquid water content w.r.t. matric potential (m-1)
+                          dVolTot_dPsi0,         & ! intent(in):    derivative in total water content w.r.t. the soil water state at this iterate (m-1)
                           mLayerFracLiq,         & ! intent(in):    fraction of liquid water (-)
                           ! input/output: derivatives
                           dThermalC_dWatAbove,   & ! intent(inout): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -539,6 +549,7 @@ subroutine eval8summa(&
                     scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
                     checkLWBalance,            & ! intent(in):    flag to check longwave balance
                     scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
+                    dt,                        & ! intent(in):    length of the whole step the melt pond and glacier excess water drain over (s)
                     ! input: state variables
                     scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                     scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
@@ -808,6 +819,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   real(rkind)                              :: vGn_m(nSoil)               ! van Genutchen "m" parameter (-)
   real(rkind)                              :: effSat                     ! effective saturation (-)
   real(rkind)                              :: avPore                     ! available pore space (-)
+  real(rkind)                              :: hydExcess                  ! hydrology state above its start-of-step value (-)
   ! indices of model state variables
   integer(i4b)                             :: iState                     ! index of state within a specific variable type
   integer(i4b)                             :: ixNrg,ixLiq                ! index of energy and mass state variables in full state vector
@@ -819,6 +831,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: small_delMatric            ! flag to constain matric head change to be less than zMaxMatricIncrement
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
   logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
+  real(rkind)                              :: watTrial                   ! total water at the start of the iteration, snow (-) or canopy (kg m-2)
+  real(qp)                                 :: watInc                     ! iteration increment in total water, snow (-) or canopy (kg m-2)
   real(rkind)                              :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
   ! -----------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -856,6 +870,9 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     nGlceOnlyHyd       => indx_data%var(iLookINDEX%nGlceOnlyHyd  )%dat(1)      ,& ! intent(in): [i4b]    number of hydrology variables in the glacier ice domain
     ! snow parameters
     snowfrz_scale      => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)       ,& ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
+    specificHeatVeg    => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1)     ,& ! intent(in):  [dp]    specific heat of vegetation (J kg-1 K-1)
+    maxMassVegetation  => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1)   ,& ! intent(in):  [dp]    maximum mass of vegetation (kg m-2)
+    scalarCanopyWat    => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)      ,& ! intent(in):  [dp]    canopy total water at the start of the step (kg m-2)
     ! soil parameters
     theta_sat          => mpar_data%var(iLookPARAM%theta_sat)%dat              ,& ! intent(in): [dp(:)]  soil porosity (-)
     theta_res          => mpar_data%var(iLookPARAM%theta_res)%dat              ,& ! intent(in): [dp(:)]  residual volumetric water content (-)
@@ -863,6 +880,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     vGn_alpha          => mpar_data%var(iLookPARAM%vGn_alpha)%dat              ,& ! intent(in):  [dp(:)]  van Genutchen "alpha" parameter (m-1)
     ! state variables at the start of the time step
     mLayerMatricHead   => prog_data%var(iLookPROG%mLayerMatricHead)%dat        ,& ! intent(in): [dp(:)] matric head (m)
+    mLayerVolFracWat   => prog_data%var(iLookPROG%mLayerVolFracWat)%dat        ,& ! intent(in): [dp(:)] volumetric fraction of total water (-)
+    mLayerVolFracLiq   => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat        ,& ! intent(in): [dp(:)] volumetric fraction of liquid water (-)
     mLayerVolFracIce   => prog_data%var(iLookPROG%mLayerVolFracIce)%dat         & ! intent(in): [dp(:)] volumetric fraction of ice (-)
     ) ! associating variables with indices of model state variables
     ! -----------------------------------------------------------------------------------------------------
@@ -927,6 +946,27 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         end do ! (loop through soil layers)
       endif
     endif ! (small matric head change)
+
+    ! ** snow and canopy: treat the Newton temperature increment as an enthalpy increment and invert the freezing curve exactly
+    if(nSnowOnlyNrg>0)then
+      do iLayer=1,nSnow
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
+        ixNrg = ixSnLaSoGlNrg(iLayer)
+        ixLiq = ixSnLaSoGlHyd(iLayer)
+        watTrial = mLayerVolFracWat(iLayer); watInc = 0._qp
+        if(ixLiq/=integerMissing)then
+          if(ixStateType_subset(ixLiq)==iname_watLayer)then; watTrial = stateVecPrev(ixLiq); watInc = xInc(ixLiq); endif
+        endif
+        xInc(ixNrg) = enthStep(stateVecPrev(ixNrg), xInc(ixNrg), snowfrz_scale, 0._rkind, watTrial, watTrial + watInc, .false.) - stateVecPrev(ixNrg)
+      end do
+    endif
+    if(ixVegNrg/=integerMissing)then
+      watTrial = scalarCanopyWat; watInc = 0._qp
+      if(ixVegHyd/=integerMissing)then
+        if(ixStateType_subset(ixVegHyd)==iname_watCanopy)then; watTrial = stateVecPrev(ixVegHyd); watInc = xInc(ixVegHyd); endif
+      endif
+      xInc(ixVegNrg) = enthStep(stateVecPrev(ixVegNrg), xInc(ixVegNrg), snowfrz_scale, specificHeatVeg*maxMassVegetation, watTrial, watTrial + watInc, .true.) - stateVecPrev(ixVegNrg)
+    endif
 
     ! ** stop just above or just below the freezing point if crossing
     if(detect_events)then
@@ -1050,8 +1090,10 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           end select
           scalarIce = merge(stateVecPrev(ixSnLaSoGlHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
-          if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq) then
-            xInc(ixSnLaSoGlHyd(iLayer)) = -0.5_rkind*scalarLiq
+          ! an iterate above its start-of-step water may always fall back to it; only the drain beyond is limited by the liquid
+          hydExcess = max(0._rkind, stateVecPrev(ixSnLaSoGlHyd(iLayer)) - merge(mLayerVolFracWat(iLayer), mLayerVolFracLiq(iLayer), ixHydType(iLayer)==iname_watLayer))
+          if(-xInc(ixSnLaSoGlHyd(iLayer)) > scalarLiq + hydExcess) then
+            xInc(ixSnLaSoGlHyd(iLayer)) = -(hydExcess + 0.5_rkind*scalarLiq)
           elseif(xInc(ixSnLaSoGlHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq)then
             xInc(ixSnLaSoGlHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - scalarLiq)
           endif
@@ -1108,5 +1150,61 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
 
 end subroutine imposeConstraints
 
+
+! ***************************************************************************************************************************************
+! private function enthStep: temperature after the enthalpy increment (cDry + W0*h'(T0))*dT of dry mass and total water W on the
+!   closed-form freezing curve, solving cDry*(T1-T0) + W1*(h(T1)-h(T0)) = (cDry + W0*h'(T0))*dT (K)
+!   cDry and W in the same units (J K-1 and kg, per m2 or m3); without aboveFreeze, a target reaching 0 C returns T0+dT
+! ***************************************************************************************************************************************
+function enthStep(T0,dT,fc_param,cDry,W0,W1,aboveFreeze) result(T1)
+  USE convertEnthalpyTemp_module,only:T2enthalpy_snLaGlWat ! specific enthalpy of a liquid and ice mixture (J kg-1 with unit density)
+  implicit none
+  real(rkind),intent(in)  :: T0          ! temperature at the start of the iteration (K)
+  real(qp),intent(in)     :: dT          ! Newton temperature increment (K)
+  real(rkind),intent(in)  :: fc_param    ! freezing curve parameter (K-1)
+  real(rkind),intent(in)  :: cDry        ! heat capacity of the dry mass
+  real(rkind),intent(in)  :: W0          ! total water at the start of the iteration
+  real(qp),intent(in)     :: W1          ! total water at the trial iterate
+  logical(lgt),intent(in) :: aboveFreeze ! flag if the temperature may rise above freezing
+  real(rkind)             :: T1          ! temperature on the enthalpy curve (K)
+  real(rkind)             :: h0,rhs,Wn,g,Tn,Tlo,Thi,cMin
+  integer(i4b)            :: iter
+  T1 = T0 + dT
+  Wn = real(W1,rkind)
+  if(dT == 0._qp .or. W0 <= 0._rkind .or. Wn <= 0._rkind) return
+  if(.not.aboveFreeze .and. T0 >= Tfreeze) return
+  h0  = T2enthalpy_snLaGlWat(T0,1._rkind,fc_param)
+  rhs = (cDry + W0*dhdT(T0))*dT
+  if(.not.aboveFreeze .and. Wn*h0 + rhs >= 0._rkind) return ! enthalpy is zero at Tfreeze with all water liquid
+  cMin = cDry + Wn*min(Cp_ice,Cp_water)                       ! lower bound of the slope of the left side
+  if(dT > 0._qp)then
+    Tlo = T0; Thi = T0 + rhs/cMin
+  else
+    Thi = T0; Tlo = T0 + rhs/cMin
+  endif
+  if(.not.aboveFreeze) Thi = min(Thi,Tfreeze)
+  T1 = min(max(T0 + real(dT,rkind), Tlo), Thi)
+  Tn = T1
+  do iter=1,50
+    g = cDry*(T1 - T0) + Wn*(T2enthalpy_snLaGlWat(T1,1._rkind,fc_param) - h0) - rhs
+    if(g > 0._rkind)then; Thi = T1; else; Tlo = T1; endif
+    Tn = T1 - g/(cDry + Wn*dhdT(T1))
+    if(Tn <= Tlo .or. Tn >= Thi) Tn = 0.5_rkind*(Tlo + Thi)
+    if(abs(Tn - T1) < 1.e-12_rkind) exit
+    T1 = Tn
+  end do
+  T1 = Tn
+contains
+  function dhdT(Tk) ! derivative of the specific enthalpy w.r.t. temperature (J kg-1 K-1)
+    real(rkind),intent(in) :: Tk
+    real(rkind)            :: dhdT,fLiq
+    if(Tk >= Tfreeze)then
+      dhdT = Cp_water
+    else
+      fLiq = 1._rkind/(1._rkind + (fc_param*(Tfreeze - Tk))**2_i4b)
+      dhdT = Cp_ice + (Cp_water - Cp_ice)*fLiq + LH_fus*2._rkind*fc_param**2_i4b*(Tfreeze - Tk)*fLiq**2_i4b
+    endif
+  end function dhdT
+end function enthStep
 
 end module eval8summa_module
