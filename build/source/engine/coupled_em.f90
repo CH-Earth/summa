@@ -1820,6 +1820,10 @@ subroutine coupled_em(&
         ! NOTE: if a top layer was merged within the step, the layer count is restored first by restoreGlceLayers at the end
         !       of the step, once these associations to the layer vectors are out of scope (the vectors are reallocated)
         if(size(depthGlceTopLayer) == nGlce-noThetaChange)then
+          mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers-noThetaChange) &
+                                                                       * mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange)/depthGlceTopLayer
+          prog_data%var(iLookPROG%mLayerVolFracWat)%dat(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = mLayerVolFracLiq(nSnow+nLake+nSoil+1:nLayers-noThetaChange) &
+                                                        + mLayerVolFracIce(nSnow+nLake+nSoil+1:nLayers-noThetaChange)*(iden_ice/iden_water)
           mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = depthGlceTopLayer
           do jLayer=nSnow+nLake+nSoil+1,nLayers
             iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)

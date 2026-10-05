@@ -352,11 +352,11 @@ subroutine glceReduce(&
     scalarDepthNew = massIceOld/((mLayerVolFracIceNew(iGlce)+volFracIceChange)*iden_ice)
     mLayerDepth(iGlce) = scalarDepthNew
 
-    ! Keep liquid water fraction in the layer constant; excess liquid is squeezed out
-    ! Note, if it got colder the depth icreases and thus adds a bit of water to the layer, but will be corrected when the layer is reduced to the active layer depth
-    massLiqRetained = iden_water*mLayerVolFracLiqNew(iGlce)*mLayerDepth(iGlce) ! kg m-2
+    ! Keep liquid water fraction in the layer constant, within the pore space the ice leaves; excess liquid is squeezed out
+    ! Note, if it got colder the depth increases and thus adds a bit of water to the layer, but will be corrected when the layer is reduced to the active layer depth
+    massLiqRetained = iden_water*min(mLayerVolFracLiqNew(iGlce), 1._rkind - massIceOld/(mLayerDepth(iGlce)*iden_ice))*mLayerDepth(iGlce) ! kg m-2
     layerReduceLiq = max(0._rkind, massLiqOld - massLiqRetained) ! only take away liquid water, don't add any
-    glceReduceLiq = (glceReduceLiq + layerReduceLiq)/(iden_water*dt) ! convert to m s-1
+    glceReduceLiq = glceReduceLiq + layerReduceLiq/(iden_water*dt) ! convert to m s-1
 
     ! check that we did not remove the entire layer
     if(mLayerDepth(iGlce) < verySmall)then
