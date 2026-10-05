@@ -823,7 +823,6 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   logical(lgt)                             :: small_delMatric            ! flag to constain matric head change to be less than zMaxMatricIncrement
   logical(lgt)                             :: detect_events              ! flag to do freezing point event detection and cross-over with epsT
   logical(lgt)                             :: water_bounds               ! flag to force water to not go above or below physical bounds  
-  logical(lgt)                             :: enthalpy_snow              ! flag to take the snow temperature increment along the enthalpy curve
   real(rkind)                              :: watRatio                   ! start-of-iteration over trial total water of a snow layer (-)
   real(rkind)                              :: frz_scale_use              ! scaling parameter for the snow or glce freezing curve (K-1)
   ! -----------------------------------------------------------------------------------------------------
@@ -893,7 +892,6 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT, works best if on
         epsT                = 1.e-7_rkind ! small interval above/below critical (K), works better if larger
         water_bounds        = .true.      ! flag to force water bounds, works best if on
-        enthalpy_snow       = .false.     ! flag to take the snow temperature increment along the enthalpy curve
       case(homegrown)
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
         zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)
@@ -903,7 +901,6 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT
         epsT                = 1.e-7_rkind ! small interval above/below critical (K)
         water_bounds        = .true.      ! flag to force water bounds
-        enthalpy_snow       = .true.      ! flag to take the snow temperature increment along the enthalpy curve
       case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or homegrown (or itertive, which is homegrown)'; return
     end select
     
@@ -939,7 +936,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     endif ! (small matric head change)
 
     ! ** snow: treat the Newton temperature increment as an enthalpy increment and invert the freezing curve exactly
-    if(enthalpy_snow .and. nSnowOnlyNrg>0)then
+    if(nSnowOnlyNrg>0)then
       do iLayer=1,nSnow
         if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         ixNrg = ixSnLaSoGlNrg(iLayer)
