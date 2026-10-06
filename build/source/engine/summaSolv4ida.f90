@@ -215,6 +215,7 @@ subroutine summaSolv4ida(&
   type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
   type(c_ptr)                       :: ida_mem                                ! IDA memory
   type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
+  type(c_ptr),              target  :: sunlogger                              ! SUNDIALS logger
   type(data4ida),           target  :: eqns_data                              ! IDA type
   integer(i4b)                      :: retval, retvalr                        ! return value
   logical(lgt)                      :: feasible                               ! feasibility flag
@@ -273,8 +274,12 @@ subroutine summaSolv4ida(&
     ) ! association to necessary variables for the residual computations
 
     ! initialize error control
-    err=0; message="summaSolv4ida/"
-    
+    err = 0
+    message = "summaSolv4ida/"
+
+    eqns_data%err = 0
+    eqns_data%message = ''
+
     ! choose Jacobian type
     select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
       case(numerical);  use_fdJac =.true.
@@ -356,7 +361,19 @@ subroutine summaSolv4ida(&
     balance(:)                        = 0._rkind
     
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
-    
+    if (retval /= 0) then
+      message = trim(message)//'error in FSUNContext_Create'
+      err = 20; return
+    endif
+
+    sunlogger = c_null_ptr
+
+    retval = FSUNContext_GetLogger(sunctx, sunlogger)
+    if (retval /= 0) then
+      message = trim(message)//'error in FSUNContext_GetLogger'
+      err = 20; return
+    endif
+
     ! create serial vectors
     sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
     if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
@@ -462,8 +479,8 @@ subroutine summaSolv4ida(&
     
     ! Disable error messages and warnings
     if(offErrWarnMessage) then
-      retval = FSUNLogger_SetErrorFilename(ida_mem, c_null_char)
-      retval = FSUNLogger_SetWarningFilename(ida_mem, c_null_char)
+      retval = FSUNLogger_SetErrorFilename(sunlogger, c_null_char)
+      retval = FSUNLogger_SetWarningFilename(sunlogger, c_null_char)
       retval = FIDASetNoInactiveRootWarn(ida_mem)
     endif
     
