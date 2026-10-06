@@ -209,48 +209,49 @@ subroutine summaSolv4ida(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
-  type(N_Vector),           pointer :: sunvec_y                               ! sundials solution vector
-  type(N_Vector),           pointer :: sunvec_yp                              ! sundials derivative vector
-  type(SUNMatrix),          pointer :: sunmat_A                               ! sundials matrix
-  type(SUNLinearSolver),    pointer :: sunlinsol_LS                           ! sundials linear solver
-  type(c_ptr)                       :: ida_mem                                ! IDA memory
-  type(c_ptr)                       :: sunctx                                 ! SUNDIALS simulation context
-  type(data4ida),           target  :: eqns_data                              ! IDA type
-  integer(i4b)                      :: retval, retvalr                        ! return value
-  logical(lgt)                      :: feasible                               ! feasibility flag
-  real(qp)                          :: t0                                     ! starting time
-  real(qp)                          :: dt_last(1)                             ! last time step
-  real(qp)                          :: dt_diff                                ! difference from previous timestep
-  integer(c_long)                   :: mu, lu                                 ! in banded matrix mode in SUNDIALS type
-  integer(c_long)                   :: nState                                 ! total number of state variables in SUNDIALS type
-  integer(i4b)                      :: iVar, i                                ! indices
-  integer(i4b)                      :: nRoot                                  ! total number of roots (events) to find
-  real(qp)                          :: tret(1)                                ! time in data window
-  real(qp)                          :: tretPrev                               ! previous time in data window
-  integer(i4b),allocatable          :: rootsfound(:)                          ! crossing direction of discontinuities
-  integer(i4b),allocatable          :: rootdir(:)                             ! forced crossing direction of discontinuities
-  logical(lgt)                      :: tinystep                               ! if step goes below small size
-  real(rkind)                       :: small                                  ! value to see if canopy water is just a bit negative, depends on the absolute tolerance for canopy water
-  type(var_dlength)                 :: flux_prev                              ! previous model fluxes for a local HRU
-  character(LEN=256)                :: cmessage                               ! error message of downwind routine
-  real(rkind)                       :: dt_mult                                ! multiplier for time step average values
-  real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)           ! previous derivative value for total water matric potential (m s-1)
-  real(rkind),allocatable           :: resVecPrev(:)                          ! previous value for residuals
-  real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
-  integer(c_long)                   :: nStepsSun(1)                           ! number of steps taken by the integrator
-  integer(c_long)                   :: nREvals(1)                             ! number of residual evaluations
-  integer(c_long)                   :: nLinSetups(1)                          ! number of linear solver setups
-  integer(c_long)                   :: netFails(1)                            ! number of error test failures
-  integer(c_int)                    :: qLast(1)                               ! method order used on the last internal step
-  integer(c_int)                    :: qCur(1)                                ! method order to be used on the next internal step
-  real(c_double)                    :: hInitUsed(1)                           ! step size used on the first internal step
-  real(c_double)                    :: hLast(1)                               ! step size used on the last internal step
-  real(c_double)                    :: hCur(1)                                ! step size to be used on the next internal step
-  real(c_double)                    :: tCur(1)                                ! current time reached by the integrator
+  type(N_Vector),           pointer :: sunvec_y                     ! sundials solution vector
+  type(N_Vector),           pointer :: sunvec_yp                    ! sundials derivative vector
+  type(SUNMatrix),          pointer :: sunmat_A                     ! sundials matrix
+  type(SUNLinearSolver),    pointer :: sunlinsol_LS                 ! sundials linear solver
+  type(c_ptr)                       :: ida_mem                      ! IDA memory
+  type(c_ptr),              target  :: sunlogger                    ! SUNDIALS logger
+  type(c_ptr)                       :: sunctx                       ! SUNDIALS simulation context
+  type(data4ida),           target  :: eqns_data                    ! IDA type
+  integer(i4b)                      :: retval, retvalr              ! return value
+  logical(lgt)                      :: feasible                     ! feasibility flag
+  real(qp)                          :: t0                           ! starting time
+  real(qp)                          :: dt_last(1)                   ! last time step
+  real(qp)                          :: dt_diff                      ! difference from previous timestep
+  integer(c_long)                   :: mu, lu                       ! in banded matrix mode in SUNDIALS type
+  integer(c_long)                   :: nState                       ! total number of state variables in SUNDIALS type
+  integer(i4b)                      :: iVar, i                      ! indices
+  integer(i4b)                      :: nRoot                        ! total number of roots (events) to find
+  real(qp)                          :: tret(1)                      ! time in data window
+  real(qp)                          :: tretPrev                     ! previous time in data window
+  integer(i4b),allocatable          :: rootsfound(:)                ! crossing direction of discontinuities
+  integer(i4b),allocatable          :: rootdir(:)                   ! forced crossing direction of discontinuities
+  logical(lgt)                      :: tinystep                     ! if step goes below small size
+  real(rkind)                       :: small                        ! value to see if canopy water is just a bit negative, depends on the absolute tolerance for canopy water
+  type(var_dlength)                 :: flux_prev                    ! previous model fluxes for a local HRU
+  character(LEN=256)                :: cmessage                     ! error message of downwind routine
+  real(rkind)                       :: dt_mult                      ! multiplier for time step average values
+  real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
+  real(rkind),allocatable           :: resVecPrev(:)                ! previous value for residuals
+  real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
+  integer(c_long)                   :: nStepsSun(1)                 ! number of steps taken by the integrator
+  integer(c_long)                   :: nREvals(1)                   ! number of residual evaluations
+  integer(c_long)                   :: nLinSetups(1)                ! number of linear solver setups
+  integer(c_long)                   :: netFails(1)                  ! number of error test failures
+  integer(c_int)                    :: qLast(1)                     ! method order used on the last internal step
+  integer(c_int)                    :: qCur(1)                      ! method order to be used on the next internal step
+  real(c_double)                    :: hInitUsed(1)                 ! step size used on the first internal step
+  real(c_double)                    :: hLast(1)                     ! step size used on the last internal step
+  real(c_double)                    :: hCur(1)                      ! step size to be used on the next internal step
+  real(c_double)                    :: tCur(1)                      ! current time reached by the integrator
   ! flags
-  logical(lgt)                      :: use_fdJac                              ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
-  logical(lgt),parameter            :: offErrWarnMessage = .true.             ! flag to turn IDA warnings off, default true
-  logical(lgt)                      :: detect_events                          ! flag to do event detection and restarting, default true
+  logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
+  logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
+  logical(lgt)                      :: detect_events                ! flag to do event detection and restarting, default true
   ! -----------------------------------------------------------------------------------------------------
   ! link to the necessary variables
   associate(&
@@ -286,6 +287,8 @@ subroutine summaSolv4ida(&
     idaSucceeds = .true.
     
     ! fill eqns_data which will be required later to call eval8summa4ida
+    eqns_data%err            = 0
+    eqns_data%message        = ''
     eqns_data%dt             = dt
     eqns_data%nSnow          = nSnow
     eqns_data%nLake          = nLake
@@ -355,7 +358,12 @@ subroutine summaSolv4ida(&
     resVecPrev(:)                     = 0._rkind
     balance(:)                        = 0._rkind
     
+    ! create SUNDIALS context
     retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
+    if (retval /= 0) then; err = 20; message = trim(message)//'error in FSUNContext_Create'; return; endif
+    sunlogger = c_null_ptr
+    retval = FSUNContext_GetLogger(sunctx, sunlogger)
+    if (retval /= 0) then; err = 20; message = trim(message)//'error in FSUNContext_GetLogger'; return; endif
     
     ! create serial vectors
     sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
@@ -462,8 +470,8 @@ subroutine summaSolv4ida(&
     
     ! Disable error messages and warnings
     if(offErrWarnMessage) then
-      retval = FSUNLogger_SetErrorFilename(ida_mem, c_null_char)
-      retval = FSUNLogger_SetWarningFilename(ida_mem, c_null_char)
+      retval = FSUNLogger_SetErrorFilename(sunlogger, c_null_char)
+      retval = FSUNLogger_SetWarningFilename(sunlogger, c_null_char)
       retval = FIDASetNoInactiveRootWarn(ida_mem)
     endif
     
