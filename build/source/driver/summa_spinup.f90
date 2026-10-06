@@ -93,11 +93,16 @@ contains
     SIM_END_TM=simStartOriginal
 
     ! use rank-specific output filenames during the common spinup
-    write(run_string,'(I4.4)') config%run_index
     write(rankString,'(I4.4)') instance_parallel%rank
     outputFileSuffix_orig=trim(output_fileSuffix)
-    output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_run'//run_string//'_rank'//rankString
-
+    
+    if(config%n_runs > 1)then
+      write(run_string,'(I4.4)') config%run_index
+      output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_run'//run_string//'_rank'//rankString
+    else
+      output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_rank'//rankString
+    endif
+    
     ! write the common restart state on rank 0 only
     ixRestart=merge(ixRestart_end, ixRestart_never, instance_parallel%rank == 0)
 

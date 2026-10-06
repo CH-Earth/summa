@@ -186,7 +186,7 @@ contains
       write(sampleString,'(I6.6)') sample_id
       output_fileSuffix=trim(output_fileSuffix)//'_sample'//sampleString
     endif
-    if(summa1_struc(n)%config%n_runs > 0)then
+    if(summa1_struc(n)%config%n_runs > 1)then
       write(runString,'(I4.4)') summa1_struc(n)%config%run_index
       output_fileSuffix=trim(output_fileSuffix)//'_run'//runString
     endif
@@ -246,7 +246,10 @@ contains
     endif
     
     ! recoverable solver error
-    if(solver_failed) err=0
+    if(solver_failed) then
+      print*, 'WARNING: RECOVERING FROM SOLVER ERROR. '//trim(message)//trim(cmessage)
+      err=0
+    endif
 
     ! align simulated and observed streamflow
     call align_timeseries(timeSim,flowSim,timeSimUnits,flowSimUnits, &
