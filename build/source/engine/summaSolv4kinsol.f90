@@ -197,6 +197,7 @@ subroutine summaSolv4kinsol(&
   type(N_Vector),           pointer :: sunvec_xscale        ! vector containing diagonal elements of state scaling matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS         ! sundials linear solver
   type(c_ptr)                       :: kinsol_mem           ! KINSOL memory
+  type(c_ptr),              target  :: sunlogger            ! SUNDIALS logger
   type(c_ptr)                       :: sunctx               ! SUNDIALS simulation context
   type(data4kinsol),        target  :: eqns_data            ! KINSOL type
   integer(i4b)                      :: retval, retvalr      ! return value
@@ -222,6 +223,8 @@ subroutine summaSolv4kinsol(&
   kinsolSucceeds = .true.
 
   ! fill eqns_data which will be required later to call eval8summa
+  eqns_data%err                 = 0
+  eqns_data%message             = ''
   eqns_data%dt_cur              = dt_cur
   eqns_data%dt                  = dt
   eqns_data%nSnow               = nSnow
@@ -268,7 +271,12 @@ subroutine summaSolv4kinsol(&
   allocate( eqns_data%resVec(int(nState,i4b)) )
   allocate( eqns_data%resSink(int(nState,i4b)) )
   
+  ! create SUNDIALS context
   retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
+  if (retval /= 0) then; err = 20; message = trim(message)//'error in FSUNContext_Create'; return; endif
+  sunlogger = c_null_ptr
+  retval = FSUNContext_GetLogger(sunctx, sunlogger)
+  if (retval /= 0) then; err = 20; message = trim(message)//'error in FSUNContext_GetLogger'; return; endif
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
@@ -337,8 +345,8 @@ subroutine summaSolv4kinsol(&
 
   ! Disable error messages and warnings
   if(offErrWarnMessage) then
-    retval = FSUNLogger_SetErrorFilename(kinsol_mem, c_null_char)
-    retval = FSUNLogger_SetWarningFilename(kinsol_mem, c_null_char)
+    retval = FSUNLogger_SetErrorFilename(sunlogger, c_null_char)
+    retval = FSUNLogger_SetWarningFilename(sunlogger, c_null_char)
   endif
 
   !****************************** Main Solver **********************************************
