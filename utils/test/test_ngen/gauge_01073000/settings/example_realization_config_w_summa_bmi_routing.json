@@ -8,7 +8,7 @@
                     "forcing_file": "",
                     "init_config": "",
                     "allow_exceed_end_time": true,
-                    "main_output_variable": "land_surface_water__runoff_volume_flux",
+                    "main_output_variable": "land_surface_water__runoff_volume_flux_mh",
                     "modules": [
                         {
                             "name": "bmi_fortran",
@@ -18,7 +18,7 @@
                                 "forcing_file": "",
                                 "init_config":  "./extern/summa/summa/utils/test/test_ngen/gauge_01073000/settings/{{id}}.input",
                                 "allow_exceed_end_time": true,
-                                "main_output_variable":             "land_surface_water__runoff_volume_flux",
+                                "main_output_variable":             "land_surface_water__runoff_volume_flux_mh",
                                 "variables_names_map": {
                                     "atmosphere_water__precipitation_mass_flux": "precip_rate",
                                     "land_surface_air__temperature": "TMP_2maboveground",

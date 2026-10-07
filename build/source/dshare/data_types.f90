@@ -656,6 +656,7 @@ MODULE data_types
    logical(lgt)             :: scalarSolution                    ! intent(in):    flag to indicate the scalar solution
    real(rkind)              :: scalarThroughfallRain             ! intent(in):    rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
    real(rkind)              :: scalarCanopyLiqDrainage           ! intent(in):    liquid drainage from the vegetation canopy (kg m-2 s-1)
+   real(rkind)              :: whole_step                        ! intent(in):    length of the whole step glacier excess water drains over (s)
    real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    trial value of volumetric fraction of liquid water at the current iteration (-)
   contains
    procedure :: initialize => initialize_in_snowLakeGlceLiqFlux
@@ -1440,7 +1441,7 @@ contains
  ! **** end vegLiqFlux ****
 
  ! **** snowLakeGlceLiqFlux ****
- subroutine initialize_in_snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,nLayers,nStart,is_glac,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial)
+ subroutine initialize_in_snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,nLayers,nStart,is_glac,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,whole_step,mLayerVolFracLiqTrial)
   class(in_type_snowLakeGlceLiqFlux),intent(out)   :: in_snowLakeGlceLiqFlux  ! class object for intent(in) snowLakeGlceLiqFlux arguments            
   integer(i4b),intent(in)                 :: nLayers                     ! number of layers
   integer(i4b),intent(in)                 :: nStart                      ! starting index for layers
@@ -1450,6 +1451,7 @@ contains
   real(rkind),intent(in)                  :: bottom_flux                 ! bottom fluxes if already computed(kg m-2 s-1)
   logical(lgt),intent(in)                 :: firstFluxCall               ! flag to indicate if we are processing the first flux call
   logical(lgt),intent(in)                 :: scalarSolution              ! flag to denote if implementing the scalar solution
+  real(rkind),intent(in)                  :: whole_step                  ! length of the whole step glacier excess water drains over (s)
   real(rkind),intent(in)                  :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
    ! intent(in) arguments
    in_snowLakeGlceLiqFlux % nLayers                =nLayers              ! intent(in): number of layers
@@ -1460,6 +1462,7 @@ contains
    in_snowLakeGlceLiqFlux % bottom_flux            =bottom_flux          ! intent(in): bottom fluxes if already computed (kg m-2 s-1)
    in_snowLakeGlceLiqFlux % firstFluxCall          =firstFluxCall        ! intent(in): the first flux call (compute variables that are constant over the iterations)
    in_snowLakeGlceLiqFlux % scalarSolution         =(scalarSolution .and. .not.firstFluxCall) ! intent(in): flag to indicate the scalar solution
+   in_snowLakeGlceLiqFlux % whole_step             =whole_step           ! intent(in): length of the whole step glacier excess water drains over (s)
    in_snowLakeGlceLiqFlux % mLayerVolFracLiqTrial  =mLayerVolFracLiqTrial(nStart+1:nStart+nLayers) ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
  end subroutine initialize_in_snowLakeGlceLiqFlux 
 

@@ -47,7 +47,8 @@ compute_parameters:
     qts_subdivisions            : 12
     dt                          : 300 # [sec]
     qlat_input_folder           : ./extern/summa/summa/utils/test/test_ngen/domain_provo/simulations/
-    qlat_file_pattern_filter    : "nex-*"
+    qlat_file_pattern_filter    : "cat-*" # per-catchment files keep confluence contributions separate
+    qlat_file_value_col         : land_surface_water__runoff_volume_flux_mh
     binary_nexus_file_folder    : #./ #NOTE: If memory issues arise while preprocessing forcing data, use this to create hourly binary files for forcing data.
     nts                         : 2880 #288 for 1day
     max_loop_size               : 240 # [hr]

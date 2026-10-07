@@ -23,7 +23,7 @@ fi
 export VIRTUAL_ENV="$("${NGEN_PYTHON}" -c 'import sys; print(sys.prefix)' 2>/dev/null || echo "${CONDA_PREFIX}")"
 "${NGEN_PYTHON}" -c 'import nwm_routing' 2>/dev/null || {
   echo "ERROR: 'nwm_routing' not importable with ${NGEN_PYTHON}."
-  echo "       Build t-route into the '${NGEN_CONDA_ENV}' env: cd extern/t-route && ./compiler_mac.sh"
+  echo "       Build t-route into the '${NGEN_CONDA_ENV}' env: cd extern/t-route && ./compiler_mac.sh no-e"
   exit 1
 }
 # ---------------------------------------------------------------------------
