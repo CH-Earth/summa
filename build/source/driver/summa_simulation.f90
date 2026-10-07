@@ -48,6 +48,7 @@ USE summa_openwq, only: openwq_init
 USE summa_openwq, only: openwq_run_time_start
 USE summa_openwq, only: openwq_run_space_step
 USE summa_openwq, only: openwq_run_time_end
+USE summa_openwq, only: openwq_finalize
 #endif
 
 ! module-level data structure to share configurations
@@ -299,7 +300,7 @@ contains
 
     ! initialize OpenWQ
     if(openwq_active)then
-      call openwq_init(err)
+      call openwq_init(summa_struct, err)
       if(err/=0)then; message=trim(message)//'problem initializing OpenWQ'; return; endif
     endif
 
@@ -417,6 +418,9 @@ contains
         ncid(iFreq) = integerMissing
       endif
     enddo
+
+    ! report the water check of the OpenWQ coupling
+    if(openwq_active) call openwq_finalize()
 
     ! deallocate mizuroute structures
     if(mizuroute_active)then ! build-time capability

@@ -52,6 +52,7 @@ set(MIZU_ROUTE
     ${MIZU_DIR}/kwe_route.f90
     ${MIZU_DIR}/mc_route.f90
     ${MIZU_DIR}/dfw_route.f90
+    ${SUMMA_MIZU_DIR}/wq_exchange.f90
     ${SUMMA_MIZU_DIR}/network_routing.f90
 )
 

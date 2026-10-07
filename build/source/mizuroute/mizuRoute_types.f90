@@ -21,6 +21,7 @@ module mizuroute_types
   public :: mizuroute_info
 
   public :: routing_time_data
+  public :: wq_exchange_data
   public :: mizuroute_topology
   public :: river_network_data
   public :: spatial_remap_data
@@ -100,6 +101,24 @@ module mizuroute_types
   end type routing_time_data
 
   !---------------------------------------------------------------------
+  ! Reach water budget and runoff delivery map for a water-quality coupler
+  !---------------------------------------------------------------------
+  type :: wq_exchange_data
+    logical(lgt)              :: active = .false.  ! filled by network_routing only when .true.
+    integer(i4b), allocatable :: order(:)          ! reach indices, upstream to downstream
+    integer(i4b), allocatable :: down_index(:)     ! downstream reach index (<1 at an outlet)
+    real(wp),     allocatable :: vol_start(:)      ! reach storage at the start of the host step (m3)
+    real(wp),     allocatable :: vol_end(:)        ! reach storage at the end of the host step (m3)
+    real(wp),     allocatable :: vol_lateral(:)    ! lateral inflow over the host step (m3)
+    real(wp),     allocatable :: vol_upstream(:)   ! inflow from upstream reaches over the host step (m3)
+    real(wp),     allocatable :: vol_outflow(:)    ! outflow over the host step (m3)
+    real(wp),     allocatable :: vol_wm(:)         ! water-management flux over the host step (m3, >0 abstraction, <0 injection)
+    integer(i4b), allocatable :: map_start(:)      ! first entry of each runoff element in map_reach (size n+1)
+    integer(i4b), allocatable :: map_reach(:)      ! reach receiving runoff from the element
+    real(wp),     allocatable :: map_area(:)       ! area of the element draining to that reach (m2)
+  end type wq_exchange_data
+
+  !---------------------------------------------------------------------
   ! River-network topology and attributes
   !---------------------------------------------------------------------
   type :: mizuroute_topology
@@ -144,6 +163,8 @@ module mizuroute_types
     type(routing_output), allocatable :: method(:)
     ! Routing time information
     type(routing_time_data) :: time
+    ! Exchange with a water-quality coupler
+    type(wq_exchange_data) :: wq
   end type river_network_driver
   
   !---------------------------------------------------------------------

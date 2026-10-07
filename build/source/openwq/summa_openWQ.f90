@@ -1,1075 +1,855 @@
+! Copyright 2020, Diogo Costa (diogo.pinhodacosta@canada.ca)
+! This file is part of OpenWQ model.
+
+! This program, openWQ, is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+! ==============================================================================
+! Coupling of OpenWQ to SUMMA and to the internally coupled mizuRoute
+! ==============================================================================
+! One OpenWQ instance carries the solutes of the land stores of SUMMA and, when
+! mizuRoute is active, of the river reaches. Every water flux of the two models
+! that moves liquid water between stores has a solute counterpart here.
+!
+! Land: one cell column per (HRU, domain) pair. A domain is a stack of
+!   canopy -> snow layers -> lake layers -> soil layers -> (glacier ice) -> aquifer
+! of which only the stores that exist in the domain are used.
+!
+!   precipitation     -> canopy, and -> top store (snow, else lake, else RUNOFF)
+!   canopy            -> top store (drainage and unloading)
+!   snow layers       -> next snow layer, base -> lake top, else RUNOFF
+!   lake layers       -> next lake layer, base -> RUNOFF
+!   RUNOFF            -> first soil layer (infiltration), -> stream (surface runoff)
+!   soil layers       -> next soil layer (either direction)
+!   soil layers       -> same layer of the downslope HRU, else stream (lateral outflow)
+!   last soil layer   -> aquifer, else stream (drainage)
+!   aquifer           -> stream (baseflow)
+!   glacier ice melt  -> stream (external water, EWF "GLACIER_ICE_MELT")
+!
+! RUNOFF is the liquid water that reaches the surface in the step (rain plus melt).
+! Evaporation, transpiration and sublimation carry no solute.
+!
+! "Stream" is the RUNOFF_TO_STREAM pool of the column, which holds the solute
+! while SUMMA delays the runoff of the GRU (routing through the unresolved
+! network and the glacier reservoirs). It releases the same fraction of its
+! content as SUMMA releases of the water it holds:
+!   with mizuRoute    -> the reaches that receive the runoff of the GRU
+!   without mizuRoute -> out of the domain
+! Wetland domains are not connected to the basin runoff in SUMMA, so what
+! leaves them leaves the domain.
+!
+! River (mizuRoute): one cell per reach.
+!   reach -> downstream reach, or out of the domain at an outlet
+! with the reach mixing volume = storage + upstream inflow + lateral inflow.
+!
+! Compartment, export and dependency indices are those of OpenWQ_hydrolink.h.
+! ==============================================================================
+
 module summa_openwq
+
   USE nr_type
-  USE openWQ,only:CLASSWQ_openwq
-  USE data_types,only:gru_hru_dom_doubleVec
+  USE, intrinsic :: iso_c_binding, only: c_long_long, c_int
+  USE openWQ, only: CLASSWQ_openwq
+  USE build_options, only: mizuroute_active
+
   implicit none
   private
-  ! Subroutines
+
   public :: openwq_init
   public :: openwq_run_time_start
   public :: openwq_run_space_step
   public :: openwq_run_time_end
-  private:: openWQ_run_time_start_inner ! inner call at the HRU-domain level
+  public :: openwq_finalize
 
-  ! Global Data for prognostic Variables of HRU-domains
-  type(gru_hru_dom_doubleVec),save,public   :: progStruct_timestep_start ! copy of progStruct at the start of timestep for passing fluxes
-  type(CLASSWQ_openwq),save,public          :: openwq_obj
+  type(CLASSWQ_openwq), save, public :: openwq_obj
 
+  ! compartment indices (0-based)
+  integer(i4b), parameter :: canopy_cmp  = 0
+  integer(i4b), parameter :: snow_cmp    = 1
+  integer(i4b), parameter :: runoff_cmp  = 2
+  integer(i4b), parameter :: soil_cmp    = 3
+  integer(i4b), parameter :: aquifer_cmp = 4
+  integer(i4b), parameter :: stream_cmp  = 5
+  integer(i4b), save      :: lake_cmp    = -1
+  integer(i4b), save      :: river_cmp   = -1
+  integer(i4b), parameter :: out_cmp     = -1   ! out of the domain
+
+  ! flux-concentration exports (0-based)
+  integer(i4b), parameter :: runoffVol_exp     = 0
+  integer(i4b), parameter :: routedRunoff_exp  = 1
+  integer(i4b), parameter :: totalRunoff_exp   = 2
+  integer(i4b), parameter :: reachOutflow_exp  = 3
+
+  ! a pool with less than this depth of water over the column is reported as holding no water (m)
+  real(rkind), parameter  :: minPoolDepth = 1.e-9_rkind
+
+  ! land columns
+  integer(i4b), save              :: nCol = 0            ! number of (HRU, domain) columns
+  integer(i4b), save              :: nSnowMax = 0        ! snow cells per column
+  integer(i4b), save              :: nSoilMax = 0        ! soil cells per column
+  integer(i4b), save              :: nLakeMax = 0        ! lake cells per column
+  integer(i4b), save, allocatable :: gruFirstCol(:)      ! first column of each GRU
+  integer(i4b), save, allocatable :: gruLastCol(:)       ! last column of each GRU
+  integer(i4b), save, allocatable :: colDown(:)          ! column of the downslope HRU (0 = none)
+
+  ! state at the start of the time step
+  logical(lgt), save, allocatable :: colActive(:)        ! column is simulated by SUMMA
+  real(rkind),  save, allocatable :: colArea(:)          ! area (m2)
+  integer(i4b), save, allocatable :: nSnowStart(:)       ! number of snow layers
+  real(rkind),  save, allocatable :: volCanopy(:)        ! water volumes (m3)
+  real(rkind),  save, allocatable :: volAquifer(:)
+  real(rkind),  save, allocatable :: volSnow(:,:)
+  real(rkind),  save, allocatable :: volLake(:,:)
+  real(rkind),  save, allocatable :: volSoil(:,:)
+
+  ! water held by SUMMA between its release by the columns and its delivery to the stream (m3)
+  real(rkind),  save, allocatable :: gruRoutingStore(:)
+
+  ! river network
+  logical(lgt), save              :: riverCoupled = .false.
+  integer(i4b), save              :: nReach = 0
+
+  ! running water check of the coupling (m3), reported by openwq_finalize
+  real(rkind),  save              :: cumRoutedLand = 0._rkind   ! runoff routed by SUMMA out of its GRUs
+  real(rkind),  save              :: cumLateral    = 0._rkind   ! lateral inflow received by the reaches
+  real(rkind),  save              :: cumOutflow    = 0._rkind   ! outflow of the outlet reaches
+  real(rkind),  save              :: cumResidual   = 0._rkind   ! |start + inflows - outflows - end| summed over reaches and steps
+  real(rkind),  save              :: cumStorageEnd = 0._rkind   ! reach storage at the last step
+
+contains
+
+  ! ============================================================================
+  ! Declare the OpenWQ domain: land columns and, with mizuRoute, river reaches
+  ! ============================================================================
+  subroutine openwq_init(summa1_struc, err)
+    USE summa_type, only: summa1_type_dec
+    USE globalData, only: gru_struc
+    USE globalData, only: maxSnowLayers, maxSoilLayers, maxLakeLayers
+    USE var_lookup, only: iLookTYPE, iLookID
+#ifdef MIZUROUTE_ACTIVE
+    USE mizuroute_coupling, only: init_mizuroute_wq_from_summa
+#endif
+    implicit none
+    type(summa1_type_dec), intent(inout) :: summa1_struc
+    integer(i4b),          intent(out)   :: err
+    ! local variables
+    integer(i4b)                      :: iGRU, iHRU, jHRU, iDOM, iCol
+    integer(i4b)                      :: hasGlacier
+    integer(i4b), allocatable         :: hruFirstCol(:)
+    integer(c_long_long), allocatable :: colId(:), reachId(:)
+    integer(c_int), allocatable       :: colDom(:)
+    character(len=256)                :: message
+
+    err = 0
+    ! one OpenWQ instance per executable
+    if(allocated(gruFirstCol))then
+      write(*,'(a)') 'openwq_init/OpenWQ is already initialized: only one SUMMA instance can be coupled to OpenWQ'
+      err = 20; return
+    endif
+    openwq_obj = CLASSWQ_openwq()
+
+    ! ----- land columns, in the order of the SUMMA loops (GRU, HRU, domain) -----
+    nCol = 0
+    do iGRU = 1, summa1_struc%nGRU_local
+      do iHRU = 1, gru_struc(iGRU)%hruCount
+        nCol = nCol + gru_struc(iGRU)%hruInfo(iHRU)%domCount
+      end do
+    end do
+    nSnowMax = max(maxSnowLayers, 1)
+    nSoilMax = max(maxSoilLayers, 1)
+    nLakeMax = max(maxLakeLayers, 0)
+
+    allocate(gruFirstCol(summa1_struc%nGRU_local), gruLastCol(summa1_struc%nGRU_local), colDown(nCol), &
+             colId(nCol), colDom(nCol), colActive(nCol), colArea(nCol), nSnowStart(nCol),              &
+             volCanopy(nCol), volAquifer(nCol), volSnow(nSnowMax,nCol), volLake(max(nLakeMax,1),nCol), &
+             volSoil(nSoilMax,nCol), gruRoutingStore(summa1_struc%nGRU_local), stat=err)
+    if(err/=0) return
+    colDown = 0; colActive = .false.; colArea = 0._rkind; nSnowStart = 0
+    volCanopy = 0._rkind; volAquifer = 0._rkind; volSnow = 0._rkind; volLake = 0._rkind; volSoil = 0._rkind
+    gruRoutingStore = 0._rkind
+
+    hasGlacier = 0
+    iCol = 0
+    do iGRU = 1, summa1_struc%nGRU_local
+      allocate(hruFirstCol(gru_struc(iGRU)%hruCount))
+      gruFirstCol(iGRU) = iCol + 1
+      do iHRU = 1, gru_struc(iGRU)%hruCount
+        hruFirstCol(iHRU) = iCol + 1
+        do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+          iCol = iCol + 1
+          colId(iCol)  = gru_struc(iGRU)%hruInfo(iHRU)%hru_id
+          colDom(iCol) = merge(iDOM, 0, gru_struc(iGRU)%hruInfo(iHRU)%domCount > 1)
+          if(gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce > 0) hasGlacier = 1
+        end do
+      end do
+      gruLastCol(iGRU) = iCol
+      ! lateral soil outflow goes to the first (upland) domain of the downslope HRU
+      do iHRU = 1, gru_struc(iGRU)%hruCount
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          if(summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == &
+             summa1_struc%idStruct%gru(iGRU)%hru(jHRU)%var(iLookID%hruId))then
+            colDown(hruFirstCol(iHRU)) = hruFirstCol(jHRU)
+            exit
+          endif
+        end do
+      end do
+      deallocate(hruFirstCol)
+    end do
+
+    ! ----- river reaches -----
+    riverCoupled = .false.
+    nReach = 0
+#ifdef MIZUROUTE_ACTIVE
+    if(mizuroute_active)then
+      if(summa1_struc%config%use_mizuroute)then
+        call init_mizuroute_wq_from_summa(summa1_struc, err, message)
+        if(err/=0)then; write(*,'(a)') 'openwq_init/'//trim(message); return; endif
+        riverCoupled = .true.
+        nReach = size(summa1_struc%mizu_domain%river_network%driver%seg_id)
+        allocate(reachId(nReach))
+        reachId(:) = int(summa1_struc%mizu_domain%river_network%driver%seg_id(:), c_long_long)
+      endif
+    endif
+#endif
+    if(.not.allocated(reachId)) allocate(reachId(1), source=0_c_long_long)
+
+    ! compartments that only exist in some configurations follow the fixed ones
+    lake_cmp  = -1
+    river_cmp = -1
+    if(nLakeMax > 0) lake_cmp = stream_cmp + 1
+    if(riverCoupled) river_cmp = max(stream_cmp, lake_cmp) + 1
+
+    err = openwq_obj%decl( &
+      nCol,                & ! land columns
+      1,                   & ! canopy layers
+      nSnowMax,            & ! snow layers
+      nSoilMax,            & ! soil layers
+      1,                   & ! runoff layers
+      1,                   & ! aquifer layers
+      nLakeMax,            & ! lake layers (0 = no lake compartment)
+      1,                   & ! cells in the y direction
+      colId,               & ! HRU id of each column
+      colDom,              & ! domain of each column (0 if the HRU has one domain)
+      hasGlacier,          & ! 1 if any domain has glacier ice
+      nReach,              & ! river reaches (0 = no river compartment)
+      reachId)               ! reach ids
+
+    if(riverCoupled) call check_river_mapping(summa1_struc)
+
+  end subroutine openwq_init
+
+
+  ! ============================================================================
+  ! Compare the delivery map with the land it comes from, once at initialization
+  ! ============================================================================
+  ! The area a GRU drains through the map (its reach inflow per unit runoff) must
+  ! equal its SUMMA area, or the reaches receive more or less water than the
+  ! land delivers and the stream concentrations are off by that ratio.
+  subroutine check_river_mapping(summa1_struc)
+    USE summa_type, only: summa1_type_dec
+    USE var_lookup, only: iLookBVAR
+    implicit none
+    type(summa1_type_dec), intent(in) :: summa1_struc
+#ifdef MIZUROUTE_ACTIVE
+    integer(i4b) :: iGRU, nBad, nMethods
+    real(rkind)  :: areaMap, areaGRU, worst
+
+    associate(wq => summa1_struc%mizu_domain%river_network%driver%wq)
+    nBad = 0; worst = 0._rkind
+    do iGRU = 1, summa1_struc%nGRU_local
+      areaGRU = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+      areaMap = sum(wq%map_area(wq%map_start(iGRU):wq%map_start(iGRU+1)-1))
+      if(areaGRU <= 0._rkind .or. areaMap <= 0._rkind) cycle
+      worst = max(worst, abs(areaMap/areaGRU - 1._rkind))
+      if(abs(areaMap/areaGRU - 1._rkind) > 0.01_rkind) nBad = nBad + 1
+    end do
+    nMethods = size(summa1_struc%mizu_domain%river_network%driver%method)
+    write(*,'(a,i0,a,i0,a)') ' OpenWQ river coupling: ', summa1_struc%nGRU_local, ' GRU(s) deliver to ', nReach, ' reach(es)'
+    if(nBad > 0)then
+      write(*,'(a,i0,a,f6.1,a)') ' WARNING: OpenWQ river coupling: the river-network area of ', nBad, &
+        ' GRU(s) differs from the SUMMA area by more than 1% (worst ', 100._rkind*worst, &
+        '%); the reaches then receive a different volume of water than the land delivers'
+    endif
+    if(nMethods > 1) write(*,'(a)') ' OpenWQ river coupling: several routing methods are active; water quality follows the first one'
+    end associate
+#endif
+  end subroutine check_river_mapping
+
+
+  ! ============================================================================
+  ! Pass the water volumes and dependencies at the start of the time step
+  ! ============================================================================
+  subroutine openwq_run_time_start(summa1_struc)
+    USE summa_type, only: summa1_type_dec
+    USE globalData, only: gru_struc
+    USE globalData, only: realMissing
+    USE globalData, only: model_decisions
+    USE mDecisions_module, only: bigBucket, singleBasin
+    USE var_lookup, only: iLookPROG, iLookINDEX, iLookTYPE, iLookFORCE, iLookBVAR, iLookDECISIONS
+    USE multiconst, only: iden_water
+    USE module_sf_noahmplsm, only: isWater
+    implicit none
+    type(summa1_type_dec), intent(in) :: summa1_struc
+    ! local variables
+    integer(i4b)             :: iGRU, iHRU, iDOM, iCol, iLayer
+    integer(i4b)             :: nSnow, nLake, nSoil
+    integer(i4b)             :: simtime(5)
+    integer(i4b)             :: err
+    real(rkind)              :: airTemp_K, SWrad_Wm2
+    real(rkind)              :: soilTemp_K(nSoilMax), soilMoist(nSoilMax)
+    logical(lgt)             :: basinAquifer
+
+    call get_simtime(summa1_struc, simtime)
+
+    if(riverCoupled) call set_reach_state(summa1_struc)
+
+    basinAquifer = (model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket .and. &
+                    model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)
+
+    iCol = 0
+    do iGRU = 1, summa1_struc%nGRU_local
+      do iHRU = 1, gru_struc(iGRU)%hruCount
+        do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+          iCol = iCol + 1
+
+          associate( &
+            prog    => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var, &
+            indx    => summa1_struc%indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var, &
+            forc    => summa1_struc%forcStruct%gru(iGRU)%hru(iHRU)%var,           &
+            domInfo => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM))
+
+          colArea(iCol)   = prog(iLookPROG%DOMarea)%dat(1)
+          colActive(iCol) = (summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) /= isWater) &
+                            .and. (colArea(iCol) > 0._rkind) .and. (colArea(iCol) /= realMissing)
+          if(.not.colActive(iCol)) colArea(iCol) = 0._rkind
+
+          nSnow = 0; nLake = 0; nSoil = 0
+          volCanopy(iCol)  = 0._rkind
+          volAquifer(iCol) = 0._rkind
+          volSnow(:,iCol)  = 0._rkind
+          volLake(:,iCol)  = 0._rkind
+          volSoil(:,iCol)  = 0._rkind
+          soilTemp_K(:)    = 0._rkind
+          soilMoist(:)     = 0._rkind
+          airTemp_K        = forc(iLookFORCE%airtemp)
+          SWrad_Wm2        = forc(iLookFORCE%SWRadAtm)
+          if(SWrad_Wm2 == realMissing) SWrad_Wm2 = 0._rkind
+
+          if(colActive(iCol))then
+
+            nSnow = min(max(0, indx(iLookINDEX%nSnow)%dat(1)), nSnowMax)
+            nLake = min(max(0, domInfo%nLake), nLakeMax)
+            nSoil = min(max(0, domInfo%nSoil), nSoilMax)
+
+            ! canopy (kg m-2) and aquifer (m)
+            if(prog(iLookPROG%scalarCanopyWat)%dat(1) /= realMissing) &
+              volCanopy(iCol) = prog(iLookPROG%scalarCanopyWat)%dat(1) * colArea(iCol) / iden_water
+            if(prog(iLookPROG%scalarAquiferStorage)%dat(1) /= realMissing .and. .not.basinAquifer) &
+              volAquifer(iCol) = prog(iLookPROG%scalarAquiferStorage)%dat(1) * colArea(iCol)
+
+            ! layers are ordered snow, lake, soil, glacier ice
+            do iLayer = 1, nSnow
+              volSnow(iLayer,iCol) = layer_volume(iLayer)
+            end do
+            do iLayer = 1, nLake
+              volLake(iLayer,iCol) = layer_volume(nSnow + iLayer)
+            end do
+            do iLayer = 1, nSoil
+              volSoil(iLayer,iCol)  = layer_volume(nSnow + nLake + iLayer)
+              soilTemp_K(iLayer)    = prog(iLookPROG%mLayerTemp)%dat(nSnow + nLake + iLayer)
+              soilMoist(iLayer)     = prog(iLookPROG%mLayerVolFracLiq)%dat(nSnow + nLake + iLayer)
+            end do
+
+          endif
+
+          ! a basin-wide aquifer is carried by the first column of the GRU
+          if(basinAquifer .and. iCol == gruFirstCol(iGRU)) &
+            volAquifer(iCol) = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) &
+                               * summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+
+          nSnowStart(iCol) = nSnow
+
+          err = openwq_obj%openwq_run_time_start( &
+            iCol - 1,                 & ! 0-based column index
+            nSnow,                    &
+            nLake,                    &
+            nSoil,                    &
+            simtime,                  &
+            soilMoist,                & ! volumetric liquid water content of the soil layers (-)
+            soilTemp_K,               & ! soil temperature (K)
+            airTemp_K,                & ! air temperature (K)
+            SWrad_Wm2,                & ! incoming shortwave radiation (W m-2)
+            volSnow(:,iCol),          &
+            volLake(:,iCol),          &
+            volCanopy(iCol),          &
+            volSoil(:,iCol),          &
+            volAquifer(iCol),         &
+            colArea(iCol))
+
+          end associate
+
+        end do
+      end do
+    end do
 
   contains
 
-! Initialize the openWQ object
-subroutine openwq_init(err)
-  USE globalData,only:gru_struc                               ! gru-hru-dom mapping structures
-  USE globalData,only:prog_meta
-  USE globalData,only:maxSnowLayers, maxSoilLayers            ! maximum number of layers for snow and soil across all HRU-domains (used to dimension openWQ state variables)
-  USE allocspace_progStruct_module,only:allocGlobal_progStruct ! module to allocate space for global data structures
-  implicit none
+    ! total water (liquid + ice) of a layer (m3)
+    real(rkind) function layer_volume(ix)
+      integer(i4b), intent(in) :: ix
+      layer_volume = 0._rkind
+      associate(prog => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var)
+        if(prog(iLookPROG%mLayerVolFracWat)%dat(ix) /= realMissing) &
+          layer_volume = prog(iLookPROG%mLayerVolFracWat)%dat(ix) * prog(iLookPROG%mLayerDepth)%dat(ix) * colArea(iCol)
+      end associate
+    end function layer_volume
 
-  ! Dummy Varialbes
-  integer(i4b), intent(out)                       :: err
+  end subroutine openwq_run_time_start
 
-  ! local variables
-  integer(i4b)                                    :: iGRU
-  integer(i4b)                                    :: iHRU
-  integer(i4b)                                    :: nSpatial            ! total number of (HRU, domain) spatial units passed to openWQ
-  ! OpenWQ dimensions
-  integer(i4b)                                    :: nCanopy_2openwq =  1   ! Canopy has only 1 layer
-  integer(i4b)                                    :: nRunoff_2openwq  = 1   ! Runoff has only 1 layer (not a summa variable - openWQ keeps track of this)
-  integer(i4b)                                    :: nAquifer_2openwq = 1   ! GW has only 1 layer
-  integer(i4b)                                    :: nYdirec_2openwq  = 1   ! number of layers in the y-dir (not used in summa)
-  ! error handling
-  character(len=256)                              :: message
 
-  ! nx -> num of (HRU, domain) spatial units
-  ! ny -> 1
-  ! nz -> num of layers (snow + soil)
-  openwq_obj = CLASSWQ_openwq() ! initialize openWQ object
+  ! ============================================================================
+  ! Reach storage and dependencies at the start of the time step
+  ! ============================================================================
+  ! Air temperature and radiation of a reach are the area-weighted values of the GRUs draining to it.
+  subroutine set_reach_state(summa1_struc)
+    USE summa_type, only: summa1_type_dec
+    USE globalData, only: gru_struc
+    USE globalData, only: realMissing
+    USE var_lookup, only: iLookFORCE, iLookATTR
+    implicit none
+    type(summa1_type_dec), intent(in) :: summa1_struc
+#ifdef MIZUROUTE_ACTIVE
+    integer(i4b)             :: iGRU, iHRU, iMap, iReach, err
+    real(rkind)              :: areaGRU, tairGRU, swGRU, areaHRU, sw
+    real(rkind)              :: reachVol(nReach), reachTair(nReach), reachSW(nReach), reachArea(nReach)
 
-  ! In SummaSundials each HRU is subdivided into one or more spatial domains (upland, glacier,
-  ! wetland, ...), each with its own layer stack and state/flux structures. openWQ treats every
-  ! (HRU, domain) pair as an independent spatial column (its x-direction), so the number of
-  ! openWQ "HRUs" is the total number of domains across all GRUs/HRUs.
-  nSpatial = 0
-  do iGRU = 1, size(gru_struc)
-    do iHRU = 1, gru_struc(iGRU)%hruCount
-      nSpatial = nSpatial + gru_struc(iGRU)%hruInfo(iHRU)%domCount
+    associate(wq => summa1_struc%mizu_domain%river_network%driver%wq)
+
+    reachVol(:)  = max(wq%vol_end(:), 0._rkind)
+    reachTair(:) = 0._rkind
+    reachSW(:)   = 0._rkind
+    reachArea(:) = 0._rkind
+
+    do iGRU = 1, summa1_struc%nGRU_local
+      areaGRU = 0._rkind; tairGRU = 0._rkind; swGRU = 0._rkind
+      do iHRU = 1, gru_struc(iGRU)%hruCount
+        areaHRU = summa1_struc%attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
+        sw      = summa1_struc%forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%SWRadAtm)
+        if(sw == realMissing) sw = 0._rkind
+        areaGRU = areaGRU + areaHRU
+        tairGRU = tairGRU + areaHRU * summa1_struc%forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
+        swGRU   = swGRU   + areaHRU * sw
+      end do
+      if(areaGRU <= 0._rkind) cycle
+      tairGRU = tairGRU / areaGRU
+      swGRU   = swGRU   / areaGRU
+      do iMap = wq%map_start(iGRU), wq%map_start(iGRU+1) - 1
+        iReach = wq%map_reach(iMap)
+        reachArea(iReach) = reachArea(iReach) + wq%map_area(iMap)
+        reachTair(iReach) = reachTair(iReach) + wq%map_area(iMap) * tairGRU
+        reachSW(iReach)   = reachSW(iReach)   + wq%map_area(iMap) * swGRU
+      end do
     end do
-  end do
 
-  ! intialize openWQ
-  err=openwq_obj%decl(    &
-    nSpatial,             & ! num (HRU, domain) spatial units
-    nCanopy_2openwq,      & ! num layers of canopy (fixed to 1)
-    maxSnowLayers,        & ! num layers of snow (fixed to max because it varies)
-    maxSoilLayers,        & ! num layers of soil (variable)
-    nRunoff_2openwq,      & ! num layers of runoff (fixed to 1)
-    nAquifer_2openwq,     & ! num layers of aquifer (fixed to 1)
-    nYdirec_2openwq)        ! num of layers in y-dir (set to 1 because not used in summa)
-
-
-  ! Create copy of state information, needed for passing to openWQ with fluxes that require
-  ! the previous time_steps volume
-  call allocGlobal_progStruct(prog_meta,progStruct_timestep_start,maxSnowLayers,err,message)
-
-end subroutine openwq_init
-
-! Pass Summa State to openWQ
-subroutine openwq_run_time_start(summa1_struc)
-  USE summa_type, only: summa1_type_dec            ! master summa data type
-  USE var_lookup,only: iLookINDEX
-  USE globalData,only: gru_struc                   ! gru-hru-dom mapping structures
-  implicit none
-
-  ! Dummy Varialbes
-  type(summa1_type_dec), intent(in)  :: summa1_struc
-  ! local variables
-  integer(i4b)                       :: openWQArrayIndex !index into OpenWQ's state structure
-  integer(i4b)                       :: iGRU
-  integer(i4b)                       :: iHRU
-  integer(i4b)                       :: iDOM
-  integer(i4b)                       :: nHRU        ! number of HRUs in the GRU (used in looping)
-  integer(i4b)                       :: nDOM        ! number of domains in the HRU (used in looping)
-  integer(i4b)                       :: nSoil
-  integer(i4b)                       :: nSnow
-  logical(1)                         :: lastHRUFlag
-  summaVars: associate(&
-      indxStruct     => summa1_struc%indxStruct             , &
-      nGRU_local     => summa1_struc%nGRU_local               &
-  )
-  ! ############################
-
-  openWQArrayIndex = 0
-  lastHRUFlag = .false.
-
-  do iGRU=1,nGRU_local
-    nHRU = gru_struc(iGRU)%hruCount
-    do iHRU=1,nHRU
-      nDOM = gru_struc(iGRU)%hruInfo(iHRU)%domCount
-      do iDOM=1,nDOM
-        if (iGRU == nGRU_local .and. iHRU == nHRU .and. iDOM == nDOM)then
-          lastHRUFlag = .true.
-        end if
-
-        nSnow = max(0, indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1))
-        nSoil = max(0, indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1))
-
-        call openwq_run_time_start_inner(openWQArrayIndex, iGRU, iHRU, iDOM, &
-                                         summa1_struc,&
-                                         nSnow, nSoil, lastHRUFlag)
-
-        openWQArrayIndex = openWQArrayIndex + 1
-
-      end do ! end domain
-    end do ! end HRU
-  end do ! end GRU
-
-  end associate summaVars
-end subroutine
-
-
-subroutine openWQ_run_time_start_inner(openWQArrayIndex, iGRU, iHRU, iDOM, &
-                                      summa1_struc, nSnow, nSoil, last_hru_flag)
-  USE summa_type,only: summa1_type_dec            ! master summa data type
-  USE var_lookup,only: iLookPROG  ! named variables for state variables
-  USE var_lookup,only: iLookTYPE  ! named variables for classification of veg, soils etc.
-  USE var_lookup,only: iLookVarType  ! named variables for real valued attribute data structure
-  USE var_lookup,only: iLookTIME  ! named variables for time data structure
-  USE globalData,only:prog_meta
-  USE globalData,only:realMissing
-  USE multiconst,only:iden_water        ! intrinsic density of liquid water    (kg m-3)
-  USE module_sf_noahmplsm,only:isWater  ! Identifier for water land cover type
-  implicit none
-  integer(i4b), intent(in)           :: openWQArrayIndex !index into OpenWQ's state structure
-  integer(i4b), intent(in)           :: iGRU
-  integer(i4b), intent(in)           :: iHRU
-  integer(i4b), intent(in)           :: iDOM
-  type(summa1_type_dec), intent(in)  :: summa1_struc
-  integer(i4b), intent(in)           :: nSnow
-  integer(i4b), intent(in)           :: nSoil
-  logical(1),intent(in)              :: last_hru_flag
-
-  ! local variables
-  integer(i4b)                       :: simtime(5) ! 5 time values yy-mm-dd-hh-min
-  real(rkind)                        :: canopyWatVol_stateVar_summa_m3     ! OpenWQ State Var
-  real(rkind)                        :: sweWatVol_stateVar_summa_m3(nSnow) ! OpenWQ State Var
-  real(rkind)                        :: soilTemp_depVar_summa_K(nSoil)     ! OpenWQ State Var
-  real(rkind)                        :: soilWatVol_stateVar_summa_m3(nSoil)! OpenWQ State Var
-  real(rkind)                        :: soilMoist_depVar_summa_frac(nSoil) ! OpenWQ State Var
-  real(rkind)                        :: aquiferWatVol_stateVar_summa_m3    ! OpenWQ State Var
-  real(rkind)                        :: airTemp_depVar_summa_K             ! OpenWQ Dependency Var
-  logical(lgt)                       :: domainIsActive                     ! .true. if the domain is run by summa (not water, area > 0)
-  ! counter variables
-  integer(i4b)                       :: ilay
-  integer(i4b)                       :: iVar
-  integer(i4b)                       :: iDat
-  integer(i4b)                       :: index
-  integer(i4b)                       :: offset
-  ! error handling
-  integer(i4b)                       :: err
-
-  summaVars: associate(&
-    progStruct                  => summa1_struc%progStruct             , &
-    timeStruct                  => summa1_struc%timeStruct             , &
-    vegTypeIndex                => summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)                        ,& ! land cover type index for the HRU
-    dom_area_m2                 => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)            ,& ! area of the domain (m2)
-    Tair_summa_K                => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanairTemp)%dat(1)   ,& ! air temperature (K)
-    scalarCanopyWat_summa_kg_m2 => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyWat)%dat(1)    ,& ! canopy water (kg m-2)
-    mLayerDepth_summa_m         => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(:)        ,& ! depth of each layer (m)
-    mLayerVolFracWat_summa_frac => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracWat)%dat(:)   ,& ! volumetric fraction of total water in each layer  (-)
-    Tsoil_summa_K               => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerTemp)%dat(:)         ,& ! soil temperature (K) for each layer
-    AquiferStorWat_summa_m      => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) & ! aquifer storage (m)
-  )
-
-  ! ############################
-  ! Determine whether summa runs this domain: water pixels and zero-area domains are skipped by
-  ! the physics, so their prognostic variables may be missing. Pass zeros to openWQ for those so
-  ! that the last-index trigger (RunTimeLoopStart) still fires.
-  ! ############################
-  domainIsActive = (vegTypeIndex /= isWater) .and. (dom_area_m2 > 0._rkind) .and. (dom_area_m2 /= realMissing)
-
-  ! initialize the openWQ state/dependency variables
-  canopyWatVol_stateVar_summa_m3      = 0._rkind
-  aquiferWatVol_stateVar_summa_m3     = 0._rkind
-  airTemp_depVar_summa_K              = 0._rkind
-  if (nSnow > 0) sweWatVol_stateVar_summa_m3(:) = 0._rkind
-  if (nSoil > 0) then
-    soilTemp_depVar_summa_K(:)     = 0._rkind
-    soilWatVol_stateVar_summa_m3(:) = 0._rkind
-    soilMoist_depVar_summa_frac(:)  = 0._rkind
-  end if
-
-  activeDomain: if (domainIsActive) then
-
-    ! ############################
-    ! Update unlayered variables and dependencies (1 layer only)
-    ! ############################
-
-    if(Tair_summa_K == realMissing) then
-      stop 'Error: OpenWQ requires air temperature (K)'
-    endif
-    airTemp_depVar_summa_K = Tair_summa_K
-
-    ! Vegetation
-    ! unit for volume = m3 (summa-to-openwq unit conversions needed)
-    ! scalarCanopyWat [kg m-2], so needs to  to multiply by domain area [m2] and divide by water density
-    if(scalarCanopyWat_summa_kg_m2 == realMissing) then
-      canopyWatVol_stateVar_summa_m3 = 0._rkind
-    else
-      canopyWatVol_stateVar_summa_m3 = scalarCanopyWat_summa_kg_m2 * dom_area_m2 / iden_water
-    endif
-
-    ! Aquifer
-    ! unit for volume = m3 (summa-to-openwq unit conversions needed)
-    ! scalarAquiferStorage [m], so needs to  to multiply by domain area [m2] only
-    if(AquiferStorWat_summa_m == realMissing) then
-      stop 'Error: OpenWQ requires aquifer storage (m3)'
-    endif
-    aquiferWatVol_stateVar_summa_m3 = AquiferStorWat_summa_m * dom_area_m2
-
-    ! ############################
-    ! Update layered variables and dependenecies
-    ! ############################
-
-    if (nSnow .gt. 0)then
-      do ilay = 1, nSnow
-        ! Snow
-        ! unit for volume = m3 (summa-to-openwq unit conversions needed)
-        ! mLayerVolFracWat [-], so needs to multiply by domain area [m2] and layer depth [m]
-        if(mLayerVolFracWat_summa_frac(ilay) /= realMissing) then
-          sweWatVol_stateVar_summa_m3(ilay) =                             &
-            mLayerVolFracWat_summa_frac(ilay)  * mLayerDepth_summa_m(ilay) * dom_area_m2
-        else
-          sweWatVol_stateVar_summa_m3(ilay) = 0._rkind
-        endif
-      enddo ! end snow layers
-    endif ! end snow
-
-
-    do ilay = 1, nSoil
-      ! Soil
-      ! Tsoil
-      ! (Summa in K)
-      if(Tsoil_summa_K(nSnow+ilay) == realMissing) then
-        stop 'Error: OpenWQ requires soil temperature (K)'
-      endif
-      soilTemp_depVar_summa_K(ilay) = Tsoil_summa_K(nSnow+ilay)
-
-      soilMoist_depVar_summa_frac(ilay) = 0     ! TODO: Find the value for this varaibles
-      ! Soil
-      ! unit for volume = m3 (summa-to-openwq unit conversions needed)
-      ! mLayerVolFracWat [-], so needs to multiply by domain area [m2] and layer depth [m]
-      if(mLayerVolFracWat_summa_frac(nSnow+ilay) == realMissing) then
-        stop 'Error: OpenWQ requires soil water (m3)'
-      endif
-      soilWatVol_stateVar_summa_m3(ilay) =                &
-          mLayerVolFracWat_summa_frac(nSnow+ilay) * dom_area_m2 * mLayerDepth_summa_m(nSnow+ilay)
-    enddo
-
-  end if activeDomain
-
-
-  ! Copy the prog structure
-  do iVar = 1, size(progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var)
-    do iDat = 1, size(progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat)
-      select case(prog_meta(iVar)%varType)
-        case(iLookVarType%ifcSoil);
-          offset = 0
-        case(iLookVarType%ifcToto);
-          offset = 0
-        case default
-          offset = 1
-      end select
-      do index = offset , size(progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat) - 1 + offset
-        progStruct_timestep_start%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(index) = progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iVar)%dat(index)
-      enddo
-    end do
-  end do
-
-
-  simtime(1) = timeStruct%var(iLookTIME%iyyy)  ! Year
-  simtime(2) = timeStruct%var(iLookTIME%im)    ! month
-  simtime(3) = timeStruct%var(iLookTIME%id)    ! hour
-  simtime(4) = timeStruct%var(iLookTIME%ih)    ! day
-  simtime(5) = timeStruct%var(iLookTIME%imin)  ! minute
-
-  err=openwq_obj%openwq_run_time_start(&
-                                       last_hru_flag,                   &
-                                       openWQArrayIndex,                & ! total (HRU, domain) spatial units
-                                       nSnow,                           &
-                                       nSoil,                           &
-                                       simtime,                         &
-                                       soilMoist_depVar_summa_frac,     &
-                                       soilTemp_depVar_summa_K,         &
-                                       airTemp_depVar_summa_K,          & ! air temperature (K)
-                                       sweWatVol_stateVar_summa_m3,     &
-                                       canopyWatVol_stateVar_summa_m3,  &
-                                       soilWatVol_stateVar_summa_m3,    &
-                                       aquiferWatVol_stateVar_summa_m3)
-  end associate summaVars
-
-end subroutine openWQ_run_time_start_inner
-
-
-subroutine openwq_run_space_step(summa1_struc)
-  USE var_lookup,only: iLookPROG  ! named variables for state variables
-  USE var_lookup,only: iLookTIME  ! named variables for time data structure
-  USE var_lookup,only: iLookFLUX  ! named varaibles for flux data
-  USE var_lookup,only: iLookATTR  ! named variables for real valued attribute data structure
-  USE var_lookup,only: iLookINDEX
-  USE var_lookup,   only: iLookTYPE          ! look-up values for classification of veg, soils etc.
-  USE summa_type,only: summa1_type_dec            ! master summa data type
-  USE data_types,only: var_dlength,var_i
-  USE globalData,only: gru_struc
-  USE globalData,only: data_step   ! time step of forcing data (s)
-  USE globalData,only: realMissing
-  USE multiconst,only:&
-                        iden_ice,       & ! intrinsic density of ice             (kg m-3)
-                        iden_water        ! intrinsic density of liquid water    (kg m-3)
-  USE module_sf_noahmplsm,only:isWater       ! Identifier for water land cover type
-
-  implicit none
-
-  type(summa1_type_dec),   intent(in)    :: summa1_struc
-
-
-  integer(i4b)                           :: hru_index ! needed because openWQ saves (HRU, domain) units as a single array
-  integer(i4b)                           :: iHRU      ! variable needed for looping
-  integer(i4b)                           :: iGRU      ! variable needed for looping
-  integer(i4b)                           :: iDOM      ! variable needed for looping over spatial domains
-  integer(i4b)                           :: iLayer    ! varaible needed for looping
-
-  integer(i4b)                           :: simtime(5) ! 5 time values yy-mm-dd-hh-min
-  integer(i4b)                           :: err
-
-  ! compartment indexes in OpenWQ (defined in the hydrolink)
-  integer(i4b)                           :: canopy_index_openwq    = 0
-  integer(i4b)                           :: snow_index_openwq      = 1
-  integer(i4b)                           :: runoff_index_openwq    = 2
-  integer(i4b)                           :: soil_index_openwq      = 3
-  integer(i4b)                           :: aquifer_index_openwq   = 4
-  integer(i4b)                           :: OpenWQindex_s
-  integer(i4b)                           :: OpenWQindex_r
-  integer(i4b)                           :: iy_r
-  integer(i4b)                           :: iz_r
-  integer(i4b)                           :: iy_s
-  integer(i4b)                           :: iz_s
-  real(rkind)                            :: wflux_s2r
-  real(rkind)                            :: wmass_source
-
-  ! Summa to OpenWQ units
-  ! PrecipVars
-  real(rkind)                            :: scalarRainfall_summa_m3
-  real(rkind)                            :: scalarSnowfall_summa_m3
-  real(rkind)                            :: scalarThroughfallRain_summa_m3
-  real(rkind)                            :: scalarThroughfallSnow_summa_m3
-  ! CanopyVars
-  real(rkind)                            :: canopyStorWat_kg_m3
-  real(rkind)                            :: scalarCanopySnowUnloading_summa_m3
-  real(rkind)                            :: scalarCanopyLiqDrainage_summa_m3
-  real(rkind)                            :: scalarCanopyTranspiration_summa_m3
-  real(rkind)                            :: scalarCanopyEvaporation_summa_m3
-  real(rkind)                            :: scalarCanopySublimation_summa_m3
-  ! runoff vars
-  real(rkind)                            :: scalarRunoffVol_m3
-  real(rkind)                            :: scalarSurfaceRunoff_summa_m3
-  real(rkind)                            :: scalarInfiltration_summa_m3
-  ! Snow_SoilVars
-  real(rkind)                            :: mLayerLiqFluxSnow_summa_m3
-  real(rkind)                            :: iLayerLiqFluxSoil_summa_m3
-  real(rkind)                            :: mLayerVolFracWat_summa_m3
-  real(rkind)                            :: scalarGroundSublimation_summa_m3
-  real(rkind)                            :: scalarSfcMeltPond_summa_m3
-  real(rkind)                            :: scalarGroundEvaporation_summa_m3
-  real(rkind)                            :: scalarExfiltration_summa_m3
-  real(rkind)                            :: mLayerBaseflow_summa_m3
-  real(rkind)                            :: scalarSoilDrainage_summa_m3
-  real(rkind)                            :: mLayerTranspire_summa_m3
-  ! AquiferVars
-  real(rkind)                            :: scalarAquiferBaseflow_summa_m3
-  real(rkind)                            :: scalarAquiferRecharge_summa_m3
-  real(rkind)                            :: scalarAquiferStorage_summa_m3
-  real(rkind)                            :: scalarAquiferTranspire_summa_m3
-
-  summaVars: associate(&
-      timeStruct     => summa1_struc%timeStruct             , &
-      fluxStruct     => summa1_struc%fluxStruct             , &
-      nGRU_local     => summa1_struc%nGRU_local)
-
-
-
-  simtime(1) = timeStruct%var(iLookTIME%iyyy)  ! Year
-  simtime(2) = timeStruct%var(iLookTIME%im)    ! month
-  simtime(3) = timeStruct%var(iLookTIME%id)    ! hour
-  simtime(4) = timeStruct%var(iLookTIME%ih)    ! day
-  simtime(5) = timeStruct%var(iLookTIME%imin)  ! minute
-
-  hru_index = 0
-
-  ! Summa does not have a y-direction,
-  ! so the dimension will always be 1
-  iy_r = 1
-  iy_s = 1
-
-  do iGRU=1,nGRU_local
-    do iHRU=1,gru_struc(iGRU)%hruCount
-      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-        hru_index = hru_index + 1
-        if (summa1_struc%typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex) == isWater) cycle
-        if (summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1) <= 0._rkind) cycle ! skip domains with no area
-
-      ! ####################################################################
-      ! Associate relevant variables
-      ! ####################################################################
-
-      DomainVars: associate( &
-        ! Domain area (generalization of the HRU area to the spatial-domain data structures)
-        hru_area_m2 => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%DOMarea)%dat(1)  &
-      )
-
-      PrecipVars: associate( &
-        ! Precipitation
-        scalarRainfall_summa_kg_m2_s             => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarRainfall)%dat(1)                  ,&
-        scalarSnowfall_summa_kg_m2_s             => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSnowfall)%dat(1)                  ,&
-        scalarThroughfallRain_summa_kg_m2_s      => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarThroughfallRain)%dat(1)           ,&
-        scalarThroughfallSnow_summa_kg_m2_s      => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarThroughfallSnow)%dat(1)            &
-      )
-
-      CanopyVars: associate( &
-        ! Canopy
-        scalarCanopyWat_summa_kg_m2              => progStruct_timestep_start%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarCanopyWat)%dat(1)  ,&
-        scalarCanopySnowUnloading_summa_kg_m2_s  => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)       ,&
-        scalarCanopyLiqDrainage_summa_kg_m2_s    => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)         ,&
-        scalarCanopyTranspiration_summa_kg_m2_s  => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)       ,&
-        scalarCanopyEvaporation_summa_kg_m2_s    => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)         ,&
-        scalarCanopySublimation_summa_kg_m2_s    => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarCanopySublimation)%dat(1)          &
-      )
-
-      RunoffVars: associate(&
-        scalarSurfaceRunoff_m_s                  => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)             ,&
-        scalarInfiltration_m_s                   => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarInfiltration)%dat(1)               &
-      )
-
-      Snow_SoilVars: associate(&
-        ! Snow + Soil - Control Volume
-        current_nSnow                             => summa1_struc%indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSnow)%dat(1)             ,&
-        current_nSoil                             => summa1_struc%indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)             ,&
-        nSnow                                     => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSnow                                              ,&
-        nSoil                                     => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nSoil                                              ,&
-        ! Layer depth and water frac
-        mLayerDepth_summa_m                       => progStruct_timestep_start%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerDepth)%dat(:)      ,&
-        mLayerVolFracWat_summa_frac               => progStruct_timestep_start%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%mLayerVolFracWat)%dat(:) ,&
-        ! Snow Fluxes
-        scalarGroundSublimation_summa_kg_m2_s     => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGroundSublimation)%dat(1)           ,&
-        scalarSfcMeltPond_kg_m2                   => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarSfcMeltPond)%dat(1)  ,&
-        ! iLayerLiqFluxSnLaGl holds the snow/lake/glacier interface liquid fluxes; for a snow-only
-        ! (upland) domain its entries 1..nSnow are the snow interface fluxes used here
-        iLayerLiqFluxSnow_summa_m_s               => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%iLayerLiqFluxSnLaGl)%dat(:)            ,&
-
-        ! Soil Fluxes
-        scalarGroundEvaporation_summa_kg_m2_s     => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)         ,&
-        iLayerLiqFluxSoil_summa_m_s               => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%iLayerLiqFluxSoil)%dat(:)               ,&
-        scalarExfiltration_summa_m_s              => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarExfiltration)%dat(1)              ,&
-        mLayerBaseflow_summa_m_s                  => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerBaseflow)%dat(:)                  ,&
-        scalarSoilDrainage_summa_m_s              => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarSoilDrainage)%dat(1)              ,&
-        mLayerTranspire_summa_m_s                 => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%mLayerTranspire)%dat(:)                  &
-      )
-
-      AquiferVars: associate(&
-        ! Aquifer
-        scalarAquiferStorage_summa_m              => progStruct_timestep_start%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1), &
-        scalarAquiferRecharge_summa_m_s           => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferRecharge)%dat(1)              , &
-        scalarAquiferBaseflow_summa_m_s           => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)              , &
-        scalarAquiferTranspire_summa_m_s          => fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)               &
-      )
-
-      ! ####################################################################
-      ! Converte associate variable units: from SUMMA to OpenWQ units
-      ! Here only scalar/unlayered variables
-      ! OpenWQ: Volume (m3), Time (sec)
-      ! Where: Vol in kg/m2, then convert to m3 by multipling by (hru_area_m2 / iden_water)
-      ! Where: Flux in kg/m2/s, then convert to m3/time_step by multiplying by (hru_area_m2 * data_step / iden_water)
-      ! ####################################################################
-
-      ! PrecipVars
-      scalarRainfall_summa_m3 = scalarRainfall_summa_kg_m2_s               * hru_area_m2 * data_step / iden_water
-      scalarSnowfall_summa_m3 = scalarSnowfall_summa_kg_m2_s               * hru_area_m2 * data_step / iden_water
-      scalarThroughfallRain_summa_m3 = scalarThroughfallRain_summa_kg_m2_s * hru_area_m2 * data_step / iden_water ! flux
-      scalarThroughfallSnow_summa_m3 = scalarThroughfallSnow_summa_kg_m2_s * hru_area_m2 * data_step / iden_water ! flux
-
-      ! CanopyVars
-      canopyStorWat_kg_m3 = scalarCanopyWat_summa_kg_m2                             * hru_area_m2 / iden_water ! vol
-      scalarCanopySnowUnloading_summa_m3 = scalarCanopySnowUnloading_summa_kg_m2_s  * hru_area_m2 * data_step / iden_water ! flux
-      scalarCanopyLiqDrainage_summa_m3 = scalarCanopyLiqDrainage_summa_kg_m2_s      * hru_area_m2 * data_step / iden_water ! flux
-      scalarCanopyTranspiration_summa_m3 = scalarCanopyTranspiration_summa_kg_m2_s  * hru_area_m2 * data_step / iden_water ! flux
-      scalarCanopyEvaporation_summa_m3 = scalarCanopyEvaporation_summa_kg_m2_s      * hru_area_m2 * data_step / iden_water ! flux
-      scalarCanopySublimation_summa_m3 = scalarCanopySublimation_summa_kg_m2_s      * hru_area_m2 * data_step / iden_water ! flux
-
-      ! runoff vars
-      scalarSurfaceRunoff_summa_m3  = scalarSurfaceRunoff_m_s * hru_area_m2 * data_step
-      scalarInfiltration_summa_m3   = scalarInfiltration_m_s  * hru_area_m2 * data_step
-
-
-      ! Snow_SoilVars (unlayered variables)
-      ! Other variables are layered and added below as needed
-      scalarGroundSublimation_summa_m3 = scalarGroundSublimation_summa_kg_m2_s  * hru_area_m2 * data_step / iden_water
-      scalarGroundEvaporation_summa_m3 = scalarGroundEvaporation_summa_kg_m2_s  * hru_area_m2 * data_step / iden_water
-      scalarSfcMeltPond_summa_m3 = scalarSfcMeltPond_kg_m2                      * hru_area_m2 / iden_water
-      scalarExfiltration_summa_m3 = scalarExfiltration_summa_m_s                * hru_area_m2 * data_step
-      scalarSoilDrainage_summa_m3 = scalarSoilDrainage_summa_m_s                * hru_area_m2 * data_step
-
-
-      ! AquiferVars
-      scalarAquiferStorage_summa_m3 = scalarAquiferStorage_summa_m        * hru_area_m2
-      scalarAquiferRecharge_summa_m3 = scalarAquiferRecharge_summa_m_s    * hru_area_m2 * data_step
-      scalarAquiferBaseflow_summa_m3 = scalarAquiferBaseflow_summa_m_s    * hru_area_m2 * data_step
-      scalarAquiferTranspire_summa_m3 = scalarAquiferTranspire_summa_m_s  * hru_area_m2 * data_step
-
-      ! Reset Runoff (it's not tracked by SUMMA, so need to track it here)
-      scalarRunoffVol_m3 = 0._rkind                                                                   !initialization of this variable is required to limit the runoff aggreggation to each domain.
-
-      ! ####################################################################
-      ! Apply Fluxes
-      ! Call RunSpaceStep
-      ! ####################################################################
-
-      ! --------------------------------------------------------------------
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! 1 Fluxes involving the canopy
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! --------------------------------------------------------------------
-      if(scalarCanopyWat_summa_kg_m2 /= realMissing) then
-
-        ! ====================================================
-        ! 1.1 precipitation -> canopy
-        ! ====================================================
-        ! *Source*:
-        ! PRECIP (external flux, so need call openwq_run_space_in)
-        ! *Recipient*: canopy (only 1 z layer)
-        OpenWQindex_r = canopy_index_openwq
-        iz_r          = 1
-        ! *Flux*: the portion of rainfall and snowfall not throughfall
-        wflux_s2r = (scalarRainfall_summa_m3 - scalarThroughfallRain_summa_m3) &
-                    + (scalarSnowfall_summa_m3 - scalarThroughfallSnow_summa_m3)
-        ! *Call openwq_run_space_in* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space_in(                                   &
-                                      simtime,                                &
-                                      'PRECIP',                               &
-                                      OpenWQindex_r, hru_index, iy_r, iz_r,   &
-                                      wflux_s2r)
-
-        ! ====================================================
-        ! 1.2 canopy -> upper snow layer or runoff pool
-        ! scalarCanopySnowUnloading + scalarCanopyLiqDrainage
-        ! ====================================================
-        ! *Flux*
-        ! snow uloading + liq drainage
-        wflux_s2r = scalarCanopySnowUnloading_summa_m3 &
-                    + scalarCanopyLiqDrainage_summa_m3
-        ! *Source*
-        ! canopy (only 1 z layer)
-        OpenWQindex_s = canopy_index_openwq
-        iz_s          = 1
-        wmass_source = canopyStorWat_kg_m3
-        ! *Recipient* depends on snow layers
-        if (current_nSnow .gt. 0)then
-          OpenWQindex_r = snow_index_openwq
-          iz_r = 1 ! upper layer
-        else
-          OpenWQindex_r = runoff_index_openwq
-          iz_r = 1 ! (has only 1 layer)
-          scalarRunoffVol_m3 = scalarRunoffVol_m3 + wflux_s2r;
-        end if
-        ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                                      &
-                                    simtime,                                  &
-                                    OpenWQindex_s, hru_index, iy_s, iz_s,     &
-                                    OpenWQindex_r, hru_index, iy_r, iz_r,     &
-                                    wflux_s2r,  &
-                                    wmass_source)
-
-        ! ====================================================
-        ! 1.3 canopy -> OUT (lost from model) (Evap + Subl)
-        ! ====================================================
-        ! *Source*:
-        ! canopy (only 1 z layer)
-        OpenWQindex_s = canopy_index_openwq
-        iz_s          = 1
-        wmass_source = canopyStorWat_kg_m3
-        ! *Recipient*:
-        ! lost from system
-        OpenWQindex_r = -1
-        iz_r          = -1
-        ! *Flux*
-        ! transpiration + evaporation + sublimation
-        wflux_s2r =  scalarCanopyEvaporation_summa_m3  &
-                      + scalarCanopySublimation_summa_m3
-
-        ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                                       &
-                                      simtime,                                 &
-                                      OpenWQindex_s, hru_index, iy_s, iz_s,    &
-                                      OpenWQindex_r, hru_index, iy_r, iz_r,    &
-                                      wflux_s2r,  &
-                                      wmass_source)
-
+    ! a reach with no contributing area gets the freezing point and no radiation
+    where(reachArea > 0._rkind)
+      reachTair = reachTair / reachArea
+      reachSW   = reachSW   / reachArea
+    elsewhere
+      reachTair = 273.15_rkind
+      reachSW   = 0._rkind
+    end where
+
+    err = openwq_obj%openwq_set_reach_state(nReach, reachVol, reachTair, reachSW, reachArea)
+
+    end associate
+#endif
+  end subroutine set_reach_state
+
+
+  ! ============================================================================
+  ! Pass the water fluxes of the time step
+  ! ============================================================================
+  subroutine openwq_run_space_step(summa1_struc)
+    USE summa_type, only: summa1_type_dec
+    USE globalData, only: gru_struc
+    USE globalData, only: realMissing
+    USE globalData, only: model_decisions
+    USE globalData, only: upland, wetland
+    USE mDecisions_module, only: bigBucket, singleBasin
+    USE var_lookup, only: iLookPROG, iLookFLUX, iLookINDEX, iLookBVAR, iLookDECISIONS
+    USE multiconst, only: iden_water
+    implicit none
+    type(summa1_type_dec), intent(in) :: summa1_struc
+    ! local variables
+    integer(i4b)             :: iGRU, iHRU, iDOM, iCol, jCol, iLayer
+    integer(i4b)             :: nSnow, nLake, nSoil, nGlce
+    integer(i4b)             :: simtime(5)
+    integer(i4b)             :: err
+    integer(i4b)             :: topCmp, belowSnowCmp      ! compartments below the canopy and below the snowpack
+    integer(i4b)             :: toStream                  ! 1 if the water leaving the column goes to the stream
+    integer(i4b)             :: aqCol                     ! column that carries the aquifer
+    logical(lgt)             :: hasAquifer, basinAquifer
+    real(rkind)              :: dt                        ! time step (s)
+    real(rkind)              :: toVol                     ! (m s-1) to (m3 per step)
+    real(rkind)              :: toVolMass                 ! (kg m-2 s-1) to (m3 per step)
+    real(rkind)              :: q, qCanopy, poolVol, totalArea
+
+    call get_simtime(summa1_struc, simtime)
+    dt = summa1_struc%data_step
+
+    hasAquifer   = (model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket)
+    basinAquifer = (hasAquifer .and. model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)
+
+    ! ----- land columns -----
+    iCol = 0
+    do iGRU = 1, summa1_struc%nGRU_local
+      do iHRU = 1, gru_struc(iGRU)%hruCount
+        do iDOM = 1, gru_struc(iGRU)%hruInfo(iHRU)%domCount
+          iCol = iCol + 1
+          if(.not.colActive(iCol)) cycle
+
+          associate( &
+            flux    => summa1_struc%fluxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var, &
+            prog    => summa1_struc%progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var, &
+            indx    => summa1_struc%indxStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var, &
+            domInfo => gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM))
+
+          nSnow = min(max(0, indx(iLookINDEX%nSnow)%dat(1)), nSnowMax)
+          nLake = min(max(0, domInfo%nLake), nLakeMax)
+          nSoil = min(max(0, domInfo%nSoil), nSoilMax)
+          nGlce = max(0, domInfo%nGlce)
+
+          toVol     = colArea(iCol) * dt
+          toVolMass = colArea(iCol) * dt / iden_water
+          toStream  = merge(0, 1, domInfo%dom_type == wetland)
+
+          ! store below the snowpack, and store that receives the water below the canopy
+          belowSnowCmp = merge(lake_cmp, runoff_cmp, nLake > 0)
+          topCmp       = merge(snow_cmp, belowSnowCmp, nSnow > 0)
+
+          ! ----- 1. precipitation and canopy -----
+          ! intercepted precipitation: negative when the throughfall includes water released by the canopy
+          qCanopy = 0._rkind
+          if(prog(iLookPROG%scalarCanopyWat)%dat(1) /= realMissing) &
+            qCanopy = ( (flux(iLookFLUX%scalarRainfall)%dat(1) - flux(iLookFLUX%scalarThroughfallRain)%dat(1)) &
+                      + (flux(iLookFLUX%scalarSnowfall)%dat(1) - flux(iLookFLUX%scalarThroughfallSnow)%dat(1)) ) * toVolMass
+          q = (flux(iLookFLUX%scalarThroughfallRain)%dat(1) + flux(iLookFLUX%scalarThroughfallSnow)%dat(1)) * toVolMass
+          call water_in('PRECIP', canopy_cmp, iCol, 1, qCanopy)
+          call water_in('PRECIP', topCmp, iCol, 1, q + min(qCanopy, 0._rkind))
+          call move_water(canopy_cmp, iCol, 1, topCmp, iCol, 1, -qCanopy, volCanopy(iCol), 0)
+          ! drainage and unloading
+          if(prog(iLookPROG%scalarCanopyWat)%dat(1) /= realMissing)then
+            q = (flux(iLookFLUX%scalarCanopySnowUnloading)%dat(1) + flux(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)) * toVolMass
+            call move_water(canopy_cmp, iCol, 1, topCmp, iCol, 1, q, volCanopy(iCol), 0)
+          endif
+
+          ! ----- 2. snow -----
+          ! interface i of the snow-lake-glacier flux is the base of layer i of the whole stack
+          associate(iFluxSnLaGl => flux(iLookFLUX%iLayerLiqFluxSnLaGl)%dat)
+          if(nSnow > 0)then
+            do iLayer = 1, nSnow - 1
+              q = iFluxSnLaGl(lbound(iFluxSnLaGl,1) + iLayer) * toVol
+              call move_between(snow_cmp, iLayer, volSnow(iLayer,iCol), snow_cmp, iLayer + 1, volSnow(iLayer+1,iCol), q)
+            end do
+            ! drainage from the base of the snowpack
+            q = flux(iLookFLUX%scalarSnowDrainage)%dat(1) * toVol
+            call move_water(snow_cmp, iCol, nSnow, belowSnowCmp, iCol, 1, q, volSnow(nSnow,iCol), 0)
+          endif
+          ! solute of the snow layers that no longer exist follows the water: to the deepest layer left, or below the snowpack
+          do iLayer = nSnow + 1, nSnowStart(iCol)
+            if(nSnow > 0)then
+              call move_water(snow_cmp, iCol, iLayer, snow_cmp, iCol, nSnow, 1._rkind, 1._rkind, 0)
+            else
+              call move_water(snow_cmp, iCol, iLayer, belowSnowCmp, iCol, 1, 1._rkind, 1._rkind, 0)
+            endif
+          end do
+
+          ! ----- 3. lake -----
+          if(nLake > 0)then
+            do iLayer = 1, nLake - 1
+              q = iFluxSnLaGl(lbound(iFluxSnLaGl,1) + nSnow + iLayer) * toVol
+              call move_between(lake_cmp, iLayer, volLake(iLayer,iCol), lake_cmp, iLayer + 1, volLake(iLayer+1,iCol), q)
+            end do
+            ! drainage from the base of the lake
+            q = flux(iLookFLUX%scalarLakeDrainage)%dat(1) * toVol
+            call move_water(lake_cmp, iCol, nLake, runoff_cmp, iCol, 1, q, volLake(nLake,iCol), 0)
+          endif
+          end associate
+
+          ! ----- 4. water at the surface (rain plus melt) -----
+          poolVol = max(flux(iLookFLUX%scalarRainPlusMelt)%dat(1), 0._rkind) * toVol
+          err = openwq_obj%openwq_set_watervol(runoff_cmp, iCol, 1, 1, merge(poolVol, 0._rkind, poolVol >= minPoolDepth*colArea(iCol)))
+          ! infiltration
+          if(nSoil > 0)then
+            q = min(max(flux(iLookFLUX%scalarInfiltration)%dat(1), 0._rkind) * toVol, poolVol)
+            call move_water(runoff_cmp, iCol, 1, soil_cmp, iCol, 1, q, poolVol, 0)
+          endif
+          ! surface runoff
+          q = min(max(flux(iLookFLUX%scalarSurfaceRunoff)%dat(1), 0._rkind) * toVol, poolVol)
+          call move_water(runoff_cmp, iCol, 1, out_cmp, -1, -1, q, poolVol, toStream)
+          err = openwq_obj%openwq_set_fluxvol(runoffVol_exp, iCol, 1, 1, q)
+
+          ! ----- 5. soil -----
+          if(nSoil > 0)then
+            ! vertical flux between layers (interface i is the base of soil layer i)
+            associate(iFluxSoil => flux(iLookFLUX%iLayerLiqFluxSoil)%dat)
+            do iLayer = 1, nSoil - 1
+              q = iFluxSoil(lbound(iFluxSoil,1) + iLayer) * toVol
+              call move_between(soil_cmp, iLayer, volSoil(iLayer,iCol), soil_cmp, iLayer + 1, volSoil(iLayer+1,iCol), q)
+            end do
+            end associate
+            ! lateral outflow (m3 s-1, includes the exfiltration of the first layer)
+            jCol = 0
+            if(domInfo%dom_type == upland) jCol = colDown(iCol)
+            do iLayer = 1, nSoil
+              q = flux(iLookFLUX%mLayerColumnOutflow)%dat(iLayer) * dt
+              if(jCol > 0)then
+                call move_water(soil_cmp, iCol, iLayer, soil_cmp, jCol, iLayer, q, volSoil(iLayer,iCol), 0)
+              else
+                call move_water(soil_cmp, iCol, iLayer, out_cmp, -1, -1, q, volSoil(iLayer,iCol), toStream)
+              endif
+            end do
+            ! drainage from the base of the soil
+            q = flux(iLookFLUX%scalarSoilDrainage)%dat(1) * toVol
+            if(hasAquifer .and. domInfo%dom_type == upland)then
+              aqCol = merge(gruFirstCol(iGRU), iCol, basinAquifer)
+              call move_water(soil_cmp, iCol, nSoil, aquifer_cmp, aqCol, 1, q, volSoil(nSoil,iCol), 0)
+            else
+              call move_water(soil_cmp, iCol, nSoil, out_cmp, -1, -1, q, volSoil(nSoil,iCol), toStream)
+            endif
+          endif
+
+          ! ----- 6. aquifer of the column -----
+          if(hasAquifer .and. .not.basinAquifer .and. domInfo%dom_type == upland)then
+            q = flux(iLookFLUX%scalarAquiferBaseflow)%dat(1) * toVol
+            call move_water(aquifer_cmp, iCol, 1, out_cmp, -1, -1, q, volAquifer(iCol), toStream)
+          endif
+
+          ! ----- 7. glacier ice melt (negative scalarGlceMelt is melt water leaving the ice) -----
+          if(nGlce > 0)then
+            q = -flux(iLookFLUX%scalarGlceMelt)%dat(1) * toVol
+            call water_in('GLACIER_ICE_MELT', stream_cmp, iCol, 1, q)
+          endif
+
+          ! volumes of the runoff exports
+          err = openwq_obj%openwq_set_fluxvol(routedRunoff_exp, iCol, 1, 1, &
+                max(summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1), 0._rkind) * toVol)
+          err = openwq_obj%openwq_set_fluxvol(totalRunoff_exp, iCol, 1, 1, &
+                max(flux(iLookFLUX%scalarTotalRunoff)%dat(1), 0._rkind) * toVol)
+
+          end associate
+
+        end do ! domains
+      end do ! HRUs
+
+      ! ----- aquifer of the basin -----
+      if(basinAquifer)then
+        jCol      = gruFirstCol(iGRU)
+        totalArea = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+        q = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferBaseflow)%dat(1) * totalArea * dt
+        call move_water(aquifer_cmp, jCol, 1, out_cmp, -1, -1, q, volAquifer(jCol), 1)
       endif
 
-      ! --------------------------------------------------------------------
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! 2. Snow / runoff
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! --------------------------------------------------------------------
-      ! do all the snow fluxes
+      ! ----- water on its way to the stream -----
+      call release_to_stream(iGRU)
 
-      ! ====================================================
-      ! 2.1 precicipitation -> upper snow/runoff layer
-      ! scalarThroughfallRain + scalarThroughfallSnow
-      ! ====================================================
-      ! *Flux*
-      ! throughfall rain and snow
-      wflux_s2r = scalarThroughfallRain_summa_m3 &
-                  + scalarThroughfallSnow_summa_m3
-      if (current_nSnow .gt. 0)then
-        ! *Source*:
-        ! PRECIP (external flux, so need call openwq_run_space_in)
-        ! *Recipient*:
-        ! snow+soil (upper layer)
-        OpenWQindex_r = snow_index_openwq
-        iz_r          = 1
+    end do ! GRUs
+
+    ! ----- river reaches -----
+    if(riverCoupled) call route_reaches()
+
+  contains
+
+    ! water flux from a source cell (flux and source volume in m3); recipient out_cmp leaves the domain
+    subroutine move_water(sCmp, sCol, sLayer, rCmp, rCol, rLayer, wflux, sVol, outToStream)
+      integer(i4b), intent(in) :: sCmp, sCol, sLayer, rCmp, rCol, rLayer
+      real(rkind),  intent(in) :: wflux, sVol
+      integer(i4b), intent(in) :: outToStream
+      integer(i4b)             :: ierr
+      real(rkind)              :: vol
+      if(.not.(wflux > 0._rkind)) return
+      ! a source that holds no water at the start of the step passes the flux through
+      vol = sVol
+      if(.not.(vol > 0._rkind)) vol = wflux
+      if(rCmp == out_cmp)then
+        ierr = openwq_obj%openwq_run_space(simtime, sCmp, sCol, 1, sLayer, out_cmp, -1, -1, -1, wflux, vol, outToStream)
       else
-        OpenWQindex_r = runoff_index_openwq
-        iz_r          = 1
-        scalarRunoffVol_m3 = scalarRunoffVol_m3 + wflux_s2r ! Needed because runoff volume is not tracked
-      end if
-      ! *Call openwq_run_space* if wflux_s2r not 0
-      err=openwq_obj%openwq_run_space_in(                                     &
-                                    simtime,                                  &
-                                    'PRECIP',                                 &
-                                    OpenWQindex_r, hru_index, iy_r, iz_r,     &
-                                    wflux_s2r                                 &
-                                    )
-
-      ! Below fluxes only occur when there is no snow
-      if (current_nSnow .gt. 0)then
-
-        ! ====================================================
-        ! 2.2 snow -> OUT (lost from model) (sublimation)
-        ! ====================================================
-        ! *Source*:
-        ! snow (upper layer)
-        OpenWQindex_s = snow_index_openwq
-        iz_s          = 1
-        mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(1) * hru_area_m2 * mLayerDepth_summa_m(1)
-        wmass_source              = mLayerVolFracWat_summa_m3
-        ! *Recipient*:
-        ! lost from system
-        OpenWQindex_r = -1
-        iz_r          = -1
-        ! *Flux*
-        ! snow sublimation
-        wflux_s2r = scalarGroundSublimation_summa_m3
-        ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                &
-          simtime,                                      &
-          OpenWQindex_s, hru_index, iy_s, iz_s,         &
-          OpenWQindex_r, hru_index, iy_r, iz_r,         &
-          wflux_s2r,                                    &
-          wmass_source)
-
-        ! ====================================================
-        ! 2.3 snow internal fluxes
-        ! ====================================================
-        do iLayer = 1, nSnow-1 ! last layer of snow becomes different fluxes
-          ! *Source*:
-          ! snow(iLayer)
-          OpenWQindex_s = snow_index_openwq
-          iz_s          = iLayer
-          mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(iLayer) * hru_area_m2 * mLayerDepth_summa_m(iLayer)
-          wmass_source              = mLayerVolFracWat_summa_m3
-          ! *Recipient*:
-          ! snow(iLayer+1)
-          OpenWQindex_r = snow_index_openwq
-          iz_r          = iLayer + 1
-          ! *Flux*
-          mLayerLiqFluxSnow_summa_m3  = iLayerLiqFluxSnow_summa_m_s(iLayer) * hru_area_m2 * data_step
-          wflux_s2r                   = mLayerLiqFluxSnow_summa_m3
-          ! *Call openwq_run_space* if wflux_s2r not 0
-          err=openwq_obj%openwq_run_space(                       &
-            simtime,                                      &
-            OpenWQindex_s, hru_index, iy_s, iz_s,         &
-            OpenWQindex_r, hru_index, iy_r, iz_r,         &
-            wflux_s2r,                                    &
-            wmass_source)
-        end do
-
-        ! ====================================================
-        ! 2.4 snow drainage from the last soil layer -> runoff
-        ! ====================================================
-        ! *Flux*
-        mLayerLiqFluxSnow_summa_m3  = iLayerLiqFluxSnow_summa_m_s(nSnow) * hru_area_m2 * data_step
-        wflux_s2r                   = mLayerLiqFluxSnow_summa_m3
-        ! *Source*:
-        ! snow(nSnow)
-        OpenWQindex_s = snow_index_openwq
-        iz_s          = iLayer
-        mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(nSnow) * hru_area_m2 * mLayerDepth_summa_m(nSnow)
-        wmass_source              = mLayerVolFracWat_summa_m3
-        ! *Recipient*:
-        ! runoff (has one layer only)
-        OpenWQindex_r = runoff_index_openwq
-        iz_r          = 1
-        scalarRunoffVol_m3 = scalarRunoffVol_m3 + wflux_s2r;
-        ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                       &
-          simtime,                                      &
-          OpenWQindex_s, hru_index, iy_s, iz_s,         &
-          OpenWQindex_r, hru_index, iy_r, iz_r,         &
-          wflux_s2r,                                    &
-          wmass_source)
-      end if
-
-      ! ====================================================
-      ! 2.5 snow without a layer -> runoff
-      ! scalarSfcMeltPond should be 0 if this occurs
-      ! ====================================================
-      ! *Source*
-      ! snow (this is the case of snow without layer)
-
-      ! need the if condition to protect from invalid read
-      ! if the size of mLayerVolFracWat_summa_frac matches the number of soil layers
-      ! then summa is expecting no snow for this domain over the simulation of the model
-      if ((nSnow .gt. 0)) then
-        ! *Flux*
-        ! snow uloading + liq drainage
-        wflux_s2r = scalarSfcMeltPond_summa_m3
-        ! *Source*
-        OpenWQindex_s = snow_index_openwq
-        iz_s          = 1
-        mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(nSnow) * hru_area_m2 * mLayerDepth_summa_m(nSnow)
-        wmass_source              = mLayerVolFracWat_summa_m3
-        ! *Recipient*
-        ! runoff (has one layer only)
-        OpenWQindex_r = runoff_index_openwq
-        iz_r          = 1
-        scalarRunoffVol_m3 = scalarRunoffVol_m3 + wflux_s2r;
-        ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                       &
-          simtime,                                      &
-          OpenWQindex_s, hru_index, iy_s, iz_s,         &
-          OpenWQindex_r, hru_index, iy_r, iz_r,         &
-          wflux_s2r,                                    &
-          wmass_source)
+        ierr = openwq_obj%openwq_run_space(simtime, sCmp, sCol, 1, sLayer, rCmp, rCol, 1, rLayer, wflux, vol, 0)
       endif
-      ! --------------------------------------------------------------------
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! 3. runoff
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! --------------------------------------------------------------------
+    end subroutine move_water
 
-      ! ====================================================
-      ! 3.1 infiltration
-      ! runoff -> top layer of the soil
-      ! ====================================================
-      ! *Flux*
-      wflux_s2r = scalarInfiltration_summa_m3
-      ! *Source*:
-      ! runoff (has 1 layer only)
-      OpenWQindex_s = runoff_index_openwq
-      iz_s          = 1
-      wmass_source  = scalarRunoffVol_m3
-      ! *Recipient*:
-      ! soil upper layer
-      OpenWQindex_r = soil_index_openwq
-      iz_r          = 1
-      scalarRunoffVol_m3 = scalarRunoffVol_m3 - wflux_s2r;
-      ! *Call openwq_run_space* if wflux_s2r not 0
-      err=openwq_obj%openwq_run_space(                       &
-        simtime,                                      &
-        OpenWQindex_s, hru_index, iy_s, iz_s,         &
-        OpenWQindex_r, hru_index, iy_r, iz_r,         &
-        wflux_s2r,                                    &
-        wmass_source)
+    ! vertical flux between two layers of the current column; positive is from A to B
+    subroutine move_between(aCmp, aLayer, aVol, bCmp, bLayer, bVol, wflux)
+      integer(i4b), intent(in) :: aCmp, aLayer, bCmp, bLayer
+      real(rkind),  intent(in) :: aVol, bVol, wflux
+      if(wflux > 0._rkind)then
+        call move_water(aCmp, iCol, aLayer, bCmp, iCol, bLayer, wflux, aVol, 0)
+      else
+        call move_water(bCmp, iCol, bLayer, aCmp, iCol, aLayer, -wflux, bVol, 0)
+      endif
+    end subroutine move_between
 
-      ! ====================================================
-      ! 3.2 surface runoff
-      ! runoff -> OUT lost from the system
-      ! ====================================================
-      ! *Source*:
-      ! runoff (has only 1 layer)
-      OpenWQindex_s = runoff_index_openwq
-      iz_s          = 1
-      wmass_source  = scalarRunoffVol_m3
-      ! *Recipient*:
-      ! lost from system
-      OpenWQindex_r = -1
-      iz_r          = -1
-      ! *Flux*
-      ! wflux_s2r = scalarSurfaceRunoff_summa_m3
-      wflux_s2r = scalarRunoffVol_m3
-      ! *Call openwq_run_space* if wflux_s2r not 0
-      err=openwq_obj%openwq_run_space(                       &
-        simtime,                                      &
-        OpenWQindex_s, hru_index, iy_s, iz_s,         &
-        OpenWQindex_r, hru_index, iy_r, iz_r,         &
-        wflux_s2r,                                    &
-        wmass_source)
+    ! water entering the domain from an external source (m3)
+    subroutine water_in(ewfName, rCmp, rCol, rLayer, wflux)
+      character(*), intent(in) :: ewfName
+      integer(i4b), intent(in) :: rCmp, rCol, rLayer
+      real(rkind),  intent(in) :: wflux
+      integer(i4b)             :: ierr
+      if(.not.(wflux > 0._rkind)) return
+      ierr = openwq_obj%openwq_run_space_in(simtime, ewfName, rCmp, rCol, 1, rLayer, wflux)
+    end subroutine water_in
 
-      ! --------------------------------------------------------------------
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! 4. soil
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! --------------------------------------------------------------------
+    ! release the RUNOFF_TO_STREAM pools of a GRU in step with the runoff that SUMMA routes
+    subroutine release_to_stream(jGRU)
+      integer(i4b), intent(in) :: jGRU
+      integer(i4b)             :: kCol, ierr
+      real(rkind)              :: areaGRU, instantVol, routedVol, mixVol, fracOut, colVol
 
-      ! ====================================================
-      ! 4.1 soil fluxes
-      ! upper soil -> OUT (lost from system) (ground evaporation)
-      ! ====================================================
-      ! *Source*:
-      ! upper soil layer
-      OpenWQindex_s = soil_index_openwq
-      iz_s          = 1
-      mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(nSnow+1) * hru_area_m2 * mLayerDepth_summa_m(nSnow+1)
-      wmass_source              = mLayerVolFracWat_summa_m3
-      ! *Recipient*:
-      ! lost from system
-      OpenWQindex_r  = -1
-      iz_r           = -1
-      ! *Flux*
-      wflux_s2r = scalarGroundEvaporation_summa_m3
-      ! *Call openwq_run_space* if wflux_s2r not 0
-      err=openwq_obj%openwq_run_space(                       &
-        simtime,                                      &
-        OpenWQindex_s, hru_index, iy_s, iz_s,         &
-        OpenWQindex_r, hru_index, iy_r, iz_r,         &
-        wflux_s2r,                                    &
-        wmass_source)
+      associate(bvar => summa1_struc%bvarStruct%gru(jGRU)%var)
+      areaGRU    = bvar(iLookBVAR%basin__totalArea)%dat(1)
+      instantVol = max(bvar(iLookBVAR%averageInstantRunoff)%dat(1), 0._rkind) * areaGRU * dt
+      routedVol  = max(bvar(iLookBVAR%averageRoutedRunoff)%dat(1),  0._rkind) * areaGRU * dt
+      end associate
 
-      ! ====================================================
-      ! 4.2 exfiltration
-      ! Lost from the system (first soil layer)
-      ! ====================================================
-      ! *Source*:
-      ! upper soil layer
-      OpenWQindex_s = soil_index_openwq
-      iz_s          = 1
-      mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(nSnow+1) * hru_area_m2 * mLayerDepth_summa_m(nSnow+1)
-      wmass_source              = mLayerVolFracWat_summa_m3
-      ! *Recipient*:
-      ! lost from system
-      OpenWQindex_r = -1
-      iz_r          = -1
-      ! *Flux*
-      wflux_s2r = scalarExfiltration_summa_m3
-      ! *Call openwq_run_space* if wflux_s2r not 0
-      err=openwq_obj%openwq_run_space(                       &
-        simtime,                                      &
-        OpenWQindex_s, hru_index, iy_s, iz_s,         &
-        OpenWQindex_r, hru_index, iy_r, iz_r,         &
-        wflux_s2r,                                    &
-        wmass_source)
+      cumRoutedLand = cumRoutedLand + routedVol
 
-      ! ====================================================
-      ! 4.3 mLayerBaseflow
-      ! Lost from the system at each soil layer
-      ! ====================================================
-      do iLayer = 1, nSoil
+      ! water held at the start of the step plus the runoff of the step, of which routedVol leaves
+      mixVol  = gruRoutingStore(jGRU) + instantVol
+      fracOut = 0._rkind
+      if(mixVol > 0._rkind) fracOut = min(routedVol / mixVol, 1._rkind)
+      gruRoutingStore(jGRU) = max(mixVol - routedVol, 0._rkind)
 
-        ! *Source*:
-        ! each soil layer
-        OpenWQindex_s = soil_index_openwq
-        !iz_s          = nSnow + iLayer
-        iz_s          = iLayer
-        mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(iLayer+nSnow) * hru_area_m2 * mLayerDepth_summa_m(iLayer+nSnow)
-        wmass_source              = mLayerVolFracWat_summa_m3
-        ! *Recipient*:
-        ! lost from system
-        OpenWQindex_r = -1
-        iz_r          = -1
-        ! *Flux*
-        mLayerBaseflow_summa_m3 = mLayerBaseflow_summa_m_s(iLayer) * hru_area_m2 * data_step
-        if (iLayer == 1)then
-          mLayerBaseflow_summa_m3 = mLayerBaseflow_summa_m3 - scalarExfiltration_summa_m3
+      do kCol = gruFirstCol(jGRU), gruLastCol(jGRU)
+        if(.not.colActive(kCol)) cycle
+        colVol = 0._rkind
+        if(areaGRU > 0._rkind) colVol = mixVol * colArea(kCol) / areaGRU
+        ierr = openwq_obj%openwq_set_watervol(stream_cmp, kCol, 1, 1, merge(colVol, 0._rkind, colVol >= minPoolDepth*colArea(kCol)))
+        if(fracOut > 0._rkind) call deliver(jGRU, kCol, fracOut)
+      end do
+
+    end subroutine release_to_stream
+
+    ! move the fraction fracOut of a RUNOFF_TO_STREAM pool to the reaches fed by the GRU, or out of the domain
+    subroutine deliver(jGRU, kCol, fracOut)
+      integer(i4b), intent(in) :: jGRU, kCol
+      real(rkind),  intent(in) :: fracOut
+      logical(lgt)             :: delivered
+#ifdef MIZUROUTE_ACTIVE
+      integer(i4b)             :: iMap
+      real(rkind)              :: areaMap
+#endif
+      delivered = .false.
+#ifdef MIZUROUTE_ACTIVE
+      if(riverCoupled)then
+        associate(wq => summa1_struc%mizu_domain%river_network%driver%wq)
+        areaMap = sum(wq%map_area(wq%map_start(jGRU):wq%map_start(jGRU+1)-1))
+        if(areaMap > 0._rkind)then
+          do iMap = wq%map_start(jGRU), wq%map_start(jGRU+1) - 1
+            call move_water(stream_cmp, kCol, 1, river_cmp, wq%map_reach(iMap), 1, &
+                            fracOut * wq%map_area(iMap) / areaMap, 1._rkind, 0)
+          end do
+          delivered = .true.
         endif
-        wflux_s2r = mLayerBaseflow_summa_m3
-        ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                       &
-          simtime,                                      &
-          OpenWQindex_s, hru_index, iy_s, iz_s,         &
-          OpenWQindex_r, hru_index, iy_r, iz_r,         &
-          wflux_s2r,                                    &
-          wmass_source)
+        end associate
+      endif
+#endif
+      if(.not.delivered) call move_water(stream_cmp, kCol, 1, out_cmp, -1, -1, fracOut, 1._rkind, 0)
+    end subroutine deliver
+
+    ! advect each reach to its downstream reach with the water budget of mizuRoute for this step
+    subroutine route_reaches()
+#ifdef MIZUROUTE_ACTIVE
+      integer(i4b)             :: iOrder, iReach, jReach, ierr
+      real(rkind)              :: mixVol, outVol, wmVol, storageEnd
+      associate(wq => summa1_struc%mizu_domain%river_network%driver%wq)
+      storageEnd = 0._rkind
+      do iOrder = 1, nReach
+        iReach = wq%order(iOrder)
+        ! water management: an injection (negative) is solute-free water, an abstraction leaves the domain
+        wmVol  = wq%vol_wm(iReach)
+        mixVol = max(wq%vol_start(iReach), 0._rkind) + max(wq%vol_upstream(iReach), 0._rkind) &
+               + max(wq%vol_lateral(iReach), 0._rkind) + max(-wmVol, 0._rkind)
+        outVol = max(wq%vol_outflow(iReach), 0._rkind)
+        ierr = openwq_obj%openwq_set_watervol(river_cmp, iReach, 1, 1, mixVol)
+        jReach = wq%down_index(iReach)
+        if(jReach >= 1 .and. jReach <= nReach)then
+          call move_water(river_cmp, iReach, 1, river_cmp, jReach, 1, outVol, mixVol, 0)
+        else
+          call move_water(river_cmp, iReach, 1, out_cmp, -1, -1, outVol, mixVol, 0)
+          cumOutflow = cumOutflow + outVol
+        endif
+        if(wmVol > 0._rkind) call move_water(river_cmp, iReach, 1, out_cmp, -1, -1, wmVol, mixVol, 0)
+        ierr = openwq_obj%openwq_set_fluxvol(reachOutflow_exp, iReach, 1, 1, outVol)
+        ! running water check: what mizuRoute stored must be what entered minus what left
+        cumLateral  = cumLateral + wq%vol_lateral(iReach)
+        cumResidual = cumResidual + abs(wq%vol_start(iReach) + wq%vol_upstream(iReach) + wq%vol_lateral(iReach) &
+                                        - max(wmVol, 0._rkind) + max(-wmVol, 0._rkind) - wq%vol_outflow(iReach) - wq%vol_end(iReach))
+        storageEnd  = storageEnd + wq%vol_end(iReach)
       end do
+      cumStorageEnd = storageEnd
+      end associate
+#endif
+    end subroutine route_reaches
 
-      ! ====================================================
-      ! 4.4 transpiration from the soil
-      ! Lost from the system
-      ! ====================================================
-      do iLayer = 1, nSoil
-        ! *Source*:
-        ! all soil layers
-        OpenWQindex_s = soil_index_openwq
-        iz_s          = iLayer
-        mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(iLayer+nSnow) * hru_area_m2 * mLayerDepth_summa_m(iLayer+nSnow)
-        wmass_source              = mLayerVolFracWat_summa_m3
-        ! *Recipient*:
-        ! lost from system
-        OpenWQindex_r = -1
-        iz_r          = -1
-        mLayerTranspire_summa_m3 = mLayerTranspire_summa_m_s(iLayer) * hru_area_m2 * data_step
-        ! *Flux*
-        wflux_s2r = mLayerTranspire_summa_m3
-        ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                       &
-          simtime,                                      &
-          OpenWQindex_s, hru_index, iy_s, iz_s,         &
-          OpenWQindex_r, hru_index, iy_r, iz_r,         &
-          wflux_s2r,                                    &
-          wmass_source)
-      end do
-
-      ! ====================================================
-      ! 4.5 soil internal fluxes
-      ! ====================================================
-      do iLayer = 1, nSoil - 1 ! last layer of soil becomes different fluxes
-        ! *Source*:
-        ! soil layer iLayer
-        OpenWQindex_s = soil_index_openwq
-        iz_s          = iLayer
-        mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(iLayer+nSnow) * hru_area_m2 * mLayerDepth_summa_m(iLayer+nSnow)
-        wmass_source              = mLayerVolFracWat_summa_m3
-        ! *Recipient*:
-        ! soi layer iLayer+1
-        OpenWQindex_r = soil_index_openwq
-        iz_r          = iLayer + 1
-        ! *Flux*
-        ! flux between soil layer
-        iLayerLiqFluxSoil_summa_m3  = iLayerLiqFluxSoil_summa_m_s(iLayer) * hru_area_m2 * data_step
-        wflux_s2r                   = iLayerLiqFluxSoil_summa_m3
-        ! *Call openwq_run_space* if wflux_s2r not 0
-        err=openwq_obj%openwq_run_space(                       &
-          simtime,                                      &
-          OpenWQindex_s, hru_index, iy_s, iz_s,         &
-          OpenWQindex_r, hru_index, iy_r, iz_r,         &
-          wflux_s2r,                                    &
-          wmass_source)
-      end do
-
-      ! ====================================================
-      ! 4.6 soil Draianage into the aquifer
-      ! ====================================================
-      ! *Source*:
-      ! lower soil layer
-      OpenWQindex_s = soil_index_openwq
-      iz_s          = nSoil
-      mLayerVolFracWat_summa_m3 = mLayerVolFracWat_summa_frac(nSoil) * hru_area_m2 * mLayerDepth_summa_m(nSoil)
-      wmass_source              = mLayerVolFracWat_summa_m3
-      ! *Recipient*:
-      ! aquifer (has only 1 layer)
-      OpenWQindex_r = aquifer_index_openwq
-      iz_r          = 1
-      ! *Flux*
-      ! flux between soil layer (it's -1 because the first layer gets)
-      wflux_s2r = scalarSoilDrainage_summa_m3
-      ! *Call openwq_run_space* if wflux_s2r not 0
-      err=openwq_obj%openwq_run_space(                       &
-        simtime,                                      &
-        OpenWQindex_s, hru_index, iy_s, iz_s,         &
-        OpenWQindex_r, hru_index, iy_r, iz_r,         &
-        wflux_s2r,                                    &
-        wmass_source)
-
-      ! --------------------------------------------------------------------
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! 5 Aquifer Fluxes
-      ! %%%%%%%%%%%%%%%%%%%%%%%%%%%
-      ! --------------------------------------------------------------------
-
-      ! ====================================================
-      ! 5.1 Aquifer -> OUT (lost from model) (baseflow)
-      ! ====================================================
-      ! *Source*:
-      ! aquifer (only 1 z layer)
-      OpenWQindex_s = aquifer_index_openwq
-      iz_s          = 1
-      wmass_source = scalarAquiferStorage_summa_m3
-      ! *Recipient*:
-      ! lost from system
-      OpenWQindex_r = -1
-      iz_r          = -1
-      ! *Flux*
-      wflux_s2r = scalarAquiferBaseflow_summa_m3
-      ! *Call openwq_run_space* if wflux_s2r not 0
-      err=openwq_obj%openwq_run_space(                       &
-        simtime,                                      &
-        OpenWQindex_s, hru_index, iy_s, iz_s,         &
-        OpenWQindex_r, hru_index, iy_r, iz_r,         &
-        wflux_s2r,                                    &
-        wmass_source)
-
-      ! ====================================================
-      ! 5.2 Aquifer -> OUT (lost from model) (transpiration)
-      ! ====================================================
-      ! *Source*:
-      ! aquifer (only 1 z layer)
-      OpenWQindex_s = aquifer_index_openwq
-      iz_s          = 1
-      wmass_source = scalarAquiferStorage_summa_m3
-      ! *Recipient*:
-      ! lost from system
-      OpenWQindex_r = -1
-      iz_r          = -1
-      ! *Flux*
-      wflux_s2r = scalarAquiferTranspire_summa_m3
-      ! *Call openwq_run_space* if wflux_s2r not 0
-      err=openwq_obj%openwq_run_space(                         &
-        simtime,                                        &
-        OpenWQindex_s, hru_index, iy_s, iz_s,           &
-        OpenWQindex_r, hru_index, iy_r, iz_r,           &
-        wflux_s2r,                                      &
-        wmass_source)
-
-      end associate AquiferVars
-      end associate Snow_SoilVars
-      end associate RunoffVars
-      end associate CanopyVars
-      end associate PrecipVars
-      end associate DomainVars
-
-      end do ! end domain
-    end do
-  end do
-end associate summaVars
-end subroutine openwq_run_space_step
+  end subroutine openwq_run_space_step
 
 
-subroutine openwq_run_time_end(summa1_struc)
-  USE summa_type, only:summa1_type_dec      ! master summa data type
-  USE var_lookup, only:iLookTIME            ! named variables for time data structure
-  implicit none
+  ! ============================================================================
+  ! Solve the time step and write the output
+  ! ============================================================================
+  subroutine openwq_run_time_end(summa1_struc)
+    USE summa_type, only: summa1_type_dec
+    implicit none
+    type(summa1_type_dec), intent(in) :: summa1_struc
+    integer(i4b)                      :: simtime(5)
+    integer(i4b)                      :: err
 
-  ! Dummy Varialbes
-  type(summa1_type_dec), intent(in)  :: summa1_struc
+    call get_simtime(summa1_struc, simtime)
+    err = openwq_obj%openwq_run_time_end(simtime)
 
-  ! Local Variables
-  integer(i4b)                       :: simtime(5) ! 5 time values yy-mm-dd-hh-min
-  integer(i4b)                       :: err ! error control
-
-  summaVars: associate(&
-      timeStruct     => summa1_struc%timeStruct       &
-  )
-
-  simtime(1) = timeStruct%var(iLookTIME%iyyy)  ! Year
-  simtime(2) = timeStruct%var(iLookTIME%im)    ! month
-  simtime(3) = timeStruct%var(iLookTIME%id)    ! hour
-  simtime(4) = timeStruct%var(iLookTIME%ih)    ! day
-  simtime(5) = timeStruct%var(iLookTIME%imin)  ! minute
-
-  err=openwq_obj%openwq_run_time_end(simtime)           ! minute
-
-  end associate summaVars
-end subroutine
+  end subroutine openwq_run_time_end
 
 
+  ! ============================================================================
+  ! Report the water check of the coupling at the end of the run
+  ! ============================================================================
+  subroutine openwq_finalize()
+    implicit none
+    if(.not.riverCoupled) return
+    write(*,'(a)')          ' OpenWQ river coupling, water check over the run (m3):'
+    write(*,'(a,es12.4)')   '   runoff routed out of the GRUs by SUMMA   ', cumRoutedLand
+    write(*,'(a,es12.4,a,f7.2,a)') '   lateral inflow received by the reaches    ', cumLateral, &
+      '  (', 100._rkind*(cumLateral/max(cumRoutedLand,tiny(1._rkind)) - 1._rkind), ' % of the runoff)'
+    write(*,'(a,es12.4)')   '   outflow of the outlet reach(es)           ', cumOutflow
+    write(*,'(a,es12.4)')   '   reach storage at the end                  ', cumStorageEnd
+    write(*,'(a,es12.4,a,es9.2,a)') '   reach budget residual, summed |error|     ', cumResidual, &
+      '  (', cumResidual/max(cumLateral,tiny(1._rkind)), ' of the lateral inflow)'
+  end subroutine openwq_finalize
+
+
+  ! year, month, day, hour, minute of the current time step
+  subroutine get_simtime(summa1_struc, simtime)
+    USE summa_type, only: summa1_type_dec
+    USE var_lookup, only: iLookTIME
+    implicit none
+    type(summa1_type_dec), intent(in)  :: summa1_struc
+    integer(i4b),          intent(out) :: simtime(5)
+    simtime(1) = summa1_struc%timeStruct%var(iLookTIME%iyyy)
+    simtime(2) = summa1_struc%timeStruct%var(iLookTIME%im)
+    simtime(3) = summa1_struc%timeStruct%var(iLookTIME%id)
+    simtime(4) = summa1_struc%timeStruct%var(iLookTIME%ih)
+    simtime(5) = summa1_struc%timeStruct%var(iLookTIME%imin)
+  end subroutine get_simtime
 
 end module summa_openwq
