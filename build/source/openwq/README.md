@@ -4,11 +4,78 @@ This directory contains the SUMMA-side coupling to [OpenWQ](https://github.com/u
 
 | file | purpose |
 |------|---------|
-| `summa_openWQ.f90`            | passes SUMMA state volumes and inter-compartment fluxes to OpenWQ; walks the `gru -> hru -> dom -> var` spatial-domain data structures (every HRU is subdivided into upland / glacier / wetland domains, each an independent OpenWQ spatial column) |
-| `summa_openWQ_allocspace.f90` | allocates the start-of-timestep prognostic snapshot (`gru_hru_dom_doubleVec`) OpenWQ needs for flux mass balance |
+| `summa_openWQ.f90`            | passes the water volumes and the water fluxes of SUMMA, and of the internally coupled mizuRoute when it is active, to OpenWQ; walks the `gru -> hru -> dom` structures (every (HRU, domain) pair is one OpenWQ cell column) |
 | `openWQ.f90`, `openWQInterface.f90` | Fortran <-> C++ (`iso_c_binding`) wrapper around the OpenWQ class |
-| `OpenWQ_hydrolink.{cpp,h}`, `OpenWQ_interface.{cpp,h}` | C++ hydrolink that drives OpenWQ's coupler calls |
+| `OpenWQ_hydrolink.{cpp,h}`, `OpenWQ_interface.{cpp,h}` | C++ hydrolink that declares the compartments and drives OpenWQ's coupler calls |
 | `CMakeLists.txt` | builds the `openWQ` object library (OpenWQ C++ + hydrolink) and wires its dependencies |
+
+The river side of the coupling lives with the mizuRoute coupling code:
+`../mizuroute/wq_exchange.f90` builds the map from SUMMA GRUs to reaches, and
+`../mizuroute/network_routing.f90` records the water budget of every reach over the SUMMA time step.
+
+## What OpenWQ sees
+
+One OpenWQ instance carries the solutes of both models.
+
+| compartment | cells | content |
+|-------------|-------|---------|
+| `SCALARCANOPYWAT`       | (HRU, domain) columns x 1                | canopy storage |
+| `ILAYERVOLFRACWAT_SNOW` | columns x max snow layers                | snow layers |
+| `RUNOFF`                | columns x 1                              | liquid water reaching the surface in the step (rain plus melt) |
+| `ILAYERVOLFRACWAT_SOIL` | columns x max soil layers                | soil layers |
+| `SCALARAQUIFER`         | columns x 1                              | aquifer (a basin-wide aquifer uses the first column of the GRU) |
+| `RUNOFF_TO_STREAM`      | columns x 1                              | runoff held while SUMMA routes it within the GRU |
+| `ILAYERVOLFRACWAT_LAKE` | columns x max lake layers                | lake layers, only if a domain has lake layers |
+| `RIVER_NETWORK_REACHES` | reaches x 1                              | mizuRoute reaches, only when mizuRoute is coupled (`simulation.use_mizuroute = true`) |
+
+Cell ids are `<hruId>_z<layer>` (`<hruId>_d<domain>_z<layer>` when the HRU has several domains) and
+`<segId>` for the reaches.
+
+External water fluxes: `PRECIP`, and `GLACIER_ICE_MELT` when a domain has glacier ice.
+Flux-concentration exports: `scalarRunoffVol_m3`, `averageRoutedRunoff`, `scalarTotalRunoff`, and
+`Qlocal_out` (reach outflow) with mizuRoute.
+Dependencies for the kinetic expressions: `SM`, `Tair_K`, `Tsoil_K`, `SWrad_Wm2`, `cellArea_m2`, `T`.
+
+The header of `summa_openWQ.f90` lists the water fluxes that carry solute.
+
+### Land to river mapping and its checks
+
+Each GRU delivers its routed runoff (`averageRoutedRunoff`, the same value SUMMA hands to mizuRoute) to the
+reaches in proportion to the inflow each reach receives from that GRU per unit runoff. The map is built once at
+initialization by passing unit runoff through mizuRoute's own `remap_runoff` (if remapping is on) and `basin2reach`,
+so it follows whatever hydrofabric, remapping file and `hw_drain_point` the run uses. Each reach then mixes its
+start-of-step storage, upstream inflow, lateral inflow and any water-management injection, and passes the outflow
+(and any abstraction) on, using the volumes mizuRoute accumulated over its sub-steps. The coupler verifies this
+mapping on every run, independently of the case:
+
+| when | check | message |
+|------|-------|---------|
+| init | runoff elements that reach no river reach | `WARNING: water quality: N runoff element(s) deliver to no river reach` |
+| init | river-network area of each GRU vs its SUMMA area (tolerance 1%) | `WARNING: OpenWQ river coupling: the river-network area of N GRU(s) differs ...` |
+| init | several routing methods active (water quality follows the first) | `OpenWQ river coupling: several routing methods are active ...` |
+| end | runoff routed by SUMMA vs lateral inflow received by the reaches, outlet outflow, end storage, and the summed reach budget residual `start + upstream + lateral + injection - abstraction - outflow - end` | `OpenWQ river coupling, water check over the run (m3): ...` |
+
+The lateral inflow should equal the routed runoff (0.00 %) and the residual should be at round-off (1e-15 of the
+lateral inflow, verified on the Bow test with the kinematic wave, Muskingum-Cunge and diffusive wave methods
+and remapping, and on the Athabasca case with 69 GRUs delivering to 69 reaches without remapping).
+A residual far above that means mizuRoute moved water the coupler does not track (for example lake reaches with
+precipitation and evaporation, which are not handled).
+
+At initialization the coupler also writes `<RESULTS_FOLDERPATH>/openwq_compartments.json` (compartment names,
+indices and cell dimensions, plus the river and lake compartment indices): the calibration scripts read it to
+address land and river cells separately, since their cell indices overlap.
+
+Tested paths: one HRU per GRU with routing (Bow), 69 GRUs with routing (Athabasca), and two HRUs in one GRU with
+TOPMODEL lateral flow from the upslope HRU into the outlet HRU (`downHRUindex`): the solute follows the water into
+the downslope soil, only the outlet HRU feeds the stream pool, and the tracer closes to 1e-8 kg (Bow `work/multihru`
+and `work/multihru_noDown`).
+
+Known limits: snow cells follow the layer index, not the snow layer itself, when SUMMA splits or merges layers;
+solute moves one reach per time step; a reach shares the dependency values of the land column with the same
+index when there are more columns than one; water management is handled (injection = solute-free water,
+abstraction = solute leaving) but cannot be exercised through the internal coupling, whose TOML has no water
+management options; mizuRoute lake reaches are not handled; lake, wetland and glacier domains have no test case
+in the SUMMA tree and remain unverified.
 
 `openwq/` (the OpenWQ C++ source) and `_deps/` (locally-built third-party libraries) are **git-ignored build inputs** — they are recreated with the steps below, not committed. `build/cmake_build_openwq/` (the CMake build tree) is git-ignored for the same reason as `build/cmake_build/`.
 

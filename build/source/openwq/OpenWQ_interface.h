@@ -1,69 +1,110 @@
-/**
- * This is the C interface for SUMMA, these are the functions that are called 
- * by SUMMA and the iso bindings. 
- * These are only their definition and their actual implementation is in
- * OpenWQ_hydrolink.cpp 
- */
+// Copyright 2020, Diogo Costa (diogo.pinhodacosta@canada.ca)
+// This file is part of OpenWQ model.
+
+// This program, openWQ, is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+// C interface of the OpenWQ hydrolink (called from openWQ.f90 through iso_c_binding).
+// The arguments are described in OpenWQ_hydrolink.h.
+
+#ifndef OPENWQ_INTERFACE_H
+#define OPENWQ_INTERFACE_H
 
 #ifdef __cplusplus
-extern "C" { 
+extern "C" {
     class CLASSWQ_openwq;
     typedef CLASSWQ_openwq CLASSWQ_openwq;
-    #else
+#else
     typedef struct CLASSWQ_openwq CLASSWQ_openwq;
-    #endif
+#endif
 
-    // Create OpenWQ Object
     CLASSWQ_openwq* create_openwq();
 
-    // Delete OpenWQ Object
     void delete_openwq(CLASSWQ_openwq* openWQ);
 
-    // OpenWQ initalization method
     int openwq_decl(
-        CLASSWQ_openwq *openWQ, 
-        int hruCount,               // num HRU
-        int nCanopy_2openwq,      // num layers of canopy (fixed to 1)
-        int nSnow_2openwq,        // num layers of snow (fixed to max of 5 because it varies)
-        int nSoil_2openwq,        // num layers of snoil (variable)
-        int nRunoff_2openwq,      // num layers of runoff (fixed to 1)
-        int nAquifer_2openwq,     // num layers of aquifer (fixed to 1)
-        int nYdirec_2openwq);           // num of layers in y-dir (set to 1 because not used in summa)
+        CLASSWQ_openwq *openWQ,
+        int num_col,
+        int nCanopy_2openwq,
+        int nSnow_2openwq,
+        int nSoil_2openwq,
+        int nRunoff_2openwq,
+        int nAquifer_2openwq,
+        int nLake_2openwq,
+        int nYdirec_2openwq,
+        long long colId[],
+        int colDom[],
+        int has_glacier,
+        int num_reach,
+        long long reachId[]);
+
+    int openwq_set_reach_state(
+        CLASSWQ_openwq *openWQ,
+        int n_reach,
+        double reachVol_m3[],
+        double airTemp_K[],
+        double SWrad_Wm2[],
+        double area_m2[]);
 
     int openwq_run_time_start(
         CLASSWQ_openwq *openWQ,
-        bool last_hru_flag, 
-        int index_hru, 
-        int nSnow_2openwq, 
+        int index_col,
+        int nSnow_2openwq,
+        int nLake_2openwq,
         int nSoil_2openwq,
-        int simtime_summa[], 
-        double soilMoist_depVar[], 
-        double soilTemp_K_depVar[], 
-        double airTemp_K_depVar, 
-        double sweWatVol_stateVar[], 
-        double canopyWat, 
-        double soilWatVol_stateVar[], 
-        double aquiferStorage);
+        int simtime_summa[],
+        double soilMoist_depVar[],
+        double soilTemp_K_depVar[],
+        double airTemp_K_depVar,
+        double SWrad_Wm2_depVar,
+        double sweWatVol_stateVar[],
+        double lakeWatVol_stateVar[],
+        double canopyWat,
+        double soilWatVol_stateVar[],
+        double aquiferStorage,
+        double col_area_m2);
 
-    // OpenWQ run functions, this function decides which C++ code to call
     int openwq_run_space(
-        CLASSWQ_openwq *openWQ, 
-        int simtime_summa[], 
+        CLASSWQ_openwq *openWQ,
+        int simtime_summa[],
         int source, int ix_s, int iy_s, int iz_s,
-        int recipient, int ix_r, int iy_r, int iz_r, 
-        double wflux_s2r, double wmass_source);
+        int recipient, int ix_r, int iy_r, int iz_r,
+        double wflux_s2r, double wmass_source,
+        int out_to_stream);
 
     int openwq_run_space_in(
-        CLASSWQ_openwq *openWQ, 
+        CLASSWQ_openwq *openWQ,
         int simtime_summa[],
         char* source_EWF_name,
-        int recipient, int ix_r, int iy_r, int iz_r, 
+        int recipient, int ix_r, int iy_r, int iz_r,
         double wflux_s2r);
 
+    int openwq_set_watervol(
+        CLASSWQ_openwq *openWQ,
+        int icmp, int ix, int iy, int iz,
+        double vol_m3);
+
+    int openwq_set_fluxvol(
+        CLASSWQ_openwq *openWQ,
+        int iflux, int ix, int iy, int iz,
+        double flux_vol_m3);
+
     int openwq_run_time_end(
-        CLASSWQ_openwq *openWQ, 
+        CLASSWQ_openwq *openWQ,
         int simtime_summa[]);
 
-    #ifdef __cplusplus
+#ifdef __cplusplus
 }
 #endif
+
+#endif // OPENWQ_INTERFACE_H

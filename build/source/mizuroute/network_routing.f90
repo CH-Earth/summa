@@ -9,6 +9,7 @@ module network_routing_module
   use mizuroute_types, only: spatial_remap_data
 
   use var_lookup,      only: ixNTOPO            ! index of variables for the network topology
+  use public_var,      only: is_flux_wm, realMissing
 
   implicit none
 
@@ -42,7 +43,8 @@ contains
 
     ! locals
     integer(i4b) :: ix
-    integer(i4b) :: iSeg,jSeg
+    integer(i4b) :: iSeg,jSeg,kSeg
+    integer(i4b) :: iUps
     integer(i4b) :: n_seg
     real(dp)     :: T0,T1
     real(dp)     :: fracStep
@@ -96,6 +98,17 @@ contains
 
     fracStep = 1._dp / real(river_network%driver%time%n_sub, dp)
 
+    ! start the reach water budget of this host step (first routing method)
+    if (river_network%driver%wq%active) then
+      do iSeg = 1, n_seg
+        river_network%driver%wq%vol_start(iSeg) = river_network%core%flux(iSeg)%ROUTE(1)%REACH_VOL(1)
+      end do
+      river_network%driver%wq%vol_lateral  = 0._dp
+      river_network%driver%wq%vol_upstream = 0._dp
+      river_network%driver%wq%vol_outflow  = 0._dp
+      river_network%driver%wq%vol_wm       = 0._dp
+    end if
+
     ! * loop through routing methods
     do ix = 1, size(rch_routes)
    
@@ -130,6 +143,21 @@ contains
           ! aggregate streamflow per substep
           river_network%driver%method(ix)%streamflow(jSeg, sub_idx) = river_network%driver%method(ix)%streamflow(jSeg, sub_idx) + &
                                                                       river_network%core%flux(jSeg)%ROUTE(ix)%REACH_Q * fracStep
+
+          ! accumulate the reach water budget (upstream reaches are already routed for this substep)
+          if (ix == 1 .and. river_network%driver%wq%active) then
+            associate(wq => river_network%driver%wq, flux => river_network%core%flux, dt_sub => river_network%driver%time%dt_sub)
+              wq%vol_outflow(jSeg) = wq%vol_outflow(jSeg) + flux(jSeg)%ROUTE(ix)%REACH_Q * dt_sub
+              wq%vol_lateral(jSeg) = wq%vol_lateral(jSeg) + flux(jSeg)%BASIN_QR(1) * dt_sub
+              do iUps = 1, size(river_network%core%ntopo(jSeg)%UREACHI)
+                kSeg = river_network%core%ntopo(jSeg)%UREACHI(iUps)
+                wq%vol_upstream(jSeg) = wq%vol_upstream(jSeg) + flux(kSeg)%ROUTE(ix)%REACH_Q * dt_sub
+              end do
+              if (is_flux_wm .and. flux(jSeg)%REACH_WM_FLUX /= realMissing) &
+                wq%vol_wm(jSeg) = wq%vol_wm(jSeg) + flux(jSeg)%ROUTE(ix)%REACH_WM_FLUX_actual * dt_sub
+              wq%vol_end(jSeg) = flux(jSeg)%ROUTE(ix)%REACH_VOL(1)
+            end associate
+          end if
 
         end do  ! * loop through stream segments
 
