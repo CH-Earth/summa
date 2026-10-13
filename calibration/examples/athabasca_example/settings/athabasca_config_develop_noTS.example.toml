@@ -1,0 +1,46 @@
+# J() configuration for the Athabasca domain (Athabasca_sedi_3), NCAR/summa develop format
+# 69 HRUs = 69 GRUs = 69 river segments (one-to-one), outlet segment 222, no remapping.
+# Converted from settings/athabasca_config.toml (summa-spotpy build):
+#   - new [simulation] section: use_mizuroute (required, default false) and write_timeseries
+#   - [objective] renamed to [calibration]; 'transformation' renamed to 'obs_transform'
+#   - everything else (paths, periods, files, mizuRoute, hydrofabric) unchanged
+# Run period, forcing, parameter files etc. still come from fileManager.txt (-m), as before;
+# develop reads the legacy file manager first and the TOML on top of it.
+# Variant: write_timeseries = false
+
+[simulation]
+use_mizuroute    = true
+write_timeseries = false    # false = no SUMMA/mizuRoute time-series files during calibration
+
+[observations]
+obs_path      = "<WORK_ROOT>/summa-spotpy/my_work_athabasca/observations/"
+obs_file      = "Athabasca_daily_flow_observations_periodend.nc"   # period-ending time stamps (see time_align.f90)
+vname_obsflow = "q_obs"
+
+[calibration]
+metric        = "kge"
+obs_transform = "none"
+start_date    = "2016-01-01"   # calibration period (spin-up 2014-09-01 to 2015-12-31)
+end_date      = "2019-12-31"   # evaluation period: 2020-01-01 to 2024-12-31
+
+[mizuRoute]
+namelist_path = "<WORK_ROOT>/summa-spotpy/my_work_athabasca/settings/mizuRoute/"
+namelist_file = "param.nml.default"
+dt            = 3600
+methods       = "3"            # KW
+write_qbasin  = false
+write_Qreach  = false
+
+[hydrofabric]
+hfabric_path      = "<WORK_ROOT>/summa-spotpy/my_work_athabasca/settings/mizuRoute/"
+hfabric_file      = "topology.nc"
+dname_hru         = "hru"
+dname_seg         = "seg"
+varname_HRUid     = "hruId"
+varname_segId     = "segId"
+varname_hruSegId  = "hruToSegId"
+varname_downSegId = "downSegId"
+varname_area      = "area"
+varname_slope     = "slope"
+varname_length    = "length"
+seg_outlet        = 222        # outlet reach; KGE is scored here
