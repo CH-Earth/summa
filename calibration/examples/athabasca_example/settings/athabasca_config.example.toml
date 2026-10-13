@@ -1,0 +1,38 @@
+# J() configuration for the Athabasca domain (Athabasca_sedi_3, semi-distributed)
+# 69 HRUs = 69 GRUs = 69 river segments (one-to-one), outlet segment 222, no remapping.
+# Adapted from my_work_ross/settings/ross_config.toml
+
+[observations]
+obs_path      = "<WORK_ROOT>/summa-spotpy/my_work_athabasca/observations/"
+obs_file      = "Athabasca_daily_flow_observations_periodend.nc"   # period-ending timestamps (see time_align.f90)
+vname_obsflow = "q_obs"
+
+[objective]
+metric         = "kge"
+transformation = "none"
+start_date = "2016-01-01"   # calibration period (spin-up 2014-09-01 to 2015-12-31)
+end_date   = "2019-12-31"   # evaluation period: 2020-01-01 to 2024-12-31
+
+[mizuRoute]
+namelist_path = "<WORK_ROOT>/summa-spotpy/my_work_athabasca/settings/mizuRoute/"
+namelist_file = "param.nml.default"
+dt            = 3600
+methods       = "3"         # KW. SYMFLUENCE Athabasca uses IRF (route_opt 1), which coupled J() does not support
+write_qbasin  = false
+write_Qreach  = true
+
+[hydrofabric]
+hfabric_path      = "<WORK_ROOT>/summa-spotpy/my_work_athabasca/settings/mizuRoute/"
+hfabric_file      = "topology.nc"
+dname_hru         = "hru"
+dname_seg         = "seg"
+varname_HRUid     = "hruId"
+varname_segId     = "segId"
+varname_hruSegId  = "hruToSegId"
+varname_downSegId = "downSegId"
+varname_area      = "area"
+varname_slope     = "slope"
+varname_length    = "length"
+seg_outlet        = 222     # outlet reach (downSegId = -9999 in topology.nc); KGE is scored here
+
+# No [remapping] section: each HRU drains to the segment with the same ID (hruToSegId == hruId).

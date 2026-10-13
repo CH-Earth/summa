@@ -1,0 +1,16 @@
+name,default,low,high
+k_soil,7.5e-06,1e-08,0.01
+theta_sat,0.45,0.35,0.65
+aquiferBaseflowExp,2.0,1.0,5.0
+aquiferBaseflowRate,1e-07,1e-09,1e-05
+qSurfScale,50.0,1.0,100.0
+summerLAI,3.0,0.01,10.0
+frozenPrecipMultip,1.0,0.5,5.0
+Fcapil,0.06,0.005,0.2
+tempCritRain,273.16,272.16,274.16
+heightCanopyTop,20.0,0.05,100.0
+heightCanopyBottom,2.0,0.0,5.0
+windReductionParam,0.28,0.25,1.0
+vGn_n,1.5,1.2,4.0
+routingGammaScale,1000.0,1.0,100000.0
+routingGammaShape,2.5,2.0,5.0
