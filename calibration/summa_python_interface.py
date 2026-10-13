@@ -20,8 +20,11 @@ PARAM_NAMES = ["k_soil", "theta_sat", "aquiferBaseflowExp",
                "windReductionParam", "vGn_n", "routingGammaScale", "routingGammaShape"]
 N_PARAMS = len(PARAM_NAMES)
 
+import os
 # Adjust extension per platform: .dylib (mac), .so (linux), .dll (windows)
-LIB_PATH = Path(__file__).parent / "libsumma.dylib"
+# SUMMA_LIB (optional) selects another build, e.g. the NCAR/summa develop port:
+#   export SUMMA_LIB=/path/to/summa-develop/build/cmake_build/libsumma.so
+LIB_PATH = Path(os.environ.get("SUMMA_LIB", Path(__file__).parent / "libsumma.dylib"))
 
 # Repo root, so master/config paths work regardless of cwd
 REPO_ROOT = Path(__file__).parent.parent
