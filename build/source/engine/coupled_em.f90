@@ -210,7 +210,8 @@ subroutine coupled_em(&
   logical(lgt)                         :: modifiedLayers           ! flag to denote that snow layers were modified
   logical(lgt)                         :: modifiedVegState         ! flag to denote that vegetation states were modified
   integer(i4b)                         :: maxSnowIceLayers         ! maximum number of snow/firn/ice layers
-  integer(i4b)                         :: nLayersRoots             ! number of soil layers that contain roots
+  integer(i4b)                         :: nRoots                   ! number of soil layers that contain roots
+  real(rkind),allocatable              :: rootDepthLayer(:)        ! root-zone thickness of each root layer (m)
   real(rkind)                          :: exposedVAI               ! exposed vegetation area index
   real(rkind)                          :: dCanopyWetFraction_dWat  ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
   real(rkind)                          :: dCanopyWetFraction_dT    ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
@@ -473,9 +474,9 @@ subroutine coupled_em(&
 
     ! compute the number of layers with roots or layers that take infiltration
     if(nSoil>0)then
-      nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake:(nSnow+nLake+nSoil-1)) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
-      if(nGlce>0) nLayersRoots = nSoil ! if glacier ice exists, then all soil layers are considered to have roots
-      if(nLayersRoots==0)then
+      nRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow+nLake:(nSnow+nLake+nSoil-1)) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
+      if(nGlce>0) nRoots = nSoil ! if glacier ice exists, then all soil layers are considered to have roots
+      if(nRoots==0)then
         message=trim(message)//'no roots within the soil profile'
         err=20; return
       end if
@@ -492,9 +493,10 @@ subroutine coupled_em(&
 
     ! compute the temperature of the root zone, only used as a diagnostic variable, not used in the model calculations
     if(nSoil>0)then
-      diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots) &
-                                                               * prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots)) &
-                                                          / sum(prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots))
+      ! root-zone layer thickness, the deepest root layer truncated at the rooting depth
+      rootDepthLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nRoots)
+      rootDepthLayer(nRoots) = min(rootDepthLayer(nRoots), mpar_data%var(iLookPARAM%rootingDepth)%dat(1) - sum(rootDepthLayer(1:nRoots-1)))
+      diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1:nSnow+nLake+nRoots)*rootDepthLayer) / sum(rootDepthLayer)
     else
       diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = realMissing
     endif
