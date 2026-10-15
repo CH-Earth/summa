@@ -490,10 +490,11 @@ subroutine coupled_em(&
     ! *** compute phenology...
     ! ------------------------
 
-    ! compute the temperature of the root zone: used in vegetation phenology
+    ! compute the temperature of the root zone, only used as a diagnostic variable, not used in the model calculations
     if(nSoil>0)then
-      diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots)) &
-                                                                      / real(nLayersRoots, kind(rkind))
+      diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots) &
+                                                               * prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots)) &
+                                                          / sum(prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+nLake+1:nSnow+nLake+nLayersRoots))
     else
       diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = realMissing
     endif
