@@ -13,10 +13,22 @@
 set -euo pipefail
 
 # ----------------------------------------------------------------------
+# Command-line arguments
+# ----------------------------------------------------------------------
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: sbatch $0 <run_label>"
+  exit 1
+fi
+
+RUN_LABEL="$1"
+
+# ----------------------------------------------------------------------
 # Experiment configuration
 # ----------------------------------------------------------------------
 
-MANIFEST="$HOME/data/century/MM/exp01/settings/manifest_century.toml"
+RUN_LABEL="$1"
+MANIFEST="$HOME/data/century/MM/$RUN_LABEL/settings/manifest_century.toml"
 
 # ----------------------------------------------------------------------
 # Runtime environment
@@ -56,4 +68,4 @@ srun --mpi=pmix \
   "$SLURM_TMPDIR/models/summa/bin/summa_sundials_mizuroute_opt.exe" \
   --manifest "$MANIFEST" \
   --home "$SLURM_TMPDIR" \
-  --persistent-output "$SCRATCH/calibration/$SLURM_JOB_ID"
+  --persistent-output "$SCRATCH/calibration/${RUN_LABEL}/${SLURM_JOB_ID}"

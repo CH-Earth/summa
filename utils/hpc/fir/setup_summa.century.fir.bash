@@ -18,21 +18,26 @@ cp -a "$HOME/models/summa/bin" \
 # Refresh shared inputs
 # ----------------------------------------------------------------------
 
-mkdir -p "$SLURM_TMPDIR/data/century/MM/exp01"
+for EXP_DIR in "$HOME"/data/century/MM/exp*; do
 
-echo "[$(hostname)] Refreshing common inputs..."
+  [ -d "$EXP_DIR" ] || continue
 
-rm -rf "$SLURM_TMPDIR/data/century/MM/exp01/common_inputs"
+  EXP=$(basename "$EXP_DIR")
+  SCRATCH_DIR="$SLURM_TMPDIR/data/century/MM/$EXP"
 
-cp -a "$HOME/data/century/MM/exp01/common_inputs" \
-      "$SLURM_TMPDIR/data/century/MM/exp01/"
+  mkdir -p "$SCRATCH_DIR"
 
-echo "[$(hostname)] Refreshing configuration files..."
+  echo "[$(hostname)] Refreshing common inputs for $EXP..."
 
-rm -rf "$SLURM_TMPDIR/data/century/MM/exp01/settings"
+  rm -rf "$SCRATCH_DIR/common_inputs"
+  cp -a "$EXP_DIR/common_inputs" "$SCRATCH_DIR/"
 
-cp -a "$HOME/data/century/MM/exp01/settings" \
-      "$SLURM_TMPDIR/data/century/MM/exp01/"
+  echo "[$(hostname)] Refreshing configuration files for $EXP..."
+
+  rm -rf "$SCRATCH_DIR/settings"
+  cp -a "$EXP_DIR/settings" "$SCRATCH_DIR/"
+
+done
 
 # ----------------------------------------------------------------------
 # Stage model inputs
