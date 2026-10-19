@@ -47,6 +47,7 @@ USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
 USE multiconst,only:&
@@ -593,7 +594,7 @@ contains
 
     ! check convergence
     ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
-    converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
+    converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
     if (converged) return
 
     ! early return if not computing the line search
@@ -890,7 +891,7 @@ contains
    if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
 
    ! check convergence
-   converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,resVecNew,xInc,stateVecNew,out_SS4HG)
+   converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,resVecNew,xInc,stateVecNew,out_SS4HG)
 
   end associate
 
@@ -1129,7 +1130,7 @@ contains
  ! *********************************************************************************************************
  ! module function checkConv: check convergence based on the residual vector
  ! *********************************************************************************************************
- function checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,rVec,xInc,xVec,out_SS4HG)
+ function checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,rVec,xInc,xVec,out_SS4HG)
   implicit none
   ! result
   logical(lgt)                 :: checkConv                   ! flag to denote convergence
@@ -1140,6 +1141,7 @@ contains
   type(var_dlength),intent(in) :: mpar_data                   ! model parameters
   type(var_ilength),intent(in) :: indx_data                   ! indices defining model states and layers
   type(var_dlength),intent(in) :: prog_data                   ! prognostic variables for a local HRU
+  type(var_dlength),intent(in) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(in)       :: rVec(:)                     ! residual vector (mixed units)
   real(rkind),intent(in)       :: xInc(:)                     ! iteration increment (mixed units)
   real(rkind),intent(in)       :: xVec(:)                     ! state vector (mixed units)
@@ -1151,6 +1153,7 @@ contains
   real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
   real(rkind),parameter        :: saturatedLoosen=1.e3_rkind  ! scaling factor for saturated glacier debris or lake soil 
   real(rkind)                  :: loosen                      ! scaling factor for loosening convergence criteria
+  real(rkind)                  :: thetaTol                    ! water content change below which a matric head increment is negligible (-)
   real(rkind)                  :: soilWatBalErr               ! error in the soil water balance
   real(rkind)                  :: canopy_max                  ! absolute value of the residual in canopy water (kg m-2)
   real(rkind),dimension(1)     :: energy_max                  ! maximum absolute value of the energy residual (J m-3)
@@ -1180,6 +1183,7 @@ contains
    absConvTol_energy       => mpar_data%var(iLookPARAM%absConvTol_energy)%dat(1),&  ! intent(in): [dp] absolute convergence tolerance for energy             (J m-3)
    ! layer depth
    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat          ,&  ! intent(in): [dp(:)] depth of each layer in the layer domains (m)
+   mLayerdThetadPsi        => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat  ,&  ! intent(in): [dp(:)] derivative of liquid water content w.r.t. matric head (m-1)
    ! model indices
    ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)          ,&  ! intent(in): [i4b]    index of aquifer storage state variable
    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy air space energy state variable
@@ -1232,7 +1236,10 @@ contains
    if (size(ixMatOnly)>0) then
     psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
     matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
-    matricConv = (matric_max(1) < absConvTol_matric)  ! NOTE: based on iteration increment
+    ! NOTE: based on iteration increment; the scalar solution waives it where the residual and water content change are below the liquid tolerance
+    thetaTol   = merge(absConvTol_liquid*scalarTighten, 0._rkind, scalarSolution)
+    matricConv = all( abs(xInc(ixMatOnly)/psiScale) < absConvTol_matric .or. &
+                     (abs(rVec(ixMatOnly)) < thetaTol .and. abs(mLayerdThetadPsi(ixSoilMat)*xInc(ixMatOnly)) < thetaTol) )
    else
     matric_max = realMissing
     matricConv = .true.
