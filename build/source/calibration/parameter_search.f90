@@ -308,7 +308,6 @@ contains
     integer(i4b) :: iConstraint
     integer(i4b) :: ixParam
     integer(i4b) :: nOrdered
-    integer(i4b), allocatable :: constraint_owner(:)
     real(rkind) :: lower_feasible
     real(rkind) :: previous_value
 
@@ -320,12 +319,11 @@ contains
       allocate(search%ordered(0))
       return
     endif
-    allocate(search%ordered(size(spec%ordered)), constraint_owner(size(spec%params)), stat=err)
+    allocate(search%ordered(size(spec%ordered)), stat=err)
     if(err/=0)then
       message=trim(message)//'unable to allocate ordered parameter constraints'
       return
     endif
-    constraint_owner = 0
     do iConstraint=1,size(spec%ordered)
       if(.not.allocated(spec%ordered(iConstraint)%param_index))then
         write(message,'(A,I0)') trim(message)// &
@@ -370,13 +368,6 @@ contains
           endif
         enddo
 
-        ! for now, parameters cannot occur in multiple ordered constraints
-        if(constraint_owner(ixParam) > 0)then
-          message=trim(message)//'parameter occurs in more than one ordered constraint: '// &
-                  trim(search%params(ixParam)%name)
-          err=20; return
-        endif
-        constraint_owner(ixParam) = iConstraint
       enddo
 
       ! ---------------------------------------------------------------------------------------------
