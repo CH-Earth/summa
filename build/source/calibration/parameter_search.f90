@@ -310,6 +310,8 @@ contains
     integer(i4b) :: nOrdered
     real(rkind) :: lower_feasible
     real(rkind) :: previous_value
+    real(rkind) :: range_lower
+    real(rkind) :: range_upper
 
     err = 0
     message = 'initialize_constraints/'
@@ -373,10 +375,24 @@ contains
       ! ---------------------------------------------------------------------------------------------
       ! Compute absolute minimum gap in physical parameter space.
       ! ---------------------------------------------------------------------------------------------
+
+      ! Compute the minimum gap using calibration bounds for sampled
+      ! endpoints and initialized values for fixed endpoints.
+
+      ! lower endpoint: initialized value if fixed, lower bound if sampled
+      ixParam=search%ordered(iConstraint)%param_index(1)
+      range_lower=search%params(ixParam)%lower
+      if(.not.search%params(ixParam)%sampled) range_lower=search%params(ixParam)%trial_value
+      
+      ! upper endpoint: initialized value if fixed, upper bound if sampled
+      ixParam=search%ordered(iConstraint)%param_index(nOrdered)
+      range_upper=search%params(ixParam)%upper
+      if(.not.search%params(ixParam)%sampled) range_upper=search%params(ixParam)%trial_value
+      
+      ! minimum separation between adjacent parameters
       search%ordered(iConstraint)%gap = &
-        spec%ordered(iConstraint)%gap_fraction * &
-        ( search%params(search%ordered(iConstraint)%param_index(nOrdered))%upper - &
-          search%params(search%ordered(iConstraint)%param_index(1))%lower )
+        spec%ordered(iConstraint)%gap_fraction * (range_upper-range_lower)
+      
       if(search%ordered(iConstraint)%gap < 0._rkind)then
         write(message,'(A,I0)') trim(message)// &
           'invalid total parameter range in ordered constraint = ',iConstraint
