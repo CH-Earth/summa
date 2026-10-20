@@ -29,6 +29,8 @@ module summa_parameter_sampling
 
   ! data types
   USE nr_type,    only: i4b,rkind,lgt
+  USE data_types, only: var_d
+  USE data_types, only: var_dlength
   USE summa_type, only: config_info
   USE summa_type, only: parallel_context_type
 
@@ -49,7 +51,7 @@ module summa_parameter_sampling
   USE parameter_search, only: parameter_spec
   USE parameter_search, only: parameter_search_info
   USE parameter_search, only: search_state_type
-  
+
   implicit none
   private
 
@@ -79,6 +81,7 @@ contains
   ! state used by the parameter-search algorithm.
   ! **************************************************************************************************
   subroutine initialize_parameter_evaluation(config,instance_parallel,     &
+                                             mpar_init,bpar_init,          &
                                              param_spec,search,param_name, &
                                              search_state,sample_best,     &
                                              err,message)
@@ -87,6 +90,8 @@ contains
     implicit none
     type(config_info),           intent(in)  :: config             ! SUMMA configuration information
     type(parallel_context_type), intent(in)  :: instance_parallel  ! MPI context for model-instance parallelism
+    type(var_dlength),           intent(in)  :: mpar_init          ! initialized HRU parameters
+    type(var_d),                 intent(in)  :: bpar_init          ! initialized basin parameters
     type(parameter_spec),        intent(out) :: param_spec         ! complete SUMMA parameter specification
     type(parameter_search_info), intent(out) :: search             ! sampled parameter search information
     character(len=64), allocatable, intent(out) :: param_name(:)   ! complete SUMMA parameter names
@@ -98,24 +103,24 @@ contains
     integer(i4b)              :: nseed                             ! random-number seed vector size
     integer(i4b), allocatable :: seed(:)                           ! random-number seed vector
     character(len=256) :: cmessage                                 ! message returned by called routines
-  
+
     err=0
     message='initialize_parameter_evaluation/'
-  
+
     ! build the SUMMA parameter specification from the calibration configuration
-    call get_summa_parameter_spec(config,param_spec,err,cmessage)
+    call get_summa_parameter_spec(config, mpar_init, bpar_init, param_spec, err, cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
     endif
-  
+
     ! construct and validate the model-agnostic parameter-search information
     call initialize_parameter_search(param_spec,search,err,cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
     endif
- 
+
     ! construct the complete invariant SUMMA parameter-name vector
     allocate(param_name(size(param_spec%params)),stat=err)
     if(err/=0)then
@@ -140,7 +145,7 @@ contains
       ! initialize parameter-search state on the dispatcher
       search_state%elite_fitness=-huge(1._rkind)
       sample_best=0
-    
+
     endif
 
   end subroutine initialize_parameter_evaluation
@@ -313,7 +318,7 @@ contains
             ', objective=',search_state%elite_fitness
 
         endif
-        
+
         ! write parameter set, objective function, and timing
         call write_calibration_output(ncid_calib,                   &
                                       sample_id, worker,            &
@@ -409,9 +414,9 @@ contains
     USE parameter_search, only: search_state_type
     USE parameter_search, only: generate_search_sample
     USE summa_parameter_spec, only: build_summa_parameter_overrides
-   
+
     implicit none
-   
+
     type(parameter_spec),        intent(in)  :: param_spec
     type(parameter_search_info), intent(in)  :: search
     type(search_state_type),     intent(in)  :: search_state
@@ -421,12 +426,12 @@ contains
     real(rkind),                 intent(out) :: param_override(:)
     integer(i4b),                intent(out) :: err
     character(*),                intent(out) :: message
-   
+
     character(len=256) :: cmessage
-   
+
     err=0
     message='generate_parameter_sample/'
-   
+
     ! generate the next sampled parameter vector
     call generate_search_sample(sampling_method, &
                                 search,          &
@@ -439,7 +444,7 @@ contains
       message=trim(message)//trim(cmessage)
       return
     endif
-   
+
     ! construct the complete SUMMA parameter override vector
     call build_summa_parameter_overrides(param_spec,         &
                                          search%param_names, &
@@ -450,7 +455,7 @@ contains
       message=trim(message)//trim(cmessage)
       return
     endif
-   
+
   end subroutine generate_parameter_sample
 
   ! --------------------------------------------------------------------------------------------------
@@ -515,14 +520,14 @@ contains
       case (tag_stop)
         stop_worker=.true.
         return
-    
+
       case (tag_work)
         call MPI_Recv(param_value,size(param_value),MPI_DOUBLE_PRECISION, 0,tag_work,comm,status,mpi_err)
-    
+
       case default
         ! all message tags are defined internally, so an unknown tag is fatal
         call abort_mpi(rank,'unknown MPI tag')
-    
+
     end select
 
   end subroutine receive_sample
