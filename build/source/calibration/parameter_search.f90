@@ -181,12 +181,17 @@ contains
         err=20; return
       endif
 
-      ! trial values of non-sampled parameters must lie within their physical bounds
+      ! Non-sampled parameters retain their initialized model values.
+      ! Warn if these values fall outside the nominal parameter bounds.
       if(.not.spec%params(i)%sampled)then
         if(spec%params(i)%trial_value < spec%params(i)%lower .or. &
            spec%params(i)%trial_value > spec%params(i)%upper)then
-          message=trim(message)//'trial value outside bounds for parameter: '// trim(spec%params(i)%name)
-          err=20; return
+          write(*,'(A,A,A,ES12.5,A,ES12.5,A,ES12.5)') &
+            'WARNING: initialized value outside nominal bounds for parameter ', &
+            trim(spec%params(i)%name), &
+            ', value = ',spec%params(i)%trial_value, &
+            ', lower = ',spec%params(i)%lower, &
+            ', upper = ',spec%params(i)%upper
         endif
       endif
 
@@ -308,10 +313,16 @@ contains
     integer(i4b) :: iConstraint
     integer(i4b) :: ixParam
     integer(i4b) :: nOrdered
-    real(rkind) :: lower_feasible
-    real(rkind) :: previous_value
-    real(rkind) :: range_lower
-    real(rkind) :: range_upper
+    integer(i4b) :: iPrev
+    integer(i4b) :: iSearch
+    integer(i4b) :: iPass
+    real(rkind)  :: new_bound
+    real(rkind), allocatable :: feasible_lower(:)
+    real(rkind), allocatable :: feasible_upper(:)
+    logical(lgt) :: changed
+    real(rkind)  :: range_lower
+    real(rkind)  :: range_upper
+    character(len=256) :: cmessage
 
     err = 0
     message = 'initialize_constraints/'
@@ -399,53 +410,103 @@ contains
         err=20; return
       endif
 
-      ! ---------------------------------------------------------------------------------------------
-      ! Check that at least one feasible parameter combination exists.
-      !
-      ! Sampled parameters use their smallest feasible physical value. Non-sampled parameters use
-      ! their scalar trial value.
-      ! ---------------------------------------------------------------------------------------------
-      do i=1,nOrdered
-        ixParam = search%ordered(iConstraint)%param_index(i)
-        if(i == 1)then
-          lower_feasible = search%params(ixParam)%lower
+    enddo
 
-        else
-          lower_feasible = max(search%params(ixParam)%lower, previous_value + search%ordered(iConstraint)%gap)
-        endif
-        if(search%params(ixParam)%sampled)then
-          if(lower_feasible > search%params(ixParam)%upper)then
-            write(message,'(A,A,A,ES12.5,A,ES12.5,A,A,A,ES12.5)') trim(message)// &
-              'ordered constraint is infeasible near parameter: ', &
-              trim(search%params(ixParam)%name), &
-              ', minimum feasible value = ',lower_feasible, &
-              ', upper bound = ',search%params(ixParam)%upper, &
-              '; must exceed ', &
-              trim(search%params(search%ordered(iConstraint)%param_index(i-1))%name), &
-              ' by at least ',search%ordered(iConstraint)%gap
-            err=20
-            return
+    ! -----------------------------------------------------------------------------------------------
+    ! Initialize feasible physical bounds.
+    ! Fixed parameters have zero-width intervals at their initialized values.
+    ! -----------------------------------------------------------------------------------------------
+    allocate(feasible_lower(size(search%params)),feasible_upper(size(search%params)),stat=err)
+    if(err/=0)then
+      message=trim(message)//'unable to allocate feasible parameter bounds'
+      return
+    endif
+
+    do i=1,size(search%params)
+      if(search%params(i)%sampled)then
+        feasible_lower(i)=search%params(i)%lower
+        feasible_upper(i)=search%params(i)%upper
+      else
+        feasible_lower(i)=search%params(i)%trial_value
+        feasible_upper(i)=search%params(i)%trial_value
+      endif
+    enddo
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Propagate ordered constraints through the feasible bounds.
+    ! Iterate to account for parameters shared by multiple constraints.
+    ! -----------------------------------------------------------------------------------------------
+    do iPass=1,size(search%params)+1
+      changed=.false.
+
+      do iConstraint=1,size(search%ordered)
+        do j=2,size(search%ordered(iConstraint)%param_index)
+
+          iPrev=search%ordered(iConstraint)%param_index(j-1)
+          ixParam=search%ordered(iConstraint)%param_index(j)
+
+          ! Propagate lower bound forward
+          new_bound=feasible_lower(iPrev)+search%ordered(iConstraint)%gap
+          if(feasible_lower(ixParam) < new_bound)then
+            feasible_lower(ixParam)=new_bound
+            changed=.true.
           endif
-          previous_value=lower_feasible
 
-        else
-         if(search%params(ixParam)%trial_value < lower_feasible)then
-           write(message,'(A,A,A,ES12.5,A,A,A,ES12.5,A,ES12.5,A,ES12.5,A,ES12.5)') trim(message)// &
-             'fixed parameter violates ordered constraint: ', &
-             trim(search%params(ixParam)%name), &
-             ', trial value = ',search%params(ixParam)%trial_value, &
-             '; previous parameter = ', &
-             trim(search%params(search%ordered(iConstraint)%param_index(i-1))%name), &
-             ', previous value = ',previous_value, &
-             ', gap = ',search%ordered(iConstraint)%gap, &
-             ', parameter lower bound = ',search%params(ixParam)%lower, &
-             ', minimum feasible value = ',lower_feasible
-           err=20
-           return
-         endif
-         previous_value=search%params(ixParam)%trial_value
+          ! Propagate upper bound backward
+          new_bound=feasible_upper(ixParam)-search%ordered(iConstraint)%gap
+          if(feasible_upper(iPrev) > new_bound)then
+            feasible_upper(iPrev)=new_bound
+            changed=.true.
+          endif
+
+        enddo
+      enddo
+
+      ! Check feasibility
+      do i=1,size(search%params)
+        if(feasible_lower(i) > feasible_upper(i))then
+          write(message,'(A,A,A,ES12.5,A,ES12.5)') trim(message)// &
+            'infeasible ordered constraints for parameter: ',trim(search%params(i)%name), &
+            ', lower = ',feasible_lower(i),', upper = ',feasible_upper(i)
+          err=20; return
         endif
       enddo
+
+      if(.not.changed) exit
+    enddo
+
+    if(changed)then
+      message=trim(message)//'ordered constraint propagation did not converge'
+      err=20; return
+    endif
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Update the sampled parameter bounds in physical and transformed search space.
+    ! -----------------------------------------------------------------------------------------------
+    do i=1,size(search%params)
+      iSearch=search%search_index(i)
+      if(iSearch == 0) cycle
+
+      search%lower(iSearch)=feasible_lower(i)
+      search%upper(iSearch)=feasible_upper(i)
+
+      call transform_parameter(search%lower(iSearch),           &
+                               search%transformation(iSearch), &
+                               search%search_lower(iSearch),   &
+                               err,cmessage)
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        return
+      endif
+
+      call transform_parameter(search%upper(iSearch),           &
+                               search%transformation(iSearch), &
+                               search%search_upper(iSearch),   &
+                               err,cmessage)
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        return
+      endif
     enddo
 
   end subroutine initialize_constraints
