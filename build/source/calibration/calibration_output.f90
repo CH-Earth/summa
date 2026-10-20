@@ -65,14 +65,13 @@ contains
     integer(i4b) :: varid_worker_rank
     integer(i4b) :: varid_start_time,varid_end_time
     integer(i4b), dimension(2) :: time_dims
+    character(len=:), allocatable :: constraint_names
+    character(len=64) :: attribute_name
     integer(i4b) :: iParam
     integer(i4b) :: iConstraint
     integer(i4b) :: iOrdered
     integer(i4b) :: sampled
-    integer(i4b) :: ordered_set
-    integer(i4b) :: ordered_index
     logical(lgt) :: file_open
-    logical(lgt) :: constrained
     integer(i4b) :: ierr_close
 
     ierr=0
@@ -136,31 +135,6 @@ contains
         ierr=nf90_put_att(ncid,varid_param,'trial_value',spec%params(iParam)%trial_value)
         if(ierr/=nf90_noerr) exit netcdf_block
 
-        ! ---------------------------------------------------------------------------------------------
-        ! Ordered-constraint metadata
-        ! ---------------------------------------------------------------------------------------------
-        constrained=.false.
-        ordered_set=0
-        ordered_index=0
-        do iConstraint=1,size(spec%ordered)
-          do iOrdered=1,size(spec%ordered(iConstraint)%param_index)
-            if(spec%ordered(iConstraint)%param_index(iOrdered) == iParam)then
-              constrained=.true.
-              ordered_set=iConstraint
-              ordered_index=iOrdered
-              exit
-            endif
-          enddo
-          if(constrained) exit
-        enddo
-        if(constrained)then
-          ierr=nf90_put_att(ncid,varid_param,'ordered_set',ordered_set)
-          if(ierr/=nf90_noerr) exit netcdf_block
-          ierr=nf90_put_att(ncid,varid_param,'ordered_index',ordered_index)
-          if(ierr/=nf90_noerr) exit netcdf_block
-          ierr=nf90_put_att(ncid,varid_param,'gap_fraction', spec%ordered(ordered_set)%gap_fraction)
-          if(ierr/=nf90_noerr) exit netcdf_block
-        endif
       enddo
 
       ! -----------------------------------------------------------------------------------------------
@@ -222,6 +196,32 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','physical')
       if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! ordered parameter constraints
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'n_ordered_constraints',size(spec%ordered))
+      if(ierr/=nf90_noerr) exit netcdf_block
+      
+      do iConstraint=1,size(spec%ordered)
+      
+        ! construct ordered parameter list
+        constraint_names=''
+        do iOrdered=1,size(spec%ordered(iConstraint)%param_index)
+          iParam=spec%ordered(iConstraint)%param_index(iOrdered)
+          if(iOrdered > 1) constraint_names=constraint_names//','
+          constraint_names=constraint_names//trim(spec%params(iParam)%name)
+        enddo
+      
+        ! write parameter names
+        write(attribute_name,'("ordered_constraint_",I0)') iConstraint
+        ierr=nf90_put_att(ncid,NF90_GLOBAL,trim(attribute_name),constraint_names)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      
+        ! write gap fraction
+        ierr=nf90_put_att(ncid,NF90_GLOBAL,trim(attribute_name)//'_gap_fraction', &
+                          spec%ordered(iConstraint)%gap_fraction)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      
+      enddo
 
       ! leave define mode
       ierr=nf90_enddef(ncid)
