@@ -1640,8 +1640,9 @@ subroutine update_volFracLiq_derivatives
   real(rkind) :: posHead(1:in_surfaceFlux % nSoil)   ! smooth positive part of matric head (m)
   real(rkind) :: dPosHead_dPsi(1:in_surfaceFlux % nSoil) ! derivative of smooth positive head w.r.t. matric head (-)
   real(rkind) :: dCompHead_dWat(1:in_surfaceFlux % nSoil) ! derivative of mean positive head w.r.t. hyd state (m)
-  real(rkind) :: soilDepth         ! total depth of the soil column (m)
-  real(rkind) :: meanPositiveHead  ! depth-weighted mean positive matric head (m)
+  real(rkind) :: rootZoneDepth     ! depth of the layers used in the saturation limiter (m)
+  real(rkind) :: meanPositiveHead  ! depth-weighted mean positive matric head over those layers (m)
+  integer(i4b) :: ixTop, ixBot     ! top and bottom layer indices used in the saturation limiter
 
   ! compute infiltration
   associate(&
@@ -1678,30 +1679,41 @@ subroutine update_volFracLiq_derivatives
    ! check infiltration area and define saturated area
    if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
   
+   ! Saturation-area limiters
+   if(surfRun_SE==homegrown_SE)then ! infiltration area based on the root zone below any ice layers
+     ixTop = ixIce + 1
+     ixBot = nRoots
+   else ! if not homegrown_SE, infiltration area based on all layers
+     ixTop = 1
+     ixBot = nSoil
+   end if
+
    ! Close infiltration under saturation only for blocked lower boundaries, where pressure can build up;
    ! free drainage relieves it. Glacier always has a zero flux lower boundary (blocked boundary).
-   if (bc_lower/=freeDrainage .or. nGlce>0) then
-     ! Reduce infiltration area as positive matric head develops in the soil column.
-     ! Use the depth-weighted mean positive head across all soil layers.
-     soilDepth = sum(mLayerDepth(1:nSoil))
-  
+   if (ixTop <= ixBot .and. (bc_lower/=freeDrainage .or. nGlce>0)) then
+     ! Reduce infiltration area as positive matric head develops in these layers.
+     rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
+
      ! Compute the smooth positive part of matric head using the CHKS approximation
      ! (Kavetski and Kuczera, WRR 2007, Eq. 11), and its derivative.
-     posHead(1:nSoil)       = 0.5_rkind*(mLayerMatricHead(1:nSoil) + sqrt(mLayerMatricHead(1:nSoil)**2_i4b + headSmooth**2_i4b))
-     dPosHead_dPsi(1:nSoil) = 0.5_rkind*(1._rkind + mLayerMatricHead(1:nSoil)/sqrt(mLayerMatricHead(1:nSoil)**2_i4b + headSmooth**2_i4b))
-  
+     posHead(:)     = 0._rkind
+     dPosHead_dPsi(:) = 0._rkind
+     posHead(ixTop:ixBot)       = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
+     dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
+
      ! Compute the depth-weighted mean positive matric head.
-     meanPositiveHead = sum(posHead(1:nSoil)*mLayerDepth(1:nSoil))/soilDepth
-  
+     meanPositiveHead = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
+
      ! Reduce infiltration area with a Gaussian of the mean positive head, which has zero slope at zero head,
      ! so the limiter does not add a kink to the Jacobian where a layer saturates.
      ! compHeadWidth is the pressure-head scale (m) at which the limiter falls to exp(-1).
      compLimiter = exp(-(meanPositiveHead/compHeadWidth)**2_i4b)
      dCompLimiter_dHead = -2._rkind*meanPositiveHead/compHeadWidth**2_i4b*compLimiter
-  
+
      ! Derivative of mean positive head with respect to water state variables.
-     dCompHead_dWat(1:nSoil) = (mLayerDepth(1:nSoil)/soilDepth)*dPosHead_dPsi(1:nSoil)
-     
+     dCompHead_dWat(:) = 0._rkind
+     dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth)*dPosHead_dPsi(ixTop:ixBot)
+
      ! Apply the pressure-dependent infiltration limiter and update derivatives.
      compLimiter_prev = scalarInfilArea
      scalarInfilArea  = scalarInfilArea*compLimiter
@@ -1710,7 +1722,7 @@ subroutine update_volFracLiq_derivatives
        dInfilArea_dTk(:)  = dInfilArea_dTk(:)*compLimiter
      end if
    end if
-    
+
    scalarSaturatedArea = 1._rkind - scalarInfilArea
 
    ! unfrozen infiltration area and infiltration (m s-1)
