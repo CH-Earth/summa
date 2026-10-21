@@ -43,15 +43,16 @@ if (USE_MIZUROUTE OR USE_MPI)
 endif()
 set(EXT_TARGETS) # list of external targets to link to
 
-# Set top-level directory
-if (USE_NEXTGEN)
+# Support both a direct checkout and the standard NextGen wrapper layout
+if (USE_NEXTGEN AND
+    EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/summa/build/CMakeLists.txt")
     set(F_MASTER "${CMAKE_CURRENT_SOURCE_DIR}/summa")
 else()
     set(F_MASTER "${CMAKE_CURRENT_SOURCE_DIR}/..")
 endif()
 
 set(PARENT_DIR "${F_MASTER}")
-set(EXEC_DIR "${F_MASTER}/bin")
+set(EXEC_DIR "${F_MASTER}/bin" CACHE PATH "Directory for SUMMA executables")
 
 # Handle optional external libraries
 
@@ -74,7 +75,10 @@ if (USE_NEXTGEN)
     if (USE_NGEN_OUTPUT)
         add_compile_definitions(NGEN_OUTPUT_ACTIVE)
     endif()
-    add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
+    set(SUMMA_ISO_C_FORTRAN_BMI_ROOT
+        "${CMAKE_CURRENT_SOURCE_DIR}/../iso_c_fortran_bmi"
+        CACHE PATH "Path to iso_c_fortran_bmi source")
+    add_subdirectory("${SUMMA_ISO_C_FORTRAN_BMI_ROOT}" "${CMAKE_BINARY_DIR}/iso_c_bmi")
     list(INSERT CMAKE_MODULE_PATH 0 "${F_MASTER}/build/cmake/")
     list(INSERT CMAKE_PREFIX_PATH 0 "${F_MASTER}/build/cmake/")
     set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran)
@@ -241,7 +245,7 @@ set(NUMREC_DIR ${F_MASTER}/build/source/numrec)
 #=========================================================================================
 
 # SUMMA Source Files are defined in the CMakeLists.txt file in the subdirectory
-add_subdirectory(${F_MASTER}/build/source/)
+add_subdirectory("${F_MASTER}/build/source" "${CMAKE_BINARY_DIR}/source")
 
 # Noah-MP files use free-form syntax even though they use .F extension.
 set_source_files_properties(${NOAHMP} PROPERTIES Fortran_FORMAT FREE)
@@ -331,6 +335,7 @@ endif()
 set(VERSIONFILE     ${DRIVER_DIR}/summaversion.inc)
 execute_process(
     COMMAND bash -c "git tag | tail -n 1"
+    WORKING_DIRECTORY "${F_MASTER}"
     OUTPUT_VARIABLE VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
@@ -341,11 +346,13 @@ execute_process(
 )
 execute_process(
     COMMAND bash -c "git describe --long --all --always | sed 's#heads/##'"
+    WORKING_DIRECTORY "${F_MASTER}"
     OUTPUT_VARIABLE GITBRCH
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 execute_process(
     COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY "${F_MASTER}"
     OUTPUT_VARIABLE GITHASH
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
@@ -404,7 +411,8 @@ if(USE_NEXTGEN)
 	install(TARGETS summabmi
                 LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
                 PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-	configure_file(summabmi.pc.in summabmi.pc @ONLY)
+	configure_file("${F_MASTER}/build/cmake/summabmi.pc.in"
+        "${CMAKE_BINARY_DIR}/summabmi.pc" @ONLY)
 	install(FILES ${CMAKE_BINARY_DIR}/summabmi.pc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 
 else()
