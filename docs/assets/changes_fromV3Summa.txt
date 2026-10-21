@@ -288,3 +288,6 @@ AFTER tag of v4.0.0-exp-Sundials
 -76) Jacobian fixes
      -1) soil water super-diagonal no longer overwrites the baseflow derivatives of the layer above, commit eab8f603 Oct 15, 2026
      -2) scalar soil water solve zeroes the derivative of the flux from above, which it holds fixed, commit 60b167b1 Oct 15, 2026
+-77) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit 7e9eb963 and da4bf144 Oct 15, 2026
+-78) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit 8b38167a Oct 15, 2026
+-79) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit bb98db98 Oct 17, 2026
