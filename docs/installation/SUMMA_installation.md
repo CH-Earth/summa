@@ -58,7 +58,7 @@ git submodule update --init external/mizuRoute external/toml-f
 
 ### Build options
 
-Each is `OFF` by default and enabled with `-DOPTION=ON`.
+Options default to `OFF`, except `USE_NGEN_FORCING` and `USE_NGEN_OUTPUT`, which default to `ON` and only take effect when using `USE_NEXTGEN=ON`. Set each option with `-DOPTION=ON` or `-DOPTION=OFF`.
 
 | Option | Effect |
 | --- | --- |
@@ -67,6 +67,8 @@ Each is `OFF` by default and enabled with `-DOPTION=ON`.
 | `USE_MIZUROUTE` | Build with mizuRoute river-network routing. |
 | `USE_TOML` | Build the TOML configuration reader, needed for `-c`. Turned on automatically by `USE_MIZUROUTE` and `USE_MPI`. |
 | `USE_NEXTGEN` | Build the BMI library for the NextGen framework instead of the executables. |
+| `USE_NGEN_FORCING` | With `USE_NEXTGEN=ON`, use framework-supplied forcing. Set to `OFF` to use SUMMA's native NetCDF forcing reader. |
+| `USE_NGEN_OUTPUT` | With `USE_NEXTGEN=ON`, use framework-managed output and skip SUMMA's native output writer. Set to `OFF` to retain native output. |
 | `USE_OPENWQ` | Build with the OpenWQ water-quality coupler. |
 | `SPECIFY_LAPACK_LINKS` | Take LAPACK flags from the `LIBRARY_LINKS` environment variable rather than detecting them. |
 
