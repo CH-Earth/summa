@@ -17,6 +17,7 @@ contains
   ! **************************************************************************************************
   subroutine finalize_mizuroute(err,message)
     ! mizuroute global data (shim limiting to data required by summa)
+    use globalData, only: FRAC_FUTURE    ! hillslope routing 
     use globalData, only: rch_routes     ! instantiated routing methods 
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
@@ -28,6 +29,9 @@ contains
     ! deallocate mizuRoute metadata
     call finalize_mizuroute_metadata(err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! deallocate hillslope routing
+    if(allocated(FRAC_FUTURE)) deallocate(FRAC_FUTURE)
 
     ! deallocate instantiated routing methods
     if(allocated(rch_routes)) deallocate(rch_routes)

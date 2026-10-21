@@ -1,7 +1,10 @@
 module summa_parameter_spec
 
   USE nr_type,          only: i4b, rkind, lgt
+  USE data_types,       only: var_d
+  USE data_types,       only: var_dlength
   USE summa_type,       only: config_info
+  USE globalData,       only: iulog
 
   USE parameter_search, only: parameter_spec
 
@@ -22,15 +25,18 @@ contains
   ! parameters required by ordered dependencies are included as non-sampled parameters.
   !
   ! All parameters represented by this interface are currently assumed to be spatially uniform.
-  ! For non-sampled parameters participating in constraints, trial_value is set to the SUMMA default
-  ! value. build_summa_parameter_overrides() subsequently ensures that this scalar value overrides
-  ! any spatially varying values read from a trial parameter file.
+  ! Initial trial values are obtained from the initialized SUMMA parameter structures rather than
+  ! the fallback defaults. For sampled parameters, these values are replaced during calibration.
+  ! For non-sampled parameters, the initialized values are retained when evaluating constraints
+  ! and constructing parameter overrides.
   !
   ! Spatially varying calibration parameters and spatial regularization are not currently supported.
   ! **************************************************************************************************
-  subroutine get_summa_parameter_spec(config, spec, err, message)
+  subroutine get_summa_parameter_spec(config, mpar_init, bpar_init, spec, err, message)
     implicit none
     type(config_info),    intent(in)  :: config
+    type(var_dlength),    intent(in)  :: mpar_init
+    type(var_d),          intent(in)  :: bpar_init
     type(parameter_spec), intent(out) :: spec
     integer(i4b),         intent(out) :: err
     character(*),         intent(out) :: message
@@ -83,13 +89,13 @@ contains
     ! Add sampled calibration parameters.
     ! -----------------------------------------------------------------------------------------------
     do i=1,size(config%calib%param_list)
-      ix = find_parameter(trim(config%calib%param_list(i)), param_names(1:nParam))
+      ix = find_parameter(trim(config%calib%param_list(i)%name), param_names(1:nParam))
       if(ix > 0)then
-        message=trim(message)//'duplicate calibration parameter: '// trim(config%calib%param_list(i))
+        message=trim(message)//'duplicate calibration parameter: '// trim(config%calib%param_list(i)%name)
         err=20; return
       endif
       nParam = nParam + 1
-      param_names(nParam) = trim(config%calib%param_list(i))
+      param_names(nParam) = trim(config%calib%param_list(i)%name)
       sampled(nParam)     = .true.
     enddo
 
@@ -110,11 +116,11 @@ contains
     endif
 
     ! -----------------------------------------------------------------------------------------------
-    ! Populate master parameter registry from SUMMA metadata.
+    ! Populate master parameter registry from SUMMA metadata and initialized parameter values.
     !
-    ! trial_value is initialized from the SUMMA default. For sampled parameters this value is not
-    ! used during sampling. For non-sampled constraint parameters it becomes the scalar value that
-    ! will be applied across the model domain for every trial.
+    ! trial_value is initialized from the actual SUMMA parameter values. For sampled parameters,
+    ! this value is replaced during calibration. For non-sampled constraint parameters, the
+    ! initialized value is retained and applied across the model domain for every trial.
     ! -----------------------------------------------------------------------------------------------
     allocate(spec%params(nParam),stat=err)
     if(err/=0)then
@@ -125,6 +131,7 @@ contains
       spec%params(i)%name    = trim(param_names(i))
       spec%params(i)%sampled = sampled(i)
       call get_summa_parameter_info(trim(param_names(i)),                &
+                                    mpar_init,bpar_init,                 &
                                     spec%params(i)%trial_value,          &
                                     spec%params(i)%lower,                &
                                     spec%params(i)%upper,                &
@@ -138,27 +145,52 @@ contains
     enddo
 
     ! -----------------------------------------------------------------------------------------------
-    ! Apply configured parameter transformations.
+    ! Apply configured calibration parameter bounds and transformations.
     !
-    ! Transformations are meaningful only for sampled parameters.
+    ! Calibration bounds specified in the TOML replace the native SUMMA search bounds
+    ! and may extend beyond them. Emit a warning when the configured range exceeds
+    ! the native SUMMA bounds.
     ! -----------------------------------------------------------------------------------------------
-    if(allocated(config%calib%param_transform))then
-      do i=1,size(config%calib%param_transform)
-        ix = find_parameter(trim(config%calib%param_transform(i)%name), param_names(1:nParam))
+    if(allocated(config%calib%param_list))then
+
+      do i=1,size(config%calib%param_list)
+
+        ix = find_parameter(trim(config%calib%param_list(i)%name), &
+                            param_names(1:nParam))
+
         if(ix == 0)then
-          message=trim(message)// &
-                  'parameter transformation defined for unknown parameter: '// &
-                  trim(config%calib%param_transform(i)%name)
-          err=20; return
+          message=trim(message)//'calibration parameter not found: '// &
+                  trim(config%calib%param_list(i)%name)
+          err=20
+          return
         endif
-        if(.not.spec%params(ix)%sampled)then
-          message=trim(message)// &
-                  'parameter transformation defined for non-sampled parameter: '// &
-                  trim(config%calib%param_transform(i)%name)
-          err=20; return
+
+        ! warn if calibration bounds exceed native SUMMA bounds
+        if(config%calib%param_list(i)%lower_bound < spec%params(ix)%lower .or. &
+           config%calib%param_list(i)%upper_bound > spec%params(ix)%upper)then
+
+          write(iulog,'(A,A,A,2(ES12.4,1X),A,2(ES12.4,1X))') &
+            'WARNING: calibration bounds exceed native SUMMA bounds for ', &
+            trim(config%calib%param_list(i)%name),                         &
+            ': calibration = ',                                            &
+            config%calib%param_list(i)%lower_bound,                        &
+            config%calib%param_list(i)%upper_bound,                        &
+            ', native = ',                                                 &
+            spec%params(ix)%lower,                                         &
+            spec%params(ix)%upper
+
         endif
-        spec%params(ix)%transformation = trim(config%calib%param_transform(i)%transformation)
+
+        ! apply calibration-specific bounds
+        spec%params(ix)%lower = config%calib%param_list(i)%lower_bound
+        spec%params(ix)%upper = config%calib%param_list(i)%upper_bound
+
+        ! apply calibration-specific transformation
+        spec%params(ix)%transformation = &
+          trim(config%calib%param_list(i)%transformation)
+
       enddo
+
     endif
 
     ! -----------------------------------------------------------------------------------------------
@@ -261,21 +293,24 @@ contains
   ! calibration constraints but are not sampled. The scalar override is subsequently applied across
   ! all spatial elements by summa_paramSetup.
   ! **************************************************************************************************
-  subroutine get_summa_parameter_info(param_name,trial_value,lower,upper, units,long_name,err,message)
+  subroutine get_summa_parameter_info(param_name,mpar_init,bpar_init, &
+                                      trial_value,lower,upper,units,long_name,err,message)
     USE get_ixname_module, only: get_ixParam,get_ixBpar
     USE globalData, only: localParFallback,basinParFallback
     USE globalData, only: mpar_meta,bpar_meta
     USE globalData, only: integerMissing
     USE param_override_module, only: split_domain_target
     implicit none
-    character(*), intent(in)  :: param_name
-    real(rkind),  intent(out) :: trial_value
-    real(rkind),  intent(out) :: lower
-    real(rkind),  intent(out) :: upper
-    character(*), intent(out) :: units
-    character(*), intent(out) :: long_name
-    integer(i4b), intent(out) :: err
-    character(*), intent(out) :: message
+    character(*),      intent(in)  :: param_name
+    type(var_dlength), intent(in)  :: mpar_init
+    type(var_d),       intent(in)  :: bpar_init
+    real(rkind),       intent(out) :: trial_value
+    real(rkind),       intent(out) :: lower
+    real(rkind),       intent(out) :: upper
+    character(*),      intent(out) :: units
+    character(*),      intent(out) :: long_name
+    integer(i4b),      intent(out) :: err
+    character(*),      intent(out) :: message
     integer(i4b) :: ixParam,ixBasin
     character(len=64) :: name     ! parameter name without its domain type
     integer(i4b)      :: domType  ! domain type a name@domainType targets, 0 for every domain
@@ -292,7 +327,7 @@ contains
     ! local parameter
     ixParam=get_ixParam(trim(name))
     if(ixParam > 0)then
-      trial_value=localParFallback(ixParam)%default_val
+      trial_value=mpar_init%var(ixParam)%dat(1)
       lower      =localParFallback(ixParam)%lower_limit
       upper      =localParFallback(ixParam)%upper_limit
       units      =trim(mpar_meta(ixParam)%varUnit)
@@ -303,7 +338,7 @@ contains
       endif
       return
     endif
-  
+
     ! basin parameter
     ixBasin=get_ixBpar(trim(name))
     if(ixBasin > 0)then
@@ -324,9 +359,9 @@ contains
     endif
     message=trim(message)//'parameter not found: '//trim(param_name)
     err=20; return
-  
+
   end subroutine get_summa_parameter_info
-  
+
   ! **************************************************************************************************
   ! Find a parameter in a parameter-name vector.
   !

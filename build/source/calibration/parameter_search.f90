@@ -6,6 +6,22 @@ module parameter_search
   private
 
   ! **************************************************************************************************
+  ! State information used to generate parameter samples during a search.
+  !
+  ! The elite individual contains the parameter vector with the best fitness identified during the
+  ! search. The population contains a collection of parameter vectors and their associated fitness
+  ! values. Different search methods use different components of this structure. For example, DDS
+  ! generates new samples by perturbing the elite individual, whereas population-based methods such
+  ! as genetic algorithms and differential evolution generate new samples from the population.
+  ! **************************************************************************************************
+  type, public :: search_state_type
+    real(rkind), allocatable :: elite_individual(:)
+    real(rkind)              :: elite_fitness
+    real(rkind), allocatable :: population(:,:)
+    real(rkind), allocatable :: fitness(:)
+  end type search_state_type
+
+  ! **************************************************************************************************
   ! Information describing one model parameter.
   !
   ! The model-specific layer populates this structure. Parameters with sampled=.true. are included
@@ -76,6 +92,7 @@ module parameter_search
   end type parameter_search_info
 
   public :: initialize_parameter_search
+  public :: generate_search_sample
   public :: sample_parameters
   public :: perturb_parameters
   public :: perturb_parameters_dds
@@ -164,12 +181,17 @@ contains
         err=20; return
       endif
 
-      ! trial values of non-sampled parameters must lie within their physical bounds
+      ! Non-sampled parameters retain their initialized model values.
+      ! Warn if these values fall outside the nominal parameter bounds.
       if(.not.spec%params(i)%sampled)then
         if(spec%params(i)%trial_value < spec%params(i)%lower .or. &
            spec%params(i)%trial_value > spec%params(i)%upper)then
-          message=trim(message)//'trial value outside bounds for parameter: '// trim(spec%params(i)%name)
-          err=20; return
+          write(*,'(A,A,A,ES12.5,A,ES12.5,A,ES12.5)') &
+            'WARNING: initialized value outside nominal bounds for parameter ', &
+            trim(spec%params(i)%name), &
+            ', value = ',spec%params(i)%trial_value, &
+            ', lower = ',spec%params(i)%lower, &
+            ', upper = ',spec%params(i)%upper
         endif
       endif
 
@@ -291,9 +313,16 @@ contains
     integer(i4b) :: iConstraint
     integer(i4b) :: ixParam
     integer(i4b) :: nOrdered
-    integer(i4b), allocatable :: constraint_owner(:)
-    real(rkind) :: lower_feasible
-    real(rkind) :: previous_value
+    integer(i4b) :: iPrev
+    integer(i4b) :: iSearch
+    integer(i4b) :: iPass
+    real(rkind)  :: new_bound
+    real(rkind), allocatable :: feasible_lower(:)
+    real(rkind), allocatable :: feasible_upper(:)
+    logical(lgt) :: changed
+    real(rkind)  :: range_lower
+    real(rkind)  :: range_upper
+    character(len=256) :: cmessage
 
     err = 0
     message = 'initialize_constraints/'
@@ -303,12 +332,11 @@ contains
       allocate(search%ordered(0))
       return
     endif
-    allocate(search%ordered(size(spec%ordered)), constraint_owner(size(spec%params)), stat=err)
+    allocate(search%ordered(size(spec%ordered)), stat=err)
     if(err/=0)then
       message=trim(message)//'unable to allocate ordered parameter constraints'
       return
     endif
-    constraint_owner = 0
     do iConstraint=1,size(spec%ordered)
       if(.not.allocated(spec%ordered(iConstraint)%param_index))then
         write(message,'(A,I0)') trim(message)// &
@@ -353,78 +381,209 @@ contains
           endif
         enddo
 
-        ! for now, parameters cannot occur in multiple ordered constraints
-        if(constraint_owner(ixParam) > 0)then
-          message=trim(message)//'parameter occurs in more than one ordered constraint: '// &
-                  trim(search%params(ixParam)%name)
-          err=20; return
-        endif
-        constraint_owner(ixParam) = iConstraint
       enddo
 
       ! ---------------------------------------------------------------------------------------------
       ! Compute absolute minimum gap in physical parameter space.
       ! ---------------------------------------------------------------------------------------------
+
+      ! Compute the minimum gap using calibration bounds for sampled
+      ! endpoints and initialized values for fixed endpoints.
+
+      ! lower endpoint: initialized value if fixed, lower bound if sampled
+      ixParam=search%ordered(iConstraint)%param_index(1)
+      range_lower=search%params(ixParam)%lower
+      if(.not.search%params(ixParam)%sampled) range_lower=search%params(ixParam)%trial_value
+      
+      ! upper endpoint: initialized value if fixed, upper bound if sampled
+      ixParam=search%ordered(iConstraint)%param_index(nOrdered)
+      range_upper=search%params(ixParam)%upper
+      if(.not.search%params(ixParam)%sampled) range_upper=search%params(ixParam)%trial_value
+      
+      ! minimum separation between adjacent parameters
       search%ordered(iConstraint)%gap = &
-        spec%ordered(iConstraint)%gap_fraction * &
-        ( search%params(search%ordered(iConstraint)%param_index(nOrdered))%upper - &
-          search%params(search%ordered(iConstraint)%param_index(1))%lower )
+        spec%ordered(iConstraint)%gap_fraction * (range_upper-range_lower)
+      
       if(search%ordered(iConstraint)%gap < 0._rkind)then
         write(message,'(A,I0)') trim(message)// &
           'invalid total parameter range in ordered constraint = ',iConstraint
         err=20; return
       endif
 
-      ! ---------------------------------------------------------------------------------------------
-      ! Check that at least one feasible parameter combination exists.
-      !
-      ! Sampled parameters use their smallest feasible physical value. Non-sampled parameters use
-      ! their scalar trial value.
-      ! ---------------------------------------------------------------------------------------------
-      do i=1,nOrdered
-        ixParam = search%ordered(iConstraint)%param_index(i)
-        if(i == 1)then
-          lower_feasible = search%params(ixParam)%lower
+    enddo
 
-        else
-          lower_feasible = max(search%params(ixParam)%lower, previous_value + search%ordered(iConstraint)%gap)
-        endif
-        if(search%params(ixParam)%sampled)then
-          if(lower_feasible > search%params(ixParam)%upper)then
-            write(message,'(A,A,A,ES12.5,A,ES12.5,A,A,A,ES12.5)') trim(message)// &
-              'ordered constraint is infeasible near parameter: ', &
-              trim(search%params(ixParam)%name), &
-              ', minimum feasible value = ',lower_feasible, &
-              ', upper bound = ',search%params(ixParam)%upper, &
-              '; must exceed ', &
-              trim(search%params(search%ordered(iConstraint)%param_index(i-1))%name), &
-              ' by at least ',search%ordered(iConstraint)%gap
-            err=20
-            return
+    ! -----------------------------------------------------------------------------------------------
+    ! Initialize feasible physical bounds.
+    ! Fixed parameters have zero-width intervals at their initialized values.
+    ! -----------------------------------------------------------------------------------------------
+    allocate(feasible_lower(size(search%params)),feasible_upper(size(search%params)),stat=err)
+    if(err/=0)then
+      message=trim(message)//'unable to allocate feasible parameter bounds'
+      return
+    endif
+
+    do i=1,size(search%params)
+      if(search%params(i)%sampled)then
+        feasible_lower(i)=search%params(i)%lower
+        feasible_upper(i)=search%params(i)%upper
+      else
+        feasible_lower(i)=search%params(i)%trial_value
+        feasible_upper(i)=search%params(i)%trial_value
+      endif
+    enddo
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Propagate ordered constraints through the feasible bounds.
+    ! Iterate to account for parameters shared by multiple constraints.
+    ! -----------------------------------------------------------------------------------------------
+    do iPass=1,size(search%params)+1
+      changed=.false.
+
+      do iConstraint=1,size(search%ordered)
+        do j=2,size(search%ordered(iConstraint)%param_index)
+
+          iPrev=search%ordered(iConstraint)%param_index(j-1)
+          ixParam=search%ordered(iConstraint)%param_index(j)
+
+          ! Propagate lower bound forward
+          new_bound=feasible_lower(iPrev)+search%ordered(iConstraint)%gap
+          if(feasible_lower(ixParam) < new_bound)then
+            feasible_lower(ixParam)=new_bound
+            changed=.true.
           endif
-          previous_value=lower_feasible
 
-        else
-         if(search%params(ixParam)%trial_value < lower_feasible)then
-           write(message,'(A,A,A,ES12.5,A,A,A,ES12.5,A,ES12.5,A,ES12.5,A,ES12.5)') trim(message)// &
-             'fixed parameter violates ordered constraint: ', &
-             trim(search%params(ixParam)%name), &
-             ', trial value = ',search%params(ixParam)%trial_value, &
-             '; previous parameter = ', &
-             trim(search%params(search%ordered(iConstraint)%param_index(i-1))%name), &
-             ', previous value = ',previous_value, &
-             ', gap = ',search%ordered(iConstraint)%gap, &
-             ', parameter lower bound = ',search%params(ixParam)%lower, &
-             ', minimum feasible value = ',lower_feasible
-           err=20
-           return
-         endif
-         previous_value=search%params(ixParam)%trial_value
+          ! Propagate upper bound backward
+          new_bound=feasible_upper(ixParam)-search%ordered(iConstraint)%gap
+          if(feasible_upper(iPrev) > new_bound)then
+            feasible_upper(iPrev)=new_bound
+            changed=.true.
+          endif
+
+        enddo
+      enddo
+
+      ! Check feasibility
+      do i=1,size(search%params)
+        if(feasible_lower(i) > feasible_upper(i))then
+          write(message,'(A,A,A,ES12.5,A,ES12.5)') trim(message)// &
+            'infeasible ordered constraints for parameter: ',trim(search%params(i)%name), &
+            ', lower = ',feasible_lower(i),', upper = ',feasible_upper(i)
+          err=20; return
         endif
       enddo
+
+      if(.not.changed) exit
+    enddo
+
+    if(changed)then
+      message=trim(message)//'ordered constraint propagation did not converge'
+      err=20; return
+    endif
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Update the sampled parameter bounds in physical and transformed search space.
+    ! -----------------------------------------------------------------------------------------------
+    do i=1,size(search%params)
+      iSearch=search%search_index(i)
+      if(iSearch == 0) cycle
+
+      search%lower(iSearch)=feasible_lower(i)
+      search%upper(iSearch)=feasible_upper(i)
+
+      call transform_parameter(search%lower(iSearch),           &
+                               search%transformation(iSearch), &
+                               search%search_lower(iSearch),   &
+                               err,cmessage)
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        return
+      endif
+
+      call transform_parameter(search%upper(iSearch),           &
+                               search%transformation(iSearch), &
+                               search%search_upper(iSearch),   &
+                               err,cmessage)
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        return
+      endif
     enddo
 
   end subroutine initialize_constraints
+
+  ! **************************************************************************************************
+  ! Generate the next parameter sample for the selected search method.
+  !
+  ! The search method determines how the next individual is generated from the current search state.
+  ! Random sampling draws independently from the feasible parameter space. DDS perturbs the current
+  ! elite individual. If no elite individual has yet been established, DDS generates an independent
+  ! random sample to initialize the search.
+  ! **************************************************************************************************
+  subroutine generate_search_sample(method,search,state,i,m,param_values,err,message)
+    implicit none
+
+    character(*),                intent(in)    :: method
+    type(parameter_search_info), intent(in)    :: search
+    type(search_state_type),     intent(in)    :: state
+    integer(i4b),                intent(in)    :: i
+    integer(i4b),                intent(in)    :: m
+    real(rkind),                 intent(out)   :: param_values(:)
+    integer(i4b),                intent(out)   :: err
+    character(*),                intent(out)   :: message
+
+    real(rkind), parameter :: dds_r=0.2_rkind
+    character(len=256) :: cmessage
+
+    err=0
+    message='generate_search_sample/'
+
+    select case(trim(method))
+
+      case ('random')
+
+        call sample_parameters(search,param_values,err,cmessage)
+        if(err/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+
+      case ('dds')
+
+        ! Initialize DDS with independent random samples until an elite individual exists.
+        if(.not.allocated(state%elite_individual))then
+
+          call sample_parameters(search,param_values,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//trim(cmessage)
+            return
+          endif
+
+        else
+
+          call perturb_parameters_dds(search,                 &
+                                      state%elite_individual, &
+                                      i,                      &
+                                      m,                      &
+                                      dds_r,                  &
+                                      param_values,           &
+                                      err,cmessage)
+          if(err/=0)then
+            message=trim(message)//trim(cmessage)
+            return
+          endif
+
+        endif
+
+      case default
+
+        message=trim(message)//'unknown parameter sampling method: '//trim(method)
+        err=20
+        return
+
+    end select
+
+  end subroutine generate_search_sample
+
 
   ! **************************************************************************************************
   ! Sample parameters uniformly over the feasible search space.
