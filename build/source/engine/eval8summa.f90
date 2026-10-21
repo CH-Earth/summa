@@ -1027,6 +1027,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
                 avPore = theta_sat(iLayer) - mLayerVolFracIce(iLayer+nSnow+nLake) - theta_res(iLayer)  ! available pore space
                 scalarLiq = effSat*avPore + theta_res(iLayer)
                 xPsi00 = matricHead(scalarLiq + mLayerVolFracIce(iLayer+nSnow+nLake),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+                if(stateVecPrev(ixLiq) + xInc(ixLiq) > 0._rkind) xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! saturated: total and liquid heads are the same pressure
               case(iname_matLayer); xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! only true if using iname_matLayer, otherwise may want to fix this
               case(iname_watLayer); xPsi00 = matricHead(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
               case(iname_liqLayer) 

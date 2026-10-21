@@ -382,6 +382,7 @@ subroutine updatDiagn(&
               mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res(ixControlIndex)
               mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
               mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
+              if(mLayerMatricHeadLiqTrial(ixControlIndex) > 0._rkind) mLayerMatricHeadTrial(ixControlIndex) = mLayerMatricHeadLiqTrial(ixControlIndex) ! saturated: total and liquid heads are the same pressure
             ! --> update the total water from the total water matric potential
             case(iname_matLayer)
               mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))

@@ -463,6 +463,12 @@ contains
    call finalize_compute_interface_fluxes_derivatives(out_iLayerFlux); if (return_flag) return
 
   end do
+
+  ! a scalar solution holds the flux into its layer from above, so that flux does not respond to the layer's state
+  if (in_soilLiqFlux % scalarSolution .and. ixTop>1) then
+   io_soilLiqFlux % dq_dHydStateBelow(ixTop-1) = 0._rkind
+   io_soilLiqFlux % dq_dNrgStateBelow(ixTop-1) = 0._rkind
+  end if
  end subroutine compute_interface_fluxes_derivatives
 
  subroutine initialize_compute_interface_fluxes_derivatives(in_iLayerFlux)

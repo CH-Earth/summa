@@ -762,7 +762,7 @@ subroutine fluxJacAdd(&
 
         ! - compute the super-diagonal elements
         if(iLayer>1)then
-          if(ixSoilOnlyHyd(iLayer-1)/=integerMissing) aJac(ixInd(full,ixSoilOnlyHyd(iLayer-1),watState),watState) = (dt/mLayerDepth(jLayer-1))*( dq_dHydStateBelow(iLayer-1))
+          if(ixSoilOnlyHyd(iLayer-1)/=integerMissing) aJac(ixInd(full,ixSoilOnlyHyd(iLayer-1),watState),watState) = (dt/mLayerDepth(jLayer-1))*( dq_dHydStateBelow(iLayer-1)) + aJac(ixInd(full,ixSoilOnlyHyd(iLayer-1),watState),watState) ! keeps the baseflow terms of the layer above
         endif
 
         ! - compute the sub-diagonal elements
