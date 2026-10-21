@@ -808,8 +808,12 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: S1_T_max                            ! maximum tension water content in upper soil layer (m)
   ! FUSE ARNO/VIC variables
   logical(lgt),parameter :: smoother = .true.                             ! control for optional smoothing in base variable
+  real(rkind), parameter :: smoothWidth = 2._rkind*log(2._rkind)/alpha_LSE ! smoothing width for Kavetski-Kuczera power-law smoother
   real(rkind)                      :: base                                ! base used in saturated area formula (-) ARNO/VIC 
   real(rkind)                      :: b_arnovic                           ! ARNO/VIC exponent (-) 
+  real(rkind)                      :: storageDeficit                      ! difference between maximum and actual soil water storage (m)
+  real(rkind)                      :: smoothRoot                          ! Kavetski-Kuczera smoothed storage deficit (m)
+  real(rkind)                      :: smoothNorm                          ! normalization to preserve zero storage at dry conditions (m)
   real(rkind)                      :: S1_star                             ! total water content in upper FUSE layer computed with a smoothed min (m)
   ! FUSE TOPMODEL variables
   real(rkind)                      :: alpha_topmodel                      ! gamma shape
@@ -1105,7 +1109,7 @@ subroutine update_volFracLiq_derivatives
    if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
    S1_max = total_soil_depth * theta_sat                ! max water storage for upper FUSE layer (m)
 
-  ! compute tension water content
+   ! compute tension water content
    S1_T_max = phi_tens * S1_max
    S1_T     = LogSumExp(-alpha_LSE,[S1,S1_T_max],err) ! smooth approximation to S1_T=min(S1,S1_T_max)
    if(err/=0)then; err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return; end if
@@ -1130,14 +1134,11 @@ subroutine update_volFracLiq_derivatives
 
  subroutine update_surfaceFlux_FUSE_ARNO_VIC_infilArea
   ! **** Update operations for surfaceFlux: surface runoff from Clark et al. (2008, doi:10.1029/2007WR006735) -- ARNO/VIC ****
-  use soil_utils_module,only:LogSumExp  ! smooth max/min
-  use soil_utils_module,only:SoftArgMax ! smooth arg max/min (for derivatives of LogSumExp)
 
   ! local variables
   real(rkind)            :: dS1_dLiq(1:in_surfaceFlux % nSoil)     ! derivative of S1 w.r.t. liquid water content
   real(rkind)            :: dS1_star_dS1                           ! derivative in S1_star w.r.t S1
   real(rkind)            :: dbase_dS1                              ! derivative of base w.r.t S1
-  real(rkind)            :: S1_star_derivatives(1:2)               ! array of derivatives for S1_star from SoftArgMax function
 
   associate(&
    nSoil            => in_surfaceFlux % nSoil,            & ! number of soil layers
@@ -1164,8 +1165,10 @@ subroutine update_volFracLiq_derivatives
    ! Optional: smoothed to prevent negative bases using a smooth approximation of S1_star = min(S1,S1_max)
    !           (Smoothed SatArea) = 1 - (1-S1_star/S1_max)**b_arnovic 
    if (smoother) then ! with smooth approximation of min(S1,S1_max)
-    S1_star = LogSumExp(-alpha_LSE,[S1,S1_max],err) ! smooth approximation of min(S1,S1_max) to prevent negative bases
-    if(err/=0)then; err=10; message=trim(message)//"FUSE ARNO/VIC surface runoff: error in LogSumExp"; return_flag=.true.; return; end if
+    storageDeficit = S1_max - S1
+    smoothRoot = sqrt(storageDeficit**2 + smoothWidth**2)
+    smoothNorm = S1_max + sqrt(S1_max**2 + smoothWidth**2)
+    S1_star = S1_max * (1._rkind - (storageDeficit + smoothRoot)/smoothNorm)     ! smooth approximation of min(S1,S1_max) to prevent negative bases
    else               ! no smoothing
     S1_star = S1
    end if
@@ -1189,14 +1192,13 @@ subroutine update_volFracLiq_derivatives
    
    ! define the derivatives
    if(updateInfil)then
-   ! compute derivatives needed for infiltration derivative
+     ! compute derivatives needed for infiltration derivative
      dS1_dLiq = mLayerDepth(:)
-   if (smoother) then ! with smooth approximation of min(S1,S1_max)
-       S1_star_derivatives = SoftArgMax(-alpha_LSE,[S1,S1_max])
-       dS1_star_dS1 = S1_star_derivatives(1)
-   else               ! no smoothing
-       dS1_star_dS1 = 1._rkind  ! S1_star = S1 if no smoothing
-   end if
+     if (smoother) then ! with smooth approximation of min(S1,S1_max)
+         dS1_star_dS1 = S1_max * (1._rkind + storageDeficit/smoothRoot)/smoothNorm
+     else               ! no smoothing
+         dS1_star_dS1 = 1._rkind  ! S1_star = S1 if no smoothing
+     end if
      dbase_dS1 = -1._rkind/S1_max * dS1_star_dS1
      dInfilArea_dWat(:) = b_arnovic*base**(b_arnovic-1._rkind)*dbase_dS1*dS1_dLiq(:) * dVolFracLiq_dWat(:)     
      dInfilArea_dTk(:)  = b_arnovic*base**(b_arnovic-1._rkind)*dbase_dS1*dS1_dLiq(:) * dVolFracLiq_dTk(:) 
