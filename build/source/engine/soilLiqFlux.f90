@@ -1678,33 +1678,37 @@ subroutine update_volFracLiq_derivatives
    ! check infiltration area and define saturated area
    if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
   
-   ! Reduce infiltration area as positive matric head develops in the soil column.
-   ! Use the depth-weighted mean positive head across all soil layers.
-   soilDepth = sum(mLayerDepth(1:nSoil))
+   ! Close infiltration under saturation only for blocked lower boundaries, where pressure can build up;
+   ! free drainage relieves it. Glacier always has a zero flux lower boundary (blocked boundary).
+   if (bc_lower/=freeDrainage .or. nGlce>0) then
+     ! Reduce infiltration area as positive matric head develops in the soil column.
+     ! Use the depth-weighted mean positive head across all soil layers.
+     soilDepth = sum(mLayerDepth(1:nSoil))
   
-   ! Compute the smooth positive part of matric head using the CHKS approximation
-   ! (Kavetski and Kuczera, WRR 2007, Eq. 11), and its derivative.
-   posHead(1:nSoil)       = 0.5_rkind*(mLayerMatricHead(1:nSoil) + sqrt(mLayerMatricHead(1:nSoil)**2_i4b + headSmooth**2_i4b))
-   dPosHead_dPsi(1:nSoil) = 0.5_rkind*(1._rkind + mLayerMatricHead(1:nSoil)/sqrt(mLayerMatricHead(1:nSoil)**2_i4b + headSmooth**2_i4b))
+     ! Compute the smooth positive part of matric head using the CHKS approximation
+     ! (Kavetski and Kuczera, WRR 2007, Eq. 11), and its derivative.
+     posHead(1:nSoil)       = 0.5_rkind*(mLayerMatricHead(1:nSoil) + sqrt(mLayerMatricHead(1:nSoil)**2_i4b + headSmooth**2_i4b))
+     dPosHead_dPsi(1:nSoil) = 0.5_rkind*(1._rkind + mLayerMatricHead(1:nSoil)/sqrt(mLayerMatricHead(1:nSoil)**2_i4b + headSmooth**2_i4b))
   
-   ! Compute the depth-weighted mean positive matric head.
-   meanPositiveHead = sum(posHead(1:nSoil)*mLayerDepth(1:nSoil))/soilDepth
+     ! Compute the depth-weighted mean positive matric head.
+     meanPositiveHead = sum(posHead(1:nSoil)*mLayerDepth(1:nSoil))/soilDepth
   
-   ! Reduce infiltration area with a Gaussian of the mean positive head, which has zero slope at zero head,
-   ! so the limiter does not add a kink to the Jacobian where a layer saturates.
-   ! compHeadWidth is the pressure-head scale (m) at which the limiter falls to exp(-1).
-   compLimiter = exp(-(meanPositiveHead/compHeadWidth)**2_i4b)
-   dCompLimiter_dHead = -2._rkind*meanPositiveHead/compHeadWidth**2_i4b*compLimiter
+     ! Reduce infiltration area with a Gaussian of the mean positive head, which has zero slope at zero head,
+     ! so the limiter does not add a kink to the Jacobian where a layer saturates.
+     ! compHeadWidth is the pressure-head scale (m) at which the limiter falls to exp(-1).
+     compLimiter = exp(-(meanPositiveHead/compHeadWidth)**2_i4b)
+     dCompLimiter_dHead = -2._rkind*meanPositiveHead/compHeadWidth**2_i4b*compLimiter
   
-   ! Derivative of mean positive head with respect to water state variables.
-   dCompHead_dWat(1:nSoil) = (mLayerDepth(1:nSoil)/soilDepth)*dPosHead_dPsi(1:nSoil)
+     ! Derivative of mean positive head with respect to water state variables.
+     dCompHead_dWat(1:nSoil) = (mLayerDepth(1:nSoil)/soilDepth)*dPosHead_dPsi(1:nSoil)
      
-   ! Apply the pressure-dependent infiltration limiter and update derivatives.
-   compLimiter_prev = scalarInfilArea
-   scalarInfilArea  = scalarInfilArea*compLimiter
-   if(updateInfil)then
-     dInfilArea_dWat(:) = dInfilArea_dWat(:)*compLimiter + compLimiter_prev*dCompLimiter_dHead*dCompHead_dWat(:)
-     dInfilArea_dTk(:)  = dInfilArea_dTk(:)*compLimiter
+     ! Apply the pressure-dependent infiltration limiter and update derivatives.
+     compLimiter_prev = scalarInfilArea
+     scalarInfilArea  = scalarInfilArea*compLimiter
+     if(updateInfil)then
+       dInfilArea_dWat(:) = dInfilArea_dWat(:)*compLimiter + compLimiter_prev*dCompLimiter_dHead*dCompHead_dWat(:)
+       dInfilArea_dTk(:)  = dInfilArea_dTk(:)*compLimiter
+     end if
    end if
     
    scalarSaturatedArea = 1._rkind - scalarInfilArea
