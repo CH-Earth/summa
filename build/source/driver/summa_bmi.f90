@@ -56,8 +56,7 @@ module summabmi
   ! global data
   USE globalData, only: integerMissing                        ! missing integer
   USE globalData, only: print_step_freq                       ! frequency of printing model output
-  USE globalData, only: dJulianStart                          ! julian day of start time of simulation
-  USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
+  USE globalData, only: numtim                                ! number of native forcing intervals
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
   USE globalData, only: startGRU                              ! index of the starting GRU for run
   USE globalData, only: ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never ! restart file frequency options
@@ -91,7 +90,6 @@ module summabmi
   USE globalData, only: elapsedRead                           ! elapsed time for the forcing data read
   USE globalData, only: elapsedWrite                          ! elapsed time for the stats/write
   USE globalData, only: elapsedPhysics                        ! elapsed time for the physics
-  USE multiconst, only: secprday                              ! number of seconds in a day
   ! provide access to the named variables that describe elements of parent model structures
   USE var_lookup, only: iLookTIME                             ! named variables for time data structure
   USE var_lookup, only: iLookATTR                             ! named variables for real valued attribute data structure
@@ -477,8 +475,7 @@ module summabmi
        bmi_status = BMI_FAILURE
        return
      end if
-     n_steps = nint( (time - current)/data_step ) + 1 ! model can only do a full data_step
-     ! SUMMA runs the ending step (so start=end would still run a step)
+     n_steps = nint( (time - current)/data_step ) ! model can only do a full data_step
      do i = 1, n_steps
        istat = this%update()
      end do
@@ -610,7 +607,7 @@ module summabmi
      double precision, intent(out) :: time
      integer :: bmi_status
 
-     time = (dJulianFinsh - dJulianStart)*secprday ! unit seconds
+     time = real(numtim,dp)*data_step ! unit seconds
      bmi_status = BMI_SUCCESS
    end function summa_end_time
 
