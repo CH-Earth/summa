@@ -1635,7 +1635,7 @@ subroutine update_volFracLiq_derivatives
   real(rkind) :: compLimiter              ! smooth limiter that closes infiltration area under strong compression (-)
   real(rkind) :: compLimiter_prev         ! pre-limiter infiltration area used for chain rule (-)
   real(rkind) :: dCompLimiter_dHead       ! derivative of compression limiter w.r.t. mean positive head (m-1)
-  real(rkind),parameter :: compHeadWidth =0.02_rkind ! smoothing width for compression closure (m)
+  real(rkind),parameter :: compHeadWidth =0.05_rkind ! pressure-head scale of the Gaussian compression closure (m)
   real(rkind),parameter :: headSmooth =1.e-4_rkind   ! smoothing for max(psi,0) approximation (m)
   real(rkind) :: posHead(1:in_surfaceFlux % nSoil)   ! smooth positive part of matric head (m)
   real(rkind) :: dPosHead_dPsi(1:in_surfaceFlux % nSoil) ! derivative of smooth positive head w.r.t. matric head (-)
@@ -1690,10 +1690,11 @@ subroutine update_volFracLiq_derivatives
    ! Compute the depth-weighted mean positive matric head.
    meanPositiveHead = sum(posHead(1:nSoil)*mLayerDepth(1:nSoil))/soilDepth
   
-   ! Exponentially reduce infiltration area as mean positive head increases.
-   ! compHeadWidth is the e-folding pressure-head scale (m).
-   compLimiter = exp(-meanPositiveHead/compHeadWidth)
-   dCompLimiter_dHead = -compLimiter/compHeadWidth
+   ! Reduce infiltration area with a Gaussian of the mean positive head, which has zero slope at zero head,
+   ! so the limiter does not add a kink to the Jacobian where a layer saturates.
+   ! compHeadWidth is the pressure-head scale (m) at which the limiter falls to exp(-1).
+   compLimiter = exp(-(meanPositiveHead/compHeadWidth)**2_i4b)
+   dCompLimiter_dHead = -2._rkind*meanPositiveHead/compHeadWidth**2_i4b*compLimiter
   
    ! Derivative of mean positive head with respect to water state variables.
    dCompHead_dWat(1:nSoil) = (mLayerDepth(1:nSoil)/soilDepth)*dPosHead_dPsi(1:nSoil)
