@@ -430,10 +430,9 @@ module summabmi
        call handle_err(err, message)
 #ifndef NGEN_FORCING_ACTIVE
      else
-       ! forcingStep is the time-record index in the current native forcing file.
+       ! forcingStep is the time-record index in the native forcing file.
        ! summa_writeOutputFiles normally advances it after each model step.
-       ! With framework-managed output, that call is skipped; advance it here so
-       ! the next update reads the next record and passes the timestamp check.
+       ! With framework-managed output, that call is skipped, so we advance here instead.
        forcingStep = forcingStep + 1
 #endif
      endif
