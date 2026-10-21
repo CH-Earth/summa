@@ -265,6 +265,8 @@ contains
     USE get_ixname_module, only: get_ixParam,get_ixBpar
     USE globalData, only: localParFallback,basinParFallback
     USE globalData, only: mpar_meta,bpar_meta
+    USE globalData, only: integerMissing
+    USE param_override_module, only: split_domain_target
     implicit none
     character(*), intent(in)  :: param_name
     real(rkind),  intent(out) :: trial_value
@@ -275,12 +277,20 @@ contains
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
     integer(i4b) :: ixParam,ixBasin
+    character(len=64) :: name     ! parameter name without its domain type
+    integer(i4b)      :: domType  ! domain type a name@domainType targets, 0 for every domain
   
     err=0
     message='get_summa_parameter_info/'
+    ! a name@domainType parameter takes the default and bounds of the parameter it names
+    call split_domain_target(param_name,name,domType)
+    if(domType==integerMissing)then
+      message=trim(message)//'unknown domain type in "'//trim(param_name)//'" (use upland, glacCln1, glacCln2, glacDbr, or wetland)'
+      err=20; return
+    endif
   
     ! local parameter
-    ixParam=get_ixParam(trim(param_name))
+    ixParam=get_ixParam(trim(name))
     if(ixParam > 0)then
       trial_value=localParFallback(ixParam)%default_val
       lower      =localParFallback(ixParam)%lower_limit
@@ -295,8 +305,12 @@ contains
     endif
   
     ! basin parameter
-    ixBasin=get_ixBpar(trim(param_name))
+    ixBasin=get_ixBpar(trim(name))
     if(ixBasin > 0)then
+      if(domType>0)then
+        message=trim(message)//'basin parameter "'//trim(name)//'" has no domain type to target'
+        err=20; return
+      endif
       trial_value=basinParFallback(ixBasin)%default_val
       lower      =basinParFallback(ixBasin)%lower_limit
       upper      =basinParFallback(ixBasin)%upper_limit
