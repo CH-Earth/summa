@@ -72,7 +72,42 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
   workers more of the budget is spent before the search improves (~22 points); idle workers at the
   end of the run (~13 points).
 
+## Oct 13-14: SPOTPY driver on the same J()
+
+- `scripts/spotpy/calibrate_athabasca_spotpy.py`: SPOTPY 1.6.7 `sceua`, `dds` and `lhs` with
+  `parallel="mpi"`, reusing the develop driver's per-rank setup, child-process `J()` call, 2 h timeout,
+  -1e6 penalty and canopy check. DDS: r = 0.2, `x_initial` = defaults.
+- Seeding: SPOTPY reseeds numpy when the sampler is created, so the seed is passed as
+  `random_state = 42 + rank`. SPOTPY's DDS evaluates the starting set on rank 0, so rank 0 gets the
+  same SUMMA setup as the workers (found in a local MPI test with a stand-in model).
+- Smoke tests on Anvil passed for SCE-UA and DDS. The full DDS run's first evaluation (the default
+  parameters) gives KGE 0.5528, the same as in job 21217337, so both drivers run the same J() setup.
+
+## Oct 13-17: full SPOTPY runs (1 shared node, 49 workers, 5,000-run budget, seed 42)
+
+- DDS, job 21343300: 5,000 runs in 32.4 h (154 runs/h); best KGE 0.8510.
+- SCE-UA with 49 complexes, job 21339837: 8,636 runs executed (SPOTPY keeps the first 5,000) in 95.7 h
+  (90 runs/h); best KGE 0.7239 (0.7202 among the 5,000 kept).
+
+## Oct 22: comparison with async DDS (`scripts/compare_athabasca_optimizers.py`)
+
+| | Async DDS | SPOTPY DDS | SPOTPY SCE-UA |
+|---|---|---|---|
+| Best KGE 2016-2019 | 0.8806 | 0.8510 | 0.7239 |
+| Wall time | 28.4 h | 32.4 h | 95.7 h |
+| Runs per hour | 176 | 154 | 90 |
+| Runs / hours to KGE 0.85 | 2,355 / 14.2 h | 4,630 / 30.1 h | not reached |
+
+- Async DDS: fastest, highest final KGE, and the only run past SYMFLUENCE's 0.8748 (after 22.7 h).
+- SPOTPY DDS reached 0.80 first (927 runs vs 1,621) and then fell behind after about 1,600 runs; one seed
+  each, so search-path luck and implementation cannot be separated yet.
+- SCE-UA: burn-in of 1,519 runs and about two shuffling loops within the budget; not a fair test of
+  SCE-UA at this budget.
+
 ## Next
 
 - Update this branch to current develop and bring in the develop version of `summa_c_api.f90`.
-- Repeat the develop calibration with 3-5 seeds; raise the theta_sat lower bound to ~0.39.
+- Repeat the develop calibration with 3-5 seeds (async DDS and SPOTPY DDS); raise the theta_sat lower
+  bound to ~0.39 and widen the routingGammaScale upper bound.
+- Pymoo genetic algorithm on the same J() (driver in testing on Anvil, Oct 22).
+- If SCE-UA is repeated: fewer complexes than workers, or a larger budget.
