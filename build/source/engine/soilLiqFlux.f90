@@ -1688,9 +1688,9 @@ subroutine update_volFracLiq_derivatives
      ixBot = nSoil
    end if
 
-   ! Close infiltration under saturation only for blocked lower boundaries, where pressure can build up;
-   ! free drainage relieves it. Glacier always has a zero flux lower boundary (blocked boundary).
-   if (ixTop <= ixBot .and. (bc_lower/=freeDrainage .or. nGlce>0)) then
+   ! Close infiltration under saturation for all lower boundaries: pressure can also build up with free drainage
+   ! (e.g., with ice impedance), and where it does not the limiter stays at one and has no effect.
+   if (ixTop <= ixBot) then
      ! Reduce infiltration area as positive matric head develops in these layers.
      rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
 
