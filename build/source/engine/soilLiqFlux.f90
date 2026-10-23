@@ -1119,7 +1119,7 @@ subroutine update_volFracLiq_derivatives
    if (S1 <= 0._rkind) then; io_surfaceFlux % scalarInfilArea = 1._rkind; return; end if ! if no water, unsaturated and all area infiltrates
    S1_max = total_soil_depth * theta_sat                ! max water storage for upper FUSE layer (m)
 
-  ! compute tension water content
+   ! compute tension water content
    S1_T_max = phi_tens * S1_max
    S1_T     = LogSumExp(-alpha_LSE,[S1,S1_T_max],err) ! smooth approximation to S1_T=min(S1,S1_T_max)
    if(err/=0)then; err=10; message=trim(message)//"FUSE PRMS surface runoff: error in LogSumExp"; return_flag=.true.; return; end if
@@ -1203,14 +1203,14 @@ subroutine update_volFracLiq_derivatives
    
    ! define the derivatives
    if(updateInfil)then
-   ! compute derivatives needed for infiltration derivative
+     ! compute derivatives needed for infiltration derivative
      dS1_dLiq = mLayerDepth(:)
-   if (smoother) then ! with smooth approximation of min(S1,S1_max)
-       S1_star_derivatives = SoftArgMax(-alpha_LSE,[S1,S1_max])
-       dS1_star_dS1 = S1_star_derivatives(1)
-   else               ! no smoothing
-       dS1_star_dS1 = 1._rkind  ! S1_star = S1 if no smoothing
-   end if
+     if (smoother) then ! with smooth approximation of min(S1,S1_max)
+         S1_star_derivatives = SoftArgMax(-alpha_LSE,[S1,S1_max])
+         dS1_star_dS1 = S1_star_derivatives(1)
+     else               ! no smoothing
+         dS1_star_dS1 = 1._rkind  ! S1_star = S1 if no smoothing
+     end if
      dbase_dS1 = -1._rkind/S1_max * dS1_star_dS1
      dInfilArea_dWat(:) = b_arnovic*base**(b_arnovic-1._rkind)*dbase_dS1*dS1_dLiq(:) * dVolFracLiq_dWat(:)     
      dInfilArea_dTk(:)  = b_arnovic*base**(b_arnovic-1._rkind)*dbase_dS1*dS1_dLiq(:) * dVolFracLiq_dTk(:) 
@@ -1630,21 +1630,17 @@ subroutine update_volFracLiq_derivatives
   ! **** Update operations for surfaceFlux: final infiltration calculations ****
   ! local variables
   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
-  real(rkind) :: rootZoneDepth            ! depth of active root-zone layers used in saturation limiter (m)
-  real(rkind) :: compHeadRootZone         ! mean positive pressure head over active layers (m)
   real(rkind) :: compLimiter              ! smooth limiter that closes infiltration area under strong compression (-)
   real(rkind) :: compLimiter_prev         ! pre-limiter infiltration area used for chain rule (-)
-  real(rkind) :: compArg                  ! argument of logistic compression limiter (-)
   real(rkind) :: dCompLimiter_dHead       ! derivative of compression limiter w.r.t. mean positive head (m-1)
-  real(rkind),parameter :: compHeadCutoff=1._rkind   ! positive head where compression closure begins (m)
-  real(rkind),parameter :: compHeadWidth =0.02_rkind ! smoothing width for compression closure (m)
-  real(rkind)           :: compHeadCutoff_use        ! the cutoff actually used, never deeper than the zone itself (m)
-  real(rkind)           :: compHeadWidth_use         ! the smoothing width that goes with it (m)
+  real(rkind),parameter :: compHeadWidth =0.05_rkind ! pressure-head scale of the Gaussian compression closure (m)
   real(rkind),parameter :: headSmooth =1.e-4_rkind   ! smoothing for max(psi,0) approximation (m)
   real(rkind) :: posHead(1:in_surfaceFlux % nSoil)   ! smooth positive part of matric head (m)
   real(rkind) :: dPosHead_dPsi(1:in_surfaceFlux % nSoil) ! derivative of smooth positive head w.r.t. matric head (-)
   real(rkind) :: dCompHead_dWat(1:in_surfaceFlux % nSoil) ! derivative of mean positive head w.r.t. hyd state (m)
-  integer(i4b) :: ixTop, ixBot             ! top and bottom layer indices for the active root zone
+  real(rkind) :: rootZoneDepth     ! depth of the layers used in the saturation limiter (m)
+  real(rkind) :: meanPositiveHead  ! depth-weighted mean positive matric head over those layers (m)
+  integer(i4b) :: ixTop, ixBot     ! top and bottom layer indices used in the saturation limiter
 
   ! compute infiltration
   associate(&
@@ -1678,11 +1674,11 @@ subroutine update_volFracLiq_derivatives
    message => out_surfaceFlux % message  & ! error message
   &)
 
-  ! check infiltration area and define saturated area
+   ! check infiltration area and define saturated area
    if (scalarInfilArea < 0._rkind) then; err=20; message=trim(message)//'infiltration area less than zero'; return_flag=.true.; return; end if
-
+  
    ! Saturation-area limiters
-   if(surfRun_SE==homegrown_SE)then ! infiltration area based on all layers
+   if(surfRun_SE==homegrown_SE)then ! infiltration area based on the root zone below any ice layers
      ixTop = ixIce + 1
      ixBot = nRoots
    else ! if not homegrown_SE, infiltration area based on all layers
@@ -1690,35 +1686,41 @@ subroutine update_volFracLiq_derivatives
      ixBot = nSoil
    end if
 
-  ! Close infiltration under saturation for blocked lower boundaries
-  rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
-  if (ixTop <= ixBot .and. (bc_lower/=freeDrainage .or. nGlce>0)) then ! glacier always has lower boundary zero flux (blocked boundary)
-    ! drives infiltration area to zero once positive pressure becomes large
-    posHead(:) = 0._rkind
-    dPosHead_dPsi(:) = 0._rkind
-    posHead(ixTop:ixBot) = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b)) ! smooth positive part of matric head (m)
-    dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
+   ! Close infiltration under saturation for all lower boundaries: pressure can also build up with free drainage
+   ! (e.g., with ice impedance), and where it does not the limiter stays at one and has no effect.
+   if (ixTop <= ixBot) then
+     ! Reduce infiltration area as positive matric head develops in these layers.
+     rootZoneDepth = sum(mLayerDepth(ixTop:ixBot))
 
-    ! the closure cannot ask for more head than the zone is deep, nor a width that outruns its cutoff
-    compHeadCutoff_use = min(compHeadCutoff, rootZoneDepth)
-    compHeadWidth_use  = min(compHeadWidth, 0.25_rkind*compHeadCutoff_use)
+     ! Compute the smooth positive part of matric head using the CHKS approximation
+     ! (Kavetski and Kuczera, WRR 2007, Eq. 11), and its derivative.
+     posHead(:)     = 0._rkind
+     dPosHead_dPsi(:) = 0._rkind
+     posHead(ixTop:ixBot)       = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
+     dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
 
-    ! compute derivatives of mean positive head w.r.t. water state variables
-    dCompHead_dWat(:) = 0._rkind
-    compHeadRootZone = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
-    compArg = (compHeadRootZone - compHeadCutoff_use)/compHeadWidth_use
-    compLimiter = 1._rkind/(1._rkind + exp(2._rkind*compArg))
-    dCompLimiter_dHead = -(2._rkind/compHeadWidth_use)*compLimiter*(1._rkind - compLimiter)
-    dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth) * dPosHead_dPsi(ixTop:ixBot)
+     ! Compute the depth-weighted mean positive matric head.
+     meanPositiveHead = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
 
-    ! apply compression limiter to infiltration area and compute derivatives
-    compLimiter_prev = scalarInfilArea
-    scalarInfilArea = scalarInfilArea*compLimiter
-    if(updateInfil)then
-      dInfilArea_dWat(:) = dInfilArea_dWat(:)*compLimiter + compLimiter_prev*dCompLimiter_dHead*dCompHead_dWat(:)
-      dInfilArea_dTk(:)  = dInfilArea_dTk(:)*compLimiter
-    end if
+     ! Reduce infiltration area with a Gaussian of the mean positive head, which has zero slope at zero head,
+     ! so the limiter does not add a kink to the Jacobian where a layer saturates.
+     ! compHeadWidth is the pressure-head scale (m) at which the limiter falls to exp(-1).
+     compLimiter = exp(-(meanPositiveHead/compHeadWidth)**2_i4b)
+     dCompLimiter_dHead = -2._rkind*meanPositiveHead/compHeadWidth**2_i4b*compLimiter
+
+     ! Derivative of mean positive head with respect to water state variables.
+     dCompHead_dWat(:) = 0._rkind
+     dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth)*dPosHead_dPsi(ixTop:ixBot)
+
+     ! Apply the pressure-dependent infiltration limiter and update derivatives.
+     compLimiter_prev = scalarInfilArea
+     scalarInfilArea  = scalarInfilArea*compLimiter
+     if(updateInfil)then
+       dInfilArea_dWat(:) = dInfilArea_dWat(:)*compLimiter + compLimiter_prev*dCompLimiter_dHead*dCompHead_dWat(:)
+       dInfilArea_dTk(:)  = dInfilArea_dTk(:)*compLimiter
+     end if
    end if
+
    scalarSaturatedArea = 1._rkind - scalarInfilArea
 
    ! unfrozen infiltration area and infiltration (m s-1)
