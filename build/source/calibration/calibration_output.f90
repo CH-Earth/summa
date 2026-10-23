@@ -43,10 +43,8 @@ contains
   !
   ! Parameter and objective values are written by global trial index along the fixed sample dimension.
   ! **************************************************************************************************
-  subroutine create_calibration_output(filename,spec,nSamples,nWorkers, &
-                                       node_index,global_case_group,          &
-                                       case_name,metric,obs_transform,        &
-                                       ncid,ierr,message)
+  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,node_index,global_case_group, &
+                                       case_name,metric,obs_transform,ncid,ierr,message)
     implicit none
     character(*),         intent(in)  :: filename
     type(parameter_spec), intent(in)  :: spec
@@ -202,7 +200,6 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
       
       do iConstraint=1,size(spec%ordered)
-      
         ! construct ordered parameter list
         constraint_names=''
         do iOrdered=1,size(spec%ordered(iConstraint)%param_index)
@@ -220,7 +217,6 @@ contains
         ierr=nf90_put_att(ncid,NF90_GLOBAL,trim(attribute_name)//'_gap_fraction', &
                           spec%ordered(iConstraint)%gap_fraction)
         if(ierr/=nf90_noerr) exit netcdf_block
-      
       enddo
 
       ! leave define mode

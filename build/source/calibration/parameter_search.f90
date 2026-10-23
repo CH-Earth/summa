@@ -275,18 +275,14 @@ contains
       search%upper(iSearch) = spec%params(i)%upper
 
       ! transformed search-space bounds
-      call transform_parameter(spec%params(i)%lower,         &
-                               spec%params(i)%transformation, &
-                               search%search_lower(iSearch),  &
-                               err,cmessage)
+      call transform_parameter(spec%params(i)%lower,spec%params(i)%transformation, &
+                               search%search_lower(iSearch),err,cmessage)
       if(err/=0)then
         message=trim(message)//trim(cmessage)
         return
       endif
-      call transform_parameter(spec%params(i)%upper,         &
-                               spec%params(i)%transformation, &
-                               search%search_upper(iSearch),  &
-                               err,cmessage)
+      call transform_parameter(spec%params(i)%upper,spec%params(i)%transformation, &
+                               search%search_upper(iSearch),err,cmessage)
       if(err/=0)then
         message=trim(message)//trim(cmessage)
         return
@@ -403,7 +399,6 @@ contains
       ! minimum separation between adjacent parameters
       search%ordered(iConstraint)%gap = &
         spec%ordered(iConstraint)%gap_fraction * (range_upper-range_lower)
-      
       if(search%ordered(iConstraint)%gap < 0._rkind)then
         write(message,'(A,I0)') trim(message)// &
           'invalid total parameter range in ordered constraint = ',iConstraint
@@ -441,7 +436,6 @@ contains
 
       do iConstraint=1,size(search%ordered)
         do j=2,size(search%ordered(iConstraint)%param_index)
-
           iPrev=search%ordered(iConstraint)%param_index(j-1)
           ixParam=search%ordered(iConstraint)%param_index(j)
 
@@ -489,20 +483,15 @@ contains
 
       search%lower(iSearch)=feasible_lower(i)
       search%upper(iSearch)=feasible_upper(i)
-
-      call transform_parameter(search%lower(iSearch),           &
-                               search%transformation(iSearch), &
-                               search%search_lower(iSearch),   &
-                               err,cmessage)
+      call transform_parameter(search%lower(iSearch),search%transformation(iSearch), &
+                               search%search_lower(iSearch),err,cmessage)
       if(err/=0)then
         message=trim(message)//trim(cmessage)
         return
       endif
 
-      call transform_parameter(search%upper(iSearch),           &
-                               search%transformation(iSearch), &
-                               search%search_upper(iSearch),   &
-                               err,cmessage)
+      call transform_parameter(search%upper(iSearch),search%transformation(iSearch), &
+                               search%search_upper(iSearch),err,cmessage)
       if(err/=0)then
         message=trim(message)//trim(cmessage)
         return
@@ -540,7 +529,6 @@ contains
     select case(trim(method))
 
       case ('random')
-
         call sample_parameters(search,param_values,err,cmessage)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
@@ -548,10 +536,8 @@ contains
         endif
 
       case ('dds')
-
         ! Initialize DDS with independent random samples until an elite individual exists.
         if(.not.allocated(state%elite_individual))then
-
           call sample_parameters(search,param_values,err,cmessage)
           if(err/=0)then
             message=trim(message)//trim(cmessage)
@@ -559,14 +545,8 @@ contains
           endif
 
         else
-
-          call perturb_parameters_dds(search,                 &
-                                      state%elite_individual, &
-                                      i,                      &
-                                      m,                      &
-                                      dds_r,                  &
-                                      param_values,           &
-                                      err,cmessage)
+          call perturb_parameters_dds(search,state%elite_individual,i,m, &
+                                      dds_r,param_values,err,cmessage)
           if(err/=0)then
             message=trim(message)//trim(cmessage)
             return
@@ -575,7 +555,6 @@ contains
         endif
 
       case default
-
         message=trim(message)//'unknown parameter sampling method: '//trim(method)
         err=20
         return
@@ -615,9 +594,7 @@ contains
       do i=1,size(search%param_names)
         call random_number(u)
         search_value = search%search_lower(i) + u*(search%search_upper(i)-search%search_lower(i))
-        call inverse_transform_parameter(search_value,            &
-                                         search%transformation(i), &
-                                         param_values(i),          &
+        call inverse_transform_parameter(search_value,search%transformation(i),param_values(i), &
                                          err,cmessage)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
@@ -678,22 +655,16 @@ contains
 
         ! perturbation scale is a fraction of transformed parameter range
         sigma = step_fraction * (search%search_upper(i)-search%search_lower(i))
-        call sample_truncated_normal(best_search_value,      &
-                                     sigma,                  &
-                                     search%search_lower(i), &
-                                     search%search_upper(i), &
-                                     search_value,           &
-                                     err,cmessage)
+        call sample_truncated_normal(best_search_value,sigma,search%search_lower(i), &
+                                     search%search_upper(i),search_value,err,cmessage)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           return
         endif
 
         ! return proposed value to physical model space
-        call inverse_transform_parameter(search_value,            &
-                                         search%transformation(i), &
-                                         param_values(i),          &
-                                         err,cmessage)
+        call inverse_transform_parameter(search_value,search%transformation(i), &
+                                         param_values(i),err,cmessage)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           return

@@ -80,11 +80,8 @@ contains
   ! Initializes parameter information shared across evaluations and establishes the dispatcher-owned
   ! state used by the parameter-search algorithm.
   ! **************************************************************************************************
-  subroutine initialize_parameter_evaluation(config,instance_parallel,     &
-                                             mpar_init,bpar_init,          &
-                                             param_spec,search,param_name, &
-                                             search_state,sample_best,     &
-                                             err,message)
+  subroutine initialize_parameter_evaluation(config,instance_parallel,mpar_init,bpar_init,param_spec, &
+                                             search,param_name,search_state,sample_best,err,message)
     USE parameter_search, only: initialize_parameter_search
     USE summa_parameter_spec, only: get_summa_parameter_spec
     implicit none
@@ -263,10 +260,8 @@ contains
 
           ! generate the next parameter sample and complete SUMMA override vector
           ! NOTE: nComplete=1 so that p = 1 - log(1) / log(nSamples) = 1
-          call generate_parameter_sample(param_spec,search,search_state, &
-                                         one,nSamples,                   &
-                                         param_value,param_override,     &
-                                         err,cmessage)
+          call generate_parameter_sample(param_spec,search,search_state,one,nSamples, &
+                                         param_value,param_override,err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! save parameter samples (rank 0)
@@ -320,14 +315,8 @@ contains
         endif
 
         ! write parameter set, objective function, and timing
-        call write_calibration_output(ncid_calib,                   &
-                                      sample_id, worker,            &
-                                      param_name,                   &
-                                      param_overrides(:,sample_id), &
-                                      objective,                    &
-                                      startModelRun(:,sample_id),   &
-                                      endModelRun(:,sample_id),     &
-                                      err,cmessage)
+        call write_calibration_output(ncid_calib,sample_id,worker,param_name,param_overrides(:,sample_id), &
+                                      objective,startModelRun(:,sample_id),endModelRun(:,sample_id),err,cmessage)
         if(err/=0)then
           message=trim(message)//trim(cmessage)
           call abort_mpi(instance_parallel%rank,trim(message))
@@ -338,10 +327,8 @@ contains
         if(next_sample <= nSamples)then
 
           ! generate the next parameter sample and complete SUMMA override vector
-          call generate_parameter_sample(param_spec,search,search_state, &
-                                         nComplete,nSamples,             &
-                                         param_value,param_override,     &
-                                         err,cmessage)
+          call generate_parameter_sample(param_spec,search,search_state,nComplete,nSamples,param_value, &
+                                         param_override,err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! save parameter samples (rank 0)
@@ -370,10 +357,8 @@ contains
       do
 
         ! wait for either another parameter sample or a stop instruction
-        call receive_sample(sample_id,param_override,stop_worker, &
-                            instance_parallel%comm,               &
-                            instance_parallel%rank,               &
-                            mpi_err)
+        call receive_sample(sample_id,param_override,stop_worker,instance_parallel%comm, &
+                            instance_parallel%rank,mpi_err)
         call check_mpi(instance_parallel%rank,mpi_err, 'unable to receive parameter sample')
         if(stop_worker) exit
 
@@ -404,11 +389,8 @@ contains
   ! parameter vector contains only parameters included in the search, whereas the override vector
   ! also includes non-sampled parameters required by calibration constraints.
   ! **************************************************************************************************
-  subroutine generate_parameter_sample(param_spec,search,search_state, &
-                                       nComplete,nSamples,             &
-                                       param_value,param_override,     &
-                                       err,message)
-
+  subroutine generate_parameter_sample(param_spec,search,search_state,nComplete,nSamples, param_value, &
+                                      param_override,err,message)
     USE parameter_search, only: parameter_spec
     USE parameter_search, only: parameter_search_info
     USE parameter_search, only: search_state_type
@@ -433,24 +415,16 @@ contains
     message='generate_parameter_sample/'
 
     ! generate the next sampled parameter vector
-    call generate_search_sample(sampling_method, &
-                                search,          &
-                                search_state,    &
-                                nComplete,       &
-                                nSamples,        &
-                                param_value,     &
-                                err,cmessage)
+    call generate_search_sample(sampling_method,search,search_state,nComplete, &
+                                nSamples,param_value,err,cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
     endif
 
     ! construct the complete SUMMA parameter override vector
-    call build_summa_parameter_overrides(param_spec,         &
-                                         search%param_names, &
-                                         param_value,        &
-                                         param_override,     &
-                                         err,cmessage)
+    call build_summa_parameter_overrides(param_spec,search%param_names,param_value, &
+                                         param_override,err,cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
@@ -459,12 +433,7 @@ contains
   end subroutine generate_parameter_sample
 
   ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
   ! --- PRIVATE HELPER ROUTINES ----------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-  ! --------------------------------------------------------------------------------------------------
-
   ! **************************************************************************************************
   ! Send one parameter sample to a worker.
   ! **************************************************************************************************
@@ -516,18 +485,14 @@ contains
     call MPI_Recv(sample_id,1,MPI_INTEGER,0,MPI_ANY_TAG,comm,status,mpi_err)
     if(mpi_err/=MPI_SUCCESS) return
     select case(status(MPI_TAG))
-
       case (tag_stop)
         stop_worker=.true.
         return
-
       case (tag_work)
         call MPI_Recv(param_value,size(param_value),MPI_DOUBLE_PRECISION, 0,tag_work,comm,status,mpi_err)
-
       case default
         ! all message tags are defined internally, so an unknown tag is fatal
         call abort_mpi(rank,'unknown MPI tag')
-
     end select
 
   end subroutine receive_sample
