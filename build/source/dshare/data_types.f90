@@ -79,8 +79,10 @@ MODULE data_types
  ! ***********************************************************************************************************
  type,public  :: calib_param_info
   character(len=64) :: name
-  real(rkind)       :: lower_bound
-  real(rkind)       :: upper_bound
+  logical(lgt)      :: has_lower = .false.  ! lower bound given in the configuration (else native bound is used)
+  logical(lgt)      :: has_upper = .false.  ! upper bound given in the configuration (else native bound is used)
+  real(rkind)       :: lower_bound = 0._rkind
+  real(rkind)       :: upper_bound = 0._rkind
   character(len=16) :: transformation = 'none'
  end type calib_param_info
 

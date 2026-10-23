@@ -71,6 +71,11 @@ covers the user-facing highlights.
   NetCDF output of every trial (PR #639).
 - Many basins can be calibrated in one job through a manifest file (`--manifest`) that lists
   cases and a configuration template (PR #639).
+- Calibration parameters are listed in `[calibration.parameters]`, one entry per parameter,
+  with optional `lower`, `upper` and `transformation`. Anything left out comes from the SUMMA
+  parameter files (or code defaults) and the transformation defaults to `none`, so
+  `theta_sat = {}` is enough. The older `param_list = [...]` with
+  `[calibration.parameter_transformations]` is still accepted.
 
 ### Process options
 - New `infRateMax` decision for the maximum infiltration rate (`topmodel_GA`, `GreenAmpt`,

@@ -405,6 +405,24 @@ contains
         err=20; return
       endif
 
+      ! two adjacent parameters that are not being sampled keep their initialized values, so
+      ! the initialized values must already satisfy the ordering and the minimum gap
+      do i=2,nOrdered
+        iPrev   =search%ordered(iConstraint)%param_index(i-1)
+        ixParam =search%ordered(iConstraint)%param_index(i)
+        if(search%params(iPrev)%sampled .or. search%params(ixParam)%sampled) cycle
+        if(search%params(ixParam)%trial_value - search%params(iPrev)%trial_value < &
+           search%ordered(iConstraint)%gap)then
+          write(message,'(A,A,A,ES12.5,A,A,A,ES12.5,A,ES12.5)') trim(message)// &
+            'initialized values of the fixed parameters ',trim(search%params(iPrev)%name), &
+            ' = ',search%params(iPrev)%trial_value,' and ',trim(search%params(ixParam)%name), &
+            ' = ',search%params(ixParam)%trial_value, &
+            ' violate ordering (min gap = ',search%ordered(iConstraint)%gap
+          message=trim(message)//'); sample one or fix its initial value'
+          err=20; return
+        endif
+      enddo
+
     enddo
 
     ! -----------------------------------------------------------------------------------------------

@@ -48,6 +48,7 @@ contains
     integer(i4b) :: nParam
     integer(i4b) :: nMax
     integer(i4b) :: nConstraint
+    real(rkind)  :: lower,upper
     character(len=256) :: cmessage
 
     err = 0
@@ -165,16 +166,28 @@ contains
           return
         endif
 
+        ! bounds not given in the configuration keep the native SUMMA bounds
+        lower = spec%params(ix)%lower
+        upper = spec%params(ix)%upper
+        if(config%calib%param_list(i)%has_lower) lower = config%calib%param_list(i)%lower_bound
+        if(config%calib%param_list(i)%has_upper) upper = config%calib%param_list(i)%upper_bound
+
+        if(lower >= upper)then
+          write(message,'(A,ES12.4,1X,ES12.4)') trim(message)// &
+            'lower bound must be less than upper bound for calibration parameter '// &
+            trim(config%calib%param_list(i)%name)//': ',lower,upper
+          err=20
+          return
+        endif
+
         ! warn if calibration bounds exceed native SUMMA bounds
-        if(config%calib%param_list(i)%lower_bound < spec%params(ix)%lower .or. &
-           config%calib%param_list(i)%upper_bound > spec%params(ix)%upper)then
+        if(lower < spec%params(ix)%lower .or. upper > spec%params(ix)%upper)then
 
           write(iulog,'(A,A,A,2(ES12.4,1X),A,2(ES12.4,1X))') &
             'WARNING: calibration bounds exceed native SUMMA bounds for ', &
             trim(config%calib%param_list(i)%name),                         &
             ': calibration = ',                                            &
-            config%calib%param_list(i)%lower_bound,                        &
-            config%calib%param_list(i)%upper_bound,                        &
+            lower,upper,                                                   &
             ', native = ',                                                 &
             spec%params(ix)%lower,                                         &
             spec%params(ix)%upper
@@ -182,8 +195,8 @@ contains
         endif
 
         ! apply calibration-specific bounds
-        spec%params(ix)%lower = config%calib%param_list(i)%lower_bound
-        spec%params(ix)%upper = config%calib%param_list(i)%upper_bound
+        spec%params(ix)%lower = lower
+        spec%params(ix)%upper = upper
 
         ! apply calibration-specific transformation
         spec%params(ix)%transformation = &

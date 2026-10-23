@@ -141,6 +141,7 @@ contains
     integer(i4b)        :: i,j,k
     character(len=1024) :: cmessage
     logical(lgt)        :: mizuroute_config_present = .false.
+    logical(lgt)        :: calib_params_parsed
 
     err = 0
     message = 'load_summa_config/'
@@ -187,6 +188,7 @@ contains
       endif
 
       ! ----- get keys for a given section (sub-table) -----
+      calib_params_parsed = .false.
       call subtable%get_keys(keys)
 
       ! ----- loop through the sub-table -----
@@ -194,26 +196,38 @@ contains
 
         ! ----- calibration parameters are parsed as a complete sub-table -----
         if(trim(sections(i)%key) == "calibration" .and. &
-           trim(keys(j)%key)     == "parameters")then
-        
-          call parse_calibration_parameters(subtable,config,err,cmessage) 
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     
-          if(config%is_case_root)then     
-            write(iulog,*) 'Calibration parameters:'
-            write(iulog,'(3X,2X,A24,2X,A16,2X,A16,2X,A)') &
-            'Parameter', 'Lower bound', 'Upper bound', 'Transformation'
-            do k=1,size(config%calib%param_list)
-              write(iulog,'(I3,2X,A24,2X,F16.9,2X,F16.9,2X,A)') &
-                k, trim(config%calib%param_list(k)%name),     &
-                config%calib%param_list(k)%lower_bound,       &
-                config%calib%param_list(k)%upper_bound,       &
-                trim(config%calib%param_list(k)%transformation)
-            enddo
+           (trim(keys(j)%key) == "parameters" .or. trim(keys(j)%key) == "param_list" .or. &
+            trim(keys(j)%key) == "parameter_transformations"))then
+
+          ! all three keys are parsed together, once
+          if(.not.calib_params_parsed)then
+            call parse_calibration_parameters(subtable,config,err,cmessage)
+            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+            calib_params_parsed = .true.
+
+            if(config%is_case_root)then
+              write(iulog,*) 'Calibration parameters (bounds not given here are taken from the SUMMA parameter files):'
+              write(iulog,'(3X,2X,A24,2X,A16,2X,A16,2X,A)') &
+              'Parameter', 'Lower bound', 'Upper bound', 'Transformation'
+              do k=1,size(config%calib%param_list)
+                write(iulog,'(I3,2X,A24)',advance='no') k, trim(config%calib%param_list(k)%name)
+                if(config%calib%param_list(k)%has_lower)then
+                  write(iulog,'(2X,ES16.8)',advance='no') config%calib%param_list(k)%lower_bound
+                else
+                  write(iulog,'(2X,A16)',advance='no') 'native'
+                endif
+                if(config%calib%param_list(k)%has_upper)then
+                  write(iulog,'(2X,ES16.8)',advance='no') config%calib%param_list(k)%upper_bound
+                else
+                  write(iulog,'(2X,A16)',advance='no') 'native'
+                endif
+                write(iulog,'(2X,A)') trim(config%calib%param_list(k)%transformation)
+              enddo
+            endif
           endif
 
           cycle
-        
+
         endif
 
         ! select section
@@ -425,9 +439,11 @@ contains
     type(toml_array), pointer   :: case_names
     integer(i4b)        :: i,idx,istat
     character(len=1024) :: key,cmessage
+    logical(lgt)        :: have_template_path
   
     err=0
     message='parse_manifest/'
+    have_template_path = .false.
     call subtable%get_keys(keys)
   
     do i=1,size(keys)
@@ -440,7 +456,9 @@ contains
         case ("multi_case.cases_per_node"   ); call get_value(subtable,trim(keys(i)%key),config%cases_per_node    , stat=istat)
         case ("multi_case.n_runs"           ); call get_value(subtable,trim(keys(i)%key),config%n_runs            , stat=istat)
 
-        ! ----- path/name of toml template -----
+        ! ----- path/name of toml template (template_path is optional: default is the manifest directory) -----
+        case ("multi_case.template_path"    ); call get_value(subtable,trim(keys(i)%key),config%template_path     , stat=istat)
+                                               have_template_path = (istat==0)
         case ("multi_case.template_file"    ); call get_value(subtable,trim(keys(i)%key),config%template_file     , stat=istat)
 
         ! ---- case names ----
@@ -469,10 +487,12 @@ contains
     idx = max( scan(trim(config%manifest_file), '/',       back=.true.), & ! mac/linux
                scan(trim(config%manifest_file), achar(92), back=.true.)  ) ! windows
 
-    if(idx > 0)then
-      config%template_path = config%manifest_file(:idx)
-    else
-      config%template_path = ''
+    if(.not.have_template_path)then
+      if(idx > 0)then
+        config%template_path = config%manifest_file(:idx)
+      else
+        config%template_path = ''
+      endif
     endif
 
     ! ----- validate required manifest settings -----
@@ -779,12 +799,18 @@ contains
   ! **************************************************************************************************
   ! Parse calibration parameter specifications.
   !
-  ! Each key in [calibration.parameters] is a parameter name. The associated inline table
-  ! defines lower and upper search bounds and, optionally, a parameter transformation.
+  ! Parameters can be given in two ways, which may be combined:
+  !   [calibration.parameters]  each key is a parameter name; the inline table optionally defines
+  !                             'lower' and 'upper' search bounds and a 'transformation'
+  !   param_list = [...]        a plain list of parameter names (legacy form)
+  ! and, for the legacy form, [calibration.parameter_transformations] gives name = "transformation".
+  !
+  ! Anything not specified here is filled in later from the SUMMA parameter files (or the code
+  ! defaults): bounds from the native lower and upper limits, and the transformation is "none".
   ! **************************************************************************************************
   subroutine parse_calibration_parameters(calib_table,config,ierr,message)
   
-    use tomlf_all, only: toml_table,toml_key,get_value
+    use tomlf_all, only: toml_table,toml_array,toml_key,get_value
   
     implicit none
   
@@ -794,46 +820,84 @@ contains
     character(*),              intent(out)   :: message
   
     type(toml_table), pointer   :: parameters_table
+    type(toml_table), pointer   :: transform_table
     type(toml_table), pointer   :: parameter
+    type(toml_array), pointer   :: name_array
     type(toml_key), allocatable :: keys(:)
+    type(toml_key), allocatable :: tkeys(:)
   
-    character(len=:), allocatable :: transformation
+    character(len=64), allocatable :: listed(:)
+    character(len=:),  allocatable :: transformation
+    character(len=1024)            :: cmessage
   
-    integer(i4b) :: i
+    integer(i4b) :: i,j
+    integer(i4b) :: n
+    integer(i4b) :: nTable
+    integer(i4b) :: nListed
     integer(i4b) :: istat
+    logical(lgt) :: duplicate
   
     ierr = 0
     message = 'parse_calibration_parameters/'
   
-    ! get [calibration.parameters] table
-    call get_value(calib_table,'parameters',parameters_table,stat=istat)
-  
-    if(istat/=0 .or. .not.associated(parameters_table))then
-      message=trim(message)//'unable to read calibration parameters table'
-      ierr=20; return
-    endif
-  
-    ! get parameter names
-    call parameters_table%get_keys(keys)
-  
-    if(.not.allocated(keys))then
-      if(allocated(config%calib%param_list)) deallocate(config%calib%param_list)
-      allocate(config%calib%param_list(0))
-      return
-    endif
-  
     ! multi-case runs reuse the configuration structure
     if(allocated(config%calib%param_list)) deallocate(config%calib%param_list)
   
-    allocate(config%calib%param_list(size(keys)),stat=ierr)
+    ! ---- legacy list of parameter names ----
+    nullify(name_array)
+    call get_value(calib_table,'param_list',name_array,requested=.false.,stat=istat)
+    if(associated(name_array))then
+      call parse_word_list(name_array,listed,ierr,cmessage)
+      if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+    else
+      allocate(listed(0))
+    endif
   
+    ! ---- [calibration.parameters] table ----
+    nullify(parameters_table)
+    call get_value(calib_table,'parameters',parameters_table,requested=.false.,stat=istat)
+    nTable = 0
+    if(associated(parameters_table))then
+      call parameters_table%get_keys(keys)
+      if(allocated(keys)) nTable = size(keys)
+    endif
+  
+    ! ---- count parameters: table entries plus listed names not already in the table ----
+    nListed = 0
+    do i=1,size(listed)
+      duplicate = .false.
+      do j=1,nTable
+        if(trim(listed(i)) == trim(keys(j)%key)) duplicate = .true.
+      enddo
+      do j=1,i-1
+        if(trim(listed(i)) == trim(listed(j))) duplicate = .true.
+      enddo
+      if(.not.duplicate) nListed = nListed + 1
+    enddo
+    n = nTable + nListed
+  
+    if(n == 0 .and. .not.associated(parameters_table))then
+      message=trim(message)//'no calibration parameters defined: use [calibration.parameters] or param_list'
+      ierr=20; return
+    endif
+  
+    allocate(config%calib%param_list(n),stat=ierr)
     if(ierr/=0)then
       message=trim(message)//'unable to allocate calibration parameter list'
       return
     endif
   
-    ! parse each parameter
-    do i=1,size(keys)
+    ! defaults: no configured bounds (use the native ones), no transformation
+    do i=1,n
+      config%calib%param_list(i)%has_lower      = .false.
+      config%calib%param_list(i)%has_upper      = .false.
+      config%calib%param_list(i)%lower_bound    = 0._rkind
+      config%calib%param_list(i)%upper_bound    = 0._rkind
+      config%calib%param_list(i)%transformation = 'none'
+    enddo
+  
+    ! ---- parameters given in the table ----
+    do i=1,nTable
   
       ! parameter name comes from the TOML key
       if(len_trim(keys(i)%key) > len(config%calib%param_list(i)%name))then
@@ -844,7 +908,8 @@ contains
   
       config%calib%param_list(i)%name = trim(keys(i)%key)
   
-      ! get parameter specification
+      ! get parameter specification (an empty inline table, "name = {}", is fine)
+      nullify(parameter)
       call get_value(parameters_table,trim(keys(i)%key),parameter,stat=istat)
   
       if(istat/=0 .or. .not.associated(parameter))then
@@ -853,61 +918,102 @@ contains
         ierr=20; return
       endif
   
-      ! lower bound
-      call get_value(parameter,'lower', &
-                     config%calib%param_list(i)%lower_bound,stat=istat)
-  
-      if(istat/=0)then
-        message=trim(message)//'lower bound not defined for parameter: '// &
-                trim(keys(i)%key)
-        ierr=20; return
+      ! optional lower bound
+      if(parameter%has_key('lower'))then
+        call get_value(parameter,'lower',config%calib%param_list(i)%lower_bound,stat=istat)
+        if(istat/=0)then
+          message=trim(message)//'unable to read lower bound for parameter: '//trim(keys(i)%key)
+          ierr=20; return
+        endif
+        config%calib%param_list(i)%has_lower = .true.
       endif
   
-      ! upper bound
-      call get_value(parameter,'upper', &
-                     config%calib%param_list(i)%upper_bound,stat=istat)
-  
-      if(istat/=0)then
-        message=trim(message)//'upper bound not defined for parameter: '// &
-                trim(keys(i)%key)
-        ierr=20; return
+      ! optional upper bound
+      if(parameter%has_key('upper'))then
+        call get_value(parameter,'upper',config%calib%param_list(i)%upper_bound,stat=istat)
+        if(istat/=0)then
+          message=trim(message)//'unable to read upper bound for parameter: '//trim(keys(i)%key)
+          ierr=20; return
+        endif
+        config%calib%param_list(i)%has_upper = .true.
       endif
   
-      ! check bounds
-      if(config%calib%param_list(i)%lower_bound >= &
-         config%calib%param_list(i)%upper_bound)then
-  
-        message=trim(message)//'lower bound must be less than upper bound for parameter: '// &
-                trim(keys(i)%key)
-        ierr=20; return
-  
+      ! check bounds when both are given (when only one is, it is checked against the native bound later)
+      if(config%calib%param_list(i)%has_lower .and. config%calib%param_list(i)%has_upper)then
+        if(config%calib%param_list(i)%lower_bound >= config%calib%param_list(i)%upper_bound)then
+          message=trim(message)//'lower bound must be less than upper bound for parameter: '// &
+                  trim(keys(i)%key)
+          ierr=20; return
+        endif
       endif
-  
-      ! default transformation
-      config%calib%param_list(i)%transformation = 'none'
   
       ! optional transformation
       if(allocated(transformation)) deallocate(transformation)
-  
       call get_value(parameter,'transformation',transformation,stat=istat)
   
       if(istat==0 .and. allocated(transformation))then
-  
-        if(len_trim(transformation) > &
-           len(config%calib%param_list(i)%transformation))then
-  
+        if(len_trim(transformation) > len(config%calib%param_list(i)%transformation))then
           message=trim(message)// &
                   'transformation name exceeds maximum character length for parameter: '// &
                   trim(keys(i)%key)
           ierr=20; return
-  
         endif
-  
         config%calib%param_list(i)%transformation = trim(transformation)
-  
       endif
   
     enddo
+  
+    ! ---- parameters given only in the legacy list ----
+    j = nTable
+    do i=1,size(listed)
+      duplicate = .false.
+      do n=1,j
+        if(trim(listed(i)) == trim(config%calib%param_list(n)%name)) duplicate = .true.
+      enddo
+      if(duplicate) cycle
+      j = j + 1
+      config%calib%param_list(j)%name = trim(listed(i))
+    enddo
+  
+    ! ---- legacy [calibration.parameter_transformations] ----
+    nullify(transform_table)
+    call get_value(calib_table,'parameter_transformations',transform_table,requested=.false.,stat=istat)
+    if(associated(transform_table))then
+  
+      call transform_table%get_keys(tkeys)
+  
+      if(allocated(tkeys))then
+        do i=1,size(tkeys)
+  
+          ! find the parameter this transformation belongs to
+          n = 0
+          do j=1,size(config%calib%param_list)
+            if(trim(config%calib%param_list(j)%name) == trim(tkeys(i)%key)) n = j
+          enddo
+          if(n == 0)then
+            message=trim(message)//'transformation given for a parameter that is not being calibrated: '// &
+                    trim(tkeys(i)%key)
+            ierr=20; return
+          endif
+  
+          if(allocated(transformation)) deallocate(transformation)
+          call get_value(transform_table,trim(tkeys(i)%key),transformation,stat=istat)
+          if(istat/=0 .or. .not.allocated(transformation))then
+            message=trim(message)//'unable to read transformation for parameter: '//trim(tkeys(i)%key)
+            ierr=20; return
+          endif
+          if(len_trim(transformation) > len(config%calib%param_list(n)%transformation))then
+            message=trim(message)// &
+                    'transformation name exceeds maximum character length for parameter: '// &
+                    trim(tkeys(i)%key)
+            ierr=20; return
+          endif
+          config%calib%param_list(n)%transformation = trim(transformation)
+  
+        enddo
+      endif
+  
+    endif
   
   end subroutine parse_calibration_parameters
 
