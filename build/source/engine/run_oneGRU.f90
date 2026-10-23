@@ -343,7 +343,7 @@ subroutine run_oneGRU(&
                    fluxHRU%hru(iHRU),              & ! intent(inout): model fluxes for a local HRU
                    ! error control
                    err,cmessage)                      ! intent(out):   error control
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     ixComputeVegFlux%hru(iHRU) = merge(yes, no, computeVegFluxFlag)
 
     ! ----- lateral flow to the downslope HRU, and area-weighted basin (GRU) fluxes ------------------------------------------

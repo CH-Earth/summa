@@ -16,17 +16,19 @@ contains
   ! **************************************************************************************************
   ! Read observed streamflow and time coordinates from a NetCDF file
   ! **************************************************************************************************
-  subroutine read_flow_observations(summaStruc, timeObs, flowObs, timeUnits, flowUnits, err, message)
-    type(summa1_type_dec), intent(in)           :: summaStruc    ! master summa data structure
-    real(rkind), allocatable, intent(out)       :: timeObs(:)    ! observation time coordinate
-    real(rkind), allocatable, intent(out)       :: flowObs(:)    ! observed streamflow
-    character(len=:), allocatable, intent(out)  :: timeUnits     ! units and reference time
-    character(len=:), allocatable, intent(out)  :: flowUnits     ! streamflow units
-    integer(i4b), intent(out)                   :: err           ! error code
-    character(*), intent(out)                   :: message       ! error message
+  subroutine read_flow_observations(summaStruc, timeObs, timeBounds, flowObs, timeUnits, flowUnits, err, message)
+    type(summa1_type_dec), intent(in)           :: summaStruc       ! master summa data structure
+    real(rkind), allocatable, intent(out)       :: timeObs(:)       ! observation time coordinate
+    real(rkind), allocatable, intent(out)       :: timeBounds(:,:)  ! observation time coordinate
+    real(rkind), allocatable, intent(out)       :: flowObs(:)       ! observed streamflow
+    character(len=:), allocatable, intent(out)  :: timeUnits        ! units and reference time
+    character(len=:), allocatable, intent(out)  :: flowUnits        ! streamflow units
+    integer(i4b), intent(out)                   :: err              ! error code
+    character(*), intent(out)                   :: message          ! error message
     integer(i4b) :: ncid
     integer(i4b) :: dimid
     integer(i4b) :: varid_time
+    integer(i4b) :: varid_bounds
     integer(i4b) :: varid_flow
     integer(i4b) :: nTime
     integer(i4b) :: attLen
@@ -78,23 +80,32 @@ contains
       ! get time dimension
       err = nf90_inq_dimid(ncid, 'time', dimid)
       if(err/=nf90_noerr) exit netcdf_block
+      
       err = nf90_inquire_dimension(ncid, dimid, len=nTime)
       if(err/=nf90_noerr) exit netcdf_block
 
       ! get variable IDs
       err = nf90_inq_varid(ncid, 'time', varid_time)
       if(err/=nf90_noerr) exit netcdf_block
+      
+      err = nf90_inq_varid(ncid, 'time_bnds', varid_bounds)
+      if(err/=nf90_noerr) exit netcdf_block
+      
       err = nf90_inq_varid(ncid, trim(vname_obsflow), varid_flow)
       if(err/=nf90_noerr) exit netcdf_block
 
       ! allocate time series
-      allocate(timeInt(nTime), timeObs(nTime), flowObs(nTime), stat=err)
+      allocate(timeInt(nTime), timeObs(nTime), timeBounds(nTime,2), flowObs(nTime), stat=err)
       if(err/=0)then; message=trim(message)//'problem allocating'; return; endif
 
       ! read time
       err = nf90_get_var(ncid, varid_time, timeInt)
       if(err/=nf90_noerr) exit netcdf_block
       timeObs = real(timeInt, rkind)
+
+      ! read time bounds
+      err = nf90_get_var(ncid, varid_bounds, timeBounds)
+      if(err/=nf90_noerr) exit netcdf_block
 
       ! read streamflow
       err = nf90_get_var(ncid, varid_flow, flowObs)

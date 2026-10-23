@@ -283,9 +283,7 @@ contains
                   ! error control
                   elapsedUpdateArea,            & ! intent(inout): elapsed time for updating glacier and wetland area for all GRUs (s)
                   err,cmessage)                   ! intent(out):   error control
-
-  ! check errors
-  call handle_err(err, cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   !----- save timing information ------------------------------------------------
   !$omp critical(saveTiming)

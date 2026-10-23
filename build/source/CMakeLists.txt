@@ -170,6 +170,7 @@ set(CALIBR
 
 # MPI-dependent calibration
 set(CALIBR_MPI
+    ${CALIBR_DIR}/dynamic_case_dispatch.f90
     ${CALIBR_DIR}/summa_parameter_sampling.f90
     CACHE INTERNAL "CALIBR_MPI")
 
