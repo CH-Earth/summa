@@ -25,16 +25,19 @@ USE nr_type                            ! variable types, etc.
 USE summa_type, only: summa1_type_dec  ! top-level summa data type
 USE summa_type, only: config_info      ! summa configuation info
 
-! check if mizuroute is active
+! compile options
+use build_options, only: toml_active
 use build_options, only: mizuroute_active
 use build_options, only: ngen_forcing_active
+
+! only couple with mizuroute if mizuroute is compiled
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: init_mizuroute_from_summa
 #endif
 
 ! access missing values
 USE globalData,only:integerMissing   ! missing integer
-USE globalData, only: isPrint               ! flag to enable informational screen/log output
+USE globalData, only: isPrint        ! flag to enable informational screen/log output
 USE globalData,only:realMissing      ! missing real number
 
 ! global data 
@@ -145,7 +148,7 @@ contains
     integer(i4b),intent(out)              :: err                ! error code
     character(*),intent(out)              :: message            ! error message
     ! local variables
-    character(LEN=256)                    :: cmessage           ! error message of downwind routine
+    character(LEN=1024)                   :: cmessage           ! error message of downwind routine
     character(len=256)                    :: restartFile        ! restart file name
     character(len=256)                    :: attrFile           ! attributes file name
     character(len=128)                    :: fmtGruOutput       ! a format string used to write start and end GRU in output file names
@@ -168,7 +171,10 @@ contains
  
     ! initialize the netcdf file id
     ncid(:) = integerMissing
-  
+ 
+    ! set case root (for printing)
+    config%is_case_root = (summa1_struc%instance_parallel%rank == 0)
+
     ! initialize the elapsed time for cumulative quantities
     elapsedRead=0._rkind
     elapsedWrite=0._rkind
@@ -461,8 +467,11 @@ contains
   
         ! populate mizuroute coupling IDs
         summa1_struc%coupling(:)%id = summa1_struc%gru_struc(:)%gru_id
+       
+        ! initialize mizuroute
         call init_mizuroute_from_summa(summa1_struc, err, cmessage) 
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       
        endif
       endif
   
@@ -515,7 +524,7 @@ contains
   ! Subsequent simulations can reuse the initialized configuration without rereading
   ! the command line or rebuilding global metadata.
   ! **************************************************************************************************
-  subroutine init_config(config ,err, message)
+  subroutine init_config(config, err, message)
     USE summaFileManager, only: OUTPUT_PATH
     USE summa_util,       only: getCommandArguments
     USE summaFileManager, only: summa_SetTimesDirsAndFiles
@@ -529,8 +538,8 @@ contains
     integer(i4b)           , intent(out)   :: err
     character(*)           , intent(out)   :: message
   
-    logical(lgt)       :: exists
-    character(len=256) :: cmessage
+    logical(lgt)        :: exists
+    character(len=1024) :: cmessage
   
     err=0; message='init_config/'
 
@@ -553,14 +562,14 @@ contains
     !       file-manager run does not drag in the toml-f submodule. Reject -c rather than
     !       ignoring it, so the option never silently does nothing.
     if(allocated(config%config_file))then
-#ifdef TOML_ACTIVE
-      call read_summa_config(trim(config%config_file), config, err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-#else
-      message=trim(message)//'a TOML configuration file was given with -c, but this build '// &
-                             'has no configuration reader; rebuild with -DUSE_TOML=ON'
-      err=20; return
-#endif
+      if(toml_active)then
+        call read_summa_config(trim(config%config_file), config, err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      else
+        message=trim(message)//'a TOML configuration file was given with -c, but this build '// &
+                               'has no configuration reader; rebuild with -DUSE_TOML=ON'
+        err=20; return
+      endif
     endif
 
     ! check that the output directory exists

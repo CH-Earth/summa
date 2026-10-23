@@ -21,6 +21,8 @@ module summa_spinup
 
   ! data types
   USE nr_type,    only: i4b,rkind
+  USE data_types, only: gru_double
+  USE data_types, only: gru_hru_dom_doublevec
   USE summa_type, only: config_info,parallel_context_type
 
   implicit none
@@ -41,6 +43,7 @@ contains
   subroutine spinup_from_cold(config,             & ! SUMMA configuration structure
                               domain_parallel,    & ! MPI context for domain parallelism
                               instance_parallel,  & ! MPI context for model-instance parallelism
+                              mpar_out, bpar_out, & ! initialized HRU/basin parameters
                               err,message)          ! error code and error message
     ! SUMMA global configuration
     USE globalData, only: ixRestart
@@ -55,9 +58,12 @@ contains
     type(config_info),           intent(inout) :: config             ! SUMMA configuration structure
     type(parallel_context_type), intent(in)    :: domain_parallel    ! MPI context for domain parallelism
     type(parallel_context_type), intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
+    type(gru_hru_dom_doublevec), intent(out)   :: mpar_out           ! initialized HRU parameters
+    type(gru_double),            intent(out)   :: bpar_out           ! initialized basin parameters
     integer(i4b),                intent(out)   :: err                ! error code
     character(*),                intent(out)   :: message            ! error message
     ! strings
+    character(len=4)   :: run_string
     character(len=4)   :: rankString
     character(len=512) :: cmessage
     character(len=:), allocatable :: outputFileSuffix_orig
@@ -94,7 +100,13 @@ contains
     ! use rank-specific output filenames during the common spinup
     write(rankString,'(I4.4)') instance_parallel%rank
     outputFileSuffix_orig=trim(output_fileSuffix)
-    output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_rank'//rankString
+
+    if(config%n_runs > 1)then
+      write(run_string,'(I4.4)') config%run_index
+      output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_run'//run_string//'_rank'//rankString
+    else
+      output_fileSuffix=trim(outputFileSuffix_orig)//'_spinup_rank'//rankString
+    endif
 
     ! write the common restart state on rank 0 only
     ixRestart=merge(ixRestart_end, ixRestart_never, instance_parallel%rank == 0)
@@ -106,8 +118,10 @@ contains
                         timeSim,flowSim,        & ! simulated time and streamflow
                         timeUnits,flowUnits,    & ! time and streamflow units
                         param_name,param_value, & ! parameter names and values
-                        err,cmessage)             ! error code and message
-    
+                        mpar_out=mpar_out,      & ! initialized HRU parameters
+                        bpar_out=bpar_out,      & ! initialized basin parameters
+                        err=err,message=cmessage)
+
     ! restore original global simulation settings
     ! NOTE: Do this before processing the error code
     SIM_START_TM=simStartOriginal
@@ -124,7 +138,7 @@ contains
                 'required spinup period. The configured simulation starts at '//trim(simStartOriginal)// &
                 ', so SUMMA requires forcing data beginning at '//trim(spinStart)//'; '//trim(cmessage)
         return
-    
+
       else
         message=trim(message)//trim(cmessage)
         return

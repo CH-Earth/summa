@@ -1,0 +1,164 @@
+# SUMMA configuration template for multi-case simulations.
+#
+# Common configuration files are maintained under version control, while
+# basin-specific model inputs are stored separately under the data directory.
+# SUMMA resolves several input files relative to settings_path, so settings_path
+# is set to the user's home directory and those files are specified relative to it.
+#
+
+[simulation]
+
+case_name = "{case_name}"
+
+# Root directory for paths that depend on the local user environment.
+#  -- this can be overwritten using the command-line argument --home
+home_path = "path/to/file/"
+
+# Directory containing basin-specific model inputs. This directory is relative
+# to settings_path rather than an absolute filesystem path.
+basin_dir = "data/century/test/exp01/domain/{case_name}"
+
+# Runtime work directory. Unlike basin-specific settings files, this must be
+# expanded to a complete filesystem path.
+work_path = "{home}/{basin_dir}/work/"
+
+start_time = "1982-10-01 00:00"
+end_time   = "1990-09-30 23:00"
+time_zone  = "localTime"
+
+use_mizuroute    = true
+write_timeseries = false
+
+
+[summa_files]
+
+# SUMMA uses settings_path as the root for both common configuration files
+# and basin-specific settings files. Using the home directory allows both
+# sets of files to be specified relative to a common root.
+settings_path = "{home}/"
+
+# Paths used directly by SUMMA are expanded to complete filesystem paths.
+state_path   = "{home}/{basin_dir}/summa_state/"
+forcing_path = "{home}/{basin_dir}/summa_forcing/"
+output_path  = "{work_path}"
+
+# Basin-specific initial condition file. This is resolved relative to state_path.
+init_condition = "coldState.nc"
+
+# Basin-specific input files. These are resolved relative to settings_path.
+attributes     = "{basin_dir}/summa_inputs/attributes.nc"
+forcing_list   = "{basin_dir}/summa_inputs/forcingFileList.txt"
+
+# Common SUMMA configuration files maintained under version control.
+# These are also resolved relative to settings_path.
+decisions        = "models/summa/utils/test/test_calibration/settings/modelDecisions.txt"
+output_control   = "models/summa/utils/test/test_calibration/settings/outputControl_short.txt"
+
+trial_params     = "models/summa/utils/test/test_calibration/settings/trialParams.nc"
+local_parameters = "models/summa/utils/test/test_calibration/settings/localParamInfo.txt"
+basin_parameters = "models/summa/utils/test/test_calibration/settings/basinParamInfo.txt"
+
+vegetation_table = "models/summa/utils/test/test_calibration/settings/TBL_VEGPARM.TBL"
+soil_table       = "models/summa/utils/test/test_calibration/settings/TBL_SOILPARM.TBL"
+general_table    = "models/summa/utils/test/test_calibration/settings/TBL_GENPARM.TBL"
+noahmp_table     = "models/summa/utils/test/test_calibration/settings/TBL_MPTABLE.TBL"
+
+
+[mizuRoute]
+
+# Basin-specific mizuRoute inputs.
+namelist_path = "{home}/{basin_dir}/mizuroute_inputs/"
+namelist_file = "mizuroute.param"
+
+methods = "3"
+
+dt = 3600
+
+write_qbasin = false
+write_Qreach = false
+
+
+[hydrofabric]
+
+hfabric_path = "{home}/{basin_dir}/mizuroute_inputs/"
+hfabric_file = "topology.nc"
+
+dname_seg = "seg"
+dname_hru = "hru"
+
+varname_HRUid     = "hruId"
+varname_segId     = "segId"
+varname_hruSegId  = "hruToSegId"
+varname_downSegId = "downSegId"
+
+varname_area   = "area"
+varname_slope  = "slope"
+varname_length = "length"
+
+
+[remapping]
+
+remap_path = "{home}/{basin_dir}/mizuroute_inputs/"
+remap_file = "lumped_to_hru.nc"
+
+dname_hru      = "polyid"
+dname_data     = "data"
+
+vname_hruid    = "polyid"
+vname_weight   = "weight"
+vname_num_qhru = "nOverlaps"
+vname_qhruid   = "qhru_id"
+
+
+[observations]
+
+obs_path = "{home}/data/camels-spat/observations/obs-daily/"
+obs_file = "{case_name}_daily_flow_observations.nc"
+
+vname_obsflow = "q_obs"
+
+
+[calibration]
+
+metric         = "kge"
+obs_transform  = "none"
+
+n_samples      = 1000
+
+start_date     = "1983-10-01"
+end_date       = "1990-09-30"
+
+param_list = [
+    "k_soil",
+    "theta_sat",
+    "aquiferScaleFactor",
+    "aquiferBaseflowExp",
+    "qSurfScale",
+    "summerLAI",
+    "frozenPrecipMultip",
+    "routingGammaScale",
+    "routingGammaShape",
+    "Fcapil",
+    "tempCritRain",
+    "heightCanopyTop",
+    "heightCanopyBottom",
+    "windReductionParam",
+    "vGn_n"
+]
+
+write_aligned  = false
+
+
+[calibration.parameter_transformations]
+
+k_soil              = "log"
+#aquiferBaseflowRate = "log"
+
+
+[[parameter_dependencies.ordered]]
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.25
+
+[[parameter_dependencies.ordered]]
+parameters = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025

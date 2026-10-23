@@ -43,13 +43,16 @@ contains
   !
   ! Parameter and objective values are written by global trial index along the fixed sample dimension.
   ! **************************************************************************************************
-  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,case,metric,obs_transform,ncid,ierr,message)
+  subroutine create_calibration_output(filename,spec,nSamples,nWorkers,node_index,global_case_group, &
+                                       case_name,metric,obs_transform,ncid,ierr,message)
     implicit none
     character(*),         intent(in)  :: filename
     type(parameter_spec), intent(in)  :: spec
     integer(i4b),         intent(in)  :: nSamples
     integer(i4b),         intent(in)  :: nWorkers
-    character(*),         intent(in)  :: case
+    integer(i4b),         intent(in)  :: node_index
+    integer(i4b),         intent(in)  :: global_case_group
+    character(*),         intent(in)  :: case_name
     character(*),         intent(in)  :: metric
     character(*),         intent(in)  :: obs_transform
     integer(i4b),         intent(out) :: ncid
@@ -60,14 +63,13 @@ contains
     integer(i4b) :: varid_worker_rank
     integer(i4b) :: varid_start_time,varid_end_time
     integer(i4b), dimension(2) :: time_dims
+    character(len=:), allocatable :: constraint_names
+    character(len=64) :: attribute_name
     integer(i4b) :: iParam
     integer(i4b) :: iConstraint
     integer(i4b) :: iOrdered
     integer(i4b) :: sampled
-    integer(i4b) :: ordered_set
-    integer(i4b) :: ordered_index
     logical(lgt) :: file_open
-    logical(lgt) :: constrained
     integer(i4b) :: ierr_close
 
     ierr=0
@@ -131,31 +133,6 @@ contains
         ierr=nf90_put_att(ncid,varid_param,'trial_value',spec%params(iParam)%trial_value)
         if(ierr/=nf90_noerr) exit netcdf_block
 
-        ! ---------------------------------------------------------------------------------------------
-        ! Ordered-constraint metadata
-        ! ---------------------------------------------------------------------------------------------
-        constrained=.false.
-        ordered_set=0
-        ordered_index=0
-        do iConstraint=1,size(spec%ordered)
-          do iOrdered=1,size(spec%ordered(iConstraint)%param_index)
-            if(spec%ordered(iConstraint)%param_index(iOrdered) == iParam)then
-              constrained=.true.
-              ordered_set=iConstraint
-              ordered_index=iOrdered
-              exit
-            endif
-          enddo
-          if(constrained) exit
-        enddo
-        if(constrained)then
-          ierr=nf90_put_att(ncid,varid_param,'ordered_set',ordered_set)
-          if(ierr/=nf90_noerr) exit netcdf_block
-          ierr=nf90_put_att(ncid,varid_param,'ordered_index',ordered_index)
-          if(ierr/=nf90_noerr) exit netcdf_block
-          ierr=nf90_put_att(ncid,varid_param,'gap_fraction', spec%ordered(ordered_set)%gap_fraction)
-          if(ierr/=nf90_noerr) exit netcdf_block
-        endif
       enddo
 
       ! -----------------------------------------------------------------------------------------------
@@ -207,12 +184,40 @@ contains
       ! -----------------------------------------------------------------------------------------------
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'title','SUMMA calibration parameter trials')
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_att(ncid,NF90_GLOBAL,'case_name',trim(case))
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'case_name',trim(case_name))
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'mpi_workers',nWorkers)
       if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'node_index',node_index)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'global_case_group',global_case_group)
+      if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','physical')
       if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! ordered parameter constraints
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'n_ordered_constraints',size(spec%ordered))
+      if(ierr/=nf90_noerr) exit netcdf_block
+      
+      do iConstraint=1,size(spec%ordered)
+        ! construct ordered parameter list
+        constraint_names=''
+        do iOrdered=1,size(spec%ordered(iConstraint)%param_index)
+          iParam=spec%ordered(iConstraint)%param_index(iOrdered)
+          if(iOrdered > 1) constraint_names=constraint_names//','
+          constraint_names=constraint_names//trim(spec%params(iParam)%name)
+        enddo
+      
+        ! write parameter names
+        write(attribute_name,'("ordered_constraint_",I0)') iConstraint
+        ierr=nf90_put_att(ncid,NF90_GLOBAL,trim(attribute_name),constraint_names)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      
+        ! write gap fraction
+        ierr=nf90_put_att(ncid,NF90_GLOBAL,trim(attribute_name)//'_gap_fraction', &
+                          spec%ordered(iConstraint)%gap_fraction)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      enddo
 
       ! leave define mode
       ierr=nf90_enddef(ncid)
