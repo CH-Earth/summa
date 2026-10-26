@@ -19,7 +19,7 @@ contains
   subroutine read_flow_observations(summaStruc, timeObs, timeBounds, flowObs, timeUnits, flowUnits, err, message)
     type(summa1_type_dec), intent(in)           :: summaStruc       ! master summa data structure
     real(rkind), allocatable, intent(out)       :: timeObs(:)       ! observation time coordinate
-    real(rkind), allocatable, intent(out)       :: timeBounds(:,:)  ! observation time coordinate
+    real(rkind), allocatable, intent(out)       :: timeBounds(:,:)  ! observation time bounds (2,nTime), as CF time_bnds(time,nbnds)
     real(rkind), allocatable, intent(out)       :: flowObs(:)       ! observed streamflow
     character(len=:), allocatable, intent(out)  :: timeUnits        ! units and reference time
     character(len=:), allocatable, intent(out)  :: flowUnits        ! streamflow units
@@ -29,6 +29,8 @@ contains
     integer(i4b) :: dimid
     integer(i4b) :: varid_time
     integer(i4b) :: varid_bounds
+    integer(i4b) :: boundDims(2)
+    real(rkind), allocatable :: boundsByTime(:,:)
     integer(i4b) :: varid_flow
     integer(i4b) :: nTime
     integer(i4b) :: attLen
@@ -95,7 +97,7 @@ contains
       if(err/=nf90_noerr) exit netcdf_block
 
       ! allocate time series
-      allocate(timeInt(nTime), timeObs(nTime), timeBounds(nTime,2), flowObs(nTime), stat=err)
+      allocate(timeInt(nTime), timeObs(nTime), timeBounds(2,nTime), flowObs(nTime), stat=err)
       if(err/=0)then; message=trim(message)//'problem allocating'; return; endif
 
       ! read time
@@ -103,9 +105,18 @@ contains
       if(err/=nf90_noerr) exit netcdf_block
       timeObs = real(timeInt, rkind)
 
-      ! read time bounds
-      err = nf90_get_var(ncid, varid_bounds, timeBounds)
+      ! read time bounds, stored as time_bnds(time,nbnds) or time_bnds(nbnds,time)
+      err = nf90_inquire_variable(ncid, varid_bounds, dimids=boundDims)
       if(err/=nf90_noerr) exit netcdf_block
+      if(boundDims(1) == dimid)then ! time varies fastest: time_bnds(nbnds,time) in the file
+        allocate(boundsByTime(nTime,2))
+        err = nf90_get_var(ncid, varid_bounds, boundsByTime)
+        if(err/=nf90_noerr) exit netcdf_block
+        timeBounds = transpose(boundsByTime)
+      else
+        err = nf90_get_var(ncid, varid_bounds, timeBounds)
+        if(err/=nf90_noerr) exit netcdf_block
+      endif
 
       ! read streamflow
       err = nf90_get_var(ncid, varid_flow, flowObs)

@@ -98,8 +98,6 @@ contains
     call load_summa_config(config_file, config, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    write(*,*) 'DEBUG loaded metric = [', trim(config%calib%metric), ']'
-
     ! apply command-line overrides
     if(allocated(config%home_path_override)) config%home_path = config%home_path_override
 

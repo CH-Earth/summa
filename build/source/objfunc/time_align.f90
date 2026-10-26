@@ -38,7 +38,7 @@ contains
     character(*)  , intent(in)                  :: flowObsUnits        ! observation flow units
     character(*)  , intent(in)                  :: startDate           ! start date (YYYY-MM-DD)
     character(*)  , intent(in)                  :: endDate             ! end date (YYYY-MM-DD)
-    real(rkind)   , intent(in)                  :: timeBounds(:,:)     ! observed timne bounds (2,:)
+    real(rkind)   , intent(in)                  :: timeBounds(:,:)     ! observation time bounds (2,nObs)
     real(rkind)   , intent(out) , allocatable   :: timeAligned(:)      ! aligned observation time
     real(rkind)   , intent(out) , allocatable   :: flowSimAligned(:)   ! aligned simulated streamflow
     real(rkind)   , intent(out) , allocatable   :: flowObsAligned(:)   ! aligned observed streamflow
@@ -82,8 +82,8 @@ contains
       message=trim(message)//'at least two observations are required'
       err=20; return
     endif
-    if(size(timeBounds,2)/=2)then
-      message=trim(message)//'observation time bounds must have two bounds'
+    if(size(timeBounds,1)/=2 .or. size(timeBounds,2)/=size(timeObs))then
+      message=trim(message)//'observation time bounds must be (2, number of observations)'
       err=20; return
     endif
 
@@ -111,9 +111,9 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     call convert_time_to_seconds(timeObs,timeObsUnits,timeObsSec,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call convert_time_to_seconds(timeBounds(:,1),timeObsUnits,timeBegSec,err,cmessage)
+    call convert_time_to_seconds(timeBounds(1,:),timeObsUnits,timeBegSec,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    call convert_time_to_seconds(timeBounds(:,2),timeObsUnits,timeEndSec,err,cmessage)
+    call convert_time_to_seconds(timeBounds(2,:),timeObsUnits,timeEndSec,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! convert evaluation dates to the same absolute time axis
