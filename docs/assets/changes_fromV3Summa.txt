@@ -289,4 +289,3 @@ AFTER tag of v4.0.0-exp-Sundials
 -74) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit ac1b2fc3 and 219221fe Oct 21, 2026
 -75) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit a56ed482 Oct 21, 2026
  76) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit 11752915 Oct 21, 2026
- 77) Calibration parameter bounds and transformation are optional in [calibration.parameters] (defaults are the parameter file bounds and none); the older param_list and [calibration.parameter_transformations] are accepted again
