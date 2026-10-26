@@ -633,7 +633,7 @@ contains
 
       ! remove temporary rank-specific log files
       call execute_command_line( &
-        'rm -f "'//trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)//'_rank"*.log', &
+        'rm -f "'//trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)//'_run'//runString//'_rank"*.log', &
         exitstat=istat)
 
       if(istat/=0)then
