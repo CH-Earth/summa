@@ -286,6 +286,6 @@ AFTER tag of v4.0.0-exp-Sundials
 -73) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit ac1b2fc3 and 219221fe Oct 21, 2026
 -74) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit a56ed482 Oct 21, 2026
  75) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit 11752915 Oct 21, 2026
--76) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, c057662d and 92f0037a Oct 26, 2026
+-76) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, 6805ba8b and c9154ece Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
--77) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 9634b402 Oct 26, 2026
+-77) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 49b9835c Oct 26, 2026
