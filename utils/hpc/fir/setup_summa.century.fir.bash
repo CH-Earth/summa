@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Load modules and define environment variables
-source "$HOME/models/summa/build/cmake/env_summa.fir.bash"
+source "$HOME/models/summa/utils/hpc/fir/env_summa.fir.bash"
 
 # ----------------------------------------------------------------------
 # Stage SUMMA to node-local storage

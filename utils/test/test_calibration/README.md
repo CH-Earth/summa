@@ -396,7 +396,6 @@ manifest unless `template_path` is given, and the common settings are read from
 | `summa_config_template.toml` | the per-case configuration template the manifest expands |
 | `summa_config_CAN_05BB001.toml` | a single filled-in case, useful for seeing what the template produces |
 
-The full 112-basin experiment needs the Century dataset, which is not in this repository.
-`utils/hpc/fir/setup_summa.century.fir.bash` stages it to node-local storage on Fir, and
-`experiments/model_instance_scaling/` holds the manifests and SLURM scripts for the 1, 2, 4 and 8
-cases-per-node scaling runs.
+`settings/` holds the common SUMMA settings the template names, shared by every case. The
+full 112-basin calibration needs the Century dataset, which is not in this repository; how it was
+run on Fir is in `utils/hpc/fir/README.md`.
