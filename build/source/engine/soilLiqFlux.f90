@@ -2133,9 +2133,6 @@ contains
    nodeDepth         => in_qDrainFlux % nodeDepth,            &  ! depth of the lowest soil layer (m)
    ! input: transmittance
    bottomSatHydCond  => in_qDrainFlux % bottomSatHydCond,     &  ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
-   ! input: transmittance derivatives
-   dHydCond_dMatric => in_qDrainFlux % dHydCond_dMatric,      &  ! derivative in hydraulic conductivity w.r.t. matric head (s-1)
-   dHydCond_dTemp   => in_qDrainFlux % dHydCond_dTemp,        &  ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
    ! input: derivatives in soil water characteristic
    node_dPsiLiq_dTemp  => in_qDrainFlux % node_dPsiLiq_dTemp, &  ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
    ! input-output: derivatives
@@ -2156,9 +2153,9 @@ contains
    cflux = -bottomSatHydCond * dPsi/dz
    scalarDrainage = cflux + bottomSatHydCond ! compute the total flux (add gravity flux, positive downwards)
 
-   ! derivatives
-   dq_dHydStateUnsat = -bottomSatHydCond/dz + dHydCond_dMatric
-   dq_dNrgStateUnsat = -bottomSatHydCond*node_dPsiLiq_dTemp/dz + dHydCond_dTemp
+   ! derivatives: the flux is bottomSatHydCond*(nodeMatricHeadLiq/dz + 1) and the conductivity is fixed at saturation
+   dq_dHydStateUnsat = bottomSatHydCond/dz
+   dq_dNrgStateUnsat = bottomSatHydCond*node_dPsiLiq_dTemp/dz
 
    ! Constrain flux: can't drain into glacier and can't exceed melt supply
    scalarSoilControlBot = 0._rkind ! need for derivatives
