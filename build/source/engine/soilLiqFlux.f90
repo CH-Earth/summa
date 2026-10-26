@@ -1632,14 +1632,14 @@ subroutine update_volFracLiq_derivatives
   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
   real(rkind) :: compLimiter              ! smooth limiter that closes infiltration area under strong compression (-)
   real(rkind) :: compLimiter_prev         ! pre-limiter infiltration area used for chain rule (-)
-  real(rkind) :: dCompLimiter_dHead       ! derivative of compression limiter w.r.t. mean positive head (m-1)
+  real(rkind) :: dCompLimiter_dHead       ! derivative of compression limiter w.r.t. mean squared positive head (m-2)
   real(rkind),parameter :: compHeadWidth =0.05_rkind ! pressure-head scale of the Gaussian compression closure (m)
   real(rkind),parameter :: headSmooth =1.e-4_rkind   ! smoothing for max(psi,0) approximation (m)
   real(rkind) :: posHead(1:in_surfaceFlux % nSoil)   ! smooth positive part of matric head (m)
   real(rkind) :: dPosHead_dPsi(1:in_surfaceFlux % nSoil) ! derivative of smooth positive head w.r.t. matric head (-)
-  real(rkind) :: dCompHead_dWat(1:in_surfaceFlux % nSoil) ! derivative of mean positive head w.r.t. hyd state (m)
+  real(rkind) :: dCompHead_dWat(1:in_surfaceFlux % nSoil) ! derivative of mean squared positive head w.r.t. hyd state (m)
   real(rkind) :: rootZoneDepth     ! depth of the layers used in the saturation limiter (m)
-  real(rkind) :: meanPositiveHead  ! depth-weighted mean positive matric head over those layers (m)
+  real(rkind) :: meanSqPositiveHead ! depth-weighted mean of squared positive matric head over those layers (m2)
   integer(i4b) :: ixTop, ixBot     ! top and bottom layer indices used in the saturation limiter
 
   ! compute infiltration
@@ -1699,16 +1699,17 @@ subroutine update_volFracLiq_derivatives
      posHead(ixTop:ixBot)       = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
      dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
 
-     ! Compute the depth-weighted mean positive matric head.
-     meanPositiveHead = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
+     ! Compute the depth-weighted mean of the squared positive matric head. Squaring each layer before averaging gives every
+     ! layer zero slope at its own saturation, even when other layers are already positive (the square of the mean does not)
+     meanSqPositiveHead = sum(posHead(ixTop:ixBot)**2_i4b*mLayerDepth(ixTop:ixBot))/rootZoneDepth
 
-     ! Reduce infiltration area with a Gaussian of the mean positive head (zero slope at zero head) so limiter does not add kink to Jacobian where layer saturates
-     compLimiter = exp(-(meanPositiveHead/compHeadWidth)**2_i4b) ! limiter falls to exp(-1) at compHeadWidth, and is effectively zero at 3*compHeadWidth
-     dCompLimiter_dHead = -2._rkind*meanPositiveHead/compHeadWidth**2_i4b*compLimiter
+     ! Reduce infiltration area with a Gaussian in positive head so the limiter does not add a kink to the Jacobian where a layer saturates
+     compLimiter = exp(-meanSqPositiveHead/compHeadWidth**2_i4b) ! for uniform head, limiter falls to exp(-1) at compHeadWidth, and is effectively zero at 3*compHeadWidth
+     dCompLimiter_dHead = -compLimiter/compHeadWidth**2_i4b
 
-     ! Derivative of mean positive head with respect to water state variables.
+     ! Derivative of mean squared positive head with respect to water state variables.
      dCompHead_dWat(:) = 0._rkind
-     dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth)*dPosHead_dPsi(ixTop:ixBot)
+     dCompHead_dWat(ixTop:ixBot) = (mLayerDepth(ixTop:ixBot)/rootZoneDepth)*2._rkind*posHead(ixTop:ixBot)*dPosHead_dPsi(ixTop:ixBot)
 
      ! Apply the pressure-dependent infiltration limiter and update derivatives.
      compLimiter_prev = scalarInfilArea
