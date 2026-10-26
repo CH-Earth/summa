@@ -1707,8 +1707,7 @@ subroutine update_volFracLiq_derivatives
      posHead(ixTop:ixBot)       = 0.5_rkind*(mLayerMatricHead(ixTop:ixBot) + sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
      dPosHead_dPsi(ixTop:ixBot) = 0.5_rkind*(1._rkind + mLayerMatricHead(ixTop:ixBot)/sqrt(mLayerMatricHead(ixTop:ixBot)**2_i4b + headSmooth**2_i4b))
 
-     ! Compute the depth-weighted mean of the squared positive matric head. Squaring each layer before averaging gives every
-     ! layer zero slope at its own saturation, even when other layers are already positive (the square of the mean does not)
+     ! depth-weighted mean of squared positive head, so each layer has zero slope at its own saturation
      meanSqPositiveHead = sum(posHead(ixTop:ixBot)**2_i4b*mLayerDepth(ixTop:ixBot))/rootZoneDepth
 
      ! Reduce infiltration area with a Gaussian in positive head so the limiter does not add a kink to the Jacobian where a layer saturates
@@ -1733,10 +1732,7 @@ subroutine update_volFracLiq_derivatives
    ! unfrozen infiltration area and infiltration (m s-1)
    scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
    scalarSoilControl = 0._rkind
-   ! Smooth min(rain+melt, max infiltration rate) so the derivative does not switch branches where rain crosses the max rate.
-   ! Written as r - S(r-x), with S a quadratic smooth positive part over a band of half-width w around r=x: it is exact outside
-   ! the band (so infiltration is zero without water input and there is no bias away from the crossing) and has a continuous
-   ! first derivative. The half-width is a fraction of the max rate, so the band is the same relative size in every soil.
+   ! smooth min(rain+melt, max infiltration rate) as r - S(r-x), S a quadratic smooth max(.,0), exact outside the band
    infilWidth = infilSmoothFrac*xMaxInfilRate
    infilDiff  = scalarRainPlusMelt - xMaxInfilRate
    if (infilDiff <= -infilWidth) then      ! rain well below the max rate: all of it infiltrates

@@ -289,3 +289,11 @@ AFTER tag of v4.0.0-exp-Sundials
 -74) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit ac1b2fc3 and 219221fe Oct 21, 2026
 -75) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit a56ed482 Oct 21, 2026
  76) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit 11752915 Oct 21, 2026
+-77) Infiltration closure under saturation is a Gaussian of the depth-weighted mean squared positive head, applied for all lower boundaries, commits 6702053d and bba9cca9 Oct 22, 2026, and c057662d Oct 26, 2026
+     Replaces the logistic of 55) and 69); zero slope where each layer saturates, so no Jacobian kink.
+-78) Condensation-to-soil limiter is a Gaussian of top-layer positive head, commit 92f0037a Oct 26, 2026
+     The logistic of 55) was 0.5 at zero head, so it halved condensation into unsaturated soil.
+-79) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 9634b402 Oct 26, 2026
+-80) Jacobian fixes
+     -1) glacier capillary lower boundary derivative w.r.t. matric head is +K/dz, was -K/dz plus a conductivity term not in the flux (same for temperature), commit e1cc387b Oct 26, 2026
+ 81) evaluate_objective no longer reads the summa structure after deallocating it in runs without observations (segfault at exit), does not effect code results, commit 6adc5800 Oct 26, 2026
