@@ -10,12 +10,12 @@
 # a different name -- that is fine for exercising the manifest, the case distribution and
 # the per-case output, which is what has no other test.
 #
-# Files are symlinked, not copied, so the stub costs almost nothing on disk.
+# Files are symlinked, not copied, so the stub costs almost nothing on disk. The common
+# settings are the committed ../settings, the same ones the real dataset uses.
 #
 # It also writes a stub manifest and template beside the data, derived from the committed
-# manifest_century.toml and summa_config_template.toml but retargeted at the stub root and
-# shortened to a period the bundled forcing covers. The committed originals are left alone
-# as the reference for the real dataset.
+# manifest_century.toml and summa_config_template.toml but shortened to a period the bundled
+# forcing covers. The stub root is given to the driver with --home, as on an HPC system.
 #
 # Usage:  ./make_stub_century.bash [root] [n_cases] [cases_per_node]
 #           root            where to build it  (default: a stub_century directory beside this script)
@@ -61,13 +61,9 @@ echo
 rm -rf "${ROOT}"
 
 # ----- common configuration files, shared by every case ---------------------------------
-COMMON="${ROOT}/models/summa/test_coupled/case/settings"
+COMMON="${ROOT}/models/summa/utils/test/test_calibration"
 mkdir -p "${COMMON}"
-for f in modelDecisions.txt outputControl_short.txt trialParams.nc \
-         localParamInfo.txt basinParamInfo.txt \
-         TBL_VEGPARM.TBL TBL_SOILPARM.TBL TBL_GENPARM.TBL TBL_MPTABLE.TBL; do
-  ln -s "${BOW}/summa_inputs/${f}" "${COMMON}/${f}"
-done
+ln -s "${SCRIPT_DIR}/../settings" "${COMMON}/settings"
 
 # ----- per-case inputs ------------------------------------------------------------------
 OBS_DIR="${ROOT}/data/camels-spat/observations/obs-daily"
@@ -98,8 +94,7 @@ done
 # ----- stub manifest and template --------------------------------------------------------
 case_list=$(printf '"%s", ' "${CASES[@]}"); case_list="${case_list%, }"
 
-sed -e "s|^template_path = .*|template_path = \"${ROOT}/\"|" \
-    -e "s|^template_file = .*|template_file = \"stub_template.toml\"|" \
+sed -e "s|^template_file = .*|template_file = \"stub_template.toml\"|" \
     -e "s|^cases_per_node = .*|cases_per_node = ${CASES_PER_NODE}|" \
     "${SCRIPT_DIR}/manifest_century.toml" \
   | awk -v list="${case_list}" '
@@ -111,12 +106,11 @@ sed -e "s|^template_path = .*|template_path = \"${ROOT}/\"|" \
 
 # retarget the template at the stub root, and shorten to what the bundled forcing covers
 # (1980-01-01 to 1990-01-01), leaving 1980 as the spinup year
-sed -e "s|^home_path = .*|home_path = \"${ROOT}\"|" \
-    -e "s|^start_time = .*|start_time = \"1981-01-01 00:00\"|" \
+sed -e "s|^start_time = .*|start_time = \"1981-01-01 00:00\"|" \
     -e "s|^end_time   = .*|end_time   = \"1981-12-31 23:00\"|" \
     -e "s|^start_date     = .*|start_date     = \"1981-01-01\"|" \
     -e "s|^end_date       = .*|end_date       = \"1981-12-31\"|" \
-    -e "s|^write_aligned  = .*|write_aligned  = false\nn_samples      = 3|" \
+    -e "s|^n_samples      = .*|n_samples      = 3|" \
     "${SCRIPT_DIR}/summa_config_template.toml" > "${ROOT}/stub_template.toml"
 
 echo
@@ -126,4 +120,4 @@ echo
 NP=$((CASES_PER_NODE * 2))
 echo "run it with (-np must be divisible by cases_per_node = ${CASES_PER_NODE}):"
 echo "  mpirun -np ${NP} ${SUMMA_ROOT}/bin/summa_sundials_mizuroute_opt.exe \\"
-echo "         --manifest ${ROOT}/stub_manifest.toml"
+echo "         --manifest ${ROOT}/stub_manifest.toml --home ${ROOT}"
