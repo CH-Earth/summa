@@ -192,20 +192,20 @@ AFTER tag of v4.0.0-exp-Sundials
       scalarKappa
       scalarVolLatHt_fus
       scalarCanopyMeltFreeze
- 48) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
+ 49) Routing histogram variables will not print anymore, since once fixed these to print correctly they slowed the write considerably, commit 7601c6ab Mar 10, 2026
      These can be turned back on with turning allowRoutingOutput flag to .true.
--49) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
- 50) The number of soil layers does not have to be the same in every HRU now, commit eeb800af Mar 24, 2026
- 51) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to GRACE data, commit eeb800af	Mar 24, 2026
--52) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
+-50) Smoothing of hydCond_psi function when psi is very small, helps convergence with saturated soil layers, commit 946b6112 Mar 10, 2026
+ 51) The number of soil layers does not have to be the same in every HRU now, commit eeb800af Mar 24, 2026
+ 52) Add GRU variable basin__StorageChange in kg/m2/s that summarizes the storage changes across the HRUs so that it can be compared to GRACE data, commit eeb800af	Mar 24, 2026
+-53) If scalar solution fails on a snow layer, exit and merge snow layers if failure was from too much energy going into top layer (previous behavior was code failure), commit 7c46a507 May 5, 2026
      Also changed the number of times it checks the brackets for scalar solution from 100 to 10 since usually by 2 it's found the bracket or not.
--53) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
+-54) Fix power profile hydraulic conductivity if total soil depth less than compactedDepth, and rewrite to make smooth profile if k_soil differs across layers and take into account differing layer thicknesses (use harmonic mean), commit 8119be7c May 29, 2026
      Bugfix Sep 11, 2026: this had also floored the conductivity at k_soil below compactedDepth, so the power law no longer decayed to zero at the base of
       the soil, which is the Beven-Kirkby premise the qTopmodl transmissivity integrates. Floor removed, and the v3 guard for a column ending exactly at
       compactedDepth restored (the normalization 0**(zScale_TOPMODEL-1) is otherwise a divide by zero). Belongs on master as well.
--54) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
- 55) Remove deprecated moisture-based Richards' equation, f_Richards decision still can be included but does not do anything but mixed form, commits around b99de74f	Jul 22, 2026
- 56) Spatial domain expansion, merge of the glacier branch, commit a3c73138 Aug 27, 2026 (and follow-on fixes)
+-55) Fix baseflow derivatives (decision groundwatr == qTopmodl) commit 84009cb6, Jun 20, 2026
+ 56) Remove deprecated moisture-based Richards' equation, f_Richards decision still can be included but does not do anything but mixed form, commits around b99de74f	Jul 22, 2026
+ 57) Spatial domain expansion, merge of the glacier branch, commit a3c73138 Aug 27, 2026 (and follow-on fixes)
      Each HRU can now hold more than one spatial "domain", each with its own layered column and its own fraction of the HRU area.
      Domain types (domType in the initial conditions file; Fortran parameter names in globalData.f90 in parentheses):
       ! 1 upland                    (upland)   ! the standard soil/snow column, every HRU has one
@@ -229,13 +229,13 @@ AFTER tag of v4.0.0-exp-Sundials
      maxSnowLayers is multiplied by 2.5 when any glacier is present, to allow firn development in the accumulation zone.
      The OpenWQ coupling was updated to be per (HRU, domain) rather than per HRU (see build/source/openwq), commit f16c3488 Sep 10, 2026.
      Next Gen coupling was also updated.
--57) Groundwater / TOPMODEL baseflow fixes in computBaseflow (decision groundwatr == qTopmodl), commit dca170cc Sep 10, 2026
+-58) Groundwater / TOPMODEL baseflow fixes in computBaseflow (decision groundwatr == qTopmodl), commit dca170cc Sep 10, 2026
       1) The transmissivity integrals are written in terms of the hydraulic conductivity at the soil surface, but the code was passing
          mLayerSatHydCondMP(1), which is the macropore conductivity at the first layer midpoint (already scaled by the depth profile).
          Now recovers the surface value for any profile as surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1).
       2) Analytical-Jacobian consistency fix: for soil layers above the water table the baseflow is forced to zero (trSoil clamp), but the
          derivative matrix (dBaseflow_dVolLiq, dBaseflow_dWat, dBaseflow_dTk) still had non-zero rows for them. 
- 58) New exponential hydraulic conductivity profile, used internally for glacier debris and future for SUMMA coupled to separate aquifer, commits bb2b1344 and 5095074b Sep 10, 2026
+ 59) New exponential hydraulic conductivity profile, used internally for glacier debris and future for SUMMA coupled to separate aquifer, commits bb2b1344 and 5095074b Sep 10, 2026
       ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
       ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
       ! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
@@ -247,45 +247,45 @@ AFTER tag of v4.0.0-exp-Sundials
       That suits debris over ice, handled internally, or soil over a deeper aquifer.
      The profile shape is re-derived in three places (vs previous hard-coded power law from iLayerSatHydCond): satHydCond (the conductivity itself), the topmodel_GA max infiltration rate in soilLiqFlux (conductivity at wetting front), computBaseflow (transmissivity).
      After change 60 all three agree for pow_prof as well as exp_prof.
--59) topmodel_GA changes: infiltration rate now follows hc_profile, and infRateMax is re-keyed on hc_profile (not groundwatr), commit 8ae78ac2 Sep 11, 2026
+-60) topmodel_GA changes: infiltration rate now follows hc_profile, and infRateMax is re-keyed on hc_profile (not groundwatr), commit 8ae78ac2 Sep 11, 2026
      It now uses satHydCond's conductivity-depth shape instead of a hand-derived one, so both and computBaseflow agree.
      pow_prof/exp_prof now require topmodel_GA (or noInfExc); constant only warns with topmodel_GA.
      Newly rejected (previously silent no-ops): bigBuckt+pow_prof+GreenAmpt, and presHead+pow_prof (zero conductivity at the soil base drove no drainage - use exp_prof).
--60) Consistent association of the iden_ice/iden_water density ratio to (iden_ice/iden_water) because it is faster (inconsistent variations differ by 1 ULP), commit cde6aeeb Sep 11, 2026
- 61) Fixed lateral flow HRUs within a GRU to run in cascade (topological) order instead of array order, commit 90edb489 Sep 11, 2026
+-61) Consistent association of the iden_ice/iden_water density ratio to (iden_ice/iden_water) because it is faster (inconsistent variations differ by 1 ULP), commit cde6aeeb Sep 11, 2026
+ 62) Fixed lateral flow HRUs within a GRU to run in cascade (topological) order instead of array order, commit 90edb489 Sep 11, 2026
      The lateral outflow of an HRU is added to the inflow of its downslope HRU (downHRUindex) as each HRU is run, and the inflow
       is zeroed at the start of every step, so a contributor run after its receiver would have its water silently dropped rather than delayed.
- 62) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
+ 63) Domain-parallel MPI: GRUs distributed across ranks, PR #631 -DUSE_MPI=ON 
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
- 63) Optional coupling to mizuRoute for river-network routing, PR #632 -DUSE_MIZUROUTE=ON
+ 64) Optional coupling to mizuRoute for river-network routing, PR #632 -DUSE_MIZUROUTE=ON
      Configured via a new TOML file (-c). Adds Q_reach, q_basin, upArea outputs (off by default). Requires the full domain on one process -- incompatible with -g and MPI domain parallelism.
- 64) Objective-function evaluation and command-line parameter overrides, PR #637
+ 65) Objective-function evaluation and command-line parameter overrides, PR #637
      New build/source/objfunc/ computes streamflow metrics (kge, kgep, nse, mae, rmse) against observations. Parameters can be overridden via --param <name> <value>. 
      Simulation lifecycle refactored into summa_simulation (reusable in-process); executable names now record build options so variant builds can share bin/.
- 65) Automatic parameter calibration, PR #639
+ 66) Automatic parameter calibration, PR #639
      New build/source/calibration/ (DDS sampling, parameter search, NetCDF output) and driver summa_driver_opt.f90. Two-level MPI: domain parallelism plus instance parallelism across calibration trials, scheduled dynamically. 
      Multi-case runs via a --manifest file. Config moves to TOML (legacy -m/--control still accepted). parallel-utils submodule vendored into build/source/parallel/.
- 66) Fix the restart file write for a multi-GRU run with glaciers, commit 29dc01f6 Sep 24, 2026
+ 67) Fix the restart file write for a multi-GRU run with glaciers, commit 29dc01f6 Sep 24, 2026
      writeRestartGrid loops over every GRU itself, so it is called once after writeRestart's GRU loop, not inside it.
- 67) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
+ 68) Cap the lateral outflow of a soil layer at the drainable water it holds over the data step, commit aae78d23 Sep 24, 2026
      The smooth minimum q_max*tanh(q/q_max), monotone where a logistic one is not, with its derivatives in dBaseflow_d*.
- 68) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit a7126fbc Sep 24, 2026
+ 69) Exfiltrate the surplus a nearly full soil column cannot store, whatever face it arrived through, commit a7126fbc Sep 24, 2026
      exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow, was lateral only.
      Closes the debris-column water balance; a qTopmodl upland is unchanged in practice, its exfiltration identically zero either way, since the relief opens only below 2 mm available storage.
--69) Root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
+-70) Root density normalisation only trims an excess, no longer fills a deficit, commit 0dd366a3 Sep 25, 2026
      scalarAquiferRootFrac was forced to zero, so bigAquifer's aquifer transpiration was unreachable for bigBuckt too.
--70) Changes for converge on flat search direction, improves BE speed but solutions are almost identical (or just do not fail)
+-71) Changes for converge on flat search direction, improves BE speed but solutions are almost identical (or just do not fail)
       1) imposeConstraints lets a snow/lake/glacier water iterate fall back to its start-of-step value before the liquid drain limit, commit b7f1d2ae Oct 1, 2026
       2) imposeConstraints takes the BE snow (layer and canopy) temperature step along the enthalpy curve, commit 3cdbe7ea and 9b7696f2 Oct 5, 2026
       3) Scalar solve waives the matric head increment test where the residual and water content change meet the liquid tolerance, commit 670ddd6f Oct 21, 2026
--71) Jacobian fixes
+-72) Jacobian fixes
      -1) frozen-soil conductivity derivative should include the ice impedance, commit 90450fcb Oct 5, 2026
      -2) when transpiration latent flux is toward the leaves (condensation) derivative should add to canopy evaporation derivative, commit 788eacb8 Oct 5, 2026
      -3) soil water super-diagonal no longer overwrites the baseflow derivatives of the layer above, commit d4c44fa7 Oct 21, 2026
      -4) scalar soil water solve zeroes the derivative of the flux from above, which it holds fixed, commit 9b0deb0e Oct 21, 2026
--72) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit ac1b2fc3 and 219221fe Oct 21, 2026
--73) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit a56ed482 Oct 21, 2026
- 74) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit 11752915 Oct 21, 2026
--75) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, c057662d and 92f0037a Oct 26, 2026
+-73) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit ac1b2fc3 and 219221fe Oct 21, 2026
+-74) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit a56ed482 Oct 21, 2026
+ 75) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit 11752915 Oct 21, 2026
+-76) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, c057662d and 92f0037a Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
--76) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 9634b402 Oct 26, 2026
+-77) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 9634b402 Oct 26, 2026
