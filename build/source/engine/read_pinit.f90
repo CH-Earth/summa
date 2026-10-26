@@ -145,65 +145,13 @@ contains
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
   ! IDA solver parameters
-  call set_ida_defaults(absEnergyFac, parFallback, err, cmessage)
-  if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
+  call set_ida_defaults(absEnergyFac, parFallback)
   ! set FUSE parameter defaults
   call set_FUSE_defaults(parFallback, err, cmessage)
   if (err /= 0) then; message = trim(message)//trim(cmessage); return; end if
-  ! glacier and lake parameters
-  if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%albedoFrznWatVisible)%default_val = 0.6_rkind
-  end if
-  if (parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val = 0.4_rkind
-  end if
-  if (parFallback(iLookPARAM%albedoOpenWatVisible)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%albedoOpenWatVisible)%default_val = 0.06_rkind
-  end if
-  if (parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val = 0.06_rkind
-  end if
-  if (parFallback(iLookPARAM%z0Water)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%z0Water)%default_val = 0.0005_rkind
-  end if
-  if (parFallback(iLookPARAM%z0Ice)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%z0Ice)%default_val = 0.0010_rkind
-  end if
-  if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind ! 
-  end if
-  if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
-  end if
-  ! exponential hydraulic conductivity profile
-  if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
-    ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m
-    !       depth, so glacier runs should set f_hydCond explicitly rather than take this default
-    parFallback(iLookPARAM%f_hydCond)%default_val = 0.75_rkind
-  end if
+  call set_glacier_lake_defaults(parFallback)
  else
-  ! glacier parameters
-  if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then ! 5-29
-   parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind*secprhour! convert from hours to seconds
-  end if
-  if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then ! 30-149
-   parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind*secprhour ! convert from hours to seconds
-  end if
-  if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then ! 150-1000
-    parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind*secprhour ! convert from hours to seconds
-  endif
-  if (parFallback(iLookBPAR%debrisConc)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 to 6.4 kg/m3 following Anderson and Anderson (2018)
-  endif
-  if (parFallback(iLookBPAR%wallErosionRate)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%wallErosionRate)%default_val = 8.0_rkind ! 1 to 15 mm yr-1 following Anderson and Anderson (2016)
-  endif
-  if (parFallback(iLookBPAR%debrisCritStress)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%debrisCritStress)%default_val = 80000 ! 20000-100000 Pa follow Mayer and Licciulli (2021)
-  endif
-  if (parFallback(iLookBPAR%latMoraineWidth)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%latMoraineWidth)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
-  endif
+  call set_glacier_basin_defaults(parFallback)
  end if
 
  ! check we have populated all variables
@@ -233,14 +181,12 @@ contains
  ! ************************************************************************************************
  ! Subroutine to separate the default settings of the IDA solver from the rest of the model parameters
  ! ************************************************************************************************
- subroutine set_ida_defaults(absEnergyFac, parFallback, err, message)
+ subroutine set_ida_defaults(absEnergyFac, parFallback)
  USE data_types,only:par_info              ! data type for parameter constraints
  implicit none
  ! define input
  real(rkind),intent(in)                 :: absEnergyFac   ! multiplier for absolute value of energy state variable (for enthalpy or temperature)
  type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
- integer(i4b),intent(out)               :: err            ! error code
- character(*),intent(out)               :: message        ! error message
  ! local varaibles
  integer(i4b)                           :: i   
  real(rkind)                            :: default_relTol = 1.e-5_rkind 
@@ -251,8 +197,6 @@ contains
  integer(i4b), dimension(3)             :: absTolTemp_paramIndx = [iLookPARAM%absTolTempCas, iLookPARAM%absTolTempVeg, iLookPARAM%absTolTempSoilSnow]
  integer(i4b), dimension(4)             :: absTolWat_paramIndx =  [iLookPARAM%absTolWatVeg, iLookPARAM%absTolWatSnow, iLookPARAM%absTolMatric, &
                                                                    iLookPARAM%absTolAquifr]
- err=0 ! initialize error code
- message="set_ida_defaults/"
  
   ! Relative Tolerances
   do i = 1, size(relTol_paramIndx)
@@ -299,6 +243,144 @@ contains
     parFallback(iLookPARAM%idaDetectEvents)%default_val = 1._rkind ! default is to detect events (0 means do not detect events)
   end if
  end subroutine set_ida_defaults
+
+ ! ************************************************************************************************
+ ! Subroutine to set the local-column glacier, lake and geothermal defaults if not already set
+ ! ************************************************************************************************
+ subroutine set_glacier_lake_defaults(parFallback)
+ USE data_types,only:par_info              ! data type for parameter constraints
+ implicit none
+ type(par_info),intent(inout)           :: parFallback(:) ! default values and constraints of model parameters
+ 
+  ! glacier and lake parameters
+  if (parFallback(iLookPARAM%albedoFrznWatVisible)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoFrznWatVisible)%default_val = 0.6_rkind
+    parFallback(iLookPARAM%albedoFrznWatVisible)%lower_limit = 0.3_rkind
+    parFallback(iLookPARAM%albedoFrznWatVisible)%upper_limit = 0.9_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoFrznWatNearIR)%default_val = 0.4_rkind
+    parFallback(iLookPARAM%albedoFrznWatNearIR)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%albedoFrznWatNearIR)%upper_limit = 0.7_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoOpenWatVisible)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoOpenWatVisible)%default_val = 0.06_rkind
+    parFallback(iLookPARAM%albedoOpenWatVisible)%lower_limit = 0.03_rkind
+    parFallback(iLookPARAM%albedoOpenWatVisible)%upper_limit = 0.15_rkind
+  end if
+  if (parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%albedoOpenWatNearIR)%default_val = 0.06_rkind
+    parFallback(iLookPARAM%albedoOpenWatNearIR)%lower_limit = 0.03_rkind
+    parFallback(iLookPARAM%albedoOpenWatNearIR)%upper_limit = 0.15_rkind
+  end if
+  if (parFallback(iLookPARAM%z0Water)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%z0Water)%default_val = 0.0005_rkind
+    parFallback(iLookPARAM%z0Water)%lower_limit = 0.0001_rkind
+    parFallback(iLookPARAM%z0Water)%upper_limit = 0.01_rkind
+  end if
+  if (parFallback(iLookPARAM%z0Ice)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%z0Ice)%default_val = 0.0010_rkind
+    parFallback(iLookPARAM%z0Ice)%lower_limit = 0.0001_rkind
+    parFallback(iLookPARAM%z0Ice)%upper_limit = 0.05_rkind
+  end if
+  if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind
+    parFallback(iLookPARAM%glacierWindFactor)%lower_limit = 1._rkind
+    parFallback(iLookPARAM%glacierWindFactor)%upper_limit = 3._rkind
+  end if
+  if (parFallback(iLookPARAM%windExposure)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%windExposure)%default_val = 1._rkind
+    parFallback(iLookPARAM%windExposure)%lower_limit = 0.3_rkind
+    parFallback(iLookPARAM%windExposure)%upper_limit = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%precipElevGrad)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%precipElevGrad)%default_val = 0._rkind
+    parFallback(iLookPARAM%precipElevGrad)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%precipElevGrad)%upper_limit = 0.005_rkind
+  end if
+  if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
+    parFallback(iLookPARAM%glacierTempReduction)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%glacierTempReduction)%upper_limit = 2.5_rkind
+  end if
+  ! energy flux at the base of the soil column, the geothermal heat flux, only used with bcLowrTdyn = presFlux
+  if (parFallback(iLookPARAM%lowerBoundNrgFlux)%default_val < 0.99_rkind*realMissing) then
+    ! NOTE: 0.06 W m-2 is the continental average; it ranges from ~0.03 in old cratons to ~0.1 in tectonically active regions
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%default_val = 0.06_rkind
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%lowerBoundNrgFlux)%upper_limit = 0.2_rkind
+  end if
+  ! exponential hydraulic conductivity profile
+  if (parFallback(iLookPARAM%f_hydCond)%default_val < 0.99_rkind*realMissing) then
+    ! NOTE: a soil-column value, leaving ~5% of the surface conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m
+    !       depth, so glacier runs should set f_hydCond explicitly rather than take this default
+    parFallback(iLookPARAM%f_hydCond)%default_val = 0.75_rkind
+    parFallback(iLookPARAM%f_hydCond)%lower_limit = 0.1_rkind
+    parFallback(iLookPARAM%f_hydCond)%upper_limit = 10._rkind
+  end if
+ end subroutine set_glacier_lake_defaults
+
+ ! ************************************************************************************************
+ ! Subroutine to set the basin glacier and debris defaults if not already set
+ ! ************************************************************************************************
+ subroutine set_glacier_basin_defaults(parFallback)
+ USE data_types,only:par_info              ! data type for parameter constraints
+ implicit none
+ type(par_info),intent(inout)           :: parFallback(:) ! default values and constraints of model parameters
+  ! glacier parameters
+  if (parFallback(iLookBPAR%glacStor_kIce)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%glacStor_kIce)%default_val = 15._rkind*secprhour! convert from hours to seconds
+    parFallback(iLookBPAR%glacStor_kIce)%lower_limit = 5._rkind*secprhour
+    parFallback(iLookBPAR%glacStor_kIce)%upper_limit = 30._rkind*secprhour - 1._rkind
+  end if
+  if (parFallback(iLookBPAR%glacStor_kSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%glacStor_kSnow)%default_val = 90._rkind*secprhour ! convert from hours to seconds
+    parFallback(iLookBPAR%glacStor_kSnow)%lower_limit = 30._rkind*secprhour
+    parFallback(iLookBPAR%glacStor_kSnow)%upper_limit = 150._rkind*secprhour - 1._rkind
+  end if
+  if (parFallback(iLookBPAR%glacStor_kFirn)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%glacStor_kFirn)%default_val = 575._rkind*secprhour ! convert from hours to seconds
+    parFallback(iLookBPAR%glacStor_kFirn)%lower_limit = 150._rkind*secprhour
+    parFallback(iLookBPAR%glacStor_kFirn)%upper_limit = 1000._rkind*secprhour - 1._rkind
+  endif
+  if (parFallback(iLookBPAR%debrisConc)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%debrisConc)%default_val = 5.0_rkind ! 0.1 to 6.4 kg/m3 following Anderson and Anderson (2018)
+    parFallback(iLookBPAR%debrisConc)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%debrisConc)%upper_limit = 10._rkind
+  endif
+  if (parFallback(iLookBPAR%wallErosionRate)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%wallErosionRate)%default_val = 1.0_rkind ! rock wall backwearing in mm yr-1, 0.5 to 2 following Anderson and Anderson (2016)
+    parFallback(iLookBPAR%wallErosionRate)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%wallErosionRate)%upper_limit = 2._rkind
+  endif
+  if (parFallback(iLookBPAR%debrisCritStress)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%debrisCritStress)%default_val = 80000._rkind ! in Pa follow Mayer and Licciulli (2021)
+    parFallback(iLookBPAR%debrisCritStress)%lower_limit = 20000._rkind
+    parFallback(iLookBPAR%debrisCritStress)%upper_limit = 100000._rkind
+  endif
+  if (parFallback(iLookBPAR%latMoraineWidth)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%latMoraineWidth)%default_val = 200._rkind ! from looking at Alaska glaciers (m)
+    parFallback(iLookBPAR%latMoraineWidth)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%latMoraineWidth)%upper_limit = 500._rkind
+  endif
+  ! glacier flow, A = glenAFactor*2.4e-24 Pa-3 s-1 (Le Meur and Vincent, 2003; Maussion et al., 2019)
+  if (parFallback(iLookBPAR%glenAFactor)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%glenAFactor)%default_val = 1._rkind
+    parFallback(iLookBPAR%glenAFactor)%lower_limit = 0.1_rkind
+    parFallback(iLookBPAR%glenAFactor)%upper_limit = 3._rkind
+  endif
+  ! mass balance gradients beyond the glacier domains, 0 extends the fitted end segment
+  if (parFallback(iLookBPAR%mbGradAbove)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%mbGradAbove)%default_val = 0._rkind
+    parFallback(iLookBPAR%mbGradAbove)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%mbGradAbove)%upper_limit = 20._rkind
+  endif
+  if (parFallback(iLookBPAR%mbGradBelow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookBPAR%mbGradBelow)%default_val = 0._rkind
+    parFallback(iLookBPAR%mbGradBelow)%lower_limit = 0._rkind
+    parFallback(iLookBPAR%mbGradBelow)%upper_limit = 20._rkind
+  endif
+ end subroutine set_glacier_basin_defaults
 
  ! ************************************************************************************************
  ! Subroutine to set the FUSE default values if they are not already set

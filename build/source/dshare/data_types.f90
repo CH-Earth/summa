@@ -43,6 +43,8 @@ MODULE data_types
   logical                        :: show_help    = .false.
   logical                        :: show_version = .false.
   character(len=:), allocatable  :: tag
+  character(len=:), allocatable  :: home_path
+  character(len=:), allocatable  :: persistent_output
   character(len=:), allocatable  :: manifest_file
   character(len=:), allocatable  :: control_file
   character(len=:), allocatable  :: config_file
@@ -75,30 +77,87 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! calibration configuration
  ! ***********************************************************************************************************
- type :: param_transform_info
-  character(len=64)              :: name               ! parameter name
-  character(len=16)              :: transformation     ! parameter transformation
- end type param_transform_info
+ type,public  :: calib_param_info
+  character(len=64) :: name
+  logical(lgt)      :: has_lower = .false.  ! lower bound given in the configuration (else native bound is used)
+  logical(lgt)      :: has_upper = .false.  ! upper bound given in the configuration (else native bound is used)
+  real(rkind)       :: lower_bound = 0._rkind
+  real(rkind)       :: upper_bound = 0._rkind
+  character(len=16) :: transformation = 'none'
+ end type calib_param_info
+
+ ! -----------------------------------------------------------------------------------------------------------
+ type :: param_bounds_info
+  character(len=64)              :: name               ! parameter name, optionally name@domainType
+  real(rkind)                    :: lower              ! lower bound replacing the parameter file's
+  real(rkind)                    :: upper              ! upper bound replacing the parameter file's
+ end type param_bounds_info
 
  ! -----------------------------------------------------------------------------------------------------------
  type :: ordered_constraint
   character(len=64), allocatable :: parameters(:)      ! Ordered parameter names
   real(rkind)                    :: gap_fraction       ! Minimum adjacent gap as fraction of total range
+  logical(lgt)                   :: sample_gaps=.false. ! Search every member, the later ones by their gaps
  end type ordered_constraint
 
  ! -----------------------------------------------------------------------------------------------------------
- 
+ ! One calibration target: an observed series, the simulated variable it is compared against, and the
+ ! metric that scores the two together.  A calibration owns a list of these and evaluates every one of
+ ! them for each parameter trial, so a single-objective calibration is simply a list of length one.
+ type,public  :: target_info
+  character(len=64)              :: name = ''               ! target name, used to label the output
+  character(len=64)              :: variable = 'streamflow' ! simulated variable compared against the observations
+  ! Which spatial unit of the domain the simulated variable is scored over.  The whole domain is right
+  ! for a single basin and wrong for anything else: two basins in one domain have their own storage,
+  ! and a reach outlet temperature belongs to one reach rather than to an average over the basin.
+  character(len=16)              :: spatial_unit = 'domain'     ! domain, gru, hru, reach
+  integer(i8b)                   :: spatial_id = integerMissing ! id of that unit, as the domain numbers it
+  character(len=:),  allocatable :: obs_path                ! path to the observation file
+  character(len=:),  allocatable :: obs_file                ! observation file
+  character(len=:),  allocatable :: vname_obs               ! name of the observed variable within that file
+  character(len=16)              :: metric = 'kge'          ! kge, kgep, nse, mae, rmse
+  character(len=16)              :: obs_transform = 'none'  ! none, log, power, box-cox
+  real(rkind)                    :: weight = 1.0_rkind      ! weight given to this target when the objectives
+                                                            !  are scalarized for a single-objective search
+  character(len=64)              :: obs_units = ''          ! units of the observations, overriding the file's
+  ! Putting the simulated and observed series on the same footing.  A satellite storage product, for
+  ! instance, reports a departure in millimetres from a multi-year mean, while the model carries the
+  ! rate storage is changing at, so that target accumulates and references a baseline.
+  logical(lgt)                   :: accumulate = .false.    ! integrate the simulated rate into its quantity
+  character(len=:), allocatable  :: baseline_start          ! start of the anomaly baseline (YYYY-MM-DD)
+  character(len=:), allocatable  :: baseline_end            ! end of the anomaly baseline (YYYY-MM-DD)
+  character(len=16)              :: balance = ''            ! seasonal or annual balance between extremes
+  real(rkind)                    :: balance_window = 60._rkind ! half-width of the search for an extreme (days)
+ end type target_info
+
+ ! -----------------------------------------------------------------------------------------------------------
+ ! NSGA-II settings (Deb et al., 2002).  The sample budget is population_size times the number of
+ ! generations, the first of which is the random initial population.
+ type,public  :: nsga2_info
+  integer(i4b)                   :: population_size = 100          ! members kept each generation
+  real(rkind)                    :: crossover_probability = 0.9_rkind ! chance a pair of parents is crossed
+  real(rkind)                    :: crossover_eta = 20._rkind      ! SBX distribution index
+  real(rkind)                    :: mutation_probability = -1._rkind ! chance each variable mutates; negative is 1/nParam
+  real(rkind)                    :: mutation_eta = 20._rkind       ! polynomial-mutation distribution index
+ end type nsga2_info
+
+ ! -----------------------------------------------------------------------------------------------------------
+
  ! calibration configuration
  type,public  :: calib_info
   character(len=:),  allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
   character(len=:),  allocatable :: obs_transform      ! none, log, power, box-cox
   character(len=:),  allocatable :: start_date         ! start of the calibration time period
   character(len=:),  allocatable :: end_date           ! end of the calibration time period
-  character(len=64), allocatable :: param_list(:)      ! Parameters included in optimization
-  type(param_transform_info), allocatable :: param_transform(:)  ! parameter transformations
-  type(ordered_constraint),   allocatable :: ordered(:)          ! ordered parameter constraints
-  integer(i4b)                   :: n_samples = 5000    ! number of parameter samples to evaluate
-  logical(lgt)                   :: write_aligned = .false. ! flag to write the aligned sim/obs time series
+  type(calib_param_info),   allocatable :: param_list(:)   ! Parameters included in optimization
+  type(param_bounds_info),  allocatable :: param_bounds(:) ! bounds that replace the parameter files'
+  type(ordered_constraint), allocatable :: ordered(:)      ! ordered parameter constraints
+  type(target_info),        allocatable :: targets(:)      ! calibration targets, one per objective
+  integer(i4b)                   :: n_samples      = 1000        ! number of parameter samples to evaluate
+  real(rkind)                    :: default_metric = 9999._rkind ! default objective function
+  character(len=16)              :: algorithm      = 'dds'       ! dds (on the scalarized targets) or nsga2 (on each)
+  type(nsga2_info)               :: nsga2                        ! NSGA-II settings
+  logical(lgt)                   :: write_aligned  = .false.     ! flag to write the aligned sim/obs time series
  end type calib_info
 
  ! ***********************************************************************************************************
@@ -755,6 +814,10 @@ MODULE data_types
    real(rkind), allocatable :: mLayerdTheta_dTk(:)               ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
    real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    volumetric fraction of liquid water (-)
    real(rkind), allocatable :: mLayerVolFracIceTrial(:)          ! intent(in):    volumetric fraction of ice (-)
+   real(rkind), allocatable :: dqTop_dHydStateVec(:)             ! intent(in):    derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+   real(rkind), allocatable :: dqTop_dNrgStateVec(:)             ! intent(in):    derivative in the soil surface flux w.r.t. temperature in each soil layer (m s-1 K-1)
+   real(rkind)              :: dqBot_dHydState                   ! intent(in):    derivative in the soil bottom flux w.r.t. hydrology state in the bottom soil layer
+   real(rkind)              :: dqBot_dNrgState                   ! intent(in):    derivative in the soil bottom flux w.r.t. temperature in the bottom soil layer (m s-1 K-1)
   contains
    procedure :: initialize => initialize_in_groundwatr
  end type in_type_groundwatr
@@ -770,6 +833,7 @@ MODULE data_types
    real(rkind), allocatable :: mLayerBaseflow(:)                 ! intent(out):   baseflow from each soil layer (m s-1)
    real(rkind), allocatable :: dBaseflow_dWat(:,:)               ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
    real(rkind), allocatable :: dBaseflow_dTk(:,:)                ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+   real(rkind)              :: dExfil_dDrive                     ! intent(out):   derivative of exfiltration w.r.t. the column surplus it returns (-)
    integer(i4b)             :: err                               ! intent(out):   error code
    character(len=len_msg)   :: cmessage                          ! intent(out):   error message
   contains
@@ -1742,7 +1806,11 @@ contains
   associate(&
    dVolTot_dPsi0     => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,         & ! intent(in): [dp(:)] derivative in total volumetric water content w.r.t. matric head (m-1)
    mLayerdTheta_dPsi => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat,     & ! intent(in): [dp(:)] derivative in liquid water content w.r.t. matric potential (m-1)
-   mLayerdTheta_dTk  => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat(nSnow+nLake+1:nSnow+nLake+nSoil) )! intent(in): [dp(:)] derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   mLayerdTheta_dTk  => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat(nSnow+nLake+1:nSnow+nLake+nSoil),& ! intent(in): [dp(:)] derivative in volumetric liquid water content w.r.t. temperature (K-1)
+   dq_dHydStateLayerSurfVec => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat,& ! intent(in): [dp(:)] derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+   dq_dNrgStateLayerSurfVec => deriv_data%var(iLookDERIV%dq_dNrgStateLayerSurfVec)%dat,& ! intent(in): [dp(:)] derivative in the soil surface flux w.r.t. temperature in each soil layer
+   dq_dHydStateAbove => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,     & ! intent(in): [dp(0:)] derivative in interface fluxes w.r.t. hydrology state in the layer above
+   dq_dNrgStateAbove => deriv_data%var(iLookDERIV%dq_dNrgStateAbove)%dat      ) ! intent(in): [dp(0:)] derivative in interface fluxes w.r.t. temperature in the layer above
    ! intent(in) arguments
    in_groundwatr % nSnow                    = nSnow                                  ! intent(in):    number of snow layers
    in_groundwatr % nLake                    = nLake                                  ! intent(in):    total number of layers
@@ -1754,6 +1822,11 @@ contains
    in_groundwatr % mLayerdTheta_dTk         = mLayerdTheta_dTk                       ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
    in_groundwatr % mLayerVolFracLiqTrial    = mLayerVolFracLiqTrial(nSnow+nLake+1:nSnow+nLake+nSoil) ! intent(in):    volumetric fraction of liquid water (-)
    in_groundwatr % mLayerVolFracIceTrial    = mLayerVolFracIceTrial(nSnow+nLake+1:nSnow+nLake+nSoil) ! intent(in):    volumetric fraction of ice (-)
+   ! surface and bottom flux derivatives, zero where soilLiqFlux did not compute them
+   in_groundwatr % dqTop_dHydStateVec = merge(dq_dHydStateLayerSurfVec(1:nSoil), 0._rkind, dq_dHydStateLayerSurfVec(1:nSoil)/=nr_realMissing)
+   in_groundwatr % dqTop_dNrgStateVec = merge(dq_dNrgStateLayerSurfVec(1:nSoil), 0._rkind, dq_dNrgStateLayerSurfVec(1:nSoil)/=nr_realMissing)
+   in_groundwatr % dqBot_dHydState    = merge(dq_dHydStateAbove(nSoil), 0._rkind, dq_dHydStateAbove(nSoil)/=nr_realMissing)
+   in_groundwatr % dqBot_dNrgState    = merge(dq_dNrgStateAbove(nSoil), 0._rkind, dq_dNrgStateAbove(nSoil)/=nr_realMissing)
   end associate
  end subroutine initialize_in_groundwatr
 
@@ -1771,11 +1844,12 @@ contains
   ixSaturation = io_groundwatr % ixSaturation ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
  end subroutine finalize_io_groundwatr
 
- subroutine finalize_out_groundwatr(out_groundwatr,dBaseflow_dWat,dBaseflow_dTk,flux_data,err,cmessage)
+ subroutine finalize_out_groundwatr(out_groundwatr,dBaseflow_dWat,dBaseflow_dTk,flux_data,deriv_data,err,cmessage)
   class(out_type_groundwatr),intent(in) :: out_groundwatr          ! class object for intent(out) groundwatr arguments
   real(rkind),intent(out)               :: dBaseflow_dWat(:,:)     ! derivative in baseflow w.r.t. soil water characteristic
   real(rkind),intent(out)               :: dBaseflow_dTk(:,:)      ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   type(var_dlength),intent(inout)       :: flux_data               ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)       :: deriv_data              ! derivatives in model fluxes w.r.t. relevant state variables
   integer(i4b),intent(out)              :: err                     ! error code
   character(*),intent(out)              :: cmessage                ! error message from groundwatr
   associate(&
@@ -1784,6 +1858,7 @@ contains
    mLayerBaseflow = out_groundwatr % mLayerBaseflow                ! intent(out):   baseflow from each soil layer (m s-1)
    dBaseflow_dWat = out_groundwatr % dBaseflow_dWat                ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
    dBaseflow_dTk  = out_groundwatr % dBaseflow_dTk                 ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+   deriv_data%var(iLookDERIV%dExfil_dDrive)%dat(1) = out_groundwatr % dExfil_dDrive ! intent(out): derivative of exfiltration w.r.t. the column surplus it returns (-)
    err            = out_groundwatr % err                           ! intent(out):   error code
    cmessage       = out_groundwatr % cmessage                      ! intent(out):   error message
   end associate

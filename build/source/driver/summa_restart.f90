@@ -58,6 +58,8 @@ contains
  ! global data structures
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:model_decisions                         ! model decision structure
+ USE globalData,only:iulog                                   ! i/o unit for logging messages
+ USE globalData,only:isPrint                                 ! flag to enable informational screen/log output
  ! file paths
  USE summaFileManager,only:SETTINGS_PATH                     ! path to settings files (e.g., Noah vegetation tables)
  USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
@@ -96,6 +98,8 @@ contains
  logical(lgt)                          :: no_ablfrac         ! flag that glacier ablation fraction variable is not in initial conditions
  logical(lgt)                          :: no_icond_enth      ! flag that enthalpy not in initial conditions
  logical(lgt)                          :: use_lookup         ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
+ logical(lgt)                          :: aq_started         ! flag that the aquifer in the initial conditions has already been started
+ logical(lgt)                          :: emptyAquifer       ! flag to empty the aquifer at the start of the run
  real(rkind)                           :: aquifer_start      ! initial aquifer storage
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
@@ -152,6 +156,7 @@ contains
                  no_ice_vars,                   & ! intent(out):   flag that glacier ice variables are not in initial conditions
                  no_ablfrac,                    & ! intent(out):   flag that glacier ablation fraction variable is not in initial conditions
                  no_icond_enth,                 & ! intent(out):   flag that enthalpy not in initial conditions
+                 aq_started,                    & ! intent(out):   flag that the aquifer in the initial conditions has already been started
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -176,6 +181,29 @@ contains
                   use_lookup,                   & ! intent(in):    flag to use the lookup table for soil enthalpy
                   err,cmessage)                   ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! *****************************************************************************
+ ! *** select the initial aquifer fill level
+ ! *****************************************************************************
+
+ ! emptyStart empties the aquifer on a cold start only: a restart file written by SUMMA carries its own aquifer state
+ select case(aquiferIni)
+  case(fullStart)
+   emptyAquifer = .false.
+  case(emptyStart)
+   emptyAquifer = .not.aq_started
+   if(aq_started .and. isPrint) write(iulog,*) 'WARNING: aquiferIni=emptyStart on a restart written by SUMMA ... keeping the aquifer in the initial conditions file'
+  case default
+   message=trim(message)//'unable to identify decision for initial aquifer storage'
+   err=20; return
+ end select  ! aquifer option
+
+ ! fill level used where the aquifer is not read from the initial conditions file
+ if(emptyAquifer)then
+  aquifer_start = 0._rkind ! empty aquifer, leading to a quicker equilibrium when comparing model method outputs
+ else
+  aquifer_start = 1._rkind ! full aquifer, since easier to spin up by draining than by filling
+ endif
 
  ! loop through GRUs
  do iGRU=1,nGRU_local
@@ -230,25 +258,12 @@ contains
   ! *** initialize aquifer storage
   ! *****************************************************************************
 
-  ! initialize aquifer storage
-  ! NOTE: this is ugly: need to add capabilities to initialize basin-wide state variables
-
   ! There are two options for groundwater:
   !  (1) where groundwater is included in the local column (i.e., the HRUs); and
   !  (2) where groundwater is included for the single basin (i.e., the GRUS, where multiple HRUS drain into a GRU).
   ! For water balance calculations it is important to ensure that the local aquifer storage is zero if groundwater is treated as a basin-average state variable (singleBasin);
   !  and ensure that basin-average aquifer storage is zero when groundwater is included in the local columns (localColumn).
-
-  ! select aquifer option
-  select case(aquiferIni)
-   case(fullStart)
-    aquifer_start  = 1._rkind ! Start with full aquifer, since easier to spin up by draining than filling (filling we need to wait for precipitation) 
-   case(emptyStart)
-    aquifer_start  = 0._rkind ! Start with empty aquifer ! If want to compare model method outputs, empty start leads to quicker equilibrium
-   case default
-    message=trim(message)//'unable to identify decision for initial aquifer storage'
-    return
-  end select  ! aquifer option
+  ! NOTE: basin-average aquifer storage is not read from the initial conditions file, so singleBasin always starts at the aquiferIni fill level
 
   ! select groundwater option
   select case(spatial_gw)
@@ -258,14 +273,14 @@ contains
     bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
     do iHRU=1,gru_struc(iGRU)%hruCount
      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-      if(aquiferIni==emptyStart) progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = aquifer_start ! leave at initialized values if fullStart
+      if(emptyAquifer) progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind ! otherwise keep the initial conditions value
      end do
     end do
 
    ! the local column aquifer storage is not used if the groundwater is basin-average
    ! (i.e., where multiple HRUs drain to a basin-average aquifer)
    case(singleBasin)
-    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = aquifer_start 
+    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = aquifer_start
     do iHRU=1,gru_struc(iGRU)%hruCount
      do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
       progStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
@@ -275,7 +290,7 @@ contains
    ! error check
    case default
     message=trim(message)//'unable to identify decision for regional representation of groundwater'
-    return
+    err=20; return
 
   end select  ! groundwater option
 

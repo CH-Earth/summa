@@ -153,6 +153,7 @@ MODULE var_lookup
   integer(i4b)    :: tempCritRain          = integerMissing    ! critical temperature where precipitation is rain (K)
   integer(i4b)    :: tempRangeTimestep     = integerMissing    ! temperature range over the time step (K)
   integer(i4b)    :: frozenPrecipMultip    = integerMissing    ! frozen precipitation multiplier (-)
+  integer(i4b)    :: precipElevGrad        = integerMissing    ! fractional change in precipitation per metre above the HRU elevation (m-1)
   ! snow properties
   integer(i4b)    :: snowfrz_scale         = integerMissing    ! scaling parameter for the freezing curve for snow (K-1)
   integer(i4b)    :: fixedThermalCond_snow = integerMissing    ! fixed thermal conductivity for snow (W m-1 K-1)
@@ -212,6 +213,7 @@ MODULE var_lookup
   integer(i4b)    :: windReductionParam    = integerMissing    ! canopy wind reduction parameter (-)
   integer(i4b)    :: glacierWindFactor     = integerMissing    ! wind speed increase to account for glacier katabatic wind profile (-)
   integer(i4b)    :: glacierTempReduction  = integerMissing    ! air temperature decrease to account for down-glacier katabatic wind (-)
+  integer(i4b)    :: windExposure          = integerMissing    ! glacier surface wind as a fraction of the wind station's (-)
   ! stomatal conductance
   integer(i4b)    :: Kc25                  = integerMissing    ! Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
   integer(i4b)    :: Ko25                  = integerMissing    ! Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)
@@ -354,6 +356,8 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer2_upper      = integerMissing    ! maximum layer depth for the 2nd layer when > 2 layers (m)
   integer(i4b)    :: zmaxLayer3_upper      = integerMissing    ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper      = integerMissing    ! maximum layer depth for the 4th layer when > 4 layers (m)
+  ! lower boundary condition for thermodynamics
+  integer(i4b)    :: lowerBoundNrgFlux     = integerMissing    ! energy flux into the base of the soil column, the geothermal heat flux (W m-2)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -534,7 +538,10 @@ MODULE var_lookup
   integer(i4b)    :: hInitUsed                       = integerMissing ! step size used on the first internal step 
   integer(i4b)    :: hLast                           = integerMissing ! step size used on the last internal step 
   integer(i4b)    :: hCur                            = integerMissing ! step size to be used on the next internal step 
-  integer(i4b)    :: tCur                            = integerMissing ! current time reached by the integrator 
+  integer(i4b)    :: tCur                            = integerMissing ! current time reached by the integrator
+  ! frozen ground
+  integer(i4b)    :: scalarFrostTableDepth           = integerMissing ! depth below the soil surface of the top of the shallowest frozen soil layer (m)
+  integer(i4b)    :: scalarActiveLayerDepth          = integerMissing ! thickness of the soil above the perennially frozen ground below it (m)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -646,6 +653,10 @@ MODULE var_lookup
   integer(i4b)    :: scalarTotalRunoff               = integerMissing ! total runoff (m s-1)
   integer(i4b)    :: scalarGlacierMelt               = integerMissing ! glacier melt (goes into glacier internal reservoir) (m s-1)
   integer(i4b)    :: scalarNetRadiation              = integerMissing ! net radiation (W m-2)
+  integer(i4b)    :: scalarLowerBoundNrgFlux         = integerMissing ! conductive energy flux across the lower boundary of the column, positive down (W m-2)
+  integer(i4b)    :: mLayerColumnInflowNrg           = integerMissing ! heat the lateral inflow carries into each soil layer, above freezing (W)
+  integer(i4b)    :: mLayerLatInflowNrgFlux          = integerMissing ! energy source in each soil layer from the lateral inflow, at its own temperature (J m-3 s-1)
+  integer(i4b)    :: mLayerSoilAdvNrgFlux            = integerMissing ! energy source in each soil layer from the water entering it from the layers above and below (J m-3 s-1)
  endtype iLook_flux
 
  ! ***********************************************************************************************************
@@ -751,8 +762,15 @@ MODULE var_lookup
   integer(i4b)    :: dTemp_dEnthalpy                 = integerMissing ! derivative of temperature w.r.t. enthalpy      
   integer(i4b)    :: dCanopyTemp_dCanWat             = integerMissing ! derivative of canopy temperature w.r.t. volumetric water content  
   integer(i4b)    :: dTemp_dTheta                    = integerMissing ! derivative of temperature w.r.t. volumetric water content         
-  integer(i4b)    :: dTemp_dPsi0                     = integerMissing ! derivative of temperature w.r.t. total water matric potential         
-
+  integer(i4b)    :: dTemp_dPsi0                     = integerMissing ! derivative of temperature w.r.t. total water matric potential
+  ! derivative of the exfiltration
+  integer(i4b)    :: dExfil_dDrive                   = integerMissing ! derivative of exfiltration w.r.t. the column surplus it returns (-)
+  ! derivative of the lateral inflow energy source
+  integer(i4b)    :: dLatInflowNrg_dTemp             = integerMissing ! derivative of the lateral inflow energy source w.r.t. the layer temperature (J m-3 s-1 K-1)
+  ! derivatives of the vertical advective energy source in the soil
+  integer(i4b)    :: dSoilAdv_dTemp                  = integerMissing ! derivative of the soil advective energy source w.r.t. the layer temperature (J m-3 s-1 K-1)
+  integer(i4b)    :: dSoilAdv_dTempAbove             = integerMissing ! derivative of the soil advective energy source w.r.t. the temperature of the layer above (J m-3 s-1 K-1)
+  integer(i4b)    :: dSoilAdv_dTempBelow             = integerMissing ! derivative of the soil advective energy source w.r.t. the temperature of the layer below (J m-3 s-1 K-1)
  endtype iLook_deriv
 
  ! ***********************************************************************************************************
@@ -843,6 +861,8 @@ MODULE var_lookup
   integer(i4b)     :: numberDomainSplitNrg  = integerMissing  ! number of domain splitting solutions for energy                          (-)
   integer(i4b)     :: numberDomainSplitMass = integerMissing  ! number of domain splitting solutions for mass                            (-)
   integer(i4b)     :: numberScalarSolutions = integerMissing  ! number of scalar solutions                                               (-)
+  ! domain type
+  integer(i4b)     :: domType               = integerMissing  ! horizontal domain type (upland, glacier, wetland, stream)                 (-)
  endtype iLook_index
 
  ! ***********************************************************************************************************
@@ -865,6 +885,10 @@ MODULE var_lookup
   integer(i4b)    :: wallErosionRate            = integerMissing ! glacier wall erosion rate input for debris advection (mm yr-1)
   integer(i4b)    :: debrisCritStress           = integerMissing ! critical driving stress where debris slides on terminal wedge (Pa)
   integer(i4b)    :: latMoraineWidth            = integerMissing ! lateral moraine width or rockfall length (m)
+  ! glacier flow and the mass balance it is given
+  integer(i4b)    :: glenAFactor                = integerMissing ! multiplier on Glen's rate factor A (-)
+  integer(i4b)    :: mbGradAbove                = integerMissing ! mass balance gradient above the highest glacier domain, 0 to extend the fit (mm w.e. m-1 yr-1)
+  integer(i4b)    :: mbGradBelow                = integerMissing ! mass balance gradient below the lowest glacier domain, 0 to extend the fit (mm w.e. m-1 yr-1)
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
@@ -899,6 +923,7 @@ MODULE var_lookup
   integer(i4b)    :: glacSnowRunoffFuture       = integerMissing ! per glacier snow reservoir runoff in future time steps (m s-1)
   integer(i4b)    :: glacFirnRunoffFuture       = integerMissing ! per glacier firn reservoir runoff in future time steps (m s-1)
   integer(i4b)    :: glacierRoutedRunoff        = integerMissing ! lapsed glacier runoff (m s-1)
+  integer(i4b)    :: basin__GlacierMassChange   = integerMissing ! glacier mass change per unit glacier area (kg m-2 s-1)
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
@@ -1012,7 +1037,7 @@ MODULE var_lookup
                                                                         161,162,163,164,165,166,167,168,169,170,&
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
-                                                                        191,192,193,194,195,196)
+                                                                        191,192,193,194,195,196,197,198,199)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1030,7 +1055,7 @@ MODULE var_lookup
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
                                                                          91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
                                                                         101,102,103,104,105,106,107,108,109,110,&
-                                                                        111,112,113)
+                                                                        111,112,113,114,115)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1041,7 +1066,7 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92, 93, 94)
+                                                                         91, 92, 93, 94, 95, 96, 97, 98)
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1051,7 +1076,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82)
+                                                                         81, 82, 83, 84, 85, 86, 87)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =iLook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -1060,14 +1085,14 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71)
+                                                                         71, 72)
  ! named variables: basin-average parameters
- type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8, 9,  10,&
-                                                                          11, 12)
+ type(iLook_bpar),    public,parameter :: iLookBPAR     =iLook_bpar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
+                                                                         11, 12, 13, 14, 15)
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =iLook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24)
+                                                                         21, 22, 23, 24, 25)
  ! named variables: basin-grid variables
  type(iLook_grid),    public,parameter :: iLookGRID     =iLook_grid    (  1,  2,  3,  4,  5)
  ! named variables in variable type structure

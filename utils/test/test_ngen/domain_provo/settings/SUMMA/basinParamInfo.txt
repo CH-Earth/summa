@@ -25,7 +25,7 @@
 ! baseflow
 ! ********************************************************************
 basin__aquiferHydCond     |       0.0100 |       0.0001 |      10.0000
-basin__aquiferScaleFactor |       3.5000 |       0.1000 |      10.0000 
+basin__aquiferScaleFactor |       3.5000 |       0.1000 |      10.0000
 basin__aquiferBaseflowExp |       3.0000 |       1.0000 |      10.0000
 ! ********************************************************************
 ! within-grid routing

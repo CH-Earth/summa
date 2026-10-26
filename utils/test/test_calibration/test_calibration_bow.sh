@@ -2,10 +2,11 @@
 # ---------------------------------------------------------------------------------------
 # Parameter-calibration test on the bundled Bow at Banff (CAN_05BB001) domain.
 #
-# Everything this needs is in the repository: the lumped SUMMA inputs and forcing, the
-# mizuRoute topology and remapping, and the daily streamflow observations all live under
-# utils/test/test_mizuroute/bow_real_data/. This script writes a TOML configuration
-# pointing at them, runs a short DDS calibration, and checks the result.
+# Everything this needs is in the repository: the lumped SUMMA inputs, the RDRS forcing for
+# 2002-2017, the mizuRoute topology and remapping, and the daily streamflow and GRACE
+# observations all live under utils/test/test_mizuroute/bow_real_data/. This script writes a
+# TOML configuration pointing at them, runs a short DDS calibration, and checks the result.
+# The period sits inside the GRACE record, so the same run can take a storage target.
 #
 # The period is deliberately tiny -- one spinup year and one calibration year, a handful
 # of trials -- so the test finishes in minutes rather than hours. It exercises the
@@ -59,9 +60,9 @@ cat > "${WORK}/config.toml" <<EOF
 
 case_name = "CAN_05BB001"
 
-# one spinup year (1980) precedes the simulation, which the calibration then scores
-start_time = "1981-01-01 00:00"
-end_time   = "1981-12-31 23:00"
+# one spinup year (2003) precedes the simulation, which the calibration then scores
+start_time = "2004-01-01 00:00"
+end_time   = "2004-12-31 23:00"
 time_zone  = "utcTime"
 
 # simulated streamflow for the objective comes from mizuRoute
@@ -80,7 +81,7 @@ output_path   = "${WORK}/output/"
 
 init_condition = "coldState.nc"
 attributes     = "attributes.nc"
-forcing_list   = "forcingFileList.txt"
+forcing_list   = "forcingFileList_rdrs.txt"
 
 decisions        = "modelDecisions.txt"
 output_control   = "outputControl_short.txt"
@@ -142,8 +143,8 @@ vname_qhruid   = "qhru_id"
 
 [observations]
 
-obs_path = "${DATA}/mizuroute_inputs/"
-obs_file = "CAN_05BB001_daily_flow_observations.nc"
+obs_path = "${DATA}/observations/"
+obs_file = "CAN_05BB001_daily_flow_2002-2017.nc"
 
 vname_obsflow = "q_obs"
 
@@ -153,15 +154,25 @@ vname_obsflow = "q_obs"
 metric        = "kge"
 obs_transform = "none"
 
-start_date = "1981-01-01"
-end_date   = "1981-12-31"
+start_date = "2004-01-01"
+end_date   = "2004-12-31"
 
 n_samples = ${N_TRIALS}
 
 param_list = [
     "k_soil",
     "theta_sat",
-    "aquiferScaleFactor",
+    "aquiferBaseflowExp",
+    "aquiferBaseflowRate",
+    "qSurfScale",
+    "summerLAI",
+    "frozenPrecipMultip",
+    "Fcapil",
+    "tempCritRain",
+    "heightCanopyTop",
+    "heightCanopyBottom",
+    "windReductionParam",
+    "vGn_n",
     "routingGammaScale",
     "routingGammaShape"
 ]
@@ -171,7 +182,20 @@ write_aligned = false
 
 [calibration.parameter_transformations]
 
-k_soil = "log"
+k_soil              = "log"
+aquiferBaseflowRate = "log"
+
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.25
+
+[[parameter_dependencies.ordered]]
+
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
+sample_gaps  = true
 EOF
 
 echo "Running calibration..."

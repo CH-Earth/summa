@@ -202,6 +202,7 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `zmaxLayer2_upper` | maximum layer depth for the 2nd layer when > 2 layers | m |
 | `zmaxLayer3_upper` | maximum layer depth for the 3rd layer when > 3 layers | m |
 | `zmaxLayer4_upper` | maximum layer depth for the 4th layer when > 4 layers | m |
+| `lowerBoundNrgFlux` | energy flux at the lower boundary, the geothermal heat flux | W m-2 |
 
 <a id="params_basin"></a>
 ## Basin parameters

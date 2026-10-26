@@ -57,10 +57,13 @@ USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
 USE globalData,only:iname_glce      ! named variables for glacier ice
 USE globalData,only:iname_lake      ! named variables for lake
+USE globalData,only:upland          ! horizontal domain type for upland
+USE globalData,only:soilLateralFlow ! flag: soil layers drain laterally
 
 ! constants
 USE multiconst,only:&
                     Tfreeze,      & ! temperature at freezing              (K)
+                    Cp_water,     & ! specific heat of liquid water        (J kg-1 K-1)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
@@ -201,6 +204,7 @@ subroutine computFlux(&
   ! -------------------------------------------------------------------------------------------------------------------------
   logical(lgt)                       :: lake_frozen                 ! flag that lake is frozen
   integer(i4b)                       :: nLake_frz                   ! number of frozen lake layers
+  integer(i4b)                       :: domType                     ! horizontal domain type
   integer(i4b)                       :: local_ixGroundwater         ! local index for groundwater representation
   integer(i4b)                       :: iLayer,nStart               ! index control of model layers
   logical(lgt)                       :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
@@ -308,11 +312,13 @@ subroutine computFlux(&
   end associate
 
   ! *** CALCULATE THE SHALLOW GROUNDWATER FLOW OR DEBRIS LATERAL FLOW ***
+  deriv_data%var(iLookDERIV%dExfil_dDrive)%dat(1) = 0._rkind ! no exfiltration unless groundwatr finds a surplus
   associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
-      if (local_ixGroundwater/=qbaseTopmodel .and. nGlce==0) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
+      ! beside a big bucket only the upland drains laterally, since run_oneGRU routes column outflow from the upland alone
+      if (.not.(soilLateralFlow .and. (local_ixGroundwater/=bigBucket .or. domType==upland)) .and. nGlce==0) then ! set baseflow fluxes to zero if nothing flows laterally
         call zeroBaseflowFluxes
-      else ! compute the baseflow flux for topmodel-ish shallow groundwater or lateral flow for glacier debris
+      else ! compute the lateral flow: topmodel-ish shallow groundwater, the soil column beside a big bucket, or glacier debris
         call initialize_groundwatr; if(err/=0)then; return; endif
         call groundwatr(in_groundwatr,mpar_data,prog_data,flux_data,io_groundwatr,out_groundwatr)
         call finalize_groundwatr;   if(err/=0)then; return; endif
@@ -320,6 +326,9 @@ subroutine computFlux(&
       call computBaseflowRunoff ! compute total baseflow from soil and runoff
     end if
   end associate
+
+  ! *** HEAT CARRIED BY THE WATER MOVING BETWEEN SOIL LAYERS ***
+  if (indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1)>0 .and. nSoil>0) call soilAdvection
 
   ! *** CALCULATE FLUXES FOR THE DEEP AQUIFER ***
   associate(ixAqWat => indx_data%var(iLookINDEX%ixAqWat)%dat(1)) ! intent(in): [i4b] index of water storage in the aquifer
@@ -441,6 +450,36 @@ contains
   end associate
  end subroutine zeroBaseflowFluxes
 
+ subroutine soilAdvection
+  ! water entering a soil layer from the layer above or below arrives at that layer's temperature, so it gains rho*c*q*(T_from - T);
+  ! water leaving at the layer's own temperature changes nothing, and the soil surface and base keep their boundary treatment
+  integer(i4b) :: kLayer      ! index of soil layer
+  real(rkind)  :: qDown,qUp   ! water entering from above, and from below (m s-1)
+  associate(&
+   iLayerLiqFluxSoil    => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,    & ! intent(in):    [dp(0:)] liquid flux at soil layer interfaces, positive down (m s-1)
+   mLayerSoilAdvNrgFlux => flux_data%var(iLookFLUX%mLayerSoilAdvNrgFlux)%dat, & ! intent(out):   [dp(:)] energy source from water entering from above and below (J m-3 s-1)
+   mLayerNrgFlux        => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat,        & ! intent(inout): [dp(:)] net energy flux for each layer (J m-3 s-1)
+   dSoilAdv_dTemp       => deriv_data%var(iLookDERIV%dSoilAdv_dTemp)%dat,      & ! intent(out):   [dp(:)] derivative w.r.t. the layer temperature
+   dSoilAdv_dTempAbove  => deriv_data%var(iLookDERIV%dSoilAdv_dTempAbove)%dat, & ! intent(out):   [dp(:)] derivative w.r.t. the temperature of the layer above
+   dSoilAdv_dTempBelow  => deriv_data%var(iLookDERIV%dSoilAdv_dTempBelow)%dat, & ! intent(out):   [dp(:)] derivative w.r.t. the temperature of the layer below
+   mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat            ) ! intent(in):    [dp(:)] depth of each layer (m)
+   mLayerSoilAdvNrgFlux(:) = 0._rkind; dSoilAdv_dTemp(:) = 0._rkind; dSoilAdv_dTempAbove(:) = 0._rkind; dSoilAdv_dTempBelow(:) = 0._rkind
+   do kLayer=1,nSoil
+     qDown = 0._rkind; qUp = 0._rkind
+     if(kLayer>1)     qDown = max( iLayerLiqFluxSoil(kLayer-1), 0._rkind)
+     if(kLayer<nSoil) qUp   = max(-iLayerLiqFluxSoil(kLayer),   0._rkind)
+     associate(T => mLayerTempTrial(nSnow+nLake+kLayer), scale => iden_water*Cp_water/mLayerDepth(nSnow+nLake+kLayer))
+       if(qDown>0._rkind) mLayerSoilAdvNrgFlux(kLayer) = mLayerSoilAdvNrgFlux(kLayer) + scale*qDown*(mLayerTempTrial(nSnow+nLake+kLayer-1) - T)
+       if(qUp  >0._rkind) mLayerSoilAdvNrgFlux(kLayer) = mLayerSoilAdvNrgFlux(kLayer) + scale*qUp  *(mLayerTempTrial(nSnow+nLake+kLayer+1) - T)
+       dSoilAdv_dTemp(kLayer)      = -scale*(qDown + qUp)
+       dSoilAdv_dTempAbove(kLayer) =  scale*qDown
+       dSoilAdv_dTempBelow(kLayer) =  scale*qUp
+     end associate
+     mLayerNrgFlux(nSnow+nLake+kLayer) = mLayerNrgFlux(nSnow+nLake+kLayer) + mLayerSoilAdvNrgFlux(kLayer)
+   end do
+  end associate
+ end subroutine soilAdvection
+
  subroutine computBaseflowRunoff
   ! compute total baseflow from the soil zone (needed for mass balance checks) and total runoff, before aquifer fluxes
   ! (Note: scalarSoilBaseflow is nonzero only if topmodel or have glacier debris layers)
@@ -485,6 +524,7 @@ contains
    iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat        ) ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
 
    numFluxCalls = numFluxCalls+1 ! increment the number of flux calls
+   domType   = indx_data%var(iLookINDEX%domType)%dat(1)
    lake_frozen = .false.
    if(nLake>0 .and. mLayerTempTrial(nSnow+1)<=Tfreeze) lake_frozen= .true.
 
@@ -595,10 +635,28 @@ contains
   associate(&
    mLayerNrgFlux                => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat, & ! intent(out): [dp] net energy flux for each layer within the layer domains (J m-3 s-1)
    iLayerNrgFlux                => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat, & ! intent(in):  [dp(0:)] vertical energy flux at the interface of layers
-   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat    ) ! intent(in):  [dp(:)]  depth of each layer in the layer domains (m)
+   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,   & ! intent(in):  [dp(:)]  depth of each layer in the layer domains (m)
+   DOMarea                      => prog_data%var(iLookPROG%DOMarea)%dat(1),    & ! intent(in):  [dp]     domain area (m2)
+   mLayerColumnInflow           => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,     & ! intent(in):  [dp(:)] lateral inflow to each soil layer (m3 s-1)
+   mLayerColumnInflowNrg        => flux_data%var(iLookFLUX%mLayerColumnInflowNrg)%dat,  & ! intent(in):  [dp(:)] heat that inflow carries, above freezing (W)
+   mLayerLatInflowNrgFlux       => flux_data%var(iLookFLUX%mLayerLatInflowNrgFlux)%dat, & ! intent(out): [dp(:)] energy source from the lateral inflow (J m-3 s-1)
+   dLatInflowNrg_dTemp          => deriv_data%var(iLookDERIV%dLatInflowNrg_dTemp)%dat   ) ! intent(out): [dp(:)] its derivative w.r.t. layer temperature (J m-3 s-1 K-1)
    ! calculate net energy fluxes for each layer (J m-3 s-1)
    do iLayer=1,nLayers
      mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
+   end do
+   ! lateral inflow arrives at its own temperature and mixes to the layer's, so a soil layer gains rho*c*Q*(T_in - T)
+   do iLayer=1,nSoil
+     if(mLayerColumnInflow(iLayer) > 0._rkind .and. DOMarea > 0._rkind)then
+       associate(depth => mLayerDepth(nSnow+nLake+iLayer), temp => mLayerTempTrial(nSnow+nLake+iLayer))
+         mLayerLatInflowNrgFlux(iLayer) = (mLayerColumnInflowNrg(iLayer) - iden_water*Cp_water*mLayerColumnInflow(iLayer)*(temp - Tfreeze))/(DOMarea*depth)
+         dLatInflowNrg_dTemp(iLayer)    = -iden_water*Cp_water*mLayerColumnInflow(iLayer)/(DOMarea*depth)
+       end associate
+     else
+       mLayerLatInflowNrgFlux(iLayer) = 0._rkind
+       dLatInflowNrg_dTemp(iLayer)    = 0._rkind
+     end if
+     mLayerNrgFlux(nSnow+nLake+iLayer) = mLayerNrgFlux(nSnow+nLake+iLayer) + mLayerLatInflowNrgFlux(iLayer)
    end do
   end associate
  end subroutine finalize_snowLakeSoilGlceNrgFlux
@@ -906,7 +964,7 @@ contains
 
  subroutine finalize_groundwatr
   call io_groundwatr%finalize(ixSaturation)
-  call out_groundwatr%finalize(dBaseflow_dWat,dBaseflow_dTk,flux_data,err,cmessage)
+  call out_groundwatr%finalize(dBaseflow_dWat,dBaseflow_dTk,flux_data,deriv_data,err,cmessage)
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
  end subroutine finalize_groundwatr

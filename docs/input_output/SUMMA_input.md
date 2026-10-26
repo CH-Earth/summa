@@ -142,7 +142,7 @@ All 44 decisions must be present. The model decisions and their options are list
 | 14 |[LAI_method](../configuration/SUMMA_model_decisions.md#lai_method) | monTable <br> specified | source of LAI and SAI
 | 15 |[cIntercept](../configuration/SUMMA_model_decisions.md#cintercept) | **notPopulatedYet** <br> sparseCanopy <br> storageFunc | canopy interception
 | 16 |[f_Richards](../configuration/SUMMA_model_decisions.md#f_richards) | **mixdform** | form of Richards' equation (the `moisture` form was removed)
-| 17 |[groundwatr](../configuration/SUMMA_model_decisions.md#groundwatr) | qTopmodl <br> bigBuckt <br> noXplict | groundwater parameterization
+| 17 |[groundwatr](../configuration/SUMMA_model_decisions.md#groundwatr) | qTopmodl <br> bigBuckt <br> bbLatflow <br> noXplict | groundwater parameterization
 | 18 |[hc_profile](../configuration/SUMMA_model_decisions.md#hc_profile) | constant <br> pow_prof <br> exp_prof | hydraulic conductivity profile
 | 19 |[bcUpprTdyn](../configuration/SUMMA_model_decisions.md#bcupprtdyn) | presTemp <br> nrg_flux <br> zeroFlux | upper boundary condition, thermodynamics
 | 20 |[bcLowrTdyn](../configuration/SUMMA_model_decisions.md#bclowrtdyn) | presTemp <br> zeroFlux | lower boundary condition, thermodynamics
@@ -261,7 +261,7 @@ The restart file does not have a time dimension, since it represents a specific 
 |----------|-----------|------|-------|-----------|
 | gruId | gru | int | - | ID defining the grouped (basin) response unit |
 | hruId | hru | int | - | ID defining the hydrologic response unit |
-| domType | hru, dom | int | - | Type defining the domain response unit type |
+| domType | hru, dom | int | - | Type defining the domain response unit type: 1 upland, 2 and 3 clean glacier, 4 debris-covered glacier, 5 wetland (not yet active) |
 | dt_init | scalarv, hru, dom | double | seconds | Length of initial time sub-step at start of next time interval |
 | nSoil | hru, dom | int | - | Number of soil layers |
 | nSnow | hru, dom | int | - |  Number of snow layers |

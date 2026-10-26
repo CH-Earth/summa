@@ -231,6 +231,7 @@ MODULE globalData
   ! define controls on model output
   logical(lgt),dimension(maxvarFreq),save,public   :: finalizeStats=.false.             ! flags to finalize statistics
   logical(lgt),save,public                         :: allowRoutingOutput=.false.        ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
+  logical(lgt),save,public                         :: soilLateralFlow=.false.           ! flag: soil layers drain laterally (qTopmodl or bbLatflow)
   integer(i4b),save,public                         :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                         :: maxTotoLayers                     ! maximum number of soil+lake+glacier-ice layers in any domain
   integer(i4b),save,public                         :: maxSnowLayers                     ! maximum number of snow layers
@@ -323,8 +324,10 @@ MODULE globalData
   integer(i4b),parameter,public                    :: nTimeDelay=2000                   ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
   ! printing
   integer(i4b),parameter,public                    :: print_step_freq = 1000            ! frequency (in time steps) to print number of steps taken in solver
-  logical(lgt),save,public                         :: isPrint = .true.                  ! flag to enable informational screen/log output
+  logical(lgt),save,public                         :: isPrint = .false.                 ! flag to enable informational screen/log output
   integer(i4b),save,public                         :: iulog = 6                         ! default logging directed to stdout
+  ! define solver error
+  integer(i4b),parameter,public                    :: solver_error = -1234              ! named variable for the solver error
   ! restart
   character(len=:),allocatable,save,public         :: restart_filename                  ! name of the restart file
 END MODULE globalData

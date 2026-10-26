@@ -11,7 +11,8 @@
 case_name = "{case_name}"
 
 # Root directory for paths that depend on the local user environment.
-home_path = "/Users/martyn.clark"
+#  -- this can be overwritten using the command-line argument --home
+home_path = "path/to/file/"
 
 # Directory containing basin-specific model inputs. This directory is relative
 # to settings_path rather than an absolute filesystem path.
@@ -23,7 +24,7 @@ work_path = "{home}/{basin_dir}/work/"
 
 start_time = "1982-10-01 00:00"
 end_time   = "1990-09-30 23:00"
-time_zone  = "localTime"
+time_zone  = "ncTime"
 
 use_mizuroute    = true
 write_timeseries = false
@@ -50,17 +51,17 @@ forcing_list   = "{basin_dir}/summa_inputs/forcingFileList.txt"
 
 # Common SUMMA configuration files maintained under version control.
 # These are also resolved relative to settings_path.
-decisions        = "models/summa/test_coupled/case/settings/modelDecisions.txt"
-output_control   = "models/summa/test_coupled/case/settings/outputControl_short.txt"
+decisions        = "models/summa/utils/test/test_calibration/settings/modelDecisions.txt"
+output_control   = "models/summa/utils/test/test_calibration/settings/outputControl_short.txt"
 
-trial_params     = "models/summa/test_coupled/case/settings/trialParams.nc"
-local_parameters = "models/summa/test_coupled/case/settings/localParamInfo.txt"
-basin_parameters = "models/summa/test_coupled/case/settings/basinParamInfo.txt"
+trial_params     = "models/summa/utils/test/test_calibration/settings/trialParams.nc"
+local_parameters = "models/summa/utils/test/test_calibration/settings/localParamInfo.txt"
+basin_parameters = "models/summa/utils/test/test_calibration/settings/basinParamInfo.txt"
 
-vegetation_table = "models/summa/test_coupled/case/settings/TBL_VEGPARM.TBL"
-soil_table       = "models/summa/test_coupled/case/settings/TBL_SOILPARM.TBL"
-general_table    = "models/summa/test_coupled/case/settings/TBL_GENPARM.TBL"
-noahmp_table     = "models/summa/test_coupled/case/settings/TBL_MPTABLE.TBL"
+vegetation_table = "models/summa/utils/test/test_calibration/settings/TBL_VEGPARM.TBL"
+soil_table       = "models/summa/utils/test/test_calibration/settings/TBL_SOILPARM.TBL"
+general_table    = "models/summa/utils/test/test_calibration/settings/TBL_GENPARM.TBL"
+noahmp_table     = "models/summa/utils/test/test_calibration/settings/TBL_MPTABLE.TBL"
 
 
 [mizuRoute]
@@ -122,25 +123,29 @@ vname_obsflow = "q_obs"
 metric         = "kge"
 obs_transform  = "none"
 
+n_samples      = 1000
+
 start_date     = "1983-10-01"
 end_date       = "1990-09-30"
 
 param_list = [
     "k_soil",
     "theta_sat",
-    "aquiferScaleFactor",
     "aquiferBaseflowExp",
+    "aquiferBaseflowRate",
     "qSurfScale",
     "summerLAI",
     "frozenPrecipMultip",
-    "routingGammaScale",
-    "routingGammaShape",
     "Fcapil",
     "tempCritRain",
     "heightCanopyTop",
     "heightCanopyBottom",
     "windReductionParam",
-    "vGn_n"
+    "vGn_n",
+    "routingGammaScale",
+    "routingGammaShape",
+    "critSoilTranspire",
+    "fieldCapacity"
 ]
 
 write_aligned  = false
@@ -149,7 +154,7 @@ write_aligned  = false
 [calibration.parameter_transformations]
 
 k_soil              = "log"
-#aquiferBaseflowRate = "log"
+aquiferBaseflowRate = "log"
 
 
 [[parameter_dependencies.ordered]]
@@ -157,5 +162,6 @@ parameters   = ["heightCanopyBottom", "heightCanopyTop"]
 gap_fraction = 0.25
 
 [[parameter_dependencies.ordered]]
-parameters = ["theta_res", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+parameters = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
 gap_fraction = 0.025
+sample_gaps  = true

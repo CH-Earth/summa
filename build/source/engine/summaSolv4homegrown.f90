@@ -25,6 +25,7 @@ USE nr_type
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
+USE globalData,only:soilLateralFlow ! flag: soil layers drain laterally
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -318,7 +319,7 @@ contains
     ixMatrix       => in_SS4HG % ixMatrix       ,& ! intent(in): type of matrix (full or band diagonal)
     computeVegFlux => in_SS4HG % computeVegFlux  & ! intent(in): flag to indicate if computing fluxes over vegetation
     &)   
-    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+    call in_computJacob % initialize(dt_cur,nSnow,nLake,nSoil,nGlce,nLayers,computeVegFlux,soilLateralFlow,ixMatrix)
    end associate
   end subroutine initialize_computJacob_summaSolv4homegrown
 

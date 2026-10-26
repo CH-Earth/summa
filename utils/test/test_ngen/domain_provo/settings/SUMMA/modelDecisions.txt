@@ -36,10 +36,11 @@ thCondSoil                      funcSoilWet     ! (24) choice of thermal conduct
 spatial_gw                      localColumn     ! (25) choice of method for the spatial representation of groundwater
 subRouting                      timeDlay        ! (26) choice of method for sub-grid routing
 nrgConserv                      enthalpyForm    ! (27) choice of variable in energy equations (BE residual or IDA state variable)
-infRateMax                      GreenAmpt       ! (28) choice of infiltration rate method
-surfRun_SE                      homegrown_SE    ! (29) choice of saturation excess (SE) surface runoff parameterization
-read_force                      readPerStep     ! (30) method used to read forcing data
-write_buff                      writePerStep    ! (31) method used to write model output
+aquiferIni                      fullStart       ! (28) initial fill level of the aquifer
+infRateMax                      GreenAmpt       ! (29) choice of infiltration rate method
+surfRun_SE                      homegrown_SE    ! (30) choice of saturation excess (SE) surface runoff parameterization
+read_force                      readPerStep     ! (31) method used to read forcing data
+write_buff                      writePerStep    ! (32) method used to write model output
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -76,14 +77,15 @@ write_buff                      writePerStep    ! (31) method used to write mode
 ! specified ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 ! -----------------------------------------------------------------------------------------------
 ! (08) choice of groundwater parameterization
-! qTopmodl  ! topmodel parameterization
-! bigBuckt  ! a big bucket (lumped aquifer model)
-! noXplict  ! no explicit groundwater parameterization
+! qTopmodl   ! topmodel parameterization
+! bigBuckt   ! a big bucket (lumped aquifer model)
+! bbLatflow  ! a big bucket (lumped aquifer model) but allow lateral flow in soil column
+! noXplict   ! no explicit groundwater parameterization
 ! -----------------------------------------------------------------------------------------------
 ! (09) choice of hydraulic conductivity profile
 ! constant  ! constant hydraulic conductivity with depth (not allowed with groundwatr == qTopmodl)
 ! pow_prof  ! power-law profile (original TOPMODEL-ish form)
-! exp_prof  ! exponential profile, only for >=v4.1 (used internally for glacier debris; not allowed with groundwatr == qTopmodl)
+! exp_prof  ! exponential profile (for lateral flow inside soil not representing aquifer)
 ! -----------------------------------------------------------------------------------------------
 ! (10) choice of upper boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
@@ -92,6 +94,7 @@ write_buff                      writePerStep    ! (31) method used to write mode
 ! (11) choice of lower boundary conditions for thermodynamics
 ! presTemp  ! prescribed temperature
 ! zeroFlux  ! zero flux
+! presFlux  ! prescribed energy flux, the geothermal heat flux
 ! -----------------------------------------------------------------------------------------------
 ! (12) choice of upper boundary conditions for soil hydrology
 ! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
@@ -168,23 +171,27 @@ write_buff                      writePerStep    ! (31) method used to write mode
 ! enthalpyForm    ! use enthalpy with soil temperature-enthalpy lookup tables
 ! enthalpyFormAN  ! use enthalpy with soil temperature-enthalpy analytical solutions
 ! -----------------------------------------------------------------------------------------------
-! (28) choice of infiltration rate method
+! (28) initial fill level of the aquifer
+! fullStart   ! start from the aquifer storage in the initial conditions file
+! emptyStart  ! start from empty aquifer, only on cold start (restart written by SUMMA keeps its aquifer)
+! -----------------------------------------------------------------------------------------------
+! (29) choice of infiltration rate method
 ! GreenAmpt   ! Green-Ampt
 ! topmodel_GA ! Green-Ampt with TOPMODEL conductivity rate
 ! noInfExc    ! no infiltration excess runoff (saturation excess may still occur)
 ! -----------------------------------------------------------------------------------------------
-! (29) choice of saturation excess (SE) surface runoff parameterization
+! (30) choice of saturation excess (SE) surface runoff parameterization
 ! zero_SE      ! zero SE surface runoff
 ! homegrown_SE ! SE component of SUMMA's original liquid flux parameterization (default)
 ! FUSEPRMS     ! FUSE PRMS surface runoff parameterization
 ! FUSEAVIC     ! FUSE ARNO/VIC surface runoff parameterization
 ! FUSETOPM     ! FUSE TOPMODEL surface runoff parameterization
 ! -----------------------------------------------------------------------------------------------
-! (30) method used to read forcing data
+! (31) method used to read forcing data
 ! readPerStep    ! read forcing data per time step (default)
 ! readFullSeries ! read full forcing series in a buffered read
 ! -----------------------------------------------------------------------------------------------
-! (31) method used to write model output
+! (32) method used to write model output
 ! writePerStep    ! write model output per time step (default)
 ! writeFullSeries ! write all data for a given output file in a buffered read
 ! ***********************************************************************************************

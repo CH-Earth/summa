@@ -71,32 +71,32 @@ USE globalData,only:maxGlceLayers          ! maximum number of glacier ice layer
 USE globalData,only:icefrz_mult            ! freezing curve scaling factor multipier of snow to ice, closer to a step function since ice does not hold water
 
 ! look-up values for the maximum interception capacity
-USE mDecisions_module,only:         &
-                      stickySnow,   &      ! maximum interception capacity an increasing function of temerature
-                      lightSnow            ! maximum interception capacity an inverse function of new snow density
+USE mDecisions_module,only:       &
+ stickySnow,                      & ! maximum interception capacity an increasing function of temerature
+ lightSnow                          ! maximum interception capacity an inverse function of new snow density
 
 ! look-up values for the groundwater parameterization
-USE mDecisions_module,only:         &
-                      qbaseTopmodel,&      ! TOPMODEL-ish baseflow parameterization
-                      bigBucket    ,&      ! a big bucket (lumped aquifer model)
-                      noExplicit           ! no explicit groundwater parameterization
+USE mDecisions_module,only:       &
+ qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
+ bigBucket,                       & ! a big bucket (lumped aquifer model)
+ noExplicit                         ! no explicit groundwater parameterization
 
 ! look-up values for the spatial representation of groundwater
-USE mDecisions_module,only:         &
-                      localColumn  ,&      ! separate groundwater representation in each local soil column
-                      singleBasin          ! single groundwater store over the entire basin
+USE mDecisions_module,only:       &
+ localColumn                     ,& ! separate groundwater representation in each local soil column
+ singleBasin                        ! single groundwater store over the entire basin
 
 ! look-up values for the numerical method
-USE mDecisions_module,only:         &
-                      homegrown    ,&      ! homegrown backward Euler solution based on concepts from numerical recipes
-                      kinsol       ,&      ! SUNDIALS backward Euler solution using Kinsol
-                      ida                  ! SUNDIALS solution using IDA
+USE mDecisions_module,only:       &
+ homegrown                       ,& ! homegrown backward Euler solution based on concepts from numerical recipes
+ kinsol                          ,& ! SUNDIALS backward Euler solution using Kinsol
+ ida                                ! SUNDIALS solution using IDA
 
 ! look-up values for the choice of variable in energy equations (BE residual or IDA state variable)
-USE mDecisions_module,only:         &
-                      closedForm,   &      ! use temperature with closed form heat capacity
-                      enthalpyForm, &      ! use enthalpy with soil temperature-enthalpy lookup tables
-                      enthalpyFormAN       ! use enthalpy with soil temperature-enthalpy analytical solution
+USE mDecisions_module,only:       &
+ closedForm,                      & ! use temperature with closed form heat capacity
+ enthalpyForm,                    & ! use enthalpy with soil temperature-enthalpy lookup tables
+ enthalpyFormAN                     ! use enthalpy with soil temperature-enthalpy analytical solution
 
 
 ! privacy
@@ -1768,7 +1768,10 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'balanceSoilDrainage   = ', balanceSoilDrainage
           write(*,'(a,1x,f20.10)') 'balanceSoilET         = ', balanceSoilET
           write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError = ', scalarSoilWatBalError
-          message=trim(message)//'soil hydrology does not balance'
+          write(cmessage,'(8(a,es10.3))') 'soil hydrology does not balance (kg m-2): error ', scalarSoilWatBalError, &
+                ', start ', balanceSoilWater0, ', end ', scalarTotalSoilWat, ', influx ', balanceSoilInflux, ', ET ', balanceSoilET, &
+                ', baseflow ', balanceSoilBaseflow, ', drainage ', balanceSoilDrainage, ', compress ', balanceSoilCompress
+          message=trim(message)//trim(cmessage)
           err=20; return
         end if
       else
@@ -1818,10 +1821,7 @@ subroutine coupled_em(&
         ! save the glacier ice water equivalent change
         scalarGlceWE = scalarGlceWE + balanceGlceWE - balanceGlceWE0
 
-        ! reset the glacier depths (the top layers keep a prescribed depth, the ice they lost to melt replaced from beneath),
-        ! and recalculate the layer heights
-        ! NOTE: if a top layer was merged within the step, the layer count is restored first by restoreGlceLayers at the end
-        !       of the step, once these associations to the layer vectors are out of scope (the vectors are reallocated)
+        ! the top glacier layers keep their prescribed depth, refilled from below at their own ice and liquid fractions
         if(size(depthGlceTopLayer) == nGlce-noThetaChange)then
           mLayerDepth(nSnow+nLake+nSoil+1:nLayers-noThetaChange) = depthGlceTopLayer
           do jLayer=nSnow+nLake+nSoil+1,nLayers
@@ -1911,6 +1911,29 @@ subroutine coupled_em(&
       if(nGlce>0) scalarTotalGlceEnthalpy = sum(mLayerEnthalpy(nSnow+nLake+nSoil+1:nLayers) * mLayerDepth(nSnow+nLake+nSoil+1:nLayers))&
                                             /sum(mLayerDepth(nSnow+nLake+nSoil+1:nLayers))
       
+      ! -----
+      ! * frozen ground: the frost table and the active layer...
+      ! --------------------------------------------------------
+      ! the frost table is the top of the shallowest frozen layer, the active layer the ground above the frozen base
+      if(nSoil>0)then
+        associate(&
+          scalarFrostTableDepth  => diag_data%var(iLookDIAG%scalarFrostTableDepth)%dat(1) ,& ! depth to the top of the shallowest frozen soil layer (m)
+          scalarActiveLayerDepth => diag_data%var(iLookDIAG%scalarActiveLayerDepth)%dat(1) ) ! thickness of the soil above the perennially frozen ground (m)
+          scalarFrostTableDepth  = realMissing
+          scalarActiveLayerDepth = realMissing
+          do iLayer=nSnow+nLake+1,nSnow+nLake+nSoil ! down from the surface to the first frozen layer
+            if(mLayerVolFracIce(iLayer) > verySmall)then
+              scalarFrostTableDepth = iLayerHeight(iLayer-1)
+              exit
+            end if
+          end do
+          do iLayer=nSnow+nLake+nSoil,nSnow+nLake+1,-1 ! up from the base through the frozen run
+            if(mLayerVolFracIce(iLayer) <= verySmall) exit
+            scalarActiveLayerDepth = iLayerHeight(iLayer-1)
+          end do
+        end associate
+      end if
+
       ! save the surface temperature (just to make things easier to visualize)
       prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
 

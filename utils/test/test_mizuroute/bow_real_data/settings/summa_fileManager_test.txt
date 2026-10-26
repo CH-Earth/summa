@@ -1,7 +1,7 @@
 controlVersion       'SUMMA_FILE_MANAGER_V3.0.0' !  file manager version 
 simStartTime         '1981-10-01 00:00' ! 
 simEndTime           '1983-09-30 23:00' ! 
-tmZoneInfo           'localTime' ! 
+tmZoneInfo           'ncTime'    ! forcing is on Mountain Standard Time, declared in its time units
 outFilePrefix        'run1_coupled' ! 
 settingsPath         'test_coupled/summa_inputs/'  !
 forcingPath          'test_coupled/summa_inputs/'

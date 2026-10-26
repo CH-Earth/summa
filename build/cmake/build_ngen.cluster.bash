@@ -25,9 +25,9 @@ module load boost/1.86.0
 module load sqlite/3.46.0-ayg27dg
 
 # Environment variables may be set within this script (see examples below) or in the terminal environment before executing this script
-# activate correct python environment, here is an example with conda environment named venv installed from SYMFLUENCE
+# activate correct python environment, here is an example with conda environment named venv installed
 : "${NGEN_CONDA_ENV:=venv}"
-source ${HOME}/Symfluence/SYMFLUENCE/${NGEN_CONDA_ENV}/bin/activate
+source ${HOME}/${NGEN_CONDA_ENV}/bin/activate
 # fallback: allow overriding python executable explicitly
 : "${NGEN_PYTHON_EXECUTABLE:=$(which python 2>/dev/null || echo /usr/bin/python3)}"
 # root of the active python environment (asked of the interpreter itself so a stale

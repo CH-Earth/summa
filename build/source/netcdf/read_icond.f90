@@ -266,6 +266,7 @@ contains
                        no_ice_vars,                   & ! intent(out):   flag that glacier ice variables are not in initial conditions
                        no_ablfrac,                    & ! intent(out):   flag that glacier ablation fraction variable is not in initial conditions
                        no_icond_enth,                 & ! intent(out):   flag that enthalpy variables are not in the initial conditions
+                       aq_started,                    & ! intent(out):   flag that the aquifer in the initial conditions has already been started
                        err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
@@ -303,6 +304,7 @@ contains
  logical                    ,intent(out)   :: no_ice_vars                   ! flag that glacier ice variables are not in initial conditions
  logical                    ,intent(out)   :: no_ablfrac                    ! flag that glacier ablation fraction variable is not in initial conditions
  logical                    ,intent(out)   :: no_icond_enth                 ! flag that enthalpy variables are not in initial conditions
+ logical                    ,intent(out)   :: aq_started                    ! flag that the aquifer in the initial conditions has already been started
  integer(i4b)               ,intent(out)   :: err                           ! error code
  character(*)               ,intent(out)   :: message                       ! returned error message
  ! locals
@@ -312,6 +314,7 @@ contains
  integer(i4b)                              :: fileDOM                       ! number of domains in netcdf file
  integer(i4b)                              :: iVar,i,j                      ! loop indices
  integer(i4b),dimension(1)                 :: nrdx                          ! intermediate array of loop indices for basin variables
+ integer(i4b)                              :: aqStartFlag                   ! aquifer start flag as stored in the initial conditions file
  integer(i4b),dimension(7)                 :: ngdx                          ! intermediate array of loop indices for glacier variables
  integer(i4b)                              :: iGRU,iHRU,iDOM,iGlac,iGrid    ! loop indices
  integer(i4b)                              :: dimID                         ! varible dimension ids
@@ -354,6 +357,11 @@ contains
  ! open netcdf file
  call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage)
  if (err/=nf90_noerr) then; message=trim(message)//trim(cmessage); return; end if
+
+ ! a restart file written by SUMMA carries this flag, a hand-made cold start does not
+ err = nf90_get_att(ncid,nf90_global,'aqEmptyStarted',aqStartFlag)
+ if(err/=nf90_noerr)then; aqStartFlag=0; err=nf90_noerr; endif
+ aq_started = (aqStartFlag==1)
 
  ! build mappings from local GRU/HRU indices to initial-conditions file indices
  call build_icond_index_map(ncid, nGRU_local, fileGRU, fileHRU, index_to_gruid, index_to_hrunc, err, cmessage)
@@ -576,6 +584,7 @@ else
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nSoil)%dat(1)   = nSoil
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nGlce)%dat(1)   = nGlce
     indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%nLayers)%dat(1) = nSnow + nLake + nSoil + nGlce
+    indxData%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookINDEX%domType)%dat(1) = gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type
 
     ! define layers that will not have a change in total water content
     noThetaChange = 0

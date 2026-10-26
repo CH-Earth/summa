@@ -35,6 +35,9 @@ USE data_types,only:&
                var_d,                    & ! x%var(:)                (rkind)
                var_dlength                 ! x%var(:)%dat            (rkind)
 
+! named variables
+USE globalData,only:solver_error           ! named variable for a solver error
+
 ! access vegetation data
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
 USE globalData,only:overwriteRSMIN         ! flag to overwrite RSMIN
@@ -216,6 +219,7 @@ subroutine run_oneHRU(&
       ! compute derived forcing variables, different for each domain type
       call derivforce(&
                       is_glac,              & ! intent(in):    flag to indicate if is a glacier domain
+                      domInfo(i)%dom_type == upland, & ! intent(in): flag to indicate if the domain can have a canopy
                       forcData,             & ! intent(inout): vector of model forcing data
                       attrData,             & ! intent(in):    vector of model attributes
                       mparData%dom(i),      & ! intent(in):    data structure of model parameters
@@ -250,7 +254,12 @@ subroutine run_oneHRU(&
                      fluxData%dom(i),     & ! intent(inout): model fluxes for a local HRU
                      ! error control
                      err,cmessage)          ! intent(out):   error control
-      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+      ! enable possibilities to treat numerical solver failures as recoverable
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        err = solver_error; return
+      endif
 
       if(domInfo(i)%dom_type == upland)then
         computeVegFlux = use_computeVegFlux ! update the flag for the next domain on upland areas

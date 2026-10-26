@@ -274,10 +274,7 @@ contains
  ! ***** part 2: compute time
  ! **********************************************************************************************
  if(.not.ngen_forcing_active)then
- ! check that the computed julian day matches the time information in the NetCDF file
- ! NOTE: with NGEN forcing there is no NetCDF time axis; time_data was already filled from
- !       currentJulDay by createForcingTimeData above, and fulltimeVec/forcFileInfo are not
- !       allocated in that path, so this block must be skipped.
+ ! check that the computed julian day matches the time information in the NetCDF file, which NGEN forcing has none of
  dataJulDay = fulltimeVec(jRead)/forcFileInfo(iFile)%convTime2Days + refJulDay_data
  if(abs(currentJulDay - dataJulDay) > timeDiffTol)then
   write(message,'(a,f18.8,a,f18.8)') trim(message)//'date for time step: ',dataJulDay,' differs from the expected date: ',currentJulDay

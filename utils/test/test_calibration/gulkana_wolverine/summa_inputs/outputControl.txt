@@ -1,0 +1,22 @@
+! -------------------
+!  model variables
+! -------------------
+averageRoutedRunoff   | 1
+scalarTotalET         | 1
+scalarSWE             | 1
+scalarRainPlusMelt    | 1
+scalarCanopyWat       | 1
+scalarTotalSoilWat    | 1
+scalarAquiferStorage  | 1
+scalarSurfaceRunoff   | 1
+scalarInfiltration    | 1
+scalarSoilDrainage    | 1
+scalarSoilBaseflow    | 1
+scalarAquiferBaseflow | 1
+scalarTotalRunoff     | 1
+scalarNetRadiation    | 1
+scalarLatHeatTotal    | 1
+scalarSenHeatTotal    | 1
+scalarGlceWE          | 1
+basin__StorageChange  | 1
+basin__GlacierArea    | 1

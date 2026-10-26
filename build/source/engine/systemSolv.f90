@@ -25,6 +25,7 @@ USE nr_type
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:soilLateralFlow ! flag: soil layers drain laterally
 USE globalData,only:realMissing     ! missing real number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
@@ -53,6 +54,7 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 
 ! constants
 USE multiconst,only:&
+                    Tfreeze,      & ! freezing point of pure water         (K)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
@@ -333,7 +335,7 @@ contains
 
    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
    ! (the type of matrix used to solve the linear system A.X=B)
-   if (local_ixGroundwater==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
+   if (soilLateralFlow .or. (nGlce>0 .and. nSoil>0) .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
      nLeadDim=nState         ! length of the leading dimension
      ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
    else
@@ -376,7 +378,7 @@ contains
    end if
 
    ! allocate space for the baseflow derivatives
-   if(ixGroundwater==qbaseTopmodel .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
+   if(soilLateralFlow .or. (nGlce>0 .and. nSoil>0))then ! need the baseflow derivatives if have TOPMODEL groundwater or glacier debris (since debris has lateral flow)
      allocate(dBaseflow_dWat(nSoil,nSoil),dBaseflow_dTk(nSoil,nSoil),stat=err)
    else
      allocate(dBaseflow_dWat(0,0),dBaseflow_dTk(0,0),stat=err)
@@ -613,9 +615,28 @@ contains
   ! check convergence
   if (iter==localMaxiter) then
     message=trim(message)//'failed to converge'
+    call pinned_at_freezing
     err=-20; return_flag=.true.; return
   end if
  end subroutine check_Newton_convergence    
+
+ subroutine pinned_at_freezing
+  ! ** Flag too much melt when the top frozen layer is held at the freezing point: it is all liquid and cannot take more energy **
+  integer(i4b) :: top ! index of the top frozen layer
+  associate(&
+   nSnow         => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b]    number of snow layers
+   nLake         => indx_data%var(iLookINDEX%nLake)%dat(1)    ,& ! intent(in): [i4b]    number of lake layers
+   nSoil         => indx_data%var(iLookINDEX%nSoil)%dat(1)    ,& ! intent(in): [i4b]    number of soil layers
+   nGlce         => indx_data%var(iLookINDEX%nGlce)%dat(1)    ,& ! intent(in): [i4b]    number of glacier ice layers
+   ixSnLaSoGlNrg => indx_data%var(iLookINDEX%ixSnLaSoGlNrg)%dat & ! intent(in): [i4b(:)] index of the energy state of each layer in the subset
+   &)
+   if (nSnow+nGlce==0) return
+   top = 1
+   if (nSnow==0) top = 1 + nSoil + nLake
+   if (ixSnLaSoGlNrg(top)==integerMissing) return
+   if (stateVecTrial(ixSnLaSoGlNrg(top)) > Tfreeze - 1.e-6_rkind) tooMuchMelt = .true.
+  end associate
+ end subroutine pinned_at_freezing
 
  subroutine enforce_mass_conservation
   ! Post processing step to “perfectly” conserve mass by pushing the errors into the state variables

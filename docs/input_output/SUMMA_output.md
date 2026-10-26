@@ -215,6 +215,8 @@ The tables below list the time-varying variables that can be requested in the [o
 | `hLast` | step size used on the last internal step | s |
 | `hCur` | step size to be used on the next internal step | s |
 | `tCur` | current time reached by the integrator | s |
+| `scalarFrostTableDepth` | depth to the top of the shallowest frozen soil layer | m |
+| `scalarActiveLayerDepth` | thickness of the soil above the perennially frozen ground below it | m |
 
 <a id="outvar_flux"></a>
 ### Flux variables
@@ -345,3 +347,4 @@ The tables below list the time-varying variables that can be requested in the [o
 | `glacSnowRunoffFuture` | per glacier snow reservoir runoff in future time steps | m s-1 |
 | `glacFirnRunoffFuture` | per glacier firn reservoir runoff in future time steps | m s-1 |
 | `glacierRoutedRunoff` | lapsed glacier runoff | m s-1 |
+| `basin__GlacierMassChange` | glacier mass change per unit glacier area | kg m-2 s-1 |

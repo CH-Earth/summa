@@ -16,39 +16,38 @@ contains
   !
   ! The routine:
   !   - converts simulation and observation times to a common absolute time axis
-  !   - assumes observation timestamps represent the end of each averaging period
-  !   - averages higher-frequency simulated flow over each observation period
+  !   - averages higher-frequency simulated flow over each observation period, given by its time bounds
   !   - removes periods with missing observed or simulated values
-  !
-  ! Observation time steps are currently assumed to be regular.
   ! **************************************************************************************************
   subroutine align_timeseries(timeSim,flowSim,timeSimUnits,flowSimUnits, &
                               timeObs,flowObs,timeObsUnits,flowObsUnits, &
-                              startDate,endDate,                         &
+                              startDate,endDate,timeBounds,              &
                               timeAligned,flowSimAligned,flowObsAligned, &
                               err,message)
     ! dummy arguments
-    real(rkind), intent(in)                   :: timeSim(:)          ! simulation time
-    real(rkind), intent(in)                   :: flowSim(:)          ! simulated streamflow
-    character(*), intent(in)                  :: timeSimUnits        ! simulation time units
-    character(*), intent(in)                  :: flowSimUnits        ! simulation flow units
-    real(rkind), intent(in)                   :: timeObs(:)          ! observation time
-    real(rkind), intent(in)                   :: flowObs(:)          ! observed streamflow
-    character(*), intent(in)                  :: timeObsUnits        ! observation time units
-    character(*), intent(in)                  :: flowObsUnits        ! observation flow units
-    character(*), intent(in)                  :: startDate           ! start date (YYYY-MM-DD)
-    character(*), intent(in)                  :: endDate             ! end date (YYYY-MM-DD)
-    real(rkind), allocatable, intent(out)     :: timeAligned(:)      ! aligned observation time
-    real(rkind), allocatable, intent(out)     :: flowSimAligned(:)   ! aligned simulated streamflow
-    real(rkind), allocatable, intent(out)     :: flowObsAligned(:)   ! aligned observed streamflow
-    integer(i4b), intent(out)                 :: err                 ! error code
-    character(*), intent(out)                 :: message             ! error message
+    real(rkind)   , intent(in)                  :: timeSim(:)          ! simulation time
+    real(rkind)   , intent(in)                  :: flowSim(:)          ! simulated streamflow
+    character(*)  , intent(in)                  :: timeSimUnits        ! simulation time units
+    character(*)  , intent(in)                  :: flowSimUnits        ! simulation flow units
+    real(rkind)   , intent(in)                  :: timeObs(:)          ! observation time
+    real(rkind)   , intent(in)                  :: flowObs(:)          ! observed streamflow
+    character(*)  , intent(in)                  :: timeObsUnits        ! observation time units
+    character(*)  , intent(in)                  :: flowObsUnits        ! observation flow units
+    character(*)  , intent(in)                  :: startDate           ! start date (YYYY-MM-DD)
+    character(*)  , intent(in)                  :: endDate             ! end date (YYYY-MM-DD)
+    real(rkind)   , intent(in)                  :: timeBounds(:,:)     ! observation time bounds (2,nObs)
+    real(rkind)   , intent(out) , allocatable   :: timeAligned(:)      ! aligned observation time
+    real(rkind)   , intent(out) , allocatable   :: flowSimAligned(:)   ! aligned simulated streamflow
+    real(rkind)   , intent(out) , allocatable   :: flowObsAligned(:)   ! aligned observed streamflow
+    integer(i4b)  , intent(out)                 :: err                 ! error code
+    character(*)  , intent(out)                 :: message             ! error message
     ! locals
     real(rkind), allocatable :: timeSimSec(:)   ! simulation time on common time axis
     real(rkind), allocatable :: timeObsSec(:)   ! observation time on common time axis
+    real(rkind), allocatable :: timeBegSec(:)   ! observation time bounds on common time axis
+    real(rkind), allocatable :: timeEndSec(:)   ! observation time bounds on common time axis
     real(rkind), allocatable :: simMean(:)      ! simulated flow averaged to observation periods
     integer(i4b), allocatable :: nSim(:)        ! number of simulation values in each period
-    real(rkind) :: obsStep                      ! observation time step in seconds
     real(rkind) :: tStart                       ! start of observation period
     real(rkind) :: tEnd                         ! end of observation period
     real(rkind) :: tol                          ! time comparison tolerance
@@ -80,6 +79,10 @@ contains
       message=trim(message)//'at least two observations are required'
       err=20; return
     endif
+    if(size(timeBounds,1)/=2 .or. size(timeBounds,2)/=size(timeObs))then
+      message=trim(message)//'observation time bounds must be (2, number of observations)'
+      err=20; return
+    endif
 
     ! check start/end dates
     read(startDate,'(i4,1x,i2,1x,i2)',iostat=ios) year,month,day
@@ -105,6 +108,10 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     call convert_time_to_seconds(timeObs,timeObsUnits,timeObsSec,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call convert_time_to_seconds(timeBounds(1,:),timeObsUnits,timeBegSec,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call convert_time_to_seconds(timeBounds(2,:),timeObsUnits,timeEndSec,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! convert evaluation dates to the same absolute time axis
     call reference_time_seconds(trim(startDate),evalStart,err,cmessage)
@@ -112,20 +119,14 @@ contains
     call reference_time_seconds(trim(endDate),evalEnd,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! determine observation time step
-    obsStep = timeObsSec(2)-timeObsSec(1)
-    if(obsStep<=0._rkind)then
-      message=trim(message)//'observation times are not increasing'
-      err=20; return
-    endif
-
     ! allow small floating-point differences in time coordinates
-    tol = max(1.e-6_rkind,1.e-8_rkind*obsStep)
+    tol = max(1.e-6_rkind, &
+              1.e-8_rkind*abs(timeEndSec(1)-timeBegSec(1)))
 
-    ! check that observation time step is regular
-    do iObs=2,size(timeObsSec)-1
-      if(abs((timeObsSec(iObs+1)-timeObsSec(iObs))-obsStep)>tol)then
-        message=trim(message)//'observation time step is not regular'
+    ! observation times may be irregular (a monthly product's months are 28 to 31 days long), but must increase
+    do iObs=2,size(timeObsSec)
+      if(timeObsSec(iObs)-timeObsSec(iObs-1) <= 0._rkind)then
+        message=trim(message)//'observation times are not increasing'
         err=20; return
       endif
     enddo
@@ -137,16 +138,15 @@ contains
     nSim    = 0
 
     ! aggregate simulated flow to observation periods
-    ! timestamps are assumed to represent period ending, so observation i
-    ! represents the interval: timeObs(i)-obsStep < t <= timeObs(i)
     do iObs=1,size(timeObsSec)
 
       ! only process observations within the evaluation period
       if(timeObsSec(iObs) >= evalStart .and. timeObsSec(iObs) <  evalEnd)then
      
-        ! observation timestamps are assumed to be period ending
-        tStart = timeObsSec(iObs)-obsStep
-        tEnd   = timeObsSec(iObs)
+        ! use actual observation time bounds
+        tStart = timeBegSec(iObs)
+        tEnd   = timeEndSec(iObs)
+
         do iSim=1,size(timeSimSec)
           if(timeSimSec(iSim)>tStart+tol .and. timeSimSec(iSim)<=tEnd+tol)then
             simMean(iObs) = simMean(iObs)+flowSim(iSim)

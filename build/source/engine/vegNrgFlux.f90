@@ -163,9 +163,7 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: scalarAquiferStorage            ! aquifer storage (m)
   real(rkind)                        :: condToSoilLimiter              ! smooth limiter for condensation into pressurized top soil (-)
   real(rkind)                        :: posHeadTop                      ! smooth positive part of top-layer matric head (m)
-  real(rkind)                        :: condHeadArg                     ! nondimensional argument for condensation limiter (-)
-  real(rkind),parameter              :: condHeadCutoff=0._rkind         ! positive head where condensation-to-soil closure begins (m)
-  real(rkind),parameter              :: condHeadWidth=0.02_rkind        ! smoothing width for condensation-to-soil closure (m)
+  real(rkind),parameter              :: condHeadWidth=0.02_rkind        ! pressure-head scale of the Gaussian condensation-to-soil closure (m)
   real(rkind),parameter              :: condHeadSmooth=1.e-4_rkind      ! smoothing for max(psi,0) approximation (m)
   ! saturation vapor pressure of veg
   real(rkind)                        :: TV_celcius                      ! vegetaion temperature (C)
@@ -1000,8 +998,7 @@ subroutine vegNrgFlux(&
         condToSoilLimiter = 1._rkind
         if (nSoil>0 .and. scalarGroundEvaporation > 0._rkind) then
           posHeadTop = 0.5_rkind*(mLayerMatricHead(1) + sqrt(mLayerMatricHead(1)**2_i4b + condHeadSmooth**2_i4b))
-          condHeadArg = (posHeadTop - condHeadCutoff)/condHeadWidth
-          condToSoilLimiter = 1._rkind/(1._rkind + exp(2._rkind*condHeadArg))
+          condToSoilLimiter = exp(-(posHeadTop/condHeadWidth)**2_i4b) ! one with zero slope at zero head, so unsaturated soil takes all condensation
           scalarGroundEvaporation = scalarGroundEvaporation*condToSoilLimiter
           scalarGroundSublimation = scalarGroundSublimation*condToSoilLimiter
         end if
@@ -1575,8 +1572,8 @@ subroutine aeroResist(&
   ! initialize error control
   err=0; message='aeroResist/'
 
-  ! check that measurement height is above the top of the canopy
-  if (mHeight < heightCanopyTop) then
+  ! check that measurement height is above the top of an exposed canopy
+  if (computeVegFlux .and. mHeight < heightCanopyTop) then
     err=20; message=trim(message)//'measurement height is below the top of the canopy'; return
   end if
 
