@@ -873,8 +873,8 @@ subroutine fluxJacAdd(&
     if(ixAqWat/=integerMissing)then
       aJac(ixInd(full,ixAqWat,ixAqWat),ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat)
       if(nSoil>0)then
-        if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
-        if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
+        if(ixSoilOnlyNrg(nSoil)/=integerMissing .and. (ixAqWat-ixSoilOnlyNrg(nSoil)<=kl .or. full)) aJac(ixInd(full,ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
+        if(ixSoilOnlyHyd(nSoil)/=integerMissing .and. (ixAqWat-ixSoilOnlyHyd(nSoil)<=kl .or. full)) aJac(ixInd(full,ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
       endif
       ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
       if(computeVegFlux)then
