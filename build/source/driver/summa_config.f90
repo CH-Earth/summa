@@ -4,8 +4,10 @@ use build_options, only: mizuroute_active
 
 USE nr_type
 USE summa_type, only: config_info       ! summa configuation info
+USE data_types, only: target_info        ! one calibration target
 USE globalData, only: iulog             ! I/O unit for logging messages
-USE globalData, only: iRunMode, iRunModeFull
+USE globalData, only: startGRU             ! index of the first GRU of the run domain
+USE globalData, only: integerMissing       ! missing integer
 
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_config, ONLY: parse_mizuroute_config
@@ -139,6 +141,7 @@ contains
     integer(i4b)        :: i,j,k
     character(len=1024) :: cmessage
     logical(lgt)        :: mizuroute_config_present = .false.
+    logical(lgt)        :: hasObs                      ! .true. if streamflow observations are configured
     logical(lgt)        :: calib_params_parsed
 
     err = 0
@@ -228,6 +231,30 @@ contains
 
         endif
 
+        ! ----- parameter bounds are parsed as a complete sub-table -----
+        if(trim(sections(i)%key) == "calibration" .and. &
+           trim(keys(j)%key)     == "parameter_bounds")then
+          call parse_parameter_bounds(subtable, config, err, cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          cycle
+        endif
+
+        ! ----- NSGA-II settings are parsed as a complete sub-table -----
+        if(trim(sections(i)%key) == "calibration" .and. &
+           trim(keys(j)%key)     == "nsga2")then
+          call parse_nsga2_settings(subtable, config, err, cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          cycle
+        endif
+
+        ! ----- calibration targets are parsed as a complete array of tables -----
+        if(trim(sections(i)%key) == "calibration" .and. &
+           trim(keys(j)%key)     == "target")then
+          call parse_calibration_targets(subtable, config, err, cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          cycle
+        endif
+
         ! select section
         select case (trim(sections(i)%key))
 
@@ -262,9 +289,11 @@ contains
 
     ! ----- checks -----
     ! Coupled mizuRoute requires the complete set of SUMMA GRUs because runoff from upstream
-    ! GRUs may contribute to river reaches outside the selected SUMMA subdomain.
-    if (config%use_mizuroute .and. iRunMode /= iRunModeFull) then
-      message=trim(message)//'The -g subdomain option cannot be used with coupled mizuRoute because '// &
+    ! GRUs may contribute to river reaches outside the selected SUMMA subdomain.  It is the GRU
+    ! range that says whether the run is the whole domain, not the run mode: a host owning the
+    ! command line runs every GRU of the attributes file, but under iRunModeGRU for the file suffix.
+    if (config%use_mizuroute .and. .not.(startGRU == 1 .and. config%nGRU_user == integerMissing)) then
+      message=trim(message)//'A GRU subdomain cannot be used with coupled mizuRoute because '// &
                              'the selected GRUs may not contain the complete upstream river network.'
       err=20; return
     endif
@@ -288,18 +317,34 @@ contains
 
     ! ----- set calibration defaults and derived metric settings -----
 
-    ! set default obs transformation when obs are avaailable
+    ! NOTE: warn only when observations are configured. A configuration file is also used for a
+    !       plain run or for mizuRoute alone, and neither has an objective function to evaluate.
+    hasObs = .false.
     if(allocated(config%obs%obs_file))then
+      if(len_trim(config%obs%obs_file) > 0) hasObs = .true.
+    endif
+    if(allocated(config%calib%targets))then
+      if(size(config%calib%targets) > 0) hasObs = .true.
+    endif
+
+    ! set default objective-function metric
+    if(.not.allocated(config%calib%metric))then
+      config%calib%metric = 'kge'
+      if(hasObs) write(iulog,*) 'WARNING: objective metric not specified; using kge'
+    endif
+
+    if(hasObs)then
+      ! set default obs transformation
       if(.not.allocated(config%calib%obs_transform))then
         config%calib%obs_transform = 'none'
         write(iulog,*) 'WARNING: observation transformation not specified; using none'
       endif
-    endif
-    
-    ! set default objective-function metric
-    if(.not.allocated(config%calib%metric))then
-      config%calib%metric = 'kge'
-      write(iulog,*) 'WARNING: objective metric not specified; using kge'
+
+      ! A configuration that names no target is calibrating the one streamflow series in
+      ! [observations], so express that as the single target the objective code now expects.
+      ! Everything downstream then sees a target list, whether or not the user wrote one.
+      call set_default_calibration_target(config, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     ! set default metric value
@@ -316,6 +361,246 @@ contains
     end select
 
   end subroutine load_summa_config
+
+  ! **************************************************************************************************
+  ! Express a configuration that names no calibration target as a single-target calibration.
+  !
+  ! The legacy configuration carries one observed streamflow series in [observations] and one metric
+  ! in [calibration].  That is a calibration with exactly one target, so it is stored as one, and the
+  ! objective code needs only the target list.
+  ! **************************************************************************************************
+  subroutine set_default_calibration_target(config, ierr, message)
+    implicit none
+    type(config_info), intent(inout) :: config
+    integer(i4b),      intent(out)   :: ierr
+    character(*),      intent(out)   :: message
+
+    ierr = 0
+    message = 'set_default_calibration_target/'
+
+    ! an explicit target list wins
+    if(allocated(config%calib%targets))then
+      if(size(config%calib%targets) > 0) return
+      deallocate(config%calib%targets)
+    endif
+
+    ! without an observation file there is nothing to build a target from
+    if(.not.allocated(config%obs%obs_file)) return
+    if(len_trim(config%obs%obs_file) == 0) return
+
+    allocate(config%calib%targets(1), stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate the default calibration target'
+      return
+    endif
+
+    config%calib%targets(1)%name     = 'streamflow'
+    config%calib%targets(1)%variable = 'streamflow'
+    if(allocated(config%obs%obs_path)) config%calib%targets(1)%obs_path = trim(config%obs%obs_path)
+    config%calib%targets(1)%obs_file = trim(config%obs%obs_file)
+    if(allocated(config%obs%vname_obsflow))then
+      config%calib%targets(1)%vname_obs = trim(config%obs%vname_obsflow)
+    else
+      config%calib%targets(1)%vname_obs = 'q_obs'
+    endif
+    config%calib%targets(1)%metric        = trim(config%calib%metric)
+    config%calib%targets(1)%obs_transform = trim(config%calib%obs_transform)
+    config%calib%targets(1)%weight        = 1.0_rkind
+
+  end subroutine set_default_calibration_target
+
+  ! **************************************************************************************************
+  ! Parse the calibration targets.
+  !
+  ! Reads the [[calibration.target]] array of tables.  Each target names an observed series, the
+  ! simulated variable it is compared against, and the metric that scores them; a calibration
+  ! evaluates every target for each parameter trial.  Only `obs_file` is required: a target inherits
+  ! the observation path and the metric settings from the rest of the configuration when it does not
+  ! state its own.
+  ! **************************************************************************************************
+  subroutine parse_calibration_targets(subtable, config, ierr, message)
+    use tomlf_all, only: toml_table, toml_array, get_value, len
+    implicit none
+
+    type(toml_table), pointer, intent(in)    :: subtable
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+    type(toml_array), pointer     :: targets
+    type(toml_table), pointer     :: target_table
+    character(len=:), allocatable :: cvalue
+    character(len=256)            :: cmessage
+    integer(i4b) :: i
+    integer(i4b) :: istat
+    integer(i4b) :: ntargets
+
+    ierr = 0
+    message = 'parse_calibration_targets/'
+
+    ! get the array of targets
+    call get_value(subtable, 'target', targets, requested=.false., stat=istat)
+    if(.not.associated(targets)) return
+    ntargets = len(targets)
+    if(ntargets < 1)then
+      message=trim(message)//'[[calibration.target]] is present but names no targets'
+      ierr=20; return
+    endif
+
+    ! the previous case's targets may still be allocated
+    if(allocated(config%calib%targets)) deallocate(config%calib%targets)
+    allocate(config%calib%targets(ntargets), stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate the calibration targets'
+      return
+    endif
+
+    do i=1,ntargets
+
+      call get_value(targets, i, target_table, stat=istat)
+      if(istat/=0 .or. .not.associated(target_table))then
+        write(message,'(A,I0)') trim(message)//'unable to read calibration target, i = ',i
+        ierr=20; return
+      endif
+
+      ! observation file: the one setting a target cannot inherit
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_file', cvalue, stat=istat)
+      if(istat/=0 .or. .not.allocated(cvalue))then
+        write(message,'(A,I0)') trim(message)//'obs_file not defined for calibration target, i = ',i
+        ierr=20; return
+      endif
+      config%calib%targets(i)%obs_file = trim(cvalue)
+
+      ! target name, defaulting to its position so every target is labelled in the output
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'name', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%name = trim(cvalue)
+      else
+        write(config%calib%targets(i)%name,'(A,I0)') 'target', i
+      endif
+
+      ! simulated variable this target is compared against
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'variable', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%variable = trim(cvalue)
+
+      ! observation path, inherited from [observations] when the target does not state one
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_path', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%obs_path = trim(cvalue)
+      else if(allocated(config%obs%obs_path))then
+        config%calib%targets(i)%obs_path = trim(config%obs%obs_path)
+      else
+        config%calib%targets(i)%obs_path = ''
+      endif
+
+      ! name of the observed variable within the file
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'vname_obs', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%vname_obs = trim(cvalue)
+      else if(allocated(config%obs%vname_obsflow))then
+        config%calib%targets(i)%vname_obs = trim(config%obs%vname_obsflow)
+      else
+        config%calib%targets(i)%vname_obs = 'q_obs'
+      endif
+
+      ! metric, inherited from [calibration] when the target does not state one
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'metric', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%metric = trim(cvalue)
+      else if(allocated(config%calib%metric))then
+        config%calib%targets(i)%metric = trim(config%calib%metric)
+      endif
+
+      ! observation transformation, inherited the same way
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_transform', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        config%calib%targets(i)%obs_transform = trim(cvalue)
+      else if(allocated(config%calib%obs_transform))then
+        config%calib%targets(i)%obs_transform = trim(config%calib%obs_transform)
+      endif
+
+      ! weight used when the targets are scalarized for a single-objective search
+      call get_value(target_table, 'weight', config%calib%targets(i)%weight, stat=istat)
+
+      ! units of the observations, overriding the ones the file carries
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'obs_units', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%obs_units = trim(cvalue)
+
+      ! the spatial unit the simulated variable is scored over, named by its id: one of gru, hru or
+      ! reach, and the whole domain when the target names none
+      call parse_target_spatial_unit(target_table, config%calib%targets(i), ierr, message)
+      if(ierr/=0) return
+
+      ! putting the simulated series on the same footing as the observations
+      call get_value(target_table, 'accumulate', config%calib%targets(i)%accumulate, stat=istat)
+
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'baseline_start', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%baseline_start = trim(cvalue)
+
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'baseline_end', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue)) config%calib%targets(i)%baseline_end = trim(cvalue)
+
+
+      ! a glacier balance, measured between the seasonal extremes of the simulated storage
+      if(allocated(cvalue)) deallocate(cvalue)
+      call get_value(target_table, 'balance', cvalue, stat=istat)
+      if(istat==0 .and. allocated(cvalue))then
+        select case(trim(cvalue))
+          case('seasonal','annual'); config%calib%targets(i)%balance = trim(cvalue)
+          case default
+            message=trim(message)//'calibration target "'//trim(config%calib%targets(i)%name)// &
+                    '" asks for balance "'//trim(cvalue)//'"; use seasonal or annual'
+            ierr=20; return
+        end select
+      endif
+      call get_value(target_table, 'balance_window', config%calib%targets(i)%balance_window, stat=istat)
+
+    enddo
+
+  end subroutine parse_calibration_targets
+
+  ! **************************************************************************************************
+  ! Read the spatial unit a calibration target scores its simulated variable over.
+  !
+  ! The unit is named by its id under one of the keys gru, hru or reach - the ids the domain and the
+  ! river network use, not positions in a run - and a target names at most one of them.  Naming none
+  ! leaves the whole domain, which is what every configuration written before this did.
+  ! **************************************************************************************************
+  subroutine parse_target_spatial_unit(target_table, calTarget, ierr, message)
+    USE tomlf_all, only: toml_table, get_value
+    type(toml_table), pointer, intent(in)    :: target_table
+    type(target_info),         intent(inout) :: calTarget
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(inout) :: message
+    character(len=5), parameter :: unit_key(3) = ['gru  ','hru  ','reach']
+    integer(i8b) :: id
+    integer(i4b) :: iKey
+    integer(i4b) :: istat
+
+    ierr = 0
+
+    do iKey=1,size(unit_key)
+      call get_value(target_table, trim(unit_key(iKey)), id, stat=istat)
+      if(istat/=0) cycle
+      if(trim(calTarget%spatial_unit) /= 'domain')then
+        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" names both a '// &
+                trim(calTarget%spatial_unit)//' and a '//trim(unit_key(iKey))//'; it scores one spatial unit'
+        ierr=20; return
+      endif
+      calTarget%spatial_unit = trim(unit_key(iKey))
+      calTarget%spatial_id   = id
+    enddo
+
+  end subroutine parse_target_spatial_unit
   
   ! **************************************************************************************************
   ! Parse summa configuration.
@@ -331,6 +616,7 @@ contains
     integer,                   intent(out)   :: ierr
     character(*),              intent(out)   :: message
     type(toml_array), pointer     :: param_list  ! sub-table for the list of parameters to vary
+    character(len=:), allocatable :: cvalue      ! a string value read into a fixed-length field
     character(len=1024)           :: cmessage    ! error message from downwind routine
     integer(i4b)                  :: istat       ! error code
     integer(i4b)                  :: i
@@ -399,6 +685,8 @@ contains
 
       ! ---- objective function: number of parameter samples ----
       case ("calibration.n_samples"        ); call get_value(subtable, trim(key), calib%n_samples         , stat=istat)
+      case ("calibration.algorithm"        ); call get_value(subtable, trim(key), cvalue                  , stat=istat)
+        if(istat == 0) calib%algorithm = trim(cvalue)
 
       ! ---- objective function: flag to write aligned sim/obs time series  ----
       case ("calibration.write_aligned"    ); call get_value(subtable, trim(key), calib%write_aligned     , stat=istat)
@@ -533,9 +821,10 @@ contains
     type(config_info), intent(inout) :: config              ! SUMMA configuration information
     integer(i4b),      intent(out)   :: err                 ! error code
     character(*),      intent(out)   :: message             ! error message
-    logical(lgt), parameter :: isPrint=.false.              ! temporary diagnostic output 
+    logical(lgt), parameter :: isPrint=.false.              ! temporary diagnostic output
+    integer(i4b) :: iTarget                                 ! calibration target index
     character(len=256) :: cmessage                          ! message returned by called routines
-  
+
     err=0
     message='expand_summa_config/'
   
@@ -637,10 +926,23 @@ contains
     ! ---- observation paths and filenames ----
     call expand_config_string(config%obs%obs_path,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
     call expand_config_string(config%obs%obs_file,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
+    ! ---- per-target observation paths and filenames ----
+    ! A target names its own observation file, so it needs the same placeholder expansion the
+    ! [observations] section gets; a multi-case run relies on it to reach each case's own data.
+    if(allocated(config%calib%targets))then
+      do iTarget=1,size(config%calib%targets)
+        call expand_config_string(config%calib%targets(iTarget)%obs_path,config,err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+        call expand_config_string(config%calib%targets(iTarget)%obs_file,config,err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      enddo
+    endif
+
     ! temporary diagnostic output
     if(isPrint)then
       write(*,'(A)') 'Expanded SUMMA configuration:'
@@ -792,7 +1094,6 @@ contains
     enddo
   
   end subroutine parse_word_list
-
 
   ! **************************************************************************************************
   ! Parse calibration parameter specifications.
@@ -1016,6 +1317,123 @@ contains
   end subroutine parse_calibration_parameters
 
   ! **************************************************************************************************
+  ! Parse [calibration.parameter_bounds]: name = [lower, upper], replacing the bounds the parameter
+  !  files give; a name@domainType key bounds that domain type's parameter apart from the others
+  ! **************************************************************************************************
+  subroutine parse_parameter_bounds(calib_table, config, ierr, message)
+    use tomlf_all, only: toml_table, toml_array, toml_key, get_value, len
+    implicit none
+
+    type(toml_table), pointer, intent(in)    :: calib_table
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+    type(toml_table), pointer :: bounds_table
+    type(toml_array), pointer :: pair
+    type(toml_key), allocatable :: keys(:)
+    integer(i4b) :: i
+    integer(i4b) :: istat
+
+    ierr = 0
+    message = 'parse_parameter_bounds/'
+
+    call get_value(calib_table, 'parameter_bounds', bounds_table, stat=istat)
+    if(istat/=0 .or. .not.associated(bounds_table))then
+      message=trim(message)//'unable to read parameter_bounds table'
+      ierr=20; return
+    endif
+
+    ! a multi-case run reuses one config structure, so release the previous case's bounds
+    if(allocated(config%calib%param_bounds)) deallocate(config%calib%param_bounds)
+    call bounds_table%get_keys(keys)
+    if(.not.allocated(keys))then
+      allocate(config%calib%param_bounds(0))
+      return
+    endif
+    allocate(config%calib%param_bounds(size(keys)),stat=ierr)
+    if(ierr/=0)then
+      message=trim(message)//'unable to allocate parameter bounds'
+      return
+    endif
+
+    do i=1,size(keys)
+      if(len_trim(keys(i)%key) > len(config%calib%param_bounds(i)%name))then
+        write(message,'(A,I0)') trim(message)//'parameter name exceeds maximum character length, i = ',i
+        ierr=20; return
+      endif
+      config%calib%param_bounds(i)%name = trim(keys(i)%key)
+      call get_value(bounds_table, trim(keys(i)%key), pair, stat=istat)
+      if(istat/=0 .or. .not.associated(pair))then
+        message=trim(message)//'bounds of '//trim(keys(i)%key)//' must be [lower, upper]'
+        ierr=20; return
+      endif
+      if(len(pair)/=2)then
+        message=trim(message)//'bounds of '//trim(keys(i)%key)//' must be [lower, upper]'
+        ierr=20; return
+      endif
+      call get_value(pair, 1, config%calib%param_bounds(i)%lower, stat=istat)
+      if(istat==0) call get_value(pair, 2, config%calib%param_bounds(i)%upper, stat=istat)
+      if(istat/=0)then
+        message=trim(message)//'bounds of '//trim(keys(i)%key)//' must be two numbers'
+        ierr=20; return
+      endif
+    enddo
+
+  end subroutine parse_parameter_bounds
+
+  ! **************************************************************************************************
+  ! Parse the NSGA-II settings in [calibration.nsga2].  Keys left out keep their defaults.
+  ! **************************************************************************************************
+  subroutine parse_nsga2_settings(calib_table, config, ierr, message)
+    use tomlf_all, only: toml_table, toml_key, get_value
+    use data_types, only: nsga2_info
+    implicit none
+
+    type(toml_table), pointer, intent(in)    :: calib_table
+    type(config_info),         intent(inout) :: config
+    integer(i4b),              intent(out)   :: ierr
+    character(*),              intent(out)   :: message
+    type(toml_table), pointer    :: nsga2_table
+    type(toml_key), allocatable  :: keys(:)
+    integer(i4b) :: i
+    integer(i4b) :: istat
+
+    ierr = 0
+    message = 'parse_nsga2_settings/'
+
+    call get_value(calib_table, 'nsga2', nsga2_table, stat=istat)
+    if(istat/=0 .or. .not.associated(nsga2_table))then
+      message=trim(message)//'unable to read the calibration.nsga2 table'
+      ierr=20; return
+    endif
+
+    ! a multi-case run reuses one config structure, so start from the defaults
+    config%calib%nsga2 = nsga2_info()
+
+    call nsga2_table%get_keys(keys)
+    if(.not.allocated(keys)) return
+    do i=1,size(keys)
+      associate(nsga2 => config%calib%nsga2)
+      select case(trim(keys(i)%key))
+        case('population_size');       call get_value(nsga2_table, trim(keys(i)%key), nsga2%population_size,       stat=istat)
+        case('crossover_probability'); call get_value(nsga2_table, trim(keys(i)%key), nsga2%crossover_probability, stat=istat)
+        case('crossover_eta');         call get_value(nsga2_table, trim(keys(i)%key), nsga2%crossover_eta,         stat=istat)
+        case('mutation_probability');  call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_probability,  stat=istat)
+        case('mutation_eta');          call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_eta,          stat=istat)
+        case default
+          message=trim(message)//'unexpected entry: calibration.nsga2.'//trim(keys(i)%key)
+          ierr=20; return
+      end select
+      end associate
+      if(istat/=0)then
+        message=trim(message)//'unable to read calibration.nsga2.'//trim(keys(i)%key)
+        ierr=20; return
+      endif
+    enddo
+
+  end subroutine parse_nsga2_settings
+
+  ! **************************************************************************************************
   ! Parse parameter dependency configuration.
   ! Reads ordered parameter constraints from the TOML configuration. Each constraint defines
   ! an ordered list of parameters and the minimum gap between adjacent parameters as a fraction
@@ -1087,6 +1505,14 @@ contains
       if(istat/=0)then
         write(message,'(A,I0)') trim(message)// &
           'gap_fraction not defined for ordered constraint, i = ',i
+        ierr=20; return
+      endif
+
+      ! search every member, the later ones by their gaps
+      call get_value(constraint, 'sample_gaps', config%calib%ordered(i)%sample_gaps, .false., stat=istat)
+      if(istat/=0)then
+        write(message,'(A,I0)') trim(message)// &
+          'sample_gaps must be true or false, ordered constraint i = ',i
         ierr=20; return
       endif
     enddo

@@ -398,12 +398,7 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
     endif
 
     ! vegetation parameters for upland domain
-    ! NOTE: HVT, HVB, SAIM, and LAIM are process-global tables indexed by vegetation
-    ! class, so HRUs sharing a class overwrite each other here. That is harmless:
-    ! pOverwrite has already read the pristine table values above, and run_oneHRU
-    ! calls REDPRM and then re-writes these entries from the current HRU's parameters
-    ! immediately before the physics. Results are therefore independent of the order
-    ! HRUs are visited, and of the MPI partitioning (verified bit-for-bit).
+    ! NOTE: HVT, HVB, SAIM and LAIM are process-global tables by vegetation class; run_oneHRU rewrites them per HRU
     if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
       ! overwrite the vegetation height
       HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%heightCanopyTop)%dat(1)

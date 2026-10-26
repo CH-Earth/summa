@@ -82,7 +82,9 @@ covers the user-facing highlights.
   `noInfExc`), and new `surfRun_SE` decision for saturation-excess surface runoff
   (`homegrown_SE`, `FUSEPRMS`, `FUSEAVIC`, `FUSETOPM`, `zero_SE`). Distinct
   `scalarSurfaceRunoff_IE` / `scalarSurfaceRunoff_SE` output fluxes were added.
-- New `aquiferIni` decision (`fullStart` / `emptyStart`).
+- New `aquiferIni` decision (`fullStart` / `emptyStart`). `emptyStart` empties the aquifer on a
+  cold start only: restart files carry an `aqEmptyStarted` attribute, and a run that reads one
+  keeps the aquifer storage the file holds.
 - Wind-profile / stability changes to fix over-estimated snow sublimation (affects
   `veg_traits = CM_QJRMS1988` most).
 - Soil and snow longwave emissivity updated (0.98/0.99 → 0.96/0.98).
@@ -111,6 +113,31 @@ covers the user-facing highlights.
   (`-DUSE_MIZUROUTE=ON`), adding `Q_reach`, `q_basin` and `upArea` output. Coupled mizuRoute
   needs the whole domain on one process, so it rejects `-g` and MPI domain parallelism
   (PR #632).
+- New `bcLowrTdyn` option `presFlux` prescribes an energy flux into the base of the soil column
+  (new parameter `lowerBoundNrgFlux`, W m-2, default 0.06, the continental geothermal heat
+  flux), so a deep column keeps a realistic temperature at depth instead of being insulated
+  (`zeroFlux`) or pinned to `lowerBoundTemp` (`presTemp`). This matters for permafrost and
+  cold-region runs, where the temperature at the base of the column sets the temperature of the
+  water draining from it. The flux is applied only where the bottom layer is soil; glacier
+  columns keep zero flux. Existing parameter files need no change (the parameter has a
+  default).
+- Fixed: writing a restart file failed with "String match to name in use" for any run with more
+  than one GRU and a glacier grid, because the grid write was called once per GRU when it
+  already loops over every GRU itself.
+- New frozen-ground diagnostics `scalarFrostTableDepth` (depth to the top of the shallowest
+  frozen soil layer, the freezing front working down from the surface) and
+  `scalarActiveLayerDepth` (the thickness of soil above the perennially frozen ground below it).
+  The two differ whenever a column freezes from both ends, which is the autumn state of a
+  permafrost column and the one a single thaw depth cannot describe. Both are missing when the
+  column has no such boundary.
+- Lateral flow out of a frozen soil layer is now impeded by its ice: the TOPMODEL transmissivity
+  of each layer is scaled by the same `10**(-f_impede * volFracIce)` factor `soilLiqFlux`
+  applies to the vertical conductivity, with the matching derivatives. Before this, a frozen
+  layer still drained laterally at its full rate, since the transmissivity profile is built from
+  the saturated conductivity alone. Affects `groundwatr = qTopmodl` runs with frozen soil.
+- New `groundwatr` option `bbLatflow`: as `bigBuckt`, but the upland soil also drains laterally
+  to the channel, at each layer's own temperature, as `qTopmodl` does, while its
+  base still recharges the bucket. `bigBuckt` is unchanged, bit for bit.
 - Optional coupling to the OpenWQ water-quality framework (`build/source/openwq/`).
 - Runs as a NextGen submodule; NextGen test cases are in `utils/test/test_ngen/`.
 - Large refactor: object-oriented flux routines, much shorter `computFlux.f90` and the

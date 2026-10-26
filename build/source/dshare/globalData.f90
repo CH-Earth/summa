@@ -231,6 +231,7 @@ MODULE globalData
   ! define controls on model output
   logical(lgt),dimension(maxvarFreq),save,public   :: finalizeStats=.false.             ! flags to finalize statistics
   logical(lgt),save,public                         :: allowRoutingOutput=.false.        ! flag to allow routing variable output (currently very large and slow to write, so turned off by default)
+  logical(lgt),save,public                         :: soilLateralFlow=.false.           ! flag: soil layers drain laterally (qTopmodl or bbLatflow)
   integer(i4b),save,public                         :: maxLayers                         ! maximum number of layers
   integer(i4b),save,public                         :: maxTotoLayers                     ! maximum number of soil+lake+glacier-ice layers in any domain
   integer(i4b),save,public                         :: maxSnowLayers                     ! maximum number of snow layers

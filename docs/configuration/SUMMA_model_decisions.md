@@ -38,10 +38,10 @@ There are 44 model decisions. Defaults (used for `notPopulatedYet` where accepte
 | 14 | [LAI_method](#lai_method) | monTable, specified | source of LAI/SAI |
 | 15 | [cIntercept](#cintercept) | **notPopulatedYet**, sparseCanopy, storageFunc | canopy interception |
 | 16 | [f_Richards](#f_richards) | **mixdform** | form of Richards' equation |
-| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, noXplict | groundwater parameterization |
+| 17 | [groundwatr](#groundwatr) | qTopmodl, bigBuckt, bbLatflow, noXplict | groundwater parameterization |
 | 18 | [hc_profile](#hc_profile) | constant, pow_prof, exp_prof | hydraulic-conductivity profile with depth |
 | 19 | [bcUpprTdyn](#bcupprtdyn) | presTemp, nrg_flux, zeroFlux | upper boundary condition, thermodynamics |
-| 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux | lower boundary condition, thermodynamics |
+| 20 | [bcLowrTdyn](#bclowrtdyn) | presTemp, zeroFlux, presFlux | lower boundary condition, thermodynamics |
 | 21 | [bcUpprSoiH](#bcupprsoih) | presHead, liq_flux | upper boundary condition, soil hydrology |
 | 22 | [bcLowrSoiH](#bclowrsoih) | presHead, bottmPsi, drainage, zeroFlux | lower boundary condition, soil hydrology |
 | 23 | [veg_traits](#veg_traits) | Raupach_BLM1994, CM_QJRMS1988, vegTypeTable | vegetation roughness length and displacement height |
@@ -224,9 +224,21 @@ The moisture-based form was removed; `mixdform` (or `notPopulatedYet`) is the on
 |---|---|
 | qTopmodl | TOPMODEL-style baseflow from a per-column store |
 | bigBuckt | lumped "big bucket" aquifer model |
+| bbLatflow | lumped "big bucket" aquifer model but allow lateral flow in the soil column |
 | noXplict | no explicit groundwater; soil drainage leaves the column |
 
 See also [`spatial_gw`](#spatial_gw), which sets whether the store is per column or per basin.
+
+`bbLatflow` is `bigBuckt` plus lateral flow through the soil column. With `bigBuckt`
+the whole soil column drains down into the bucket, and the water reaches the channel at the
+aquifer's temperature. With `bbLatflow` the layers above field capacity, counted up from the base
+of the hydrologically active soil, drain sideways through the transmissivity of the conductivity
+profile (`kAnisotropic`, `f_hydCond`), while the base still recharges the bucket. That water goes
+to the channel at the temperature of the layer it leaves, so a wet, sunlit upper soil reaches the
+stream warmer than the aquifer. It **requires** [`spatial_gw`](#spatial_gw) `= localColumn` and
+[`hc_profile`](#hc_profile) `= constant` or `exp_prof`, since the bucket is recharged through the
+conductivity at the soil base. The wetland and glacier domains are unchanged, and every
+option that accepts `bigBuckt` accepts `bbLatflow`.
 
 <a id="hc_profile"></a>
 ## 18. hc_profile — hydraulic-conductivity profile
@@ -241,8 +253,9 @@ See also [`spatial_gw`](#spatial_gw), which sets whether the store is per column
 depth and so require `topmodel_GA` (or `noInfExc`), which evaluates the conductivity at the wetting front.
 
 [`groundwatr`](#groundwatr) `qTopmodl` requires `pow_prof`, the only option whose transmissivity represents a shallow aquifer.
-`exp_prof` instead stops at an impermeable base, which suits glacier debris over ice or soil over an external aquifer, and is not
-yet selectable with `qTopmodl`. Glacier domains use it internally whatever this decision is set to.
+`exp_prof` instead stops at an impermeable base, so it is not selectable with `qTopmodl`; it is the profile for lateral flow with
+no shallow aquifer of its own, which is glacier debris over ice (used internally whatever this decision is set to) or soil over an
+external aquifer.
 
 `pow_prof` cannot be used with [`bcLowrSoiH`](#bclowrsoih) `presHead`: its conductivity is exactly zero at the base of the soil, so a
 prescribed head can drive no drainage. Use `exp_prof`, which decays with depth but stays finite there.
@@ -266,6 +279,25 @@ conductivity at 4 m. Supraglacial debris is 1-5 m-1 over a 0.3-1 m depth, so gla
 |---|---|
 | presTemp | prescribed temperature at the bottom of the soil column |
 | zeroFlux | zero energy flux at the bottom of the soil column |
+| presFlux | prescribed energy flux into the bottom of the soil column, the geothermal heat flux |
+
+`presTemp` holds the base of the column at `lowerBoundTemp`, which is only physical if the
+column reaches the depth where the annual temperature signal is damped out. `zeroFlux`
+insulates the base instead, so a shallow column has no thermal memory below the seasonal
+cycle and its bottom temperature tracks the surface with a lag.
+
+`presFlux` prescribes the energy flux `lowerBoundNrgFlux` (W m-2, default 0.06, the continental
+average geothermal heat flux; roughly 0.03 in old cratons and 0.1 in tectonically active
+regions) entering the base of the column. Like `presTemp` it is a prescribed constant, not a
+computed or time-varying flux. It is the right lower boundary for a deep column in permafrost
+or cold-region work: the long-term temperature gradient at the base is
+`lowerBoundNrgFlux`/`thCond_soil` rather than zero, so the deep column keeps a realistic
+temperature and the water draining from it is not simply a lagged copy of the surface.
+The flux is applied only where the bottom layer is soil; under a glacier column the
+base stays zero flux, since the impermeable ice at the base of a glacier column has no way to
+drain the melt the flux would produce.
+
+The lower-boundary energy flux is written as `scalarLowerBoundNrgFlux` (W m-2, positive down).
 
 <a id="bcupprsoih"></a>
 ## 21. bcUpprSoiH — upper boundary condition, soil hydrology
@@ -444,6 +476,16 @@ With the `itertive` alias, the value is forced to `closedForm` for backward comp
 |---|---|
 | fullStart | start from the aquifer value in the initial-conditions file (default; for a cold start this is typically full, since draining to equilibrium is easier than filling) |
 | emptyStart | start from an empty aquifer; intended only for comparing solution methods, not for realistic simulation |
+
+`emptyStart` applies to a cold start only. Every restart file SUMMA writes carries the global
+attribute `aqEmptyStarted = 1`, and a run that reads such a file keeps the aquifer storage the
+file holds, exactly as `fullStart` would, with a warning in the log. An initial-conditions file
+written by hand has no such attribute, so the aquifer is emptied there. This keeps a continued
+run, or a spun-up calibration sample, from re-emptying the aquifer at every restart.
+
+With `spatial_gw = singleBasin` the basin-average aquifer storage is not part of the restart
+file, so that configuration always starts at the `aquiferIni` fill level -- full (1 m) or empty
+-- whatever the initial-conditions file holds.
 
 <a id="infratemax"></a>
 ## 41. infRateMax — maximum infiltration rate

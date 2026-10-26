@@ -62,11 +62,7 @@ contains
 ! ************************************************************************************************
 ! public subroutine groundwatr: compute the groundwater sink term in Richards' equation
 ! ************************************************************************************************
-!
-! Method
-! ------
-!
-! Here we assume that water available for shallow groundwater flow includes is all water above
+! We assume that water available for shallow groundwater flow includes is all water above
 ! "field capacity" below the depth zCrit, where zCrit is defined as the lowest point in the soil
 ! profile where the volumetric liquid water content is less than field capacity.
 !
@@ -87,7 +83,6 @@ contains
 ! The outflow from each layer is then (m3 s-1)
 !  mLayerOutflow(iLayer) = trSoil(iLayer)*tan_slope*contourLength
 ! where contourLength is the width of a hillslope (m) parallel to a stream
-!
 ! ************************************************************************************************
 subroutine groundwatr(&
                       ! input: model control, state variables, and diagnostic variables
@@ -142,6 +137,8 @@ subroutine groundwatr(&
     ! output: diagnostic variables
     scalarExfiltration  => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1), & ! intent(out):   [dp]    exfiltration from the soil profile (m s-1)
     mLayerColumnOutflow => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat,   & ! intent(out):   [dp(:)] column outflow from each soil layer (m3 s-1)
+    mLayerColumnInflow  => flux_data%var(iLookFLUX%mLayerColumnInflow)%dat,    & ! intent(in):    [dp(:)] lateral inflow into each soil layer (m3 s-1)
+    area                => prog_data%var(iLookPROG%DOMarea)%dat(1),            & ! intent(in):    [dp]    domain area (m2)
     ! output: baseflow
     mLayerBaseflow      => out_groundwatr % mLayerBaseflow,                    & ! intent(out):   [dp(:)]   baseflow from each soil layer (m s-1)
     dBaseflow_dWat      => out_groundwatr % dBaseflow_dWat,                    & ! intent(out):   [dp(:,:)] derivative in baseflow w.r.t. soil water characteristic
@@ -172,8 +169,9 @@ subroutine groundwatr(&
     ! check for an early return (no layers are "active")
     if (ixSaturation > nSoil) then
       scalarExfiltration     = 0._rkind   ! exfiltration from the soil profile (m s-1)
+      out_groundwatr%dExfil_dDrive = 0._rkind ! derivative of exfiltration w.r.t. the column surplus it returns (-)
       mLayerColumnOutflow(:) = 0._rkind   ! column outflow from each soil layer (m3 s-1)
-      mLayerBaseflow(:)      = 0._rkind   ! baseflow from each soil layer (m s-1)
+      mLayerBaseflow(1:nSoil) = -mLayerColumnInflow(1:nSoil)/area ! nothing drains out, but lateral inflow still arrives (m s-1)
       dBaseflow_dWat(:,:)    = 0._rkind   ! derivative in baseflow w.r.t. soil water characteristic
       dBaseflow_dTk(:,:)     = 0._rkind   ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
       return
@@ -201,10 +199,15 @@ subroutine groundwatr(&
                           dVolTot_dPsi0,           & ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
                           mLayerdTheta_dPsi,       & ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
                           mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          in_groundwatr%dqTop_dHydStateVec, & ! intent(in): derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+                          in_groundwatr%dqTop_dNrgStateVec, & ! intent(in): derivative in the soil surface flux w.r.t. temperature in each soil layer (m s-1 K-1)
+                          in_groundwatr%dqBot_dHydState,    & ! intent(in): derivative in the soil bottom flux w.r.t. hydrology state in the bottom soil layer
+                          in_groundwatr%dqBot_dNrgState,    & ! intent(in): derivative in the soil bottom flux w.r.t. temperature in the bottom soil layer (m s-1 K-1)
                           ! output: fluxes and derivatives
                           mLayerBaseflow,          & ! intent(out):   baseflow flux in each soil layer (m s-1)
                           dBaseflow_dWat,          & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
                           dBaseflow_dTk,           & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+                          out_groundwatr%dExfil_dDrive, & ! intent(out): derivative of exfiltration w.r.t. the column surplus it returns (-)
                           err, cmessage)             ! intent(out):   error control
    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
    ! end association to variables in data structures
@@ -233,12 +236,19 @@ subroutine computBaseflow(&
                           dVolTot_dPsi0,                 & ! intent(in):    derivative in total volumetric water content w.r.t. matric head (m-1)
                           mLayerdTheta_dPsi,             & ! intent(in):    derivative in liquid water content w.r.t. matric potential (m-1)
                           mLayerdTheta_dTk,              & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          dqTop_dHydStateVec,            & ! intent(in):    derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+                          dqTop_dNrgStateVec,            & ! intent(in):    derivative in the soil surface flux w.r.t. temperature in each soil layer (m s-1 K-1)
+                          dqBot_dHydState,               & ! intent(in):    derivative in the soil bottom flux w.r.t. hydrology state in the bottom soil layer
+                          dqBot_dNrgState,               & ! intent(in):    derivative in the soil bottom flux w.r.t. temperature in the bottom soil layer (m s-1 K-1)
                           ! output: fluxes and derivatives
                           mLayerBaseflow,                & ! intent(out):   baseflow flux in each soil layer (m s-1)
                           dBaseflow_dWat,                & ! intent(out):   derivative in baseflow w.r.t. soil water characteristic
                           dBaseflow_dTk,                 & ! intent(out):   derivative in baseflow w.r.t. temperature (m s-1 K-1)
+                          dExfil_dDrive,                 & ! intent(out):   derivative of exfiltration w.r.t. the column surplus it returns (-)
                           ! error handling
                           err, message)                    ! intent(out):   error control
+  USE soil_utils_module,only:iceImpede        ! compute the ice impedance factor
+  USE soil_utils_module,only:dIceImpede_dTemp ! compute the derivative in the ice impedance factor w.r.t. temperature (K-1)
   implicit none
   ! ---------------------------------------------------------------------------------------
   ! * dummy variables
@@ -259,10 +269,15 @@ subroutine computBaseflow(&
   real(rkind),intent(in)           :: dVolTot_dPsi0(:)        ! derivative in total volumetric water content w.r.t. matric head (m-1)
   real(rkind),intent(in)           :: mLayerdTheta_dPsi(:)    ! derivative in liquid water content w.r.t. matric potential (m-1)
   real(rkind),intent(in)           :: mLayerdTheta_dTk(:)     ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)           :: dqTop_dHydStateVec(:)   ! derivative in the soil surface flux w.r.t. hydrology state in each soil layer
+  real(rkind),intent(in)           :: dqTop_dNrgStateVec(:)   ! derivative in the soil surface flux w.r.t. temperature in each soil layer (m s-1 K-1)
+  real(rkind),intent(in)           :: dqBot_dHydState         ! derivative in the soil bottom flux w.r.t. hydrology state in the bottom soil layer
+  real(rkind),intent(in)           :: dqBot_dNrgState         ! derivative in the soil bottom flux w.r.t. temperature in the bottom soil layer (m s-1 K-1)
   ! output: baseflow
   real(rkind),intent(out)          :: mLayerBaseflow(:)       ! baseflow from each soil layer (m s-1)
   real(rkind),intent(out)          :: dBaseflow_dWat(:,:)     ! derivative in baseflow w.r.t. soil water characteristic
   real(rkind),intent(out)          :: dBaseflow_dTk(:,:)      ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
+  real(rkind),intent(out)          :: dExfil_dDrive           ! derivative of exfiltration w.r.t. the column surplus it returns (-)
   ! error handling
   integer(i4b), intent(out)        :: err                     ! error code
   character(*), intent(out)        :: message                 ! error message
@@ -271,6 +286,11 @@ subroutine computBaseflow(&
   ! ---------------------------------------------------------------------------------------
   ! general local variables
   integer(i4b)                       :: iLayer,jLayer         ! index of model layer
+  ! local variables for the ice impedance of the lateral flow
+  real(rkind)                        :: iceImpedeFac(nSoil)   ! ice impedance factor of each soil layer (-)
+  real(rkind)                        :: dIceImpede_dT(nSoil)  ! derivative in the ice impedance factor w.r.t. temperature (K-1)
+  real(rkind)                        :: dImpede_dLiq          ! derivative in the ice impedance factor w.r.t. liquid water, zero in SUMMA (-)
+  real(rkind)                        :: trSoilNoIce(nSoil)    ! transmissivity of each layer before the ice impedance (m2 s-1)
   ! local variables for the exfiltration
   real(rkind)                        :: totalColumnInflow     ! total column inflow (m s-1)
   real(rkind)                        :: totalColumnOutflow    ! total column outflow (m s-1)
@@ -330,6 +350,7 @@ subroutine computBaseflow(&
     f_hydCond               => mpar_data%var(iLookPARAM%f_hydCond)%dat(1),               & ! intent(in):  [dp]    decay rate of hydraulic conductivity with depth (m-1)
     kAnisotropic            => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),            & ! intent(in):  [dp]    anisotropy factor for lateral hydraulic conductivity (-)
     fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),           & ! intent(in):  [dp]    field capacity (-)
+    f_impede                => mpar_data%var(iLookPARAM%f_impede)%dat(1),                & ! intent(in):  [dp]    ice impedance parameter (-)
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                  & ! intent(in):  [dp(:)] soil porosity (-)
     ! output: diagnostic variables
     scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),       & ! intent(out): [dp]    exfiltration from the soil profile (m s-1)
@@ -348,15 +369,11 @@ subroutine computBaseflow(&
       kAnisotropic_use = kAnisotropic*10._rkind ! if glacier ice layers are present, increase anisotropy factor to reflect higher hydraulic conductivity in glacier debris
     end if
 
-    ! the transmissivity profile is the vertical integral of the hydraulic conductivity profile, so it must
-    ! match the profile satHydCond used to build the conductivity itself
+    ! the transmissivity profile is the vertical integral of the hydraulic conductivity profile, must match the profile satHydCond
     ix_hc_profile = model_decisions(iLookDECISIONS%hc_profile)%iDecision
     if(nGlce>0) ix_hc_profile = expLaw_profile ! must match the override in satHydCond
 
-    ! the transmissivity integrals below are written in terms of the conductivity at the soil surface, but
-    ! mLayerSatHydCondMP(1) is the macropore value at the first layer midpoint, already scaled by the depth
-    ! profile. satHydCond applies that same scaling to the micropore conductivity, and evaluates it at both
-    ! the midpoint and the surface interface, so their ratio recovers the surface value for any profile.
+    ! the transmissivity integrals want the conductivity at the soil surface, which this ratio recovers for any profile
     surfaceHydCond_use = surfaceHydCond*iLayerSatHydCond(0)/mLayerSatHydCond(1)
 
     ! compute the water table thickness (m) in each layer, working from the bottom of the profile up
@@ -374,31 +391,23 @@ subroutine computBaseflow(&
     ! set un-used portions of the water table thickness to zero, both profiles give xTrans=0 there
     if (ixSaturation>1) zActive(1:ixSaturation-1) = 0._rkind
 
-    ! compute the maximum transmissivity (m2 s-1) and the dimensionless transmissivity profile xTrans(zActive),
-    ! along with dXdS = d(xTrans)/d(zActive/soilDepth) used to build the derivative matrix below
-    ! NOTE: tran0 can be done as a pre-processing step
+    ! compute the maximum transmissivity (m2 s-1) and the dimensionless transmissivity profile xTrans(zActive), and derivatives
     select case(ix_hc_profile)
 
-      ! K(z) = K_0*exp(-f*z) integrated from the water table up to the base of the soil gives
-      !  T(s) = (K_0/f)*[exp(-f*(D-s)) - exp(-f*D)], for saturated thickness s and soil depth D
-      ! NOTE: written so that no exponential ever takes a positive argument
+      ! K(z) = K_0*exp(-f*z) integrated from the water table up to the base of the soil
       case(expLaw_profile)
         tran0 = kAnisotropic_use*surfaceHydCond_use/f_hydCond
         xTrans(1:nSoil) = exp(-f_hydCond*(soilDepth - zActive(1:nSoil))) - exp(-f_hydCond*soilDepth)
         dXdS(1:nSoil)   = soilDepth*f_hydCond*exp(-f_hydCond*(soilDepth - zActive(1:nSoil)))
 
-      ! power-law transmissivity, the classical TOPMODEL-ish form (Ambroise et al. 1996), the integral of
-      !  K_0*(1-z/D)**(zScale_TOPMODEL-1) over the saturated thickness
-      ! NOTE: this is the exact integral of the profile satHydCond builds, which decays to zero at the base
-      !       of the soil; that zero is the Beven-Kirkby premise of the shallow aquifer, not an artifact
+      ! power-law transmissivity (Ambroise et al. 1996), the integral of K_0*(1-z/D)**(zScale_TOPMODEL-1), zero at the base
       case(powerLaw_profile)
         tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth/zScale_TOPMODEL
         xTrans(1:nSoil) = (zActive(1:nSoil)/soilDepth)**zScale_TOPMODEL
         dXdS(1:nSoil)   = zScale_TOPMODEL*(zActive(1:nSoil)/soilDepth)**(zScale_TOPMODEL - 1._rkind)
 
       ! uniform conductivity with depth, so transmissivity is simply linear in the saturated thickness
-      ! NOTE: unreachable, mDecisions does not allow constant with qbaseTopmodel, but kept correct rather than
-      !       lumped in with the power law
+      ! NOTE: unreachable, do not allow constant with qbaseTopmodel, but kept correct rather than lumped in with the power law
       case(constant)
         tran0 = kAnisotropic_use*surfaceHydCond_use*soilDepth
         xTrans(1:nSoil) = zActive(1:nSoil)/soilDepth
@@ -419,6 +428,14 @@ subroutine computBaseflow(&
 
     ! set un-used portions of the vectors to zero
     if (ixSaturation>1) trSoil(1:ixSaturation-1) = 0._rkind
+
+    ! ice impedes the lateral flow as it does the vertical, through the same 10**(-f_impede*volFracIce)
+    do iLayer=1,nSoil
+      call iceImpede(mLayerVolFracIce(iLayer),f_impede,iceImpedeFac(iLayer),dImpede_dLiq)
+      call dIceImpede_dTemp(mLayerVolFracIce(iLayer),mLayerdTheta_dTk(iLayer),f_impede,dIceImpede_dT(iLayer))
+    end do
+    trSoilNoIce(1:nSoil) = trSoil(1:nSoil)
+    trSoil(1:nSoil)      = trSoil(1:nSoil)*iceImpedeFac(1:nSoil)
 
     ! compute the outflow from each layer (m3 s-1)
     mLayerColumnOutflow(1:nSoil) = trSoil(1:nSoil)*tan_slope*contourLength
@@ -462,8 +479,10 @@ subroutine computBaseflow(&
     exfilDrive = totalColumnInflow + (iLayerLiqFluxSoil(0) - iLayerLiqFluxSoil(nSoil)) - totalColumnOutflow
     if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
       scalarExfiltration = logF*exfilDrive  ! m s-1
+      dExfil_dDrive      = logF
     else
       scalarExfiltration = 0._rkind
+      dExfil_dDrive      = 0._rkind
     end if
 
     ! compute the baseflow in each layer (m s-1)
@@ -508,21 +527,19 @@ subroutine computBaseflow(&
       end do  ! end looping through soil layers
     end do  ! end looping through soil layers
 
-    ! carry the cap into the derivatives: the row scales by d(q_capped)/dq, the cap's own dependence adds to the diagonal
+    ! the row scales with the layer's impedance factor and with d(q_capped)/dq, and their own dependences add to the diagonal
     do iLayer=1,nSoil
-      dBaseflow_dVolLiq(iLayer,:) = dBaseflow_dVolLiq(iLayer,:)*dCap_dOutflow(iLayer)
-      dBaseflow_dWat(iLayer,:)    = dBaseflow_dWat(iLayer,:)   *dCap_dOutflow(iLayer)
-      dBaseflow_dTk(iLayer,:)     = dBaseflow_dTk(iLayer,:)    *dCap_dOutflow(iLayer)
+      dBaseflow_dVolLiq(iLayer,:) = dBaseflow_dVolLiq(iLayer,:)*iceImpedeFac(iLayer)*dCap_dOutflow(iLayer)
+      dBaseflow_dWat(iLayer,:)    = dBaseflow_dWat(iLayer,:)   *iceImpedeFac(iLayer)*dCap_dOutflow(iLayer)
+      dBaseflow_dTk(iLayer,:)     = dBaseflow_dTk(iLayer,:)    *iceImpedeFac(iLayer)*dCap_dOutflow(iLayer)
+      dBaseflow_dTk(iLayer,iLayer) = dBaseflow_dTk(iLayer,iLayer) &
+                                     + trSoilNoIce(iLayer)*dIceImpede_dT(iLayer)*length2area*dCap_dOutflow(iLayer)
       dBaseflow_dVolLiq(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer) + dCap_dLiq(iLayer)
       dBaseflow_dWat(iLayer,iLayer)    = dBaseflow_dWat(iLayer,iLayer)    + dCap_dLiq(iLayer)*mLayerdTheta_dPsi(iLayer)
       dBaseflow_dTk(iLayer,iLayer)     = dBaseflow_dTk(iLayer,iLayer)     + dCap_dLiq(iLayer)*mLayerdTheta_dTk(iLayer)
     end do
 
-    ! trSoil is clamped to zero above the saturated zone, so the outflow of those layers does not respond to
-    ! the state at all and their derivative rows must be zero to match. Without this the rows depend on the
-    ! shape of xTrans near zActive=0, which differs between profiles (and is non-zero for the exponential,
-    ! and for the power law whenever zScale_TOPMODEL=1).
-    ! NOTE: this is done before the exfiltration derivative, which is a real flux and still belongs in row 1
+    ! trSoil is clamped to zero above the saturated zone
     if (ixSaturation>1) then
       dBaseflow_dVolLiq(1:ixSaturation-1,:) = 0._rkind
       dBaseflow_dWat(1:ixSaturation-1,:)    = 0._rkind
@@ -530,12 +547,13 @@ subroutine computBaseflow(&
     end if
 
     ! compute the derivative in the exfiltration flux and add to the baseflow derivative matrix
-    ! NOTE: the vertical boundary fluxes are taken as given, as the lateral inflow is
     if (exfilDrive > 0._rkind .and. logF > tiny(1._rkind)) then
       do iLayer=1,nSoil
-        dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF + dLogFunc_dWat(iLayer)*exfilDrive
-        dExfiltrate_dTk(iLayer) = -sum(dBaseflow_dTk(1:nSoil,iLayer))*logF
+        dExfiltrate_dWat(iLayer) = -sum(dBaseflow_dWat(1:nSoil,iLayer))*logF + dLogFunc_dWat(iLayer)*exfilDrive + logF*dqTop_dHydStateVec(iLayer)
+        dExfiltrate_dTk(iLayer) = -sum(dBaseflow_dTk(1:nSoil,iLayer))*logF + logF*dqTop_dNrgStateVec(iLayer)
       end do  ! end looping through soil layers
+      dExfiltrate_dWat(nSoil) = dExfiltrate_dWat(nSoil) - logF*dqBot_dHydState ! water leaving the base is not surplus
+      dExfiltrate_dTk(nSoil)  = dExfiltrate_dTk(nSoil)  - logF*dqBot_dNrgState
       dBaseflow_dWat(1,1:nSoil) = dBaseflow_dWat(1,1:nSoil) + dExfiltrate_dWat(1:nSoil)
       dBaseflow_dTk(1,1:nSoil) = dBaseflow_dTk(1,1:nSoil) + dExfiltrate_dTk(1:nSoil)
     end if

@@ -7,6 +7,7 @@ module summa_parameter_spec
   USE globalData,       only: iulog
 
   USE parameter_search, only: parameter_spec
+  USE parameter_search, only: decode_gap_chains
 
   implicit none
   private
@@ -22,21 +23,23 @@ contains
   ! Populates the model-agnostic parameter specification used by the parameter-search routines.
   !
   ! Parameters explicitly included in the calibration list are marked as sampled. Additional
-  ! parameters required by ordered dependencies are included as non-sampled parameters.
+  ! parameters required by ordered dependencies are included as non-sampled parameters, except in a
+  ! chain searched by its gaps, whose every member is sampled.
   !
   ! All parameters represented by this interface are currently assumed to be spatially uniform.
   ! Initial trial values are obtained from the initialized SUMMA parameter structures rather than
-  ! the fallback defaults. For sampled parameters, these values are replaced during calibration.
+  ! the fallback defaults when the run has one GRU, one HRU and one domain, and from the fallback
+  ! defaults otherwise. For sampled parameters, these values are replaced during calibration.
   ! For non-sampled parameters, the initialized values are retained when evaluating constraints
   ! and constructing parameter overrides.
   !
   ! Spatially varying calibration parameters and spatial regularization are not currently supported.
   ! **************************************************************************************************
-  subroutine get_summa_parameter_spec(config, mpar_init, bpar_init, spec, err, message)
+  subroutine get_summa_parameter_spec(config, spec, err, message, mpar_init, bpar_init)
     implicit none
     type(config_info),    intent(in)  :: config
-    type(var_dlength),    intent(in)  :: mpar_init
-    type(var_d),          intent(in)  :: bpar_init
+    type(var_dlength),    optional, intent(in)  :: mpar_init  ! initialized HRU parameters, single-domain runs only
+    type(var_d),          optional, intent(in)  :: bpar_init  ! initialized basin parameters, single-domain runs only
     type(parameter_spec), intent(out) :: spec
     integer(i4b),         intent(out) :: err
     character(*),         intent(out) :: message
@@ -48,8 +51,9 @@ contains
     integer(i4b) :: nParam
     integer(i4b) :: nMax
     integer(i4b) :: nConstraint
+    integer(i4b) :: nSumma
     real(rkind)  :: lower,upper
-    character(len=256) :: cmessage
+    character(len=1024) :: cmessage
 
     err = 0
     message = 'get_summa_parameter_spec/'
@@ -59,7 +63,8 @@ contains
       message=trim(message)//'calibration parameter list is not defined'
       err=20; return
     endif
-    if(size(config%calib%param_list) == 0)then
+    nSumma = size(config%calib%param_list)
+    if(nSumma == 0)then
       message=trim(message)//'calibration parameter list is empty'
       err=20; return
     endif
@@ -67,7 +72,7 @@ contains
     ! -----------------------------------------------------------------------------------------------
     ! Determine maximum possible number of unique parameters.
     ! -----------------------------------------------------------------------------------------------
-    nMax = size(config%calib%param_list)
+    nMax = nSumma
     if(allocated(config%calib%ordered))then
       do i=1,size(config%calib%ordered)
         if(.not.allocated(config%calib%ordered(i)%parameters))then
@@ -89,7 +94,7 @@ contains
     ! -----------------------------------------------------------------------------------------------
     ! Add sampled calibration parameters.
     ! -----------------------------------------------------------------------------------------------
-    do i=1,size(config%calib%param_list)
+    do i=1,nSumma
       ix = find_parameter(trim(config%calib%param_list(i)%name), param_names(1:nParam))
       if(ix > 0)then
         message=trim(message)//'duplicate calibration parameter: '// trim(config%calib%param_list(i)%name)
@@ -99,7 +104,6 @@ contains
       param_names(nParam) = trim(config%calib%param_list(i)%name)
       sampled(nParam)     = .true.
     enddo
-
     ! -----------------------------------------------------------------------------------------------
     ! Add parameters required only by ordered dependencies.
     ! -----------------------------------------------------------------------------------------------
@@ -110,7 +114,9 @@ contains
           if(ix == 0)then
             nParam = nParam + 1
             param_names(nParam) = trim(config%calib%ordered(i)%parameters(j))
-            sampled(nParam)     = .false.
+            sampled(nParam)     = config%calib%ordered(i)%sample_gaps
+          else
+            if(config%calib%ordered(i)%sample_gaps) sampled(ix) = .true.
           endif
         enddo
       enddo
@@ -131,19 +137,37 @@ contains
     do i=1,nParam
       spec%params(i)%name    = trim(param_names(i))
       spec%params(i)%sampled = sampled(i)
+      spec%params(i)%transformation = 'none'
       call get_summa_parameter_info(trim(param_names(i)),                &
-                                    mpar_init,bpar_init,                 &
                                     spec%params(i)%trial_value,          &
                                     spec%params(i)%lower,                &
                                     spec%params(i)%upper,                &
                                     spec%params(i)%units,                &
                                     spec%params(i)%long_name,            &
-                                    err,cmessage)
+                                    err,cmessage,mpar_init,bpar_init)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      ! default parameter transformation
-      spec%params(i)%transformation = 'none'
     enddo
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Replace the parameter files' bounds with configured ones; a default outside them moves inside
+    ! -----------------------------------------------------------------------------------------------
+    if(allocated(config%calib%param_bounds))then
+      do i=1,size(config%calib%param_bounds)
+        ix = find_parameter(trim(config%calib%param_bounds(i)%name), param_names(1:nParam))
+        if(ix == 0)then
+          message=trim(message)//'bounds given for a parameter that is not calibrated: '// &
+                  trim(config%calib%param_bounds(i)%name)
+          err=20; return
+        endif
+        if(config%calib%param_bounds(i)%lower > config%calib%param_bounds(i)%upper)then
+          message=trim(message)//'invalid bounds for parameter: '//trim(config%calib%param_bounds(i)%name)
+          err=20; return
+        endif
+        spec%params(ix)%lower       = config%calib%param_bounds(i)%lower
+        spec%params(ix)%upper       = config%calib%param_bounds(i)%upper
+        spec%params(ix)%trial_value = min(max(spec%params(ix)%trial_value, spec%params(ix)%lower), spec%params(ix)%upper)
+      enddo
+    endif
 
     ! -----------------------------------------------------------------------------------------------
     ! Apply configured calibration parameter bounds and transformations.
@@ -236,6 +260,7 @@ contains
         spec%ordered(i)%param_index(j) = ix
       enddo
       spec%ordered(i)%gap_fraction = config%calib%ordered(i)%gap_fraction
+      spec%ordered(i)%sample_gaps  = config%calib%ordered(i)%sample_gaps
     enddo
 
   end subroutine get_summa_parameter_spec
@@ -244,7 +269,8 @@ contains
   ! Build the complete scalar SUMMA parameter override vector for one trial.
   !
   ! Sampled parameters receive their values from sampled_values. Non-sampled parameters represented
-  ! in the parameter specification receive their scalar trial_value.
+  ! in the parameter specification receive their scalar trial_value. A chain searched by its gaps is
+  ! then turned from fractions into values.
   !
   ! The ordering of param_values matches spec%params and therefore the invariant parameter-name
   ! vector constructed from spec%params(:)%name during parameter-evaluation initialization.
@@ -294,6 +320,7 @@ contains
         param_values(i) = spec%params(i)%trial_value
       endif
     enddo
+    call decode_gap_chains(spec,param_values)
 
   end subroutine build_summa_parameter_overrides
 
@@ -306,8 +333,8 @@ contains
   ! calibration constraints but are not sampled. The scalar override is subsequently applied across
   ! all spatial elements by summa_paramSetup.
   ! **************************************************************************************************
-  subroutine get_summa_parameter_info(param_name,mpar_init,bpar_init, &
-                                      trial_value,lower,upper,units,long_name,err,message)
+  subroutine get_summa_parameter_info(param_name,trial_value,lower,upper,units,long_name,err,message, &
+                                      mpar_init,bpar_init)
     USE get_ixname_module, only: get_ixParam,get_ixBpar
     USE globalData, only: localParFallback,basinParFallback
     USE globalData, only: mpar_meta,bpar_meta
@@ -315,8 +342,8 @@ contains
     USE param_override_module, only: split_domain_target
     implicit none
     character(*),      intent(in)  :: param_name
-    type(var_dlength), intent(in)  :: mpar_init
-    type(var_d),       intent(in)  :: bpar_init
+    type(var_dlength), optional, intent(in) :: mpar_init  ! initialized HRU parameters, single-domain runs only
+    type(var_d),       optional, intent(in) :: bpar_init  ! initialized basin parameters, single-domain runs only
     real(rkind),       intent(out) :: trial_value
     real(rkind),       intent(out) :: lower
     real(rkind),       intent(out) :: upper
@@ -333,14 +360,18 @@ contains
     ! a name@domainType parameter takes the default and bounds of the parameter it names
     call split_domain_target(param_name,name,domType)
     if(domType==integerMissing)then
-      message=trim(message)//'unknown domain type in "'//trim(param_name)//'" (use upland, glacCln1, glacCln2, glacDbr, or wetland)'
+      message=trim(message)//'unknown domain type in "'//trim(param_name)//'" (use upland, glacCln1, glacCln2, glacDbr, wetland or stream)'
       err=20; return
     endif
   
     ! local parameter
     ixParam=get_ixParam(trim(name))
     if(ixParam > 0)then
-      trial_value=mpar_init%var(ixParam)%dat(1)
+      if(present(mpar_init))then
+        trial_value=mpar_init%var(ixParam)%dat(1)
+      else
+        trial_value=localParFallback(ixParam)%default_val
+      endif
       lower      =localParFallback(ixParam)%lower_limit
       upper      =localParFallback(ixParam)%upper_limit
       units      =trim(mpar_meta(ixParam)%varUnit)

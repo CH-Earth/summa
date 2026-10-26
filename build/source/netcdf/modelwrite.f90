@@ -877,6 +877,10 @@ contains
  err = nf90_create(trim(filename),NF90_NETCDF4,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
 
+ ! mark the aquifer as started, so a later run with aquiferIni=emptyStart keeps the aquifer in this file
+ err = nf90_put_att(ncid,nf90_global,'aqEmptyStarted',1)
+ message='iCreate[aqEmptyStarted]'; call netcdf_err(err,message); if(err/=0)return
+
  ! define dimensions
                      err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU_local           ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
                      err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU_local           ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return

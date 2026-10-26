@@ -1572,8 +1572,8 @@ subroutine aeroResist(&
   ! initialize error control
   err=0; message='aeroResist/'
 
-  ! check that measurement height is above the top of the canopy
-  if (mHeight < heightCanopyTop) then
+  ! check that measurement height is above the top of an exposed canopy
+  if (computeVegFlux .and. mHeight < heightCanopyTop) then
     err=20; message=trim(message)//'measurement height is below the top of the canopy'; return
   end if
 

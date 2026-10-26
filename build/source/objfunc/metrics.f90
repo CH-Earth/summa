@@ -6,8 +6,30 @@ module metrics
   private
 
   public :: compute_metric
+  public :: metric_is_maximized
 
 contains
+
+  ! **************************************************************************************************
+  ! Report whether a larger value of a metric is the better fit.
+  !
+  ! Efficiencies (KGE, KGE', NSE) improve as they increase; error metrics (MAE, RMSE) improve as they
+  ! decrease.  A search combining several targets has to orient them the same way before it can compare
+  ! or combine them, and it is the metric, not the target, that decides which way each one points.
+  !
+  ! An unrecognized metric is reported as maximized: compute_metric rejects it, so the caller never
+  ! gets far enough to use the orientation.
+  ! **************************************************************************************************
+  pure function metric_is_maximized(metric) result(maximize)
+    character(*), intent(in) :: metric       ! objective-function metric
+    logical                  :: maximize     ! .true. if larger is better
+
+    select case(trim(metric))
+      case ('mae','rmse'); maximize = .false.
+      case default;        maximize = .true.
+    end select
+
+  end function metric_is_maximized
 
   ! **************************************************************************************************
   ! Compute the selected objective-function metric.

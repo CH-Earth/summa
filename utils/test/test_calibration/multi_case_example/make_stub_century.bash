@@ -114,7 +114,6 @@ sed -e "s|^template_path = .*|template_path = \"${ROOT}/\"|" \
 sed -e "s|^home_path = .*|home_path = \"${ROOT}\"|" \
     -e "s|^start_time = .*|start_time = \"1981-01-01 00:00\"|" \
     -e "s|^end_time   = .*|end_time   = \"1981-12-31 23:00\"|" \
-    -e "s|^time_zone  = .*|time_zone  = \"utcTime\"|" \
     -e "s|^start_date     = .*|start_date     = \"1981-01-01\"|" \
     -e "s|^end_date       = .*|end_date       = \"1981-12-31\"|" \
     -e "s|^write_aligned  = .*|write_aligned  = false\nn_samples      = 3|" \

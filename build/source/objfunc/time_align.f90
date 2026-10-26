@@ -16,11 +16,8 @@ contains
   !
   ! The routine:
   !   - converts simulation and observation times to a common absolute time axis
-  !   - assumes observation timestamps represent the end of each averaging period
-  !   - averages higher-frequency simulated flow over each observation period
+  !   - averages higher-frequency simulated flow over each observation period, given by its time bounds
   !   - removes periods with missing observed or simulated values
-  !
-  ! Observation time steps are currently assumed to be regular.
   ! **************************************************************************************************
   subroutine align_timeseries(timeSim,flowSim,timeSimUnits,flowSimUnits, &
                               timeObs,flowObs,timeObsUnits,flowObsUnits, &
@@ -125,6 +122,14 @@ contains
     ! allow small floating-point differences in time coordinates
     tol = max(1.e-6_rkind, &
               1.e-8_rkind*abs(timeEndSec(1)-timeBegSec(1)))
+
+    ! observation times may be irregular (a monthly product's months are 28 to 31 days long), but must increase
+    do iObs=2,size(timeObsSec)
+      if(timeObsSec(iObs)-timeObsSec(iObs-1) <= 0._rkind)then
+        message=trim(message)//'observation times are not increasing'
+        err=20; return
+      endif
+    enddo
 
     ! allocate simulation values aggregated to observation periods
     allocate(simMean(size(timeObs)))

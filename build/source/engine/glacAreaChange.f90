@@ -61,14 +61,19 @@ implicit none
 real(rkind),parameter :: flat_threshold=1.e-6_rkind  ! tan slope below which terrain is treated as flat for aspect
 real(rkind),parameter :: deg2rad=PI_D/180._rkind     ! factor to convert degrees to radians
 real(rkind),parameter :: rad2deg=180._rkind/PI_D     ! factor to convert radians to degrees
+real(rkind),parameter :: min_thickness=0.02_rkind    ! minimum thickness of debris cover to be considered as debris cover (m)
+real(rkind),parameter :: maxDebrisTop=0.05_rkind     ! maximum thickness of the top debris layer (m)
+real(rkind),parameter :: wallSearchDist=500._rkind   ! distance from a glacier margin searched for the top of its rock face (m)
+real(rkind),parameter :: wallMinSlope=40._rkind      ! slope above which ground is bare rock that sheds onto the ice, above scree's angle of repose (degrees)
 
 ! privacy
-private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_MUSCL,static_emergElev_latRockfall
-private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc
-private::superbee,flux,SIA,midpt,pluss,minus
+private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_upwind,static_emergElev_latRockfall,debris_unload
+private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc,debrisLayering,debrisResplit
+private::superbee,flux,SIA,midpt,pluss,minus,refl
 public::glacAreaChange
 public::time_updateGlacArea
 public::updateGlacDomain
+public::startGlacDomain
 contains
 
 
@@ -102,6 +107,9 @@ subroutine glacAreaChange(&
                     wallErosionRate,         & ! intent(in):    glacier wall erosion rate input for debris advection (mm yr-1)
                     debrisCritStress,        & ! intent(in):    critical driving stress where debris slides on terminal wedge (Pa)
                     latMoraineWidth,         & ! intent(in):    lateral moraine width (rockfall length) (m)
+                    glenAFactor,             & ! intent(in):    multiplier on Glen's rate factor A (-)
+                    mbGradAbove,             & ! intent(in):    mass balance gradient above the highest domain, 0 to extend the fit (mm w.e. m-1 yr-1)
+                    mbGradBelow,             & ! intent(in):    mass balance gradient below the lowest domain, 0 to extend the fit (mm w.e. m-1 yr-1)
                     ! area
                     glacierAblArea,          & ! intent(inout): per glacier ablation area (m2)
                     glacierAccArea,          & ! intent(inout): per glacier accumulation area (m2)
@@ -137,6 +145,9 @@ subroutine glacAreaChange(&
   real(rkind), intent(in)            :: wallErosionRate                 ! glacier wall erosion rate input for debris advection (mm yr-1)
   real(rkind), intent(in)            :: debrisCritStress                ! critical driving stress where debris slides on terminal wedge (Pa)
   real(rkind), intent(in)            :: latMoraineWidth                 ! lateral moraine width (rockfall length) (m)
+  real(rkind), intent(in)            :: glenAFactor                     ! multiplier on Glen's rate factor A (-)
+  real(rkind), intent(in)            :: mbGradAbove                     ! mass balance gradient above the highest domain (mm w.e. m-1 yr-1)
+  real(rkind), intent(in)            :: mbGradBelow                     ! mass balance gradient below the lowest domain (mm w.e. m-1 yr-1)
   ! area
   real(rkind), intent(inout)         :: glacierAblArea(nGlac)           ! per glacier ablation area (m2)
   real(rkind), intent(inout)         :: glacierAccArea(nGlac)           ! per glacier accumulation area (m2)
@@ -184,7 +195,6 @@ subroutine glacAreaChange(&
   integer(i4b)                       :: i, j, k, n, dbr                 ! loop indices
   integer(i4b)                       :: iGlac, iGrid, iDOM, iHRU        ! loop indices
   character(len=256)                 :: cmessage                        ! error message of downwind routine
-  real(rkind),parameter              :: min_thickness=0.02_rkind        ! minimum thickness of debris cover to be considered as debris cover (m)
   logical(lgt),parameter             :: printFlag=.false.               ! flag to print details for debugging
 
   ! ----------------------------------------------------------------------------------------------
@@ -195,9 +205,8 @@ subroutine glacAreaChange(&
   area0 = dom_area
 
   ! ----------------------------------------------------------------------------------------------
-  ! Fit mass change as a piecewise linear function of elevation, once through the clean domains
-  !  (column 1) and once through the debris-covered domains (column 2). Domains with no area have
-  !  realMissing elevation and are excluded; a column is empty if the GRU has no domains of that kind.
+  ! Fit mass change as a piecewise linear function of elevation, clean domains in column 1 and
+  !  debris-covered in column 2, excluding the domains with no area
   ! ----------------------------------------------------------------------------------------------
   isValid(:,1) = dom_elev/=realMissing .and. dom_debris_thick==0._rkind
   isValid(:,2) = dom_elev/=realMissing .and. dom_debris_thick> 0._rkind
@@ -224,7 +233,8 @@ subroutine glacAreaChange(&
     if(validCount(dbr)==0) cycle
     validElev(1:validCount(dbr),dbr)       = pack(dom_elev,       isValid(:,dbr))
     validMassChange(1:validCount(dbr),dbr) = pack(dom_massChange, isValid(:,dbr))
-    call fit_massBalanceCurve(validCount(dbr), validElev(:,dbr), validMassChange(:,dbr), slope(:,dbr), intercept(:,dbr), ELA_elev(dbr))
+    call fit_massBalanceCurve(validCount(dbr), validElev(:,dbr), validMassChange(:,dbr), slope(:,dbr), intercept(:,dbr), ELA_elev(dbr), &
+                              mbGradAbove*t_total/(365.25_rkind*secprday), mbGradBelow*t_total/(365.25_rkind*secprday))
     if(printFlag)then
       do i = 1, validCount(dbr)
         write(*,'(a,i1,a,2(1x,f7.1),a,2(1x,e9.2))') "Debris presence ", dbr-1, "   Valid sorted elevation, mass change =", &
@@ -301,13 +311,13 @@ subroutine glacAreaChange(&
 
     ! run the flow model, which updates surface and debris
     call run_flowModel(t_total, debris, surface, bed, glacierMask, slope, intercept, validElev, validCount, maxCount, debrisConc, &
-                       wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag, &
+                       wallErosionRate, debrisCritStress, latMoraineWidth, glenAFactor, iden_soil, theta_sat, ELA_use_glac, nx, ny, dx, dy, volume, printFlag, &
                        err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     totVolume = totVolume + volume ! includes debris, not currently used
 
     ! new glacier geometry
-    hgt = surface - bed
+    hgt = surface - debris - bed
     call cell_slopeAspect(surface, glacierMask==1_i4b .and. hgt>thick4area, nx, ny, dx, dy, cell_tan_slope, cell_aspect)
     glacierAccArea(iGlac) = count(hgt>thick4area .and. surface>=ELA_use_glac)*dx*dy
     glacierAblArea(iGlac) = count(hgt>thick4area .and. surface< ELA_use_glac)*dx*dy
@@ -427,7 +437,7 @@ end subroutine glacAreaChange
 ! private subroutine fit_massBalanceCurve: piecewise linear mass change as a function of elevation
 !   through the domain points, and the ELA where it crosses zero
 ! ************************************************************************************************
-subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
+subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA, gradAbove, gradBelow)
   implicit none
   integer(i4b), intent(inout) :: nPts           ! number of points; reduced on return if points shared an elevation
   real(rkind), intent(inout)  :: elev(:)        ! elevation of each point (m); sorted in descending order on return
@@ -435,6 +445,8 @@ subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
   real(rkind), intent(out)    :: slope(:)       ! slope of segment i, which joins points i-1 and i; segments 1 and nPts+1 extrapolate above and below (kg m-2 m-1)
   real(rkind), intent(out)    :: intercept(:)   ! intercept of segment i (kg m-2)
   real(rkind), intent(out)    :: ELA            ! elevation where mass change crosses zero (m)
+  real(rkind), intent(in)     :: gradAbove      ! gradient above the highest point over the period, 0 to extend the end segment (kg m-2 m-1)
+  real(rkind), intent(in)     :: gradBelow      ! gradient below the lowest point over the period, 0 to extend the end segment (kg m-2 m-1)
   ! locals
   integer(i4b)                :: idx(nPts)      ! order of the points
   integer(i4b)                :: i, j, m        ! indices
@@ -466,7 +478,15 @@ subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
   slope = 0._rkind
   intercept = 0._rkind
   if(nPts == 1)then
-    intercept(1) = massChange(1)
+    intercept(1:2) = massChange(1)
+    if(gradAbove > 0._rkind)then
+      slope(1) = gradAbove
+      intercept(1) = massChange(1) - gradAbove*elev(1)
+    endif
+    if(gradBelow > 0._rkind)then
+      slope(2) = gradBelow
+      intercept(2) = massChange(1) - gradBelow*elev(1)
+    endif
     if(massChange(1) > 0._rkind)then
       ELA = allAcc
     else
@@ -497,6 +517,14 @@ subroutine fit_massBalanceCurve(nPts, elev, massChange, slope, intercept, ELA)
   if(slope(nPts+1) < 0._rkind)then
     slope(nPts+1) = 0._rkind
     intercept(nPts+1) = massChange(nPts)
+  endif
+  if(gradAbove > 0._rkind)then
+    slope(1) = gradAbove
+    intercept(1) = massChange(1) - gradAbove*elev(1)
+  endif
+  if(gradBelow > 0._rkind)then
+    slope(nPts+1) = gradBelow
+    intercept(nPts+1) = massChange(nPts) - gradBelow*elev(nPts)
   endif
 
   ! ELA is where the sign-change segment crosses zero
@@ -583,7 +611,7 @@ end subroutine argsort_desc
 !   Follows the implementation of Jarosch et al., 2013
 ! ************************************************************************************************
 subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, validElev, validCount, maxCount, debrisConc, &
-                         wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag, &
+                         wallErosionRate, debrisCritStress, latMoraineWidth, glenAFactor, iden_soil, theta_sat, ELA, nx, ny, dx, dy, volume, printFlag, &
                          err, message)
   implicit none
   ! Arguments
@@ -591,12 +619,13 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   real(rkind), intent(inout) :: debris(nx,ny), S(nx,ny)
   real(rkind), intent(in) :: slope(maxCount+1,2), intercept(maxCount+1,2), validElev(maxCount,2), debrisConc
   real(rkind), intent(in) :: wallErosionRate, debrisCritStress, latMoraineWidth, iden_soil, theta_sat, ELA
+  real(rkind), intent(in) :: glenAFactor ! multiplier on Glen's rate factor A (-)
   integer(i4b), intent(in) :: validCount(2), maxCount
   integer(i4b), intent(in) :: ny, nx, glacierMask(nx,ny)
   logical(lgt), intent(in) :: printFlag
   real(rkind), intent(out) :: volume
   integer(i4b), intent(out) :: err                ! error code
-  character(*), intent(out) :: message             ! error message
+  character(*), intent(out) :: message            ! error message
   ! Local variables
   real(rkind) :: dt, t, max_dt, min_dt, deltat, debris_half_dt, div_q(nx,ny), dt_cfl, meanS
   real(rkind) :: gamma, m_dot(nx,ny), H(nx,ny), lat_rockfall(nx,ny)
@@ -613,7 +642,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   integer(i4b) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
 
   err=0; message='run_flowModel/'
-  gamma = 2._rkind * A * (iden_ice * gravity)**n / (n + 2_i4b)
+  gamma = 2._rkind * glenAFactor * A * (iden_ice * gravity)**n / (n + 2_i4b)
   max_dt = 31._rkind * secprday ! max timestep in seconds, a month
   min_dt = 3600._rkind ! min timestep in seconds, 1 hour
   t = 0._rkind
@@ -644,7 +673,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
 
   ! one-time debris geometry setup from initial S and ELA for this yearly run
   if(sum(debris)>0._rkind)then
-    call static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, wallErosionRate, nx, ny, dx, dy, &
+    call static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debrisConc, wallErosionRate, nx, ny, dx, dy, &
                                       emergenceMask, lat_rockfall, l, lp, lm, k, kp, km)
   else
     emergenceMask = 0_i4b
@@ -672,7 +701,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
       return
     endif
 
-    ! get mass balance rate over surface (m s-1) and remove debris from glacier surface for flow calculation
+    ! get mass balance rate over surface (m ice s-1) and remove debris from glacier surface for flow calculation
     m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
     S = S - debris
     S_stepStart = S
@@ -698,6 +727,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
 
     ! update S (with time discretization S_t+1 - S_t /dt = div(q_t)+ m_dot_t, so S_t+1 = S_t + (m_dot + div(q))*dt)
     S = S + (m_dot + div_q) * deltat
+    S = max(S, B) ! melt beyond the ice there is not taken from the bed
 
     ! check that the glacier is in boundaries, fix small violations, how small is arbitrary
     if(any((S - B) > verySmall .and. glacierMask==0_i4b))then
@@ -736,31 +766,16 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
       S_k_dn = midpt(Skl, Skml)
       slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
 
-      ! remove debris downslope of where slope is too steep to hold debris, > yield stress following Mayer and Licciulli (2021)
+      ! remove debris where the slope is too steep to hold it, > yield stress, and downstream, following Mayer and Licciulli (2021)
       slope_g = merge(sqrt(slope_k**2_i4b + slope_l**2_i4b), 0._rkind, S>B) ! Slope in m/m, set to zero where no glacier
       drivingStress = (iden_soil*(1._rkind - theta_sat)) * gravity * debris * (abs(slope_g)/sqrt(slope_g**2_i4b + 1_i4b)) ! driving stress in Pa
-      do j = 1, ny
-        do i = 1, nx
-          if(drivingStress(i,j) > debrisCritStress)then ! yield stress
-            if(slope_k(i,j) > 0._rkind .and. slope_l(i,j) > 0._rkind)then
-              debris(i:nx,j:ny) = 0._rkind
-              exit
-            elseif(slope_k(i,j) > 0._rkind .and. slope_l(i,j) < 0._rkind)then
-              debris(i:nx, 1:j) = 0._rkind
-              exit
-            elseif(slope_l(i,j) < 0._rkind .and. slope_k(i,j) > 0._rkind)then
-              debris(1:i ,j:ny) = 0._rkind
-              exit
-            elseif(slope_k(i,j) < 0._rkind .and. slope_k(i,j) < 0._rkind)then
-              debris(1:i , 1:j) = 0._rkind
-              exit
-            endif
-          endif
-        enddo
-      enddo
+      call debris_unload(S, S>B, drivingStress > debrisCritStress, nx, ny, dx, dy, debris)
     else
       debris = 0._rkind
     endif
+
+    ! debris on a cell whose ice is gone is moraine, not glacier
+    debris = merge(debris, 0._rkind, S-B>thick4area)
 
     ! add debris back to surface
     S = S + debris
@@ -815,6 +830,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   real(rkind) :: D_k_dn_m(nx,ny), D_k_dn_p(nx,ny), D_k_dn_min(nx,ny), D_k_dn_max(nx,ny)
   real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
   real(rkind) :: divisor, div_k(nx,ny), div_l(nx,ny)
+  real(rkind) :: Xkpl(nx,ny), Xkml(nx,ny), Xkplp(nx,ny), Xkmlp(nx,ny), Xkplm(nx,ny), Xkmlm(nx,ny)
+  real(rkind) :: Xklp(nx,ny), Xklm(nx,ny), Yplp(nx,ny), Yplm(nx,ny), Ymlp(nx,ny), Ymlm(nx,ny)
   integer(i4b) :: i, j
 
   ! Keep diffusion thickness nonnegative and zero outside glacier mask.
@@ -841,6 +858,14 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   Hklm  = H(k  ,lm )
   Hklmm = H(k  ,lmm)
 
+  ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
+  call refl(S(kp,l ), S(k,l ), S(km,l ), H(kp,l )>0._rkind, H(km,l )>0._rkind, Xkpl , Xkml )
+  call refl(S(kp,lp), S(k,lp), S(km,lp), H(kp,lp)>0._rkind, H(km,lp)>0._rkind, Xkplp, Xkmlp)
+  call refl(S(kp,lm), S(k,lm), S(km,lm), H(kp,lm)>0._rkind, H(km,lm)>0._rkind, Xkplm, Xkmlm)
+  call refl(S(k ,lp), S(k,l ), S(k ,lm), H(k,lp )>0._rkind, H(k,lm )>0._rkind, Xklp , Xklm )
+  call refl(S(kp,lp), S(kp,l), S(kp,lm), H(kp,lp)>0._rkind, H(kp,lm)>0._rkind, Yplp , Yplm )
+  call refl(S(km,lp), S(km,l), S(km,lm), H(km,lp)>0._rkind, H(km,lm)>0._rkind, Ymlp , Ymlm )
+
   ! calculate l+1/2 index
   H_l_up_m = minus(Hklm, Hkl, Hklp)
   H_l_up_p = pluss(Hkl, Hklp, Hklpp)
@@ -854,8 +879,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   H_l_dn_p = max(H_l_dn_p, 0._rkind)
 
   ! calculate l flux
-  f_l_p = flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dy, dx, n)
-  f_l_m  = flux(Skpl, Skml, Skplm, Skmlm, Skl, Sklm, dy, dx, n)
+  f_l_p = flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dx, dy, n)
+  f_l_m = flux(Xkpl, Xkml, Xkplm, Xkmlm, Skl, Sklm, dx, dy, n)
 
   ! calculate l Diffusivity
   D_l_up_m = gamma * H_l_up_m**(n+2_i4b) * f_l_p  ! equation 30 Jarosh 2013
@@ -897,9 +922,9 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
       endif
     enddo
   enddo
-  ! enforce zero diffusion outside the mask
-  D_l_up = merge(0._rkind, D_l_up, mask==0)
-  D_l_dn = merge(0._rkind, D_l_dn, mask==0)
+  ! no flow across a face with either cell outside the mask
+  D_l_up = merge(0._rkind, D_l_up, mask==0 .or. mask(k,lp)==0)
+  D_l_dn = merge(0._rkind, D_l_dn, mask==0 .or. mask(k,lm)==0)
 
   ! calculate k+1/2 index
   H_k_up_m = minus(Hkml, Hkl, Hkpl)
@@ -914,8 +939,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   H_k_dn_p = max(H_k_dn_p, 0._rkind)
 
   ! calculate k flux
-  f_k_p = flux(Sklp, Sklm, Skplp, Skplm, Skpl, Skl, dx, dy, n)
-  f_k_m = flux(Sklp, Sklm, Skmlp, Skmlm, Skl, Skml, dx, dy, n)
+  f_k_p = flux(Xklp, Xklm, Yplp, Yplm, Skpl, Skl, dy, dx, n)
+  f_k_m = flux(Xklp, Xklm, Ymlp, Ymlm, Skl, Skml, dy, dx, n)
 
   ! calculate k Diffusivity
   D_k_up_m = gamma * H_k_up_m**(n+2_i4b) * f_k_p  ! equation 30 Jarosh 2013
@@ -957,9 +982,9 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
       endif
     enddo
   enddo
-  ! enforce zero diffusion outside the mask
-  D_k_up = merge(0._rkind, D_k_up, mask==0)
-  D_k_dn = merge(0._rkind, D_k_dn, mask==0)
+  ! no flow across a face with either cell outside the mask
+  D_k_up = merge(0._rkind, D_k_up, mask==0 .or. mask(kp,l)==0)
+  D_k_dn = merge(0._rkind, D_k_dn, mask==0 .or. mask(km,l)==0)
 
   ! calculate delta t and t
   divisor = max(maxval(abs(D_k_up)), maxval(abs(D_k_dn)), maxval(abs(D_l_up)), maxval(abs(D_l_dn)))
@@ -1000,19 +1025,19 @@ function massBalance(S, debris, glacierMask, slope, intercept, t_total, validEle
       else
         ! set debris
         dbr = 0
-        if(debris(k,j) > 0._rkind) dbr = 1
+        if(debris(k,j) >= min_thickness) dbr = 1
         ! find the index of the elevation in the validElev array
-        ind = validCount(dbr+1)+1 ! elevation above the valid elevation, extrapolate up
+        ind = 1 ! segment 1 extrapolates above the highest point
         do i = 1, validCount(dbr+1)
-          if(S(k,j) <= validElev(i,dbr+1)) ind = i
+          if(S(k,j) <= validElev(i,dbr+1)) ind = i+1 ! segment i+1 joins points i and i+1
         enddo
         massBalance(k,j) = (slope(ind,dbr+1) * S(k,j) + intercept(ind,dbr+1))/ t_total
       endif
     enddo
   enddo
 
-  ! convert mass balance to m s-1 from kg m-2 s-1
-  massBalance = massBalance / iden_water
+  ! convert mass balance to m ice s-1 from kg m-2 s-1
+  massBalance = massBalance / iden_ice
 
 end function massBalance
 
@@ -1020,7 +1045,7 @@ end function massBalance
 ! ************************************************************************************************
 ! private subroutine run_debrisModel: set up englacial debris advection transport model and run
 !   for one sub-time step. Debris input is from englacial debris emergence and lateral moraine rockfall,
-!   and output from terminus slumping and ice velocity.
+!   and output from terminus slumping and ice velocity (done in the main flow model).
 !   Follows the implementation of Mayer and Licciulli (2021), from Anderson and Anderson (2016).
 ! ************************************************************************************************
 subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask, lat_rockfall, &
@@ -1035,10 +1060,11 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   real(rkind), intent(inout) :: debris(nx,ny)
   ! Local variables
   real(rkind),parameter :: cfl= 0.5 ! Courant-Friedrichs-Lewy condition
-  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skl(nx,ny), Skpl(nx,ny), Skml(nx,ny)
-  real(rkind) :: S_l_up(nx,ny), S_l_dn(nx,ny), S_k_up(nx,ny), S_k_dn(nx,ny)
-  real(rkind) :: slope_l(nx,ny), slope_k(nx,ny), u(nx,ny), v(nx,ny)
-  real(rkind) :: influx(nx,ny), englacial_emerg(nx, ny)
+  real(rkind) :: H(nx,ny), Sklp(nx,ny), Skpl(nx,ny), Skl(nx,ny)
+  real(rkind) :: Xkpl(nx,ny), Xkml(nx,ny), Xkplp(nx,ny), Xkmlp(nx,ny), Xklp(nx,ny), Xklm(nx,ny)
+  real(rkind) :: Yplp(nx,ny), Yplm(nx,ny)
+  real(rkind) :: u_l_up(nx,ny), u_l_dn(nx,ny), u_k_up(nx,ny), u_k_dn(nx,ny)
+  real(rkind) :: outRate(nx,ny), influx(nx,ny), englacial_emerg(nx, ny)
   real(rkind) :: min_dt, div_uD(nx,ny), t, max_dt, dt, dt_cfl, deltat
   integer(i4b) :: mask(nx,ny)
 
@@ -1046,48 +1072,56 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   min_dt = 3600._rkind ! min timestep in seconds, 1 hour
   t = 0._rkind
 
-  ! calculate glacier ice surface slope with a finite difference
-  Sklp  = S(k ,lp)
-  Sklm  = S(k ,lm) 
-  Skl   = S(k ,l )
-  S_l_up = midpt(Sklp, Skl)
-  S_l_dn = midpt(Skl, Sklm)
-  slope_l= (S_l_up - S_l_dn) / dy ! (m m-1)
-
-  Skpl  = S(kp,l )
-  Skml  = S(km,l )
-  Skl   = S(k ,l )
-  S_k_up = midpt(Skpl, Skl)
-  S_k_dn = midpt(Skl, Skml)
-  slope_k= (S_k_up - S_k_dn) / dx ! (m m-1)
-
   ! Use one-time masks/rockfall map computed from initial S for this yearly run.
-  englacial_emerg = -merge(m_dot, 0._rkind, emergenceMask==1_i4b) * debrisConc ! (kg m-2 s-1)
+  englacial_emerg = merge(max(-m_dot, 0._rkind), 0._rkind, emergenceMask==1_i4b) * debrisConc ! (kg m-2 s-1)
 
   ! Sum for total debris influx in m/s
   influx = lat_rockfall + englacial_emerg/(iden_soil*(1._rkind - theta_sat)) 
 
-  ! Calculate surface velocity using SIA, will be zero where no glacier
-  u = gamma * (n + 2_i4b)/(n + 1_i4b) * abs(slope_l)**(n-1_i4b) * slope_l *(S-B)**(n + 1_i4b) ! (m s-1)
-  v = gamma * (n + 2_i4b)/(n + 1_i4b) * abs(slope_k)**(n-1_i4b) * slope_k *(S-B)**(n + 1_i4b) ! (m s-1)
-
   mask = merge(1_i4b, 0_i4b, S>B) ! mask for glacier on subgrid
-  
+  H = merge(S - B, 0._rkind, mask==1_i4b)
+
+  ! indices
+  Sklp = S(k ,lp)
+  Skpl = S(kp,l )
+  Skl  = S(k ,l )
+
+  ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
+  call refl(S(kp,l ), S(k,l ), S(km,l ), H(kp,l )>0._rkind, H(km,l )>0._rkind, Xkpl , Xkml )
+  call refl(S(kp,lp), S(k,lp), S(km,lp), H(kp,lp)>0._rkind, H(km,lp)>0._rkind, Xkplp, Xkmlp)
+  call refl(S(k ,lp), S(k,l ), S(k ,lm), H(k,lp )>0._rkind, H(k,lm )>0._rkind, Xklp , Xklm )
+  call refl(S(kp,lp), S(kp,l), S(kp,lm), H(kp,lp)>0._rkind, H(kp,lm)>0._rkind, Yplp , Yplm )
+
+  ! SIA surface velocity on the up faces, down the surface slope
+  u_l_up = -gamma * (n + 2_i4b)/(n + 1_i4b) * flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dx, dy, n) &
+           * (Sklp - Skl)/dy * midpt(H, H(k,lp))**(n + 1_i4b)
+  u_k_up = -gamma * (n + 2_i4b)/(n + 1_i4b) * flux(Xklp, Xklm, Yplp, Yplm, Skpl, Skl, dy, dx, n) &
+           * (Skpl - Skl)/dx * midpt(H, H(kp,l))**(n + 1_i4b)
+
+  ! no flow across a face with either cell outside the mask; each down face is the up face of the cell below
+  u_l_up = merge(0._rkind, u_l_up, mask==0 .or. mask(k,lp)==0)
+  u_k_up = merge(0._rkind, u_k_up, mask==0 .or. mask(kp,l)==0)
+  u_l_dn = u_l_up(k,lm); u_l_dn(:,1) = 0._rkind
+  u_k_dn = u_k_up(km,l); u_k_dn(1,:) = 0._rkind
+
+  ! time step that lets no cell send out more than cfl of its debris
+  outRate = (max(u_l_up, 0._rkind) - min(u_l_dn, 0._rkind))/dy + (max(u_k_up, 0._rkind) - min(u_k_dn, 0._rkind))/dx
+  dt_cfl = max_dt
+  if(maxval(outRate) > 0._rkind) dt_cfl = cfl / maxval(outRate)
+
   ! ** movement with grid **
   do while (t < t_total)
     dt = t_total - t
 
     ! Call a step of the advection scheme
-    call advection_MUSCL(u, v, debris, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, dt_cfl, &
-                         l, lp, lm, k, kp, km)
- 
-    ! update time step
-    deltat = min(dt_cfl, dt)
-    if(deltat > max_dt) deltat = max_dt
-    if(deltat < min_dt) deltat = min_dt
-    t = t + deltat 
+    call advection_upwind(u_l_up, u_k_up, debris, nx, ny, dx, dy, div_uD, l, lp, lm, k, kp, km)
 
-    ! update debris thickness (with time discretization D_t+1 - D_t /dt  = div(uD_t) + influx_t, so D_t+1 = D_t + (div(uD_t) + influx)*dt)
+    ! update time step
+    deltat = min(dt_cfl, dt, max_dt)
+    if(dt_cfl >= min_dt .and. deltat < min_dt) deltat = min_dt
+    t = t + deltat
+
+    ! update debris thickness (with time discretization D_t+1 - D_t /dt  = -div(uD_t) + influx_t)
     debris = debris + (div_uD + influx)* deltat
     debris = merge(debris, 0._rkind, debris > 0._rkind) ! prevent negative debris
   enddo
@@ -1099,11 +1133,11 @@ end subroutine run_debrisModel
 ! private subroutine static_emergElev_latRockfall: build one-time debris geometry fields from initial 
 !   yearly glacier surface S and ELA (for simplification, we assume these fields do not change over the year)
 ! ************************************************************************************************
-subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, wallErosionRate, nx, ny, dx, dy, &
+subroutine static_emergElev_latRockfall(S, B, debris, ELA, latMoraineWidth, debrisConc, wallErosionRate, nx, ny, dx, dy, &
                                         emergenceMask, lat_rockfall, l, lp, lm, k, kp, km)
   implicit none
   ! Arguments
-  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), ELA, latMoraineWidth, debrisConc, wallErosionRate, dx, dy
+  real(rkind), intent(in) :: S(nx,ny), B(nx,ny), debris(nx,ny), ELA, latMoraineWidth, debrisConc, wallErosionRate, dx, dy
   integer(i4b), intent(in) :: nx, ny, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
   real(rkind), intent(out) :: lat_rockfall(nx,ny)
   integer(i4b), intent(out) :: emergenceMask(nx,ny)
@@ -1113,8 +1147,12 @@ subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, 
   real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skl(nx,ny), Skpl(nx,ny), Skml(nx,ny)
   real(rkind) :: S_l_up(nx,ny), S_l_dn(nx,ny), S_k_up(nx,ny), S_k_dn(nx,ny)
   real(rkind) :: slope_l(nx,ny), slope_k(nx,ny)
-  real(rkind) :: rockface_len(nx,ny), rockface_len_local(nx,ny), sin_slope(nx,ny)
-  real(rkind) :: local_drop, src_sum, mean_slope, topElev, emergenceElev
+  real(rkind) :: rockface_len(nx,ny), rockface_len_local(nx,ny)
+  real(rkind) :: run, dist, zp, tanMin  ! horizontal distance walked (m), step length (m), elevation reached (m), tan of wallMinSlope
+  real(rkind) :: step_rise, step_run    ! rise and run of the steepest step up (m)
+  real(rkind) :: src_sum, mean_slope, topElev, emergenceElev
+  integer(i4b) :: ii, jj, ip, jp, in_, jn
+  logical(lgt) :: nearDebris(nx,ny)     ! .true. under debris or beside it
   integer(i4b) :: i, j, iter, nsrc, countGlac
   logical(lgt) :: updated
   logical(lgt) :: isEdge                ! .true. if a glacier cell borders a non-glacier cell
@@ -1149,7 +1187,17 @@ subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, 
       topElev = maxval(merge(S, 0._rkind, S>B))
       emergenceElev = 2._rkind*ELA - topElev + latMoraineWidth * mean_slope
       if(emergenceElev > ELA) emergenceElev = ELA
-      emergenceMask = merge(1_i4b, 0_i4b, S<emergenceElev .and. S>B)
+      ! debris septa crop out under existing debris and in the cells beside it, so the cover spreads a cell at a time
+      nearDebris = debris>=min_thickness
+      if(nx > 1)then
+        nearDebris(2:nx,:)   = nearDebris(2:nx,:)   .or. debris(1:nx-1,:)>=min_thickness
+        nearDebris(1:nx-1,:) = nearDebris(1:nx-1,:) .or. debris(2:nx,:)  >=min_thickness
+      endif
+      if(ny > 1)then
+        nearDebris(:,2:ny)   = nearDebris(:,2:ny)   .or. debris(:,1:ny-1)>=min_thickness
+        nearDebris(:,1:ny-1) = nearDebris(:,1:ny-1) .or. debris(:,2:ny)  >=min_thickness
+      endif
+      emergenceMask = merge(1_i4b, 0_i4b, S<emergenceElev .and. S>B .and. nearDebris)
     endif
   else
     emergenceMask = 0_i4b
@@ -1196,21 +1244,29 @@ subroutine static_emergElev_latRockfall(S, B, ELA, latMoraineWidth, debrisConc, 
       enddo
     enddo 
 
-    ! get rockface length
-    sin_slope = 0._rkind
+    ! rock face of each margin cell below the ELA: steps of at least wallMinSlope up its steepest-ascent path within wallSearchDist
     rockface_len = 0._rkind
+    tanMin = tan(wallMinSlope*deg2rad)
     do j = 1, ny
       do i = 1, nx
         if(edgeMatrix(i,j)==0_i4b .and. S(i,j)<ELA .and. S(i,j)>B(i,j))then
-          local_drop = 0._rkind
-          if(i>1 )then; if(edgeMatrix(i-1,j)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i-1,j))); endif
-          if(i<nx)then; if(edgeMatrix(i+1,j)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i+1,j))); endif
-          if(j>1 )then; if(edgeMatrix(i,j-1)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i,j-1))); endif
-          if(j<ny)then; if(edgeMatrix(i,j+1)==-1_i4b) local_drop = max(local_drop, 2._rkind*(S(i,j) - B(i,j+1))); endif
-          if(local_drop>0._rkind .and. slope0(i,j)>verySmall)then
-            sin_slope(i,j) = max(2._rkind*slope0(i,j)/sqrt((2._rkind*slope0(i,j))**2_i4b + 1._rkind), verySmall)
-            rockface_len(i,j) = local_drop/sin_slope(i,j)
-          endif
+          ip = i; jp = j; zp = S(i,j); run = 0._rkind
+          do
+            step_rise = 0._rkind; step_run = 0._rkind; in_ = 0; jn = 0
+            do jj = max(1, jp-1), min(ny, jp+1)
+              do ii = max(1, ip-1), min(nx, ip+1)
+                if(zeroMask(ii,jj)/=1_i4b) cycle
+                dist = sqrt((real(ii-ip, rkind)*dx)**2_i4b + (real(jj-jp, rkind)*dy)**2_i4b)
+                if(dist<=0._rkind) cycle
+                if((B(ii,jj)-zp)/dist > step_rise/max(step_run, verySmall))then
+                  step_rise = B(ii,jj) - zp; step_run = dist; in_ = ii; jn = jj
+                endif
+              enddo
+            enddo
+            if(in_==0 .or. run+step_run>wallSearchDist) exit
+            if(step_rise>=tanMin*step_run) rockface_len(i,j) = rockface_len(i,j) + sqrt(step_rise**2_i4b + step_run**2_i4b)
+            run = run + step_run; ip = in_; jp = jn; zp = B(ip,jp)
+          enddo
         endif
       enddo
     enddo
@@ -1268,56 +1324,71 @@ end subroutine static_emergElev_latRockfall
 
 
 ! ************************************************************************************************
-! private function advection_MUSCL: mass conserving advection scheme for debris movement with ice velocity
+! private subroutine debris_unload: clear debris on failing cells and on the D8 steepest-descent
+!   path over the ice from each one to the margin or a pit, following Mayer and Licciulli (2021)
 ! ************************************************************************************************
-subroutine advection_MUSCL(u, v, D, mask, cfl, max_dt, nx, ny, dx, dy, div_uD, dt_cfl,&
-                          l, lp, lm, k, kp, km)
+subroutine debris_unload(Z, onIce, failing, nx, ny, dx, dy, debris)
   implicit none
   ! Arguments
-  real(rkind), intent(in) :: u(nx,ny), v(nx,ny), D(nx,ny), cfl, max_dt, dx, dy
-  integer(i4b), intent(in) :: mask(nx,ny), nx, ny, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
-  real(rkind), intent(out) :: div_uD(nx,ny), dt_cfl
+  real(rkind), intent(in) :: Z(nx,ny), dx, dy        ! surface the path descends (m)
+  logical(lgt), intent(in) :: onIce(nx,ny), failing(nx,ny)
+  integer(i4b), intent(in) :: nx, ny
+  real(rkind), intent(inout) :: debris(nx,ny)        ! debris thickness (m)
   ! Local variables
-  real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny), D_k_up(nx,ny), D_k_dn(nx,ny)
-  real(rkind) :: u_l_up(nx,ny), u_l_dn(nx,ny)
-  real(rkind) :: v_k_up(nx,ny), v_k_dn(nx,ny)
-  real(rkind) :: div_k(nx,ny), div_l(nx,ny)
-  real(rkind) :: divisor, dt_u, dt_v
+  logical(lgt) :: cleared(nx,ny)                     ! .true. once a path has passed through the cell
+  real(rkind) :: dist, drop                          ! step length (m), steepest drop per metre (m m-1)
+  integer(i4b) :: i, j, ii, jj, ip, jp, in_, jn
 
-  ! MUSCL slope reconstruction for D, u, and v
-  D_l_up = pluss(D(k,lm), D(k,l), D(k,lp)) ! D at l+1/2
-  D_l_dn = minus(D(k,lm), D(k,l), D(k,lp)) ! D at l-1/2
-  D_k_up = pluss(D(km,l), D(k,l), D(kp,l)) ! D at k+1/2
-  D_k_dn = minus(D(km,l), D(k,l), D(kp,l)) ! D at k-1/2
-  !
-  u_l_up = pluss(u(k,lm), u(k,l), u(k,lp)) ! u at l+1/2
-  u_l_dn = minus(u(k,lm), u(k,l), u(k,lp)) ! u at l-1/2
-  !
-  v_k_up = pluss(v(km,l), v(k,l), v(kp,l)) ! v at k+1/2
-  v_k_dn = minus(v(km,l), v(k,l), v(kp,l)) ! v at k-1/2
+  cleared = .false.
+  do j = 1, ny
+    do i = 1, nx
+      if(.not.(failing(i,j) .and. onIce(i,j)) .or. cleared(i,j)) cycle
+      ip = i; jp = j
+      do
+        cleared(ip,jp) = .true.
+        drop = 0._rkind; in_ = 0; jn = 0
+        do jj = max(1, jp-1), min(ny, jp+1)
+          do ii = max(1, ip-1), min(nx, ip+1)
+            if(.not.onIce(ii,jj) .or. (ii==ip .and. jj==jp)) cycle
+            dist = sqrt((real(ii-ip, rkind)*dx)**2_i4b + (real(jj-jp, rkind)*dy)**2_i4b)
+            if((Z(ip,jp)-Z(ii,jj))/dist > drop)then
+              drop = (Z(ip,jp)-Z(ii,jj))/dist; in_ = ii; jn = jj
+            endif
+          enddo
+        enddo
+        if(in_==0) exit ! margin or pit reached
+        if(cleared(in_,jn)) exit ! joins a path already cleared
+        ip = in_; jp = jn
+      enddo
+    enddo
+  enddo
+  where(cleared) debris = 0._rkind
 
-  ! Calculate divergence of fluxes
-  div_l = (u_l_dn * D_l_dn - u_l_up * D_l_up) / dy
-  div_k = (v_k_dn * D_k_dn - v_k_up * D_k_up) / dx
+end subroutine debris_unload
 
-  ! enforce zero advection outside the mask
-  div_l = merge(0._rkind, div_l, mask==0_i4b)
-  div_k = merge(0._rkind, div_k, mask==0_i4b)
-  div_uD = div_k + div_l ! change in debris thickness with time
 
-  ! calculate delta t from face speeds used in the advection fluxes
-  dt_u = max_dt
-  dt_v = max_dt
-  divisor = max(maxval(abs(u_l_up)), maxval(abs(u_l_dn)))
-  if(divisor > 0._rkind) dt_u = cfl * dy / divisor
-  divisor = max(maxval(abs(v_k_up)), maxval(abs(v_k_dn)))
-  if(divisor > 0._rkind) dt_v = cfl * dx / divisor
-  dt_cfl = min(dt_u, dt_v)
-  if(dt_cfl <= 0._rkind)then
-    dt_cfl = max_dt
-  endif
+! ************************************************************************************************
+! private subroutine advection_upwind: first-order upwind advection for debris movement with ice velocity
+! ************************************************************************************************
+subroutine advection_upwind(u_l_up, u_k_up, D, nx, ny, dx, dy, div_uD, l, lp, lm, k, kp, km)
+  implicit none
+  ! Arguments
+  real(rkind), intent(in) :: u_l_up(nx,ny), u_k_up(nx,ny), D(nx,ny), dx, dy
+  integer(i4b), intent(in) :: nx, ny, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
+  real(rkind), intent(out) :: div_uD(nx,ny)
+  ! Local variables
+  real(rkind) :: f_l_up(nx,ny), f_l_dn(nx,ny), f_k_up(nx,ny), f_k_dn(nx,ny) ! debris flux on each face (m2 s-1)
 
-end subroutine advection_MUSCL
+  ! Mayer and Licciulli (2021) eq. 3., u_l_up and u_k_up are l+1/2 and k+1/2 face velocities (m s-1), zero on closed faces
+  ! flux on the up faces from the upwind cell; each down face is the up face of the cell below
+  f_l_up = u_l_up * merge(D(k,l), D(k,lp), u_l_up > 0._rkind)
+  f_k_up = u_k_up * merge(D(k,l), D(kp,l), u_k_up > 0._rkind)
+  f_l_dn = f_l_up(k,lm); f_l_dn(:,1) = 0._rkind
+  f_k_dn = f_k_up(km,l); f_k_dn(1,:) = 0._rkind
+
+  div_uD = (f_l_dn - f_l_up)/dy + (f_k_dn - f_k_up)/dx ! -div(uD) (m s-1)
+
+end subroutine advection_upwind
 
 ! ************************************************************************************************
 ! private functions to assist in calculations
@@ -1350,6 +1421,16 @@ function SIA(Dup, Sup, S, Ddn, Sdn, d)
   allocate(SIA(size(Dup,1), size(Dup,2)))
   SIA = (Dup * (Sup - S) / d - Ddn * (S - Sdn) / d) / d
 end function SIA
+
+! neighbours p and m of centre c for a centred difference; one without ice is the reflection of the other, both: c
+subroutine refl(p, c, m, hasP, hasM, xp, xm)
+  implicit none
+  real(rkind), intent(in) :: p(:,:), c(:,:), m(:,:)
+  logical, intent(in) :: hasP(:,:), hasM(:,:)
+  real(rkind), intent(out) :: xp(:,:), xm(:,:)
+  xp = merge(p, merge(2._rkind*c - m, c, hasM), hasP)
+  xm = merge(m, merge(2._rkind*c - p, c, hasP), hasM)
+end subroutine refl
 
 function midpt(h1, h2)
   implicit none
@@ -1495,8 +1576,10 @@ subroutine updateGlacDomain(&
                   nLake,               & ! intent(in):    number of lake layers
                   nSoil,               & ! intent(in):    number of soil layers
                   nGlce,               & ! intent(in):    number of glacier ice layers
+                  use_lookup,          & ! intent(in):    flag to use the lookup table for soil enthalpy
                   ! data structures
                   mpar_data,           & ! intent(in):    model parameters
+                  lookup_data,         & ! intent(in):    lookup tables
                   indx_data,           & ! intent(in):    model indices
                   prog_data,           & ! intent(inout): model prognostic variables
                   diag_data,           & ! intent(inout): model diagnostic variables
@@ -1504,8 +1587,10 @@ subroutine updateGlacDomain(&
                   ! error control
                   err, message)         ! intent(out):   error control
   ! ----- define downstream subroutines -----------------------------------------------------------------------------------
+  USE data_types,only:zLookup            ! x%z(:)%var(:)%lookup(:)
   USE var_derive_module,only:rootDensty  ! module to calculate the vertical distribution of roots
   USE var_derive_module,only:satHydCond  ! module to calculate the saturated hydraulic conductivity in each soil layer
+  USE var_derive_module,only:calcHeight  ! layer heights from layer depths
   ! ----- define dummy variables ------------------------------------------------------------------------------------------
   implicit none
   integer(i4b), intent(inout)     :: iglac                   ! glacier domain index
@@ -1521,7 +1606,9 @@ subroutine updateGlacDomain(&
   integer(i4b), intent(in)        :: nLake                    ! number of lake layers　(should be 0)
   integer(i4b), intent(in)        :: nSoil                    ! number of soil layers
   integer(i4b), intent(in)        :: nGlce                    ! number of glacier ice layers
+  logical(lgt), intent(in)        :: use_lookup               ! flag to use the lookup table for soil enthalpy
   type(var_dlength),intent(in)    :: mpar_data                ! model parameters
+  type(zLookup),intent(in)        :: lookup_data              ! lookup tables
   type(var_ilength),intent(in)    :: indx_data                ! model indices
   type(var_dlength),intent(inout) :: prog_data                ! model prognostic variables
   type(var_dlength),intent(inout) :: diag_data                ! model diagnostic variables
@@ -1567,18 +1654,12 @@ subroutine updateGlacDomain(&
    ! update glacier layering
    if(dom_type==glacDbr .and. DOMarea>0._rkind)then ! thickness of average debris cover in HRU changes with debris advection
      ! for zero area, glacDbr needs to keep previous non-zero soil layering so can adjust if debris-covered glacier re-appears
-     ! scale soil layer thickness with debris thickness change, keep the same number of layers 
-     layers_thick = sum(mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil))
-     thick_ratio = glac_debris_thick(iglac)/layers_thick ! glac_debris_thick will be >0 since there is a positive area of debris-covered glacier
-     mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)  = mLayerDepth(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
-     mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = mLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio
-     iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil) = iLayerHeight(nSnow+nLake+1:nSnow+nLake+nSoil)*thick_ratio            
-
-     ! recalculate the layer heights below soil
-     do i=nSnow+nLake+nSoil+1,nLayers
-       mLayerHeight(i) = mLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
-       iLayerHeight(i) = iLayerHeight(i) + glac_debris_thick(iglac) - layers_thick
-     enddo
+     ! re-split the debris at its new thickness, keeping the same number of layers
+     call debrisResplit(use_lookup, max(glac_debris_thick(iglac), min_thickness), nSnow+nLake, nSoil, mpar_data, lookup_data, &
+                        prog_data, diag_data, err, cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     call calcHeight(indx_data,prog_data,err,cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! recalculate vertical distribution of root density
      call rootDensty(mpar_data,     & ! intent(in):    model parameters
@@ -1616,6 +1697,366 @@ subroutine updateGlacDomain(&
   
  end associate
 end subroutine updateGlacDomain
+
+
+! ************************************************************************************************
+! private subroutine debrisLayering: split debris of a given thickness into layers
+! ************************************************************************************************
+! The top layer is the smaller of an equal share and maxDebrisTop; below it each layer is r times the one
+! above, with r >= 1 the growth that fills the thickness, so thin debris splits evenly (m).
+! ************************************************************************************************
+subroutine debrisLayering(debrisThick,layerDepth)
+  implicit none
+  real(rkind),intent(in)  :: debrisThick                ! total debris thickness (m)
+  real(rkind),intent(out) :: layerDepth(:)              ! thickness of each debris layer, top down (m)
+  integer(i4b)            :: nDebris                    ! number of debris layers
+  integer(i4b)            :: iLayer,iter                ! loop indices
+  real(rkind)             :: rLow,rHigh,ratio           ! bracket and value of the growth ratio (-)
+  nDebris = size(layerDepth)
+  layerDepth(1) = min(debrisThick/real(nDebris,rkind), maxDebrisTop)
+  if(nDebris==1 .or. layerDepth(1) >= debrisThick/real(nDebris,rkind))then
+    layerDepth(:) = debrisThick/real(nDebris,rkind)
+    return
+  endif
+  rLow = 1._rkind
+  rHigh = 2._rkind
+  do while(fillDepth(rHigh) < debrisThick)
+    rHigh = 2._rkind*rHigh
+  enddo
+  do iter=1,200
+    ratio = 0.5_rkind*(rLow + rHigh)
+    if(fillDepth(ratio) < debrisThick)then; rLow = ratio; else; rHigh = ratio; endif
+  enddo
+  ratio = 0.5_rkind*(rLow + rHigh)
+  do iLayer=2,nDebris
+    layerDepth(iLayer) = layerDepth(iLayer-1)*ratio
+  enddo
+  layerDepth(nDebris) = debrisThick - sum(layerDepth(1:nDebris-1)) ! close the total exactly
+contains
+  function fillDepth(r)
+    real(rkind),intent(in) :: r
+    real(rkind)            :: fillDepth
+    integer(i4b)           :: k
+    fillDepth = layerDepth(1)*sum([(r**k, k=0,nDebris-1)])
+  end function fillDepth
+end subroutine debrisLayering
+
+! ************************************************************************************************
+! private subroutine debrisResplit: re-split the debris layers at a new debris thickness
+! ************************************************************************************************
+! The old layers are first stretched to the new thickness, keeping their intensive states, so the change of
+! thickness adds or removes debris as it is. Total water and total enthalpy are then carried to the new split
+! by depth overlap, so the split conserves both; each new layer's matric head follows from its water and its
+! temperature from its enthalpy.
+! ************************************************************************************************
+subroutine debrisResplit(use_lookup,debrisThick,iTop,nSoil,mpar_data,lookup_data,prog_data,diag_data,err,message)
+  USE data_types,only:zLookup                                 ! x%z(:)%var(:)%lookup(:)
+  USE var_lookup,only:iLookPARAM,iLookDIAG                    ! named variables for structure elements
+  USE multiconst,only:LH_fus                                  ! latent heat of fusion (J kg-1)
+  USE soil_utils_module,only:matricHead                       ! matric suction from total water (m)
+  USE updatState_module,only:updatSoil                        ! phase partitioning
+  USE convertEnthalpyTemp_module,only:T2enthTemp_soil         ! temperature component of enthalpy, soil
+  implicit none
+  logical(lgt),intent(in)         :: use_lookup               ! flag to use the lookup table for soil enthalpy
+  real(rkind),intent(in)          :: debrisThick              ! new total debris thickness (m)
+  integer(i4b),intent(in)         :: iTop                     ! number of snow and lake layers above the debris
+  integer(i4b),intent(in)         :: nSoil                    ! number of debris layers
+  type(var_dlength),intent(in)    :: mpar_data                ! model parameters
+  type(zLookup),intent(in)        :: lookup_data              ! lookup tables
+  type(var_dlength),intent(inout) :: prog_data                ! model prognostic variables
+  type(var_dlength),intent(inout) :: diag_data                ! model diagnostic variables
+  integer(i4b),intent(out)        :: err                      ! error code
+  character(*),intent(out)        :: message                  ! error message
+  real(rkind)                     :: dOld(nSoil),dNew(nSoil)  ! stretched old and new layer thicknesses (m)
+  real(rkind)                     :: zOld(0:nSoil),zNew(0:nSoil) ! interface depths below the debris surface (m)
+  real(rkind)                     :: watOld(nSoil),enthOld(nSoil),tempOld(nSoil),psiOld(nSoil) ! old layer states
+  real(rkind)                     :: wat,enth,psi,temp,overlap ! remapped states of a new layer
+  real(rkind)                     :: tLow,tHigh,enthTemp,volWat,volLiq,volIce ! bisection on temperature
+  real(rkind)                     :: vGn_m                    ! van Genuchten "m" parameter (-)
+  logical(lgt)                    :: saturated                ! every overlapping old layer is at or above saturation
+  integer(i4b)                    :: iLayer,jLayer,iter       ! loop indices
+  character(len=256)              :: cmessage                 ! error message of downwind routine
+  err=0; message='debrisResplit/'
+  associate(&
+   mLayerDepth    => prog_data%var(iLookPROG%mLayerDepth)%dat,        & ! thickness of each layer (m)
+   mLayerTemp     => prog_data%var(iLookPROG%mLayerTemp)%dat,         & ! temperature (K)
+   mLayerWat      => prog_data%var(iLookPROG%mLayerVolFracWat)%dat,   & ! volumetric fraction of total water (-)
+   mLayerLiq      => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,   & ! volumetric fraction of liquid water (-)
+   mLayerIce      => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,   & ! volumetric fraction of ice (-)
+   mMatricHead    => prog_data%var(iLookPROG%mLayerMatricHead)%dat,   & ! total water matric head (m)
+   mLayerEnth     => prog_data%var(iLookPROG%mLayerEnthalpy)%dat,     & ! enthalpy (J m-3)
+   mLayerEnthTemp => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat,     & ! temperature component of enthalpy (J m-3)
+   soil_dens_intr => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,    & ! intrinsic soil density (kg m-3)
+   vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat,         & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat,             & ! van Genuchten "n" parameter (-)
+   theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat,         & ! soil porosity (-)
+   theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat          & ! soil residual volumetric water content (-)
+   )
+   dOld = mLayerDepth(iTop+1:iTop+nSoil)*debrisThick/sum(mLayerDepth(iTop+1:iTop+nSoil))
+   call debrisLayering(debrisThick, dNew)
+   zOld(0) = 0._rkind; zNew(0) = 0._rkind
+   do iLayer=1,nSoil
+     zOld(iLayer) = zOld(iLayer-1) + dOld(iLayer)
+     zNew(iLayer) = zNew(iLayer-1) + dNew(iLayer)
+     vGn_m = 1._rkind - 1._rkind/vGn_n(iLayer)
+     tempOld(iLayer) = mLayerTemp(iTop+iLayer)
+     psiOld(iLayer)  = mMatricHead(iLayer)
+     watOld(iLayer)  = mLayerWat(iTop+iLayer)
+     call T2enthTemp_soil(use_lookup, soil_dens_intr(iLayer), vGn_alpha(iLayer), vGn_n(iLayer), theta_sat(iLayer), theta_res(iLayer), &
+                          vGn_m, iLayer, lookup_data, realMissing, tempOld(iLayer), psiOld(iLayer), enthTemp, err, cmessage)
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     enthOld(iLayer) = enthTemp - iden_water*LH_fus*mLayerIce(iTop+iLayer)
+   enddo
+   if(maxval(abs(zNew - zOld)) < verySmall*debrisThick)then ! the split is unchanged: only the stretch
+     mLayerDepth(iTop+1:iTop+nSoil) = dNew
+     return
+   endif
+
+   do iLayer=1,nSoil
+     wat = 0._rkind; enth = 0._rkind; psi = 0._rkind; temp = 0._rkind
+     saturated = .true.
+     do jLayer=1,nSoil
+       overlap = max(0._rkind, min(zNew(iLayer),zOld(jLayer)) - max(zNew(iLayer-1),zOld(jLayer-1)))/dNew(iLayer)
+       if(overlap <= 0._rkind) cycle
+       wat  = wat  + overlap*watOld(jLayer)
+       enth = enth + overlap*enthOld(jLayer)
+       temp = temp + overlap*tempOld(jLayer)
+       psi  = psi  + overlap*max(psiOld(jLayer),0._rkind)
+       saturated = saturated .and. psiOld(jLayer) >= 0._rkind
+     enddo
+     vGn_m = 1._rkind - 1._rkind/vGn_n(iLayer)
+     if(.not.saturated) psi = matricHead(min(wat,theta_sat(iLayer)), vGn_alpha(iLayer), theta_res(iLayer), theta_sat(iLayer), vGn_n(iLayer), vGn_m)
+
+     ! temperature where the layer's total enthalpy, sensible less the latent heat of its ice, matches the remapped one
+     tLow = minval(tempOld) - 10._rkind; tHigh = maxval(tempOld) + 10._rkind
+     do iter=1,100
+       temp = 0.5_rkind*(tLow + tHigh)
+       call layerState(temp)
+       if(err/=0) return
+       if(enthTemp - iden_water*LH_fus*volIce < enth)then; tLow = temp; else; tHigh = temp; endif
+       if(tHigh - tLow < 1.e-10_rkind) exit
+     enddo
+     temp = 0.5_rkind*(tLow + tHigh)
+     call layerState(temp)
+     if(err/=0) return
+     mLayerTemp(iTop+iLayer) = temp
+     mMatricHead(iLayer)     = psi
+     mLayerWat(iTop+iLayer)  = volWat
+     mLayerLiq(iTop+iLayer)  = volLiq
+     mLayerIce(iTop+iLayer)  = volIce
+     mLayerEnthTemp(iTop+iLayer) = enthTemp
+     mLayerEnth(iTop+iLayer) = enthTemp - iden_water*LH_fus*volIce
+   enddo
+   mLayerDepth(iTop+1:iTop+nSoil) = dNew
+  end associate
+contains
+  subroutine layerState(tk)
+    ! water phases and temperature component of enthalpy of the new layer at temperature tk
+    real(rkind),intent(in) :: tk
+    call updatSoil(tk, psi, mpar_data%var(iLookPARAM%vGn_alpha)%dat(iLayer), mpar_data%var(iLookPARAM%vGn_n)%dat(iLayer), &
+                   mpar_data%var(iLookPARAM%theta_sat)%dat(iLayer), mpar_data%var(iLookPARAM%theta_res)%dat(iLayer), vGn_m, &
+                   volWat, volLiq, volIce, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call T2enthTemp_soil(use_lookup, mpar_data%var(iLookPARAM%soil_dens_intr)%dat(iLayer), mpar_data%var(iLookPARAM%vGn_alpha)%dat(iLayer), &
+                         mpar_data%var(iLookPARAM%vGn_n)%dat(iLayer), mpar_data%var(iLookPARAM%theta_sat)%dat(iLayer), &
+                         mpar_data%var(iLookPARAM%theta_res)%dat(iLayer), vGn_m, iLayer, lookup_data, realMissing, tk, psi, enthTemp, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  end subroutine layerState
+end subroutine debrisResplit
+
+! ************************************************************************************************
+! public subroutine startGlacDomain: start a glacier domain that has just gained area from a donor domain
+! ************************************************************************************************
+! Donor state is taken per unit area: snow as snow without a layer holding the donor SWE, ice at the same depth
+! below the ice surface, debris from the debris donor at the same fraction of debris thickness (with no debris
+! donor, the donor top ice temperature and the domain's own matric head); phase and enthalpy are recomputed.
+! ************************************************************************************************
+subroutine startGlacDomain(&
+                  use_lookup,          & ! intent(in):    flag to use the lookup table for soil enthalpy
+                  ! snow and ice donor
+                  indx_dnr,            & ! intent(in):    snow and ice donor model indices
+                  prog_dnr,            & ! intent(in):    snow and ice donor prognostic variables
+                  ! domain to start
+                  mpar_data,           & ! intent(in):    model parameters
+                  lookup_data,         & ! intent(in):    lookup tables
+                  indx_data,           & ! intent(inout): model indices
+                  prog_data,           & ! intent(inout): model prognostic variables
+                  diag_data,           & ! intent(inout): model diagnostic variables
+                  flux_data,           & ! intent(inout): model fluxes
+                  ! error control
+                  err, message,        & ! intent(out):   error control
+                  ! optional debris donor
+                  indx_dbr,            & ! intent(in):    debris donor model indices
+                  prog_dbr)              ! intent(in):    debris donor prognostic variables
+  USE data_types,only:zLookup                                 ! x%z(:)%var(:)%lookup(:)
+  USE var_lookup,only:iLookINDEX,iLookPARAM,iLookDIAG         ! named variables for structure elements
+  USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta ! metadata
+  USE globalData,only:icefrz_mult                             ! freezing curve scaling multiplier of snow to ice
+  USE multiconst,only:LH_fus                                  ! latent heat of fusion (J kg-1)
+  USE layerMerge_module,only:rmLyAllVars                      ! remove a layer from the data structures
+  USE var_derive_module,only:calcHeight                       ! layer heights from layer depths
+  USE updatState_module,only:updatSnLaGl,updatSoil            ! phase partitioning
+  USE convertEnthalpyTemp_module,only:T2enthTemp_snLaGl       ! temperature component of enthalpy, snow, lake, and ice
+  USE convertEnthalpyTemp_module,only:T2enthTemp_soil         ! temperature component of enthalpy, soil
+  implicit none
+  logical(lgt),intent(in)         :: use_lookup               ! flag to use the lookup table for soil enthalpy
+  type(var_ilength),intent(in)    :: indx_dnr                 ! donor model indices
+  type(var_dlength),intent(in)    :: prog_dnr                 ! donor prognostic variables
+  type(var_ilength),intent(in),optional :: indx_dbr           ! debris donor model indices
+  type(var_dlength),intent(in),optional :: prog_dbr           ! debris donor prognostic variables
+  type(var_dlength),intent(in)    :: mpar_data                ! model parameters
+  type(zLookup),intent(in)        :: lookup_data              ! lookup tables
+  type(var_ilength),intent(inout) :: indx_data                ! model indices
+  type(var_dlength),intent(inout) :: prog_data                ! model prognostic variables
+  type(var_dlength),intent(inout) :: diag_data                ! model diagnostic variables
+  type(var_dlength),intent(inout) :: flux_data                ! model fluxes
+  integer(i4b),intent(out)        :: err                      ! error code
+  character(*),intent(out)        :: message                  ! error message
+  ! local variables
+  integer(i4b)                    :: nSnow,nLake,nSoil,nGlce,nLayers ! layer counts of the domain to start
+  integer(i4b)                    :: dSnow,dGlce              ! layer counts of the donor
+  integer(i4b)                    :: bSoil,bTop               ! debris donor layer count, and its layer above the top ice layer
+  integer(i4b)                    :: iTop,dTop                ! layer above the top glacier ice layer, domain and donor
+  integer(i4b)                    :: iLayer,jLayer            ! layer indices, domain and donor
+  integer(i4b)                    :: iSoil                    ! soil layer index
+  real(rkind)                     :: zMid                     ! depth or depth fraction of a layer mid-point (m or -)
+  real(rkind)                     :: zDnr                     ! depth or depth fraction of the base of a donor layer (m or -)
+  real(rkind)                     :: dThick,mThick            ! debris thickness, donor and domain (m)
+  real(rkind)                     :: theta                    ! volumetric fraction of total water (-)
+  real(rkind)                     :: fLiq                     ! fraction of liquid water (-)
+  real(rkind)                     :: vGn_m                    ! van Genuchten "m" parameter (-)
+  character(len=256)              :: cmessage                 ! error message
+  ! ----------------------------------------------------------------------------------------------
+  err=0; message='startGlacDomain/'
+  nSnow = indx_data%var(iLookINDEX%nSnow)%dat(1)
+  nLake = indx_data%var(iLookINDEX%nLake)%dat(1)
+  nSoil = indx_data%var(iLookINDEX%nSoil)%dat(1)
+  nGlce = indx_data%var(iLookINDEX%nGlce)%dat(1)
+  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+  dSnow = indx_dnr%var(iLookINDEX%nSnow)%dat(1)
+  dGlce = indx_dnr%var(iLookINDEX%nGlce)%dat(1)
+  dTop  = indx_dnr%var(iLookINDEX%nLayers)%dat(1) - dGlce
+  if(nGlce==0 .or. dGlce==0)then; err=20; message=trim(message)//'expect glacier ice layers in both domains'; return; endif
+
+  ! ----- snow: remove the domain's own snow layers and hold the donor SWE as snow without a layer -----
+  do while(nSnow>0)
+    call rmLyAllVars(.false.,prog_data,prog_meta,0,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call rmLyAllVars(.false.,diag_data,diag_meta,0,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call rmLyAllVars(.false.,flux_data,flux_meta,0,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    call rmLyAllVars(.false.,indx_data,indx_meta,0,nSnow,nGlce,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    nSnow = nSnow - 1
+    nLayers = nLayers - 1
+  enddo
+  indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
+  indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
+  call calcHeight(indx_data,prog_data,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  iTop = nLayers - nGlce
+
+  associate(&
+   dLayerDepth   => prog_dnr%var(iLookPROG%mLayerDepth)%dat,       & ! donor layer depth (m)
+   dLayerTemp    => prog_dnr%var(iLookPROG%mLayerTemp)%dat,        & ! donor layer temperature (K)
+   dLayerIce     => prog_dnr%var(iLookPROG%mLayerVolFracIce)%dat,  & ! donor volumetric fraction of ice (-)
+   dLayerLiq     => prog_dnr%var(iLookPROG%mLayerVolFracLiq)%dat,  & ! donor volumetric fraction of liquid water (-)
+   mLayerDepth   => prog_data%var(iLookPROG%mLayerDepth)%dat,      & ! layer depth (m)
+   mLayerTemp    => prog_data%var(iLookPROG%mLayerTemp)%dat,       & ! layer temperature (K)
+   mLayerIce     => prog_data%var(iLookPROG%mLayerVolFracIce)%dat, & ! volumetric fraction of ice (-)
+   mLayerLiq     => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat, & ! volumetric fraction of liquid water (-)
+   mLayerWat     => prog_data%var(iLookPROG%mLayerVolFracWat)%dat, & ! volumetric fraction of total water (-)
+   mMatricHead   => prog_data%var(iLookPROG%mLayerMatricHead)%dat, & ! matric head (m)
+   mLayerEnth    => prog_data%var(iLookPROG%mLayerEnthalpy)%dat,   & ! enthalpy (J m-3)
+   mLayerEnthTemp=> diag_data%var(iLookDIAG%mLayerEnthTemp)%dat,   & ! temperature component of enthalpy (J m-3)
+   noThetaChange => indx_data%var(iLookINDEX%noThetaChange)%dat(1), & ! number of bottom layers with no change in total water
+   snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1), & ! scaling parameter for the snow freezing curve (K-1)
+   soil_dens_intr=> mpar_data%var(iLookPARAM%soil_dens_intr)%dat,  & ! intrinsic soil density (kg m-3)
+   vGn_alpha     => mpar_data%var(iLookPARAM%vGn_alpha)%dat,       & ! van Genuchten "alpha" parameter (m-1)
+   vGn_n         => mpar_data%var(iLookPARAM%vGn_n)%dat,           & ! van Genuchten "n" parameter (-)
+   theta_sat     => mpar_data%var(iLookPARAM%theta_sat)%dat,       & ! soil porosity (-)
+   theta_res     => mpar_data%var(iLookPARAM%theta_res)%dat        & ! soil residual volumetric water content (-)
+   )
+
+   if(dSnow>0)then
+     prog_data%var(iLookPROG%scalarSWE)%dat(1) = sum((dLayerLiq(1:dSnow)*iden_water + dLayerIce(1:dSnow)*iden_ice)*dLayerDepth(1:dSnow))
+     prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(dLayerDepth(1:dSnow))
+     prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1) = 0._rkind
+   else
+     prog_data%var(iLookPROG%scalarSWE)%dat(1) = prog_dnr%var(iLookPROG%scalarSWE)%dat(1)
+     prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = prog_dnr%var(iLookPROG%scalarSnowDepth)%dat(1)
+     prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1) = prog_dnr%var(iLookPROG%scalarSfcMeltPond)%dat(1)
+   endif
+   prog_data%var(iLookPROG%scalarSnowAlbedo)%dat = prog_dnr%var(iLookPROG%scalarSnowAlbedo)%dat
+   prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat = prog_dnr%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat
+
+   ! ----- glacier ice: the donor layer holding the same depth below the ice surface -----
+   jLayer = dTop + 1
+   zDnr = dLayerDepth(jLayer)
+   zMid = 0._rkind
+   do iLayer = iTop+1, nLayers
+     zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)
+     do while(zMid > zDnr .and. jLayer < dTop+dGlce)
+       jLayer = jLayer + 1
+       zDnr = zDnr + dLayerDepth(jLayer)
+     enddo
+     mLayerTemp(iLayer) = dLayerTemp(jLayer)
+     mLayerIce(iLayer)  = dLayerIce(jLayer)
+     mLayerLiq(iLayer)  = dLayerLiq(jLayer)
+     zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)
+   enddo
+
+   ! ----- debris: the debris donor layer at the same fraction of debris thickness, else the donor top ice temperature -----
+   if(nSoil>0)then
+     if(present(prog_dbr))then
+       bSoil = indx_dbr%var(iLookINDEX%nSoil)%dat(1)
+       bTop  = indx_dbr%var(iLookINDEX%nLayers)%dat(1) - indx_dbr%var(iLookINDEX%nGlce)%dat(1)
+       associate(bLayerDepth => prog_dbr%var(iLookPROG%mLayerDepth)%dat, &
+                 bLayerTemp  => prog_dbr%var(iLookPROG%mLayerTemp)%dat,  &
+                 bMatricHead => prog_dbr%var(iLookPROG%mLayerMatricHead)%dat)
+         dThick = sum(bLayerDepth(bTop-bSoil+1:bTop))
+         mThick = sum(mLayerDepth(iTop-nSoil+1:iTop))
+         jLayer = bTop - bSoil + 1
+         zDnr = bLayerDepth(jLayer)/dThick
+         zMid = 0._rkind
+         do iLayer = iTop-nSoil+1, iTop
+           zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)/mThick
+           do while(zMid > zDnr .and. jLayer < bTop)
+             jLayer = jLayer + 1
+             zDnr = zDnr + bLayerDepth(jLayer)/dThick
+           enddo
+           mLayerTemp(iLayer) = bLayerTemp(jLayer)
+           mMatricHead(iLayer-nSnow-nLake) = bMatricHead(jLayer-bTop+bSoil)
+           zMid = zMid + 0.5_rkind*mLayerDepth(iLayer)/mThick
+         enddo
+       end associate
+     else
+       mLayerTemp(iTop-nSoil+1:iTop) = dLayerTemp(dTop+1)
+     endif
+   endif
+
+   ! ----- phase partitioning and enthalpy consistent with the new temperature and water content -----
+   do iLayer = nSnow+nLake+1, nLayers
+     if(iLayer > iTop)then
+       theta = mLayerIce(iLayer)*(iden_ice/iden_water) + mLayerLiq(iLayer)
+       call updatSnLaGl(iLayer>nLayers-noThetaChange, mLayerTemp(iLayer), theta, snowfrz_scale*icefrz_mult, &
+                        mLayerLiq(iLayer), mLayerIce(iLayer), fLiq, err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       mLayerWat(iLayer) = theta
+       call T2enthTemp_snLaGl(iLayer>nLayers-noThetaChange, snowfrz_scale*icefrz_mult, mLayerTemp(iLayer), theta, mLayerEnthTemp(iLayer))
+       mLayerEnth(iLayer) = mLayerEnthTemp(iLayer) - iden_ice*LH_fus*mLayerIce(iLayer)
+     else
+       iSoil = iLayer - nSnow - nLake
+       vGn_m = 1._rkind - 1._rkind/vGn_n(iSoil)
+       call updatSoil(mLayerTemp(iLayer), mMatricHead(iSoil), vGn_alpha(iSoil), vGn_n(iSoil), theta_sat(iSoil), theta_res(iSoil), vGn_m, &
+                      mLayerWat(iLayer), mLayerLiq(iLayer), mLayerIce(iLayer), err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       call T2enthTemp_soil(use_lookup, soil_dens_intr(iSoil), vGn_alpha(iSoil), vGn_n(iSoil), theta_sat(iSoil), theta_res(iSoil), vGn_m, &
+                            iSoil, lookup_data, realMissing, mLayerTemp(iLayer), mMatricHead(iSoil), mLayerEnthTemp(iLayer), err, cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+       mLayerEnth(iLayer) = mLayerEnthTemp(iLayer) - iden_water*LH_fus*mLayerIce(iLayer)
+     endif
+   enddo
+
+  end associate
+end subroutine startGlacDomain
 
 
 end module glacAreaChange_module

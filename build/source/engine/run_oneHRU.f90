@@ -219,6 +219,7 @@ subroutine run_oneHRU(&
       ! compute derived forcing variables, different for each domain type
       call derivforce(&
                       is_glac,              & ! intent(in):    flag to indicate if is a glacier domain
+                      domInfo(i)%dom_type == upland, & ! intent(in): flag to indicate if the domain can have a canopy
                       forcData,             & ! intent(inout): vector of model forcing data
                       attrData,             & ! intent(in):    vector of model attributes
                       mparData%dom(i),      & ! intent(in):    data structure of model parameters

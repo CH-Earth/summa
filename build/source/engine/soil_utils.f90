@@ -47,6 +47,7 @@ public::dTheta_dTk
 public::crit_soilT
 public::liquidHead
 public::gammp,gammp_complex
+public::dgammp_dx
 public::LogSumExp
 public::SoftArgMax
 contains
@@ -485,6 +486,38 @@ function gammp(a,x)
    gammp=1.0_rkind-gcf(a,x)
   end if
 end function gammp
+
+
+! ******************************************************************************************************************************
+! public function dgammp_dx: derivative of the Gamma CDF w.r.t. its upper limit (i.e., the Gamma PDF with unit scale)
+! ******************************************************************************************************************************
+function dgammp_dx(a,x)
+  implicit none
+  ! input
+  real(rkind), intent(in) :: a,x
+  ! output
+  real(rkind)             :: dgammp_dx
+  ! local variables
+  real(rkind)             :: logDensity ! density in logs, so that a large shape parameter or limit cannot overflow
+  ! validation
+  if (a <= 0._rkind) then
+   stop "Error in dgammp_dx: a > 0 required."
+  end if
+  if (x < 0._rkind) then
+   stop "Error in dgammp_dx: x >= 0 required."
+  end if
+  ! computation
+  if (x == 0._rkind) then
+   dgammp_dx = 0._rkind
+   return
+  end if
+  logDensity = (a - 1._rkind)*log(x) - x - log_gamma(a)
+  if (logDensity < log(tiny(x))) then
+   dgammp_dx = 0._rkind
+  else
+   dgammp_dx = exp(logDensity)
+  end if
+end function dgammp_dx
 
 
 ! ******************************************************************************************************************************

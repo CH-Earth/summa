@@ -111,6 +111,7 @@ contains
 
  ! define GRU range for the run domain
  if(present(startGRU_user))then
+   if(nGRU_domain==integerMissing) nGRU_domain=nGRU_file-startGRU_user+1 ! no count given: the rest of the file
    if(nGRU_domain<1)then; err=20; message=trim(message)//'nGRU_domain < 1 for a -g run'; return; endif
    startGRU_domain=startGRU_user
  elseif(present(checkHRU))then

@@ -159,6 +159,7 @@ contains
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff)             = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff_IE)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSurfaceRunoff_SE)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarLowerBoundNrgFlux)         = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerSatHydCondMP)              = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerSatHydCond)                = flux2state(state1=integerMissing,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerSatHydCond)                = flux2state(state1=integerMissing,  state2=integerMissing)
@@ -180,6 +181,10 @@ contains
  flux2state_orig(iLookFLUX%scalarTotalRunoff)               = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarGlacierMelt)               = flux2state(state1=iname_watLayer,  state2=iname_matLayer)
  flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
+
+ flux2state_orig(iLookFLUX%mLayerColumnInflowNrg)           = flux2state(state1=integerMissing,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%mLayerLatInflowNrgFlux)          = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%mLayerSoilAdvNrgFlux)            = flux2state(state1=iname_nrgLayer,  state2=iname_matLayer)
 
  ! ** copy across flux metadata
  do iVar=1,nFlux

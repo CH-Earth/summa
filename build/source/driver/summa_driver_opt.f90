@@ -39,8 +39,10 @@ program summa_driver_opt
   USE iso_fortran_env, only: output_unit
 
   ! dispatch parameter samples
+  USE summa_parameter_sampling, only: check_search_settings
   USE summa_parameter_sampling, only: initialize_parameter_evaluation
   USE summa_parameter_sampling, only: dispatch_parameter_samples
+  USE summa_simulation,         only: n_calibration_targets
 
   ! dispatch cases (basins)
   USE dynamic_case_dispatch, only: init_case_counter
@@ -198,9 +200,7 @@ program summa_driver_opt
     ! -------------------------------------------------------------------------
     ! Partition ranks on each node among independent cases
     ! -------------------------------------------------------------------------
-    ! Calibration groups must be equal-sized, and each needs at least two ranks: one
-    ! coordinates the search and the rest evaluate samples. Rather than refusing to run,
-    ! reduce cases_per_node to the largest workable value and say so.
+    ! groups are equal-sized and need two ranks each, so cases_per_node drops to the largest workable value
     requested_cases=config%cases_per_node
 
     if(node_parallel%size < 2)then
@@ -458,6 +458,7 @@ contains
     ! Initialized SUMMA parameters
     type(gru_hru_dom_doublevec)          :: mpar_init     ! initialized HRU parameters
     type(gru_double)                     :: bpar_init     ! initialized basin parameters
+    logical(lgt)                         :: single_domain ! one GRU, one HRU and one domain
 
     ! Parameter specification and sampling
     type(parameter_spec)                 :: param_spec    ! complete SUMMA parameter specification
@@ -502,9 +503,15 @@ contains
     ! the sample budget is a configuration setting, so it is only known now
     nSamples = config%calib%n_samples
 
+    ! refuse a search the configuration cannot run before the spinup is paid for
+    call check_search_settings(config,err,message)
+    if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+    if(instance_parallel%rank==0 .and. trim(config%calib%algorithm)=='dds' .and. n_calibration_targets(config)>1) &
+      write(output_unit,'(A,I0,A)') 'WARNING: DDS searches the weighted sum of the ',n_calibration_targets(config), &
+                                    ' calibration targets; nsga2 keeps them separate'
+
     ! get the run index as character string to avoid collision in filenames
     write(runString,'(I4.4)') config%run_index
-
     ! configure rank-specific logging
     iulog=99
     log_unit=iulog
@@ -525,16 +532,11 @@ contains
                           err,message)            ! error code and message
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
-    ! verify that optimization is restricted to one GRU, one HRU, and one domain
-    if(size(mpar_init%gru)/=1 .or. size(bpar_init%gru)/=1)then
-      call abort_mpi(instance_parallel%rank,'optimization requires exactly one GRU')
-    endif
-    if(size(mpar_init%gru(1)%hru)/=1)then
-      call abort_mpi(instance_parallel%rank,'optimization requires exactly one HRU')
-    endif
-    if(size(mpar_init%gru(1)%hru(1)%dom)/=1)then
-      call abort_mpi(instance_parallel%rank,'optimization requires exactly one domain')
-    endif
+    ! a single-domain run has one initialized value per parameter, which the search keeps for the
+    ! parameters it does not sample; a larger domain falls back to the parameter-file defaults
+    single_domain = (size(mpar_init%gru)==1 .and. size(bpar_init%gru)==1)
+    if(single_domain) single_domain = (size(mpar_init%gru(1)%hru)==1)
+    if(single_domain) single_domain = (size(mpar_init%gru(1)%hru(1)%dom)==1)
 
     ! broadcast the rank-0 restart filename to all model instances
     call MPI_Bcast(restart_filename,len(restart_filename),MPI_CHARACTER,0, instance_parallel%comm,mpi_err)
@@ -547,15 +549,19 @@ contains
     ! Initialize parameter sampling
     ! ---------------------------------------------------------------------------------------
     ! Initialize parameter-evaluation state that is invariant across samples and shared by all ranks
-    call initialize_parameter_evaluation(config,                         & ! SUMMA configuration
-                                         instance_parallel,              & ! MPI instance-parallel context
-                                         mpar_init%gru(1)%hru(1)%dom(1), & ! initialized HRU parameters
-                                         bpar_init%gru(1),               & ! initialized basin parameters
-                                         param_spec,search,              & ! parameter specification and search information
-                                         param_name,                     & ! complete SUMMA parameter-name vector
-                                         search_state,                   & ! information from previously evaluated parameter sets
-                                         sample_best,                    & ! sample index associated with current best solution
-                                         err,message)                      ! error code and message
+    if(single_domain)then
+      call initialize_parameter_evaluation(config,instance_parallel,          & ! SUMMA configuration and MPI instance-parallel context
+                                           param_spec,search,param_name,      & ! parameter specification, search information, and names
+                                           search_state,sample_best,          & ! search state and sample index of the current best solution
+                                           err,message,                       & ! error code and message
+                                           mpar_init=mpar_init%gru(1)%hru(1)%dom(1), & ! initialized HRU parameters
+                                           bpar_init=bpar_init%gru(1))          ! initialized basin parameters
+    else
+      call initialize_parameter_evaluation(config,instance_parallel,          & ! SUMMA configuration and MPI instance-parallel context
+                                           param_spec,search,param_name,      & ! parameter specification, search information, and names
+                                           search_state,sample_best,          & ! search state and sample index of the current best solution
+                                           err,message)                         ! error code and message
+    endif
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
     ! ---------------------------------------------------------------------------------------
@@ -565,7 +571,8 @@ contains
       calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString//'_calibration.nc'
       call create_calibration_output(calib_file,param_spec,nSamples,                                   &
                                      instance_parallel%size-1,node_index,global_case_group,            &
-                                     config%case_name,config%calib%metric,config%calib%obs_transform,  &
+                                     config%case_name,config%calib%targets,                            &
+                                     config%calib%algorithm,config%calib%nsga2%population_size,        &
                                      ncid_calib,err,message)
       if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     else

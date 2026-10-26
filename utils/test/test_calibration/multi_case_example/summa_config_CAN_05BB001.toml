@@ -22,7 +22,7 @@ work_path = "{home}/{basin_dir}/work/"
 
 start_time = "1982-10-01 00:00"
 end_time   = "1990-09-30 23:00"
-time_zone  = "localTime"
+time_zone  = "ncTime"
 
 use_mizuroute    = true
 write_timeseries = false
@@ -114,19 +114,19 @@ end_date       = "1990-09-30"
 param_list = [
     "k_soil",
     "theta_sat",
-    "aquiferScaleFactor",
     "aquiferBaseflowExp",
+    "aquiferBaseflowRate",
     "qSurfScale",
     "summerLAI",
     "frozenPrecipMultip",
-    "routingGammaScale",
-    "routingGammaShape",
     "Fcapil",
     "tempCritRain",
     "heightCanopyTop",
     "heightCanopyBottom",
     "windReductionParam",
-    "vGn_n"
+    "vGn_n",
+    "routingGammaScale",
+    "routingGammaShape"
 ]
 
 write_aligned  = false
@@ -135,7 +135,7 @@ write_aligned  = false
 [calibration.parameter_transformations]
 
 k_soil              = "log"
-#aquiferBaseflowRate = "log"
+aquiferBaseflowRate = "log"
 
 
 [[parameter_dependencies.ordered]]
@@ -143,8 +143,9 @@ parameters   = ["heightCanopyBottom", "heightCanopyTop"]
 gap_fraction = 0.25
 
 [[parameter_dependencies.ordered]]
-parameters = ["theta_res", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+parameters = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
 gap_fraction = 0.025
+sample_gaps  = true
 
 
 

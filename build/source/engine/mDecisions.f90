@@ -88,6 +88,7 @@ integer(i4b),parameter,public :: expLaw_profile       = 143    ! exponential pro
 integer(i4b),parameter,public :: prescribedTemp       = 151    ! prescribed temperature
 integer(i4b),parameter,public :: energyFlux           = 152    ! energy flux
 integer(i4b),parameter,public :: zeroFlux             = 153    ! zero flux
+integer(i4b),parameter,public :: prescribedFlux       = 154    ! prescribed energy flux (the geothermal heat flux at the base of the soil)
 ! look-up values for the choice of boundary conditions for hydrology
 integer(i4b),parameter,public :: liquidFlux           = 161    ! liquid water flux
 integer(i4b),parameter,public :: prescribedHead       = 162    ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
@@ -195,6 +196,7 @@ subroutine mDecisions(err,message)
   USE globalData,only:numtim                 ! number of time steps in the simulation
   ! model decision structures
   USE globalData,only:model_decisions        ! model decision structure
+  USE globalData,only:soilLateralFlow        ! flag: soil layers drain laterally
   USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
   ! forcing metadata
   USE globalData,only:forc_meta              ! metadata structures
@@ -496,6 +498,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision))
     case('qTopmodl'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = qbaseTopmodel       ! TOPMODEL-ish baseflow parameterization
     case('bigBuckt'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket           ! a big bucket (lumped aquifer model)
+    case('bbLatflow'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = bigBucket          ! a big bucket, plus lateral flow in the soil above
     case('noXplict'); model_decisions(iLookDECISIONS%groundwatr)%iDecision = noExplicit          ! no explicit groundwater parameterization
     case default
       err=10; message=trim(message)//"unknown groundwater parameterization [option="//trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision)//"]"; return
@@ -523,6 +526,7 @@ subroutine mDecisions(err,message)
   select case(trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision))
     case('presTemp'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedTemp      ! prescribed temperature
     case('zeroFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = zeroFlux            ! zero flux
+    case('presFlux'); model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision = prescribedFlux       ! prescribed energy flux (geothermal)
     case default
       err=10; message=trim(message)//"unknown lower boundary conditions for thermodynamics [option="//trim(model_decisions(iLookDECISIONS%bcLowrTdyn)%cDecision)//"]"; return
   end select
@@ -732,6 +736,21 @@ subroutine mDecisions(err,message)
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
   ! check for consistency among options
   ! -----------------------------------------------------------------------------------------------------------------------------------------------
+  ! lateral soil flow beside the bucket: the bucket takes the drainage from the soil base, and the transmissivity needs a finite base
+  if(trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision) == 'bbLatflow')then
+    if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision /= localColumn)then
+      message=trim(message)//'groundwatr = bbLatflow needs a local aquifer below each column (set "spatial_gw" to "localColumn")'
+      err=20; return
+    end if
+    if(model_decisions(iLookDECISIONS%hc_profile)%iDecision /= constant .and. &
+       model_decisions(iLookDECISIONS%hc_profile)%iDecision /= expLaw_profile)then
+      message=trim(message)//'groundwatr = bbLatflow needs conductivity at the soil base to recharge the bucket (set "hc_profile" to "constant" or "exp_prof")'
+      err=20; return
+    end if
+  end if
+  soilLateralFlow = model_decisions(iLookDECISIONS%groundwatr)%iDecision == qbaseTopmodel .or. &
+                    trim(model_decisions(iLookDECISIONS%groundwatr)%cDecision) == 'bbLatflow'
+
   ! check zero flux lower boundary for topmodel baseflow option
   select case(model_decisions(iLookDECISIONS%groundwatr)%iDecision)
     case(qbaseTopmodel)

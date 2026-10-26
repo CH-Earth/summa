@@ -556,11 +556,7 @@ contains
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
-    ! read configuration settings from TOML file
-    ! TOML is authoritative and overrides legacy values
-    ! NOTE: the reader is only built when something needs it (see USE_TOML), so that a
-    !       file-manager run does not drag in the toml-f submodule. Reject -c rather than
-    !       ignoring it, so the option never silently does nothing.
+    ! read configuration settings from TOML file, which overrides legacy values; the reader is built only with USE_TOML
     if(allocated(config%config_file))then
       if(toml_active)then
         call read_summa_config(trim(config%config_file), config, err,cmessage)
