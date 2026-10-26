@@ -229,7 +229,6 @@ AFTER tag of v4.0.0-exp-Sundials
      maxSnowLayers is multiplied by 2.5 when any glacier is present, to allow firn development in the accumulation zone.
      The OpenWQ coupling was updated to be per (HRU, domain) rather than per HRU (see build/source/openwq), commit f16c3488 Sep 10, 2026.
      Next Gen coupling was also updated.
-     Restart write for a multi-GRU glacier run calls writeRestartGrid once, after its GRU loop, commit 29dc01f6 Sep 24, 2026
 -58) Groundwater / TOPMODEL baseflow fixes in computBaseflow (decision groundwatr == qTopmodl), commit dca170cc Sep 10, 2026
       1) The transmissivity integrals are written in terms of the hydraulic conductivity at the soil surface, but the code was passing
          mLayerSatHydCondMP(1), which is the macropore conductivity at the first layer midpoint (already scaled by the depth profile).

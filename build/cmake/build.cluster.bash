@@ -19,6 +19,7 @@ module load StdEnv/2023
 module load gcc/12.3
 module load openblas/0.3.24
 module load openmpi/4.1.5
+module load netcdf-mpi/4.9.2
 module load netcdf-fortran/4.6.1
 #
 # Purdue Anvil settings
