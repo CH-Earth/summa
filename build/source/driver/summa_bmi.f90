@@ -210,6 +210,10 @@ module summabmi
   end type summa_bmi
   private
   public :: summa_bmi
+#ifdef NGEN_ACTIVE
+  ! Keep the C registration symbol visible to external interfaces.
+  public :: register_bmi
+#endif
 
   ! *****************************************************************************
   ! * variable definitions
