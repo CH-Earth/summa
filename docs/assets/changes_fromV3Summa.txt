@@ -320,3 +320,4 @@ AFTER tag of v4.0.0-exp-Sundials
      Cases dispatched dynamically to case groups by an MPI counter; search state shared by random and DDS sampling.
      Solver failures recoverable in calibration; --home and --persistent-output options; Fir build and SLURM scripts in utils/hpc/fir, commit 88cc8242 Oct 23, 2026
      Calibration settings and Fir scaling experiments; multi-case stub runs on them with --home, commits ec3069b0 and 9431d965 Oct 26, 2026
+     Fir scripts in utils/hpc/fir with a README, one job script taking the manifest; scaling experiment copies dropped, commit 91709cf3 Oct 26, 2026
