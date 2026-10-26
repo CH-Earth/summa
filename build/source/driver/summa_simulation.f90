@@ -229,8 +229,9 @@ contains
       ! no observations: finalize and return
       call finalize_summa(summa1_struc(n),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      if(allocated(summa1_struc)) deallocate(summa1_struc)
       metric = summa1_struc(n)%config%calib%default_metric
+      if(allocated(summa1_struc)) deallocate(summa1_struc)
+      output_fileSuffix=outputFileSuffix_orig
       return
 
     endif
