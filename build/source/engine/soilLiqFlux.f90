@@ -1630,6 +1630,14 @@ subroutine update_volFracLiq_derivatives
   ! **** Update operations for surfaceFlux: final infiltration calculations ****
   ! local variables
   real(rkind) :: scalarInfilArea_unfrozen ! infiltration area that is not frozen
+  real(rkind) :: infilWidth               ! half-width of the smoothing band of the infiltration-rate min (m s-1)
+  real(rkind) :: infilDiff                ! rain plus melt minus the max infiltration rate (m s-1)
+  real(rkind) :: infilExcess              ! smooth positive part of infilDiff, the water input that does not infiltrate (m s-1)
+  real(rkind) :: dExcess_dDiff            ! derivative of infilExcess w.r.t. infilDiff (-)
+  real(rkind) :: dExcess_dWidth           ! derivative of infilExcess w.r.t. infilWidth (-)
+  real(rkind) :: infilRate                ! smoothed min(rain plus melt, max infiltration rate) (m s-1)
+  real(rkind) :: dInfilRate_dMax          ! derivative of infilRate w.r.t. the max infiltration rate (-)
+  real(rkind),parameter :: infilSmoothFrac=0.2_rkind ! half-width of the smoothing band as a fraction of the max infiltration rate (-)
   real(rkind) :: compLimiter              ! smooth limiter that closes infiltration area under strong compression (-)
   real(rkind) :: compLimiter_prev         ! pre-limiter infiltration area used for chain rule (-)
   real(rkind) :: dCompLimiter_dHead       ! derivative of compression limiter w.r.t. mean squared positive head (m-2)
@@ -1725,24 +1733,38 @@ subroutine update_volFracLiq_derivatives
    ! unfrozen infiltration area and infiltration (m s-1)
    scalarInfilArea_unfrozen=(1._rkind - scalarFrozenArea)*scalarInfilArea
    scalarSoilControl = 0._rkind
-   scalarSurfaceInfiltration = scalarInfilArea_unfrozen * min(scalarRainPlusMelt,xMaxInfilRate)
+   ! Smooth min(rain+melt, max infiltration rate) so the derivative does not switch branches where rain crosses the max rate.
+   ! Written as r - S(r-x), with S a quadratic smooth positive part over a band of half-width w around r=x: it is exact outside
+   ! the band (so infiltration is zero without water input and there is no bias away from the crossing) and has a continuous
+   ! first derivative. The half-width is a fraction of the max rate, so the band is the same relative size in every soil.
+   infilWidth = infilSmoothFrac*xMaxInfilRate
+   infilDiff  = scalarRainPlusMelt - xMaxInfilRate
+   if (infilDiff <= -infilWidth) then      ! rain well below the max rate: all of it infiltrates
+     infilExcess = 0._rkind; dExcess_dDiff = 0._rkind; dExcess_dWidth = 0._rkind
+   else if (infilDiff >= infilWidth) then  ! rain well above the max rate: infiltration at the max rate
+     infilExcess = infilDiff; dExcess_dDiff = 1._rkind; dExcess_dWidth = 0._rkind
+   else                                    ! inside the band
+     infilExcess    = (infilDiff + infilWidth)**2_i4b/(4._rkind*infilWidth)
+     dExcess_dDiff  = (infilDiff + infilWidth)/(2._rkind*infilWidth)
+     dExcess_dWidth = dExcess_dDiff - (infilDiff + infilWidth)**2_i4b/(4._rkind*infilWidth**2_i4b)
+   end if
+   infilRate = scalarRainPlusMelt - infilExcess
+   scalarSurfaceInfiltration = scalarInfilArea_unfrozen * infilRate
 
    ! Compute total runoff derivatives, do w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob* module
    if(updateInfil)then
-     if (xMaxInfilRate > scalarRainPlusMelt) then
-       scalarSoilControl = scalarInfilArea_unfrozen  ! derivative dependent on scalarRainPlusMelt (needed to compute scalarRainPlusMelt derivative inside computJacob*)
-     elseif (xMaxInfilRate < scalarRainPlusMelt) then ! dInfilRate_d dependent on layers not at surface
-       dInfilRate_dWat(:) = dxMaxInfilRate_dWat(:)
-       dInfilRate_dTk(:)  = dxMaxInfilRate_dTk(:)
-     end if
+     scalarSoilControl  = scalarInfilArea_unfrozen*(1._rkind - dExcess_dDiff) ! derivative w.r.t. scalarRainPlusMelt (needed inside computJacob*)
+     dInfilRate_dMax    = dExcess_dDiff - infilSmoothFrac*dExcess_dWidth
+     dInfilRate_dWat(:) = dInfilRate_dMax*dxMaxInfilRate_dWat(:)
+     dInfilRate_dTk(:)  = dInfilRate_dMax*dxMaxInfilRate_dTk(:)
      ! Do not need to break into IE and SE components since they are never used separately in the Jacobian assembly
      dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea)&
-                         * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) )&
-                         + (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+                         * ( dInfilArea_dWat(:)*infilRate + scalarInfilArea*dInfilRate_dWat(:) )&
+                         + (-dFrozenArea_dWat(:))*scalarInfilArea*infilRate
      ! energy state variable is temperature (transformed outside soilLiqFlux_module if needed)
      dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea)&
-                         * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  )&
-                         + (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+                         * ( dInfilArea_dTk(:) *infilRate + scalarInfilArea*dInfilRate_dTk(:)  )&
+                         + (-dFrozenArea_dTk(:)) *scalarInfilArea*infilRate
    end if
   end associate
 
