@@ -180,7 +180,7 @@ aquiferScaleFactor        |       0.2000 |       0.1000 |       0.5000
 aquiferBaseflowExp        |       2.0000 |       1.0000 |       4.0000
 qSurfScale                |       5.0000 |       1.0000 |      20.0000
 specificYield             |       0.2000 |       0.1000 |       0.3000
-specificStorage           |       1.d-06 |       1.d-05 |       1.d-07
+specificStorage           |       1.d-06 |       1.d-07 |       1.d-05
 f_impede                  |       2.0000 |       1.0000 |      10.0000
 soilIceScale              |       0.1300 |       0.0001 |       1.0000
 soilIceCV                 |       0.4500 |       0.1000 |       5.0000
