@@ -316,3 +316,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, 6805ba8b and c9154ece Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
 -86) Smooth min(rain+melt, max infiltration rate) with a quadratic band of half-width 0.2*xMaxInfilRate, exact outside the band, commit 49b9835c Oct 26, 2026
+ 87) PR #649 calibration settings, Fir scaling experiments; multi-case stub runs on them with --home, commits 0204257a and 4a42a3e1 Oct 26, 2026
