@@ -1702,10 +1702,8 @@ subroutine update_volFracLiq_derivatives
      ! Compute the depth-weighted mean positive matric head.
      meanPositiveHead = sum(posHead(ixTop:ixBot)*mLayerDepth(ixTop:ixBot))/rootZoneDepth
 
-     ! Reduce infiltration area with a Gaussian of the mean positive head, which has zero slope at zero head,
-     ! so the limiter does not add a kink to the Jacobian where a layer saturates.
-     ! compHeadWidth is the pressure-head scale (m) at which the limiter falls to exp(-1).
-     compLimiter = exp(-(meanPositiveHead/compHeadWidth)**2_i4b)
+     ! Reduce infiltration area with a Gaussian of the mean positive head (zero slope at zero head) so limiter does not add kink to Jacobian where layer saturates
+     compLimiter = exp(-(meanPositiveHead/compHeadWidth)**2_i4b) ! limiter falls to exp(-1) at compHeadWidth, and is effectively zero at 3*compHeadWidth
      dCompLimiter_dHead = -2._rkind*meanPositiveHead/compHeadWidth**2_i4b*compLimiter
 
      ! Derivative of mean positive head with respect to water state variables.
