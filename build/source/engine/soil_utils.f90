@@ -53,6 +53,8 @@ public::gammp,gammp_complex
 public::dgammp_dx
 public::LogSumExp
 public::SoftArgMax
+real(rkind),parameter :: kBlendHead=1.e-3_rkind ! matric head below saturation over which hydraulic conductivity blends to k_sat (m)
+
 contains
 
 ! ******************************************************************************************************************************
@@ -248,10 +250,10 @@ function hydCond_psi(psi,k_sat,alpha,n,m)
     hydCond_psi = k_sat
   else
     orig_val = k_sat * ( ( (1._rkind - (psi*alpha)**(n-1._rkind) * (1._rkind + (psi*alpha)**n)**(-m))**2_i4b ) / ( (1._rkind + (psi*alpha)**n)**(m/2._rkind) ) )
-    if (psi < -verySmall) then
+    if (psi < -kBlendHead) then
       hydCond_psi = orig_val
     else ! compute original formula and blend to k_sat using a cubic smoothstep
-      t = (psi + verySmall) / verySmall
+      t = (psi + kBlendHead) / kBlendHead
       s = 3._rkind*t*t - 2._rkind*t*t*t     ! cubic smoothstep: s(0)=0, s(1)=1, continuous first derivative
       hydCond_psi = orig_val*(1._rkind - s) + k_sat*s
     end if
@@ -411,13 +413,13 @@ function dHydCond_dPsi(psi,k_sat,alpha,n,m)
     ! and combine to get the original derivative
     orig_val = k_sat * (f_nm / f_dm)
     orig_d   = k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2_i4b)
-    if(psi < -verySmall) then
+    if(psi < -kBlendHead) then
       dHydCond_dPsi = orig_d
     else ! compute original formula and blend to k_sat using a cubic smoothstep
-      t = (psi + verySmall) / verySmall
+      t = (psi + kBlendHead) / kBlendHead
       t = max(0._rkind, min(1._rkind, t))
       s = 3._rkind*t*t - 2._rkind*t*t*t
-      ds_dpsi = (6._rkind*t*(1._rkind - t)) / verySmall
+      ds_dpsi = (6._rkind*t*(1._rkind - t)) / kBlendHead
       dHydCond_dPsi = orig_d*(1._rkind - s) + (k_sat - orig_val)*ds_dpsi
     end if
   end if
