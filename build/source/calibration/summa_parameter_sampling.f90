@@ -414,8 +414,8 @@ contains
     integer(i4b),                intent(in)    :: nTarget           ! objectives per trial
     integer(i4b),                intent(out)   :: err
     character(*),                intent(out)   :: message
+    real(rkind), allocatable :: objective(:)
     real(rkind)  :: param_override(nParam)
-    real(rkind)  :: objective(nTarget)
     integer(i4b) :: sample_id
     integer(i4b) :: mpi_err
     logical(lgt) :: stop_worker

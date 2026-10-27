@@ -58,7 +58,6 @@ implicit none
 private
 
 public :: run_simulation
-public :: evaluate_objective
 public :: evaluate_objectives
 public :: n_calibration_targets
 public :: scalarize_objectives
@@ -189,56 +188,6 @@ contains
   end function oriented_objectives
 
   ! **************************************************************************************************
-  ! Evaluate the objective function for a specified parameter vector.
-  !
-  ! Retained for callers that want one number: it evaluates every calibration target and returns the
-  ! scalarized objective.  With a single target, which is what a configuration naming no target has,
-  ! that number is the metric itself.
-  ! **************************************************************************************************
-  subroutine evaluate_objective(config,                            & ! SUMMA configuration structure
-                                domain_parallel,                   & ! MPI context for domain parallelism
-                                instance_parallel,                 & ! MPI context for model-instance parallelism
-                                sample_id,param_name,param_value,  & ! sample ID + parameter names and values
-                                metric,                            & ! objective function value
-                                err, message)                        ! error code and message
-    ! dummy arguments
-    type(config_info),           intent(inout) :: config
-    type(parallel_context_type), intent(in)    :: domain_parallel
-    type(parallel_context_type), intent(in)    :: instance_parallel
-    integer(i4b), intent(in)  :: sample_id
-    character(*), intent(in)  :: param_name(:)
-    real(rkind),  intent(in)  :: param_value(:)
-    real(rkind),  intent(out) :: metric
-    integer(i4b), intent(out) :: err
-    character(*), intent(out) :: message
-    ! locals
-    real(rkind), allocatable :: objective(:)   ! one value per calibration target
-    integer(i4b)             :: nTarget        ! number of calibration targets
-    character(len=1024)      :: cmessage       ! error message of downwind routine
-
-    err=0
-    message='evaluate_objective/'
-    metric=realMissing
-
-    nTarget=max(n_calibration_targets(config),1)
-    allocate(objective(nTarget),stat=err)
-    if(err/=0)then
-      message=trim(message)//'problem allocating the objective vector'
-      return
-    endif
-
-    call evaluate_objectives(config,                              &
-                             domain_parallel,instance_parallel,   &
-                             sample_id, param_name,param_value,   &
-                             objective,                           &
-                             err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    metric=scalarize_objectives(config,objective)
-
-  end subroutine evaluate_objective
-
-  ! **************************************************************************************************
   ! Return the position of a variable over a spatial unit in a list, or integerMissing when it is not
   ! there.
   !
@@ -309,12 +258,12 @@ contains
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
     type(parallel_context_type), intent(in)    :: instance_parallel
-    integer(i4b), intent(in)  :: sample_id
-    character(*), intent(in)  :: param_name(:)
-    real(rkind),  intent(in)  :: param_value(:)
-    real(rkind),  intent(out) :: objective(:)
-    integer(i4b), intent(out) :: err
-    character(*), intent(out) :: message
+    integer(i4b)               , intent(in)    :: sample_id
+    character(*)               , intent(in)    :: param_name(:)
+    real(rkind)                , intent(in)    :: param_value(:)
+    real(rkind), allocatable   , intent(out)   :: objective(:)
+    integer(i4b)               , intent(out)   :: err
+    character(*)               , intent(out)   :: message
     logical(lgt), optional, intent(out) :: trial_failed
     ! locals
     logical(lgt)                       :: failed             ! the model refused or failed on this parameter set
@@ -358,15 +307,19 @@ contains
 
     err=0
     message='evaluate_objectives/'
-    objective=realMissing
     failed=.false.; unscored=.false.
     if(present(trial_failed)) trial_failed=.false.
-
-    nTarget=n_calibration_targets(config)
-    if(nTarget > size(objective))then
-      message=trim(message)//'the objective vector is too short for the configured calibration targets'
-      err=20; return
+    
+    ! Allocate objective values
+    nTarget = 0
+    if(allocated(config%calib%targets)) nTarget = size(config%calib%targets)
+    
+    allocate(objective(max(1,nTarget)),stat=err)
+    if(err/=0)then
+      message=trim(message)//'problem allocating objective vector'
+      return
     endif
+    objective=realMissing
 
     ! allocate top-level SUMMA structure
     allocate(summa1_struc(n),stat=err)
