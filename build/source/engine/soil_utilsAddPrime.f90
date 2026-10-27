@@ -35,6 +35,9 @@ USE soil_utils_module,only:matricHead
 USE soil_utils_module,only:dPsi_dTheta
 USE soil_utils_module,only:volFracLiq
 USE soil_utils_module,only:dTheta_dPsi
+USE soil_utils_module,only:satDeficit
+USE soil_utils_module,only:log1pAcc
+USE soil_utils_module,only:expm1Acc
 
 ! privacy
 implicit none
@@ -148,46 +151,6 @@ subroutine liquidHeadPrime(&
   if(volFracLiqPrime==realMissing .or. volFracIcePrime==realMissing) matricHeadLiqPrime = realMissing
 
 end subroutine liquidHeadPrime
-
-! ******************************************************************************************************************************
-! private function satDeficit: theta_sat minus the total water content (-) at a matric head psi <= 0 (m), accurate as psi -> 0
-! ******************************************************************************************************************************
-function satDeficit(psi,alpha,theta_sat,theta_res,n,m)
-  implicit none
-  real(rkind),intent(in) :: psi,alpha,theta_sat,theta_res,n,m ! matric head (m) and van Genuchten parameters
-  real(rkind)            :: satDeficit                       ! theta_sat - volFracLiq(psi) (-)
-  satDeficit = -(theta_sat - theta_res)*expm1Acc(-m*log1pAcc((psi*alpha)**n))
-end function satDeficit
-
-! ******************************************************************************************************************************
-! private functions log1pAcc and expm1Acc: log(1+x) and exp(x)-1 accurate for small x (Kahan's forms)
-! ******************************************************************************************************************************
-function log1pAcc(x)
-  implicit none
-  real(rkind),intent(in) :: x
-  real(rkind)            :: log1pAcc,u
-  u = 1._rkind + x
-  if(u == 1._rkind)then
-    log1pAcc = x
-  else
-    log1pAcc = log(u)*x/(u - 1._rkind)
-  endif
-end function log1pAcc
-
-function expm1Acc(x)
-  implicit none
-  real(rkind),intent(in) :: x
-  real(rkind)            :: expm1Acc,u
-  u = exp(x)
-  if(u == 1._rkind)then
-    expm1Acc = x
-  else if(u - 1._rkind == -1._rkind)then
-    expm1Acc = -1._rkind
-  else
-    expm1Acc = (u - 1._rkind)*x/log(u)
-  endif
-end function expm1Acc
-
 
 ! ******************************************************************************************************************************
 ! public function d2Theta_dPsi2: compute the second derivative of the soil water characteristic (m-1)

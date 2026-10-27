@@ -42,6 +42,9 @@ public::volFracLiq
 public::matricHead
 public::dTheta_dPsi
 public::dPsi_dTheta
+public::satDeficit
+public::log1pAcc
+public::expm1Acc
 public::RH_soilair
 public::dTheta_dTk
 public::crit_soilT
@@ -124,6 +127,8 @@ subroutine liquidHead(&
   real(rkind)                       :: effSat                                    ! effective saturation (-)
   real(rkind)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
   real(rkind)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
+  real(rkind)                       :: xDef                                      ! saturation deficit of the total water, theta_sat - volFracLiq - volFracIce (-)
+  real(rkind)                       :: satTerm                                   ! effSat**(-1/m) - 1 (-)
    ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHead/'
@@ -139,14 +144,18 @@ subroutine liquidHead(&
     ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
     ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
     xNum   = volFracLiq - theta_res
-    xDen   = theta_sat - volFracIce - theta_res
-    effSat = xNum/xDen          ! effective saturation
+    xDef   = satDeficit(matricHeadTotal,vGn_alpha,theta_sat,theta_res,vGn_n,vGn_m)
+    xDen   = xNum + xDef  ! theta_sat - volFracIce - theta_res, without cancellation near saturation
+    effSat = xNum/xDen    ! effective saturation
 
-    ! - matric head associated with liquid water
-    matricHeadLiq = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
-
-    ! compute derivative in liquid water matric potential w.r.t. effective saturation (m)
-    if(present(dPsiLiq_dPsi0).or.present(dPsiLiq_dTemp))then
+    ! - matric head associated with liquid water, and its derivative w.r.t. effective saturation (m)
+    satTerm = 0._rkind
+    if(xNum > 0._rkind) satTerm = expm1Acc(-log1pAcc(-xDef/xDen)/vGn_m) ! effSat**(-1/m) - 1 from 1-effSat, smooth as effSat -> 1
+    if(satTerm > 0._rkind)then
+      matricHeadLiq   = satTerm**(1._rkind/vGn_n)/vGn_alpha
+      dPsiLiq_dEffSat = -satTerm**(1._rkind/vGn_n - 1._rkind)*effSat**(-1._rkind/vGn_m - 1._rkind)/(vGn_alpha*vGn_n*vGn_m)
+    else
+      matricHeadLiq   = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
       dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
     endif
 
@@ -805,5 +814,45 @@ function SoftArgMax(alpha,x) result(SAM)
     end if
   end if
 end function SoftArgMax
+
+! ******************************************************************************************************************************
+! public function satDeficit: theta_sat minus the total water content (-) at a matric head psi <= 0 (m), accurate as psi -> 0
+! ******************************************************************************************************************************
+function satDeficit(psi,alpha,theta_sat,theta_res,n,m)
+  implicit none
+  real(rkind),intent(in) :: psi,alpha,theta_sat,theta_res,n,m ! matric head (m) and van Genuchten parameters
+  real(rkind)            :: satDeficit                       ! theta_sat - volFracLiq(psi) (-)
+  satDeficit = -(theta_sat - theta_res)*expm1Acc(-m*log1pAcc((psi*alpha)**n))
+end function satDeficit
+
+! ******************************************************************************************************************************
+! public functions log1pAcc and expm1Acc: log(1+x) and exp(x)-1 accurate for small x (Kahan's forms)
+! ******************************************************************************************************************************
+function log1pAcc(x)
+  implicit none
+  real(rkind),intent(in) :: x
+  real(rkind)            :: log1pAcc,u
+  u = 1._rkind + x
+  if(u == 1._rkind)then
+    log1pAcc = x
+  else
+    log1pAcc = log(u)*x/(u - 1._rkind)
+  endif
+end function log1pAcc
+
+function expm1Acc(x)
+  implicit none
+  real(rkind),intent(in) :: x
+  real(rkind)            :: expm1Acc,u
+  u = exp(x)
+  if(u == 1._rkind)then
+    expm1Acc = x
+  else if(u - 1._rkind == -1._rkind)then
+    expm1Acc = -1._rkind
+  else
+    expm1Acc = (u - 1._rkind)*x/log(u)
+  endif
+end function expm1Acc
+
 
 end module soil_utils_module
