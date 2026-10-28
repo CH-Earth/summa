@@ -42,7 +42,6 @@ else:
     stat = sys.argv[1]
     viz_dir = Path(os.path.expanduser('~/statistics'))
     
-
 #method_name=['be1','be16','be32','sun6'] #maybe make this an argument
 #plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
 #method_name=['sun5cm_noev','sun5cm_ev','sun5en_noev','sun5en_ev','sun8en_noev'] 
@@ -106,7 +105,7 @@ for i, m in enumerate(method_name3):
 # Specify variables of interest
 plot_vars = settings.copy()
 plt_titl = ['snow water equivalent','total soil water content','total evapotranspiration', 'total water on the vegetation canopy','top 3m soil temperature']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$K$']
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$mm~y^{-1}$','$kg~m^{-2}$','$K$']
 if (len(use_vars)>1): 
     plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
 else:
@@ -152,15 +151,15 @@ elif len(use_vars2)>0: # and len(use_vars)==0:
 elif len(use_vars3)>0: 
     fig_fil = fig_fil.format('split','mean')
 
-maxes_m = [99,15,99,99,6]
+maxes_m = [99,14,1e-3,5e-7,6]
 if do_rel: maxes_m = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'avge':
     stat2 = 'mean'
-    maxes = [99,7,99,99,0.28]
+    maxes = [99,7,1e-5,5e-9,0.3]
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'rmse' or stat=='rmnz':
     stat2 = 'mean'
-    maxes = [2,15,250,0.08,200]
+    maxes = [99,14,1e-4,5e-7,1.0]
     if do_rel: maxes = [0.4,0.007,0.6,0.15,0.0015]
 if stat == 'maxe':
     stat2 = 'amax'
@@ -225,7 +224,7 @@ plt.rcParams['ytick.color'] = 'black'
 plt.rcParams['ytick.major.width'] = 2
 # fix size for now
 ncol = 2
-nrow = 3
+nrow = 4
 
 if 'compressed' in fig_fil:
     plt.rcParams.update({'font.size': 27})
@@ -266,7 +265,7 @@ def run_loop(i,var,mx,rep,stat):
             s = summa[m][var].sel(stat=stat0)
             if do_rel and var != 'wallClockTime': s = s/s_rel
             if stat == 'maxe': s = np.fabs(s) # make absolute value norm
-            mx = max(s.max(),mx)
+            mx = mx = max(np.nanpercentile(s, 99.9), mx) #max(s.max(),mx)
             if stat == 'kgem': mn = min(s.min(),mn)
 
     # Data

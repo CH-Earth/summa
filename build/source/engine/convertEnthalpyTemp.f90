@@ -1590,7 +1590,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     real(rkind) :: dx  ! change in bracket
     integer :: iter, exitflag, disp, exita, exitb
     real(rkind) :: sgn
-    real(rkind), parameter :: tol_x = 1.e-5_rkind, tol_f = 1.e0_rkind ! maybe these should be tied to the state variable tolerances
+    real(rkind), parameter :: tol_x = 1.e-10_rkind, tol_f = 1.e-4_rkind ! (K, J m-3) tight enough that temperature is smooth in the solver state
     character(LEN=256):: cmessage ! error message of downwind routine
     
     ! initialize error control

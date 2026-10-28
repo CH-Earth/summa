@@ -382,10 +382,10 @@ contains
 
    ! append parameter name and value
    if(.not.allocated(opts%param_name))then
-     opts%param_name  = [trim(name)]
+     opts%param_name  = [character(len=64) :: name]
      opts%param_value = [value]
    else
-     opts%param_name  = [opts%param_name, trim(name)]
+     opts%param_name  = [character(len=64) :: opts%param_name, name]
      opts%param_value = [opts%param_value, value]
    endif
 

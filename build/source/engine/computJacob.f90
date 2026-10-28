@@ -702,8 +702,10 @@ subroutine fluxJacAdd(&
         endif
 
         ! - sub-diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
-        if(qLayer<nSnow .and. mLayerVolFracIce(jLayer+1)<=maxVolIceContent_use)then
-          if(ixSnLaSoGlHyd(jLayer+1)/=integerMissing) aJac(ixInd(full,ixSnLaSoGlHyd(jLayer+1),watState),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above)
+        if(qLayer<nSnow)then
+          if(mLayerVolFracIce(jLayer+1)<=maxVolIceContent_use)then
+            if(ixSnLaSoGlHyd(jLayer+1)/=integerMissing) aJac(ixInd(full,ixSnLaSoGlHyd(jLayer+1),watState),watState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*convLiq2tot  ! dVol(below)/dLiq(above)
+          endif
         endif
         ! - super-diagonal elements for ice, super-diagonal only (water does not move downwards in ice), but since water passes through immediately in ice, terms are 0
 
@@ -763,8 +765,10 @@ subroutine fluxJacAdd(&
 
         if(nrgState/=integerMissing)then
           ! - sub-diagonal elements for snow, sub-diagonal only (water does not move upwards in snow)
-          if(qLayer<nSnow .and. mLayerVolFracIce(jLayer+1)<=maxVolIceContent_use)then
-            if(ixSnLaSoGlHyd(jLayer+1)/=integerMissing) aJac(ixInd(full,ixSnLaSoGlHyd(jLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! dVol(below)/dT(above)
+          if(qLayer<nSnow)then
+            if(mLayerVolFracIce(jLayer+1)<=maxVolIceContent_use)then
+              if(ixSnLaSoGlHyd(jLayer+1)/=integerMissing) aJac(ixInd(full,ixSnLaSoGlHyd(jLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(jLayer+1))*iLayerLiqFluxSnLaGlDeriv(jLayer)*mLayerdTheta_dTk(jLayer)  ! dVol(below)/dT(above)
+            endif
           endif              
           ! - super-diagonal elements for ice, super-diagonal only (water does not move downwards in ice), but since water passes through immediately in ice, terms are 0
         endif ! (if the energy state for the current layer is within the state subset)
@@ -869,8 +873,8 @@ subroutine fluxJacAdd(&
     if(ixAqWat/=integerMissing)then
       aJac(ixInd(full,ixAqWat,ixAqWat),ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat)
       if(nSoil>0)then
-        if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
-        if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixInd(full,ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
+        if(ixSoilOnlyNrg(nSoil)/=integerMissing .and. (ixAqWat-ixSoilOnlyNrg(nSoil)<=kl .or. full)) aJac(ixInd(full,ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
+        if(ixSoilOnlyHyd(nSoil)/=integerMissing .and. (ixAqWat-ixSoilOnlyHyd(nSoil)<=kl .or. full)) aJac(ixInd(full,ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
       endif
       ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
       if(computeVegFlux)then

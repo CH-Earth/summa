@@ -68,12 +68,9 @@ contains
     character(len=512) :: cmessage
     character(len=:), allocatable :: outputFileSuffix_orig
     character(len=:), allocatable :: simStartOriginal,simEndOriginal,spinStart
-    character(len=:), allocatable :: timeUnits,flowUnits
     ! baseline parameter vectors
     character(len=64), allocatable :: param_name(:)
     real(rkind),       allocatable :: param_value(:)
-    ! simulated time and flow
-    real(rkind), allocatable :: timeSim(:),flowSim(:)
     ! local variables
     integer(i4b) :: iyear
 
@@ -115,12 +112,10 @@ contains
     call run_simulation(config,                 & ! SUMMA configuration structure
                         domain_parallel,        & ! MPI context for domain parallelism
                         instance_parallel,      & ! MPI context for model-instance parallelism
-                        timeSim,flowSim,        & ! simulated time and streamflow
-                        timeUnits,flowUnits,    & ! time and streamflow units
                         param_name,param_value, & ! parameter names and values
                         mpar_out=mpar_out,      & ! initialized HRU parameters
                         bpar_out=bpar_out,      & ! initialized basin parameters
-                        err=err,message=cmessage)
+                        err=err,message=cmessage) ! error code and message
 
     ! restore original global simulation settings
     ! NOTE: Do this before processing the error code

@@ -40,30 +40,17 @@ program summa_driver_mpi
   implicit none
 
   ! * driver variables *
-
   ! MPI contexts for domain and model-instance parallelism
   type(parallel_context_type)    :: domain_parallel
   type(parallel_context_type)    :: instance_parallel
-
   ! configuration info
   type(config_info)              :: config
-
   ! parameters
   character(len=64), allocatable :: param_name(:)
   real(rkind),       allocatable :: param_value(:)
-
-  ! flow
-  real(rkind),       allocatable :: timeSim(:)
-  real(rkind),       allocatable :: flowSim(:)
-
-  ! units
-  character(len=:),  allocatable :: timeUnits
-  character(len=:),  allocatable :: flowUnits
-
   ! error codes
   integer(i4b) :: err = 0
   integer(i4b) :: mpi_err = 0
-
   ! error messages
   character(len=1024) :: message = ''
   character(len=256)  :: mpi_message = ''
@@ -96,8 +83,6 @@ program summa_driver_mpi
   call run_simulation(config,                 & ! SUMMA configuration structure
                       domain_parallel,        & ! MPI context for domain parallelism
                       instance_parallel,      & ! MPI context for model-instance parallelism
-                      timeSim,flowSim,        & ! simulated time and streamflow
-                      timeUnits,flowUnits,    & ! time and streamflow units
                       param_name,param_value, & ! parameter names and values
                       err=err, message=message) ! error code and message
   call handle_err(err,message)

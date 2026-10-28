@@ -38,7 +38,8 @@ one_plot = True # true is one plot, false is multiple plots (one per variable)
 run_local = False # true is run on local machine (only does testing), false is run on cluster
 more_mean = False # true is plot mean/amax extra variables in a balance file
 two_stat = True # true is run both mean and amax, false is run one stat
-fix_hruid = True # true is only have hru index for hru, false is have hruid for hru
+fix_hruid = False # true is only have hru index for hru, false is have hruid for hru
+fix_hruid_attr = True # true is only have hru index for hru, false is have hruid for hru in attributes file
 
 if run_local: 
     stat = 'avge'
@@ -131,7 +132,12 @@ for i, m in enumerate(method_name):
 
 if more_mean: summa['exVar'] = xr.open_dataset(viz_dir/viz_file_exVar)
 
-if fix_hruid:
+if fix_hruid_attr:
+    hruid_file = xr.open_dataset(viz_dir/'attributes.nc')
+    hruid = hruid_file['hruId'].values
+    for m in method_name:
+        if m!='diff' and m!='ref': summa[m]['hru'] = hruid[summa[m]['hru'].values - 1] # hru is 1-based index into hruId
+elif fix_hruid:
     hruid_file = xr.open_dataset(viz_dir/'sun8en_hrly_diff_bals_balance.nc')
     hruid = hruid_file['hru']
     for m in method_name:
@@ -369,7 +375,7 @@ def run_loop(j,var,the_max,stat,row_fill):
         if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
         if statr == 'amax_ben': statr_word = 'max'
 
-    my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+    my_cmap = copy.copy(matplotlib.colormaps['inferno_r']) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
 
     if var!='exVar':
@@ -380,19 +386,19 @@ def run_loop(j,var,the_max,stat,row_fill):
         norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
 
         if stat =='kgem' and var!='wallClockTime':
-            my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
+            my_cmap = copy.copy(matplotlib.colormaps['inferno']) # copy the default cmap
             my_cmap.set_bad(color='white') #nan color white
             vmin,vmax = the_max, 1.0
             norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=1.5)
 
-        my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+        my_cmap2 = copy.copy(matplotlib.colormaps['inferno_r']) # copy the default cmap
         my_cmap2.set_bad(color='white') #nan color white
         vmin,vmax =  -the_max/250,the_max/250
         norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
         #norm2 = matplotlib.colors.SymLogNorm(vmin=vmin,vmax=vmax,linthresh=0.01,base=1.1)
 
         if stat == 'mean' and var== 'scalarRootZoneTemp':
-            my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+            my_cmap = copy.copy(matplotlib.colormaps['inferno_r']) # copy the default cmap
             my_cmap.set_bad(color='white') #nan color white
             vmin,vmax =  (280-(the_max-280)),the_max
             norm = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=273.16, vmax=vmax)  
@@ -426,7 +432,7 @@ def run_loop(j,var,the_max,stat,row_fill):
                 bas_albers.plot(ax=axs[r,c], column=var+m+stat0, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
                 stat_word0 = stat_word
                 plt_nm = plt_name[i]
-            print(f"{'all HRU mean for '}{var+m+stat0:<35}{np.nanmean(bas_albers[var+m+stat0].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m+stat0].values):<10.5f}")
+            print(f"{'all HRU mean for '}{var+m+stat0:<45}{np.nanmean(bas_albers[var+m+stat0].values):<10.5f}{' max: '}{np.nanmax(bas_albers[var+m+stat0].values):<10.5f}")
             axs[r,c].set_title(plt_nm)
             axs[r,c].axis('off')
             axs[r,c].set_xlim(xmin, xmax)
@@ -505,7 +511,7 @@ def run_loop(j,var,the_max,stat,row_fill):
             vmin,vmax = 0, maxes_exVar[i]
             if (v=='airtemp' or v== 'scalarRootZoneTemp'): 
                 #vmin,vmax = 260, maxes_exVar[i]
-                my_cmap2 = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+                my_cmap2 = copy.copy(matplotlib.colormaps['inferno_r']) # copy the default cmap
                 my_cmap2.set_bad(color='white') #nan color white
                 vmin,vmax =  (273.16-(maxes_exVar[i]-273.16)),maxes_exVar[i],
                 norm2 = matplotlib.colors.TwoSlopeNorm(vmin=vmin, vcenter=273.16, vmax=vmax)            
@@ -522,7 +528,7 @@ def run_loop(j,var,the_max,stat,row_fill):
             else:
                 bas_albers.plot(ax=axs[r,c], column=v+m, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
             stat_word0 = stat_word
-            print(f"{'all HRU mean for '}{v+m:<35}{np.nanmean(bas_albers[v+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[v+m].values):<10.5f}")
+            print(f"{'all HRU mean for '}{v+m:<45}{np.nanmean(bas_albers[v+m].values):<10.5f}{' max: '}{np.nanmax(bas_albers[v+m].values):<10.5f}")
             axs[r,c].set_title(plt_name[i])
             axs[r,c].axis('off')
             axs[r,c].set_xlim(xmin, xmax)

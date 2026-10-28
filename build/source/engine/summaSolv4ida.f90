@@ -751,7 +751,7 @@ subroutine setSolverParams(dt_cur,mpar_data,ida_mem,retval)
 
   !======= Internals ============
   integer,parameter           :: nonlin_iter = 4    ! maximum number of nonlinear iterations before reducing step size, default = 4
-  real(qp),parameter          :: coef_nonlin = 0.33 ! coefficient in the nonlinear convergence test, default = 0.33
+  real(qp),parameter          :: coef_nonlin = 0.03 ! coefficient in the nonlinear convergence test, default = 0.33, tighter so a nearly saturated layer does not alternate between steps
   integer,parameter           :: fail_iter = 50     ! maximum number of error test and convergence test failures, default 10
   
   associate(&

@@ -22,23 +22,22 @@ program summa_driver
   USE summa_type, only: config_info
   USE summa_type, only: parallel_context_type
 
-  USE summa_simulation, only: evaluate_objective
+  USE summa_simulation, only: evaluate_objectives
+  USE summa_init, only: init_config
   USE summa_util, only: handle_err, stop_program
   implicit none
 
   ! configuration info
   type(config_info)              :: config
-
   ! MPI contexts (initialize both as serial)
   type(parallel_context_type)    :: domain_parallel
   type(parallel_context_type)    :: instance_parallel
-
   ! parameter overrides
   character(len=64), allocatable :: param_name(:)
   real(rkind),       allocatable :: param_value(:)
   ! objective function
   integer(i4b), parameter        :: sample_id = 0
-  real(rkind)                    :: objective
+  real(rkind), allocatable       :: objective(:)
   ! error control
   integer(i4b)        :: err=0
   character(len=1024) :: message=''
@@ -57,13 +56,19 @@ program summa_driver
   allocate(param_name(0))
   allocate(param_value(0))
 
-  ! run SUMMA and evaluate the objective function
-  call evaluate_objective(config,                            & ! SUMMA configuration structure
-                          domain_parallel,                   & ! MPI context for domain parallelism
-                          instance_parallel,                 & ! MPI context for model-instance parallelism
-                          sample_id,param_name,param_value,  & ! sample ID + parameter names and values
-                          objective,                         & ! objective function value
-                          err, message)                        ! error code and message
+  ! Read configuration
+  call init_config(config, err, message)
+  call handle_err(err, message)
+  config%read_config = .false.
+
+  ! Run SUMMA and evaluate all calibration targets
+  call evaluate_objectives(config,                  & ! SUMMA configuration structure
+                           domain_parallel,         & ! MPI context for domain parallelism
+                           instance_parallel,       & ! MPI context for model-instance parallelism
+                           sample_id,               & ! sample ID
+                           param_name,param_value,  & ! parameter names and values
+                           objective,               & ! objective function value
+                           err, message)              ! error code and message
   call handle_err(err,message)
   call stop_program(0,'finished simulation successfully.')
 
