@@ -259,6 +259,85 @@ contains
     enddo
 
   end function find_series
+  
+  ! **************************************************************************************************
+  ! Identify and initialize the distinct simulated series requested by calibration targets.
+  ! Multiple targets may use the same simulated series.
+  ! **************************************************************************************************
+  subroutine prepare_target_series(config, targetUnit, series, err, message)
+
+    use globalData, only: numtim
+    use simulated_series, only: sim_series_type, init_simulated_series
+    use simulated_series, only: spatial_unit_index, is_routed_streamflow
+    use simulated_series, only: ix_unit_gru
+
+    type(config_info), intent(in) :: config
+    integer(i4b), allocatable, intent(out) :: targetUnit(:)
+    type(sim_series_type), allocatable, intent(out) :: series(:)
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
+
+    character(len=64), allocatable :: seriesName(:)
+    integer(i4b), allocatable :: seriesUnit(:)
+    integer(i8b), allocatable :: seriesUnitId(:)
+    integer(i4b) :: nTarget, nSeries, iTarget
+    character(len=1024) :: cmessage
+
+    err=0
+    message='prepare_target_series/'
+
+    nTarget=size(config%calib%targets)
+    nSeries=0
+
+    allocate(seriesName(nTarget),seriesUnit(nTarget),seriesUnitId(nTarget),targetUnit(nTarget),stat=err)
+    if(err/=0)then
+      message=trim(message)//'problem allocating the simulated-series list'
+      return
+    endif
+
+    do iTarget=1,nTarget
+      associate(calTarget => config%calib%targets(iTarget))
+
+        ! Identify the spatial unit requested by this target
+        targetUnit(iTarget)=spatial_unit_index(calTarget%spatial_unit)
+
+        if(targetUnit(iTarget) == integerMissing)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for spatial unit "'// &
+                  trim(calTarget%spatial_unit)//'"; use domain, gru, hru or reach'
+          err=20
+          return
+        endif
+
+        ! GRU streamflow is not available when mizuRoute is active
+        if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_gru .and. &
+           mizuroute_active .and. config%use_mizuroute)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for streamflow out of a gru '// &
+                  'while mizuRoute routes it; name the reach instead'
+          err=20
+          return
+        endif
+
+        ! Collect each distinct simulated series only once
+        if(find_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
+                       calTarget%variable,targetUnit(iTarget),calTarget%spatial_id) == integerMissing)then
+
+          nSeries=nSeries+1
+          seriesName(nSeries)  =calTarget%variable
+          seriesUnit(nSeries)  =targetUnit(iTarget)
+          seriesUnitId(nSeries)=calTarget%spatial_id
+
+        endif
+
+      end associate
+    enddo
+
+    ! Resolve variables and spatial units, then allocate the time series
+    call init_simulated_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
+                               numtim,series,err,cmessage)
+    if(err/=0) message=trim(message)//trim(cmessage)
+
+  end subroutine prepare_target_series
+
 
   ! **************************************************************************************************
   ! Evaluate every calibration target for a specified parameter vector.
@@ -292,10 +371,8 @@ contains
     use series_transform,        only: remove_baseline_mean
     use series_transform,        only: balance_between_extremes
     use simulated_series,        only: sim_series_type
-    use simulated_series,        only: init_simulated_series
     use simulated_series,        only: find_simulated_series
     use simulated_series,        only: is_routed_streamflow
-    use simulated_series,        only: spatial_unit_index
     use simulated_series,        only: ix_unit_domain, ix_unit_gru, ix_unit_reach
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     ! dummy arguments
@@ -333,11 +410,7 @@ contains
     real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period
     real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
     type(sim_series_type), allocatable :: series(:)          ! simulated series the targets asked for
-    character(len=64),     allocatable :: seriesName(:)      ! names of their variables
-    integer(i4b),          allocatable :: seriesUnit(:)      ! spatial unit each is reduced over
-    integer(i8b),          allocatable :: seriesUnitId(:)    ! id of that unit
     integer(i4b),          allocatable :: targetUnit(:)      ! spatial unit of each target
-    integer(i4b)                       :: nSeries            ! number of them
     integer(i4b)                       :: iSeries            ! index of one of them
     real(rkind), allocatable           :: valSim(:)          ! the simulated series for the current target
     character(len=:), allocatable      :: valSimUnits        ! its units
@@ -414,43 +487,8 @@ contains
     ! calibration run: send model chatter to stderr so stdout carries only the metric, unless a caller owns iulog
     if(iulog == output_unit) iulog = error_unit
 
-    ! the simulated series the targets ask for, resolved before the run so an unknown variable or
-    ! spatial unit is refused here rather than after a simulation has been paid for.  Routed streamflow
-    ! at the network outlet is not among them: run_summa returns it for every run.
-    nSeries=0
-    allocate(seriesName(nTarget),seriesUnit(nTarget),seriesUnitId(nTarget),targetUnit(nTarget),stat=err)
-    if(err/=0)then
-      message=trim(message)//'problem allocating the simulated-series list'
-      exit trial
-    endif
-    do iTarget=1,nTarget
-      associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
-      targetUnit(iTarget)=spatial_unit_index(calTarget%spatial_unit)
-      if(targetUnit(iTarget) == integerMissing)then
-        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for spatial unit "'// &
-                trim(calTarget%spatial_unit)//'"; use gru, hru or reach'
-        err=20; exit trial
-      endif
-      ! with mizuRoute running, streamflow comes from the network, so a GRU's outflow is named by its reach
-      if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_gru .and. &
-         mizuroute_active .and. summa1_struc(n)%config%use_mizuroute)then
-        message=trim(message)//'calibration target "'//trim(calTarget%name)//'" asks for streamflow out of a gru '// &
-                'while mizuRoute routes it; name the reach instead'
-        err=20; exit trial
-      endif
-      ! Add each distinct simulated series only once
-      if(find_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
-                     calTarget%variable,targetUnit(iTarget),calTarget%spatial_id) == integerMissing)then
-        nSeries=nSeries+1
-        seriesName(nSeries)  =calTarget%variable
-        seriesUnit(nSeries)  =targetUnit(iTarget)
-        seriesUnitId(nSeries)=calTarget%spatial_id
-      endif
-      end associate
-    enddo
-
-    call init_simulated_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
-                               numtim,series,err,cmessage)
+    ! Prepare the simulated time series required by calibration
+    call prepare_target_series(summa1_struc(n)%config, targetUnit, series, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
 
     ! a reach belongs to the river network, so it is resolved against the mizuRoute topology
