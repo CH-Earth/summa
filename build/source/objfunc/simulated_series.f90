@@ -63,7 +63,7 @@ USE mizuroute_coupling, only: get_mizuroute_streamflow
   integer(i4b), parameter, public :: ix_series_prog       = 3   ! prognostic variables   (HRU/domain)
   integer(i4b), parameter, public :: ix_series_flux       = 4   ! model fluxes           (HRU/domain)
   integer(i4b), parameter, public :: ix_series_param      = 5   ! model parameters       (HRU/domain)
-  integer(i4b), parameter, public :: ix_series_streamflow = 6   ! simulated streamflow   (GRU/reach)
+  integer(i4b), parameter, public :: ix_series_streamflow = 6   ! simulated streamflow   (reach)
 
   ! which spatial unit of the domain a series is reduced over
   integer(i4b), parameter, public :: ix_unit_domain = 1    ! every GRU, area-weighted
@@ -90,7 +90,6 @@ USE mizuroute_coupling, only: get_mizuroute_streamflow
   public :: init_simulated_series
   public :: collect_simulated_series
   public :: find_simulated_series
-  public :: get_outlet_streamflow
   public :: is_routed_streamflow
   public :: spatial_unit_index
 

@@ -129,6 +129,8 @@ contains
   ! Objectives are returned as the metrics themselves, in the order the targets were configured. It
   ! is the caller that decides what to do with them - maximize a weighted sum, or rank a population by
   ! Pareto dominance - so nothing here assumes which way any of them points.
+  !
+  ! Calibration targets must be loaded into config before calling this routine.
   ! **************************************************************************************************
   subroutine evaluate_objectives(config,                            & ! SUMMA configuration structure
                                  domain_parallel,                   & ! MPI context for domain parallelism
@@ -267,7 +269,7 @@ contains
       enddo
 
     end block trial
-
+    if(present(trial_failed)) trial_failed=failed
 
     ! ---- Finalize simulation and restore state ----------------------------------------------
 
