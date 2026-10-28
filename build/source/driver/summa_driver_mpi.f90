@@ -52,14 +52,6 @@ program summa_driver_mpi
   character(len=64), allocatable :: param_name(:)
   real(rkind),       allocatable :: param_value(:)
 
-  ! flow
-  real(rkind),       allocatable :: timeSim(:)
-  real(rkind),       allocatable :: flowSim(:)
-
-  ! units
-  character(len=:),  allocatable :: timeUnits
-  character(len=:),  allocatable :: flowUnits
-
   ! error codes
   integer(i4b) :: err = 0
   integer(i4b) :: mpi_err = 0
@@ -96,10 +88,8 @@ program summa_driver_mpi
   call run_simulation(config,                 & ! SUMMA configuration structure
                       domain_parallel,        & ! MPI context for domain parallelism
                       instance_parallel,      & ! MPI context for model-instance parallelism
-                      timeSim,flowSim,        & ! simulated time and streamflow
-                      timeUnits,flowUnits,    & ! time and streamflow units
                       param_name,param_value, & ! parameter names and values
-                      err=err, message=message) ! error code and message
+                      err=err, message=message)
   call handle_err(err,message)
 
   ! ---------------------------------------------------------------------------------------
