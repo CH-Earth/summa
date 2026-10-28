@@ -78,6 +78,8 @@ contains
                             param_name,param_value, & ! parameter names and values
                             mpar_out,bpar_out,      & ! model parameter structures
                             err, message)             ! error code and message
+    use globalData, only: numtim
+    use simulated_series, only: sim_series_type, init_simulated_series, ix_unit_domain
     ! dummy arguments
     type(config_info)                    , intent(inout) :: config
     type(parallel_context_type)          , intent(in)    :: domain_parallel
@@ -113,13 +115,55 @@ contains
                           mpar_out=mpar_out, bpar_out=bpar_out, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    call run_summa(summa1_struc(n), timeSim,flowSim, timeUnits,flowUnits, err,cmessage)
+    call run_summa_streamflow(summa1_struc(n), timeSim,flowSim, timeUnits,flowUnits, err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     call finalize_summa(summa1_struc(n),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine run_simulation
+
+
+  ! **************************************************************************************************
+  ! Run SUMMA and return streamflow at the basin outlet.
+  ! **************************************************************************************************
+  subroutine run_summa_streamflow(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message)
+
+    use globalData, only: numtim
+    use simulated_series, only: sim_series_type, init_simulated_series, ix_unit_domain
+
+    implicit none
+
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real(rkind), allocatable, intent(out) :: timeSim(:),flowSim(:)
+    character(len=:), allocatable, intent(out) :: timeUnits,flowUnits
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
+
+    type(sim_series_type), allocatable :: series(:)
+    logical(lgt) :: physics_failed
+    character(len=1024) :: cmessage
+
+    err=0
+    message='run_summa_streamflow/'
+
+    ! Request streamflow at the basin outlet
+    call init_simulated_series([character(len=64) :: 'streamflow'], &
+                               [ix_unit_domain], [0_i8b], numtim, &
+                               series, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Run SUMMA
+    call run_summa(summa_struct, timeSim, timeUnits, &
+                   series, physics_failed, err, cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! Return streamflow
+    flowSim=series(1)%values
+    flowUnits=trim(series(1)%units)
+
+  end subroutine run_summa_streamflow
+
 
   ! **************************************************************************************************
   ! Report the number of calibration targets, which is the number of objectives per parameter trial.
@@ -279,12 +323,10 @@ contains
     character(len=6)                   :: sampleString       ! include sample index in the output filename
     character(len=:), allocatable      :: outputFileSuffix_orig  ! orig suffix (to restore output suffix)
     real(rkind), allocatable           :: timeSim(:)         ! simulated time
-    real(rkind), allocatable           :: flowSim(:)         ! simulated streamflow
     real(rkind), allocatable           :: timeObs(:)         ! observed time
     real(rkind), allocatable           :: timeBounds(:,:)    ! observed time bounds
     real(rkind), allocatable           :: flowObs(:)         ! observed streamflow
     character(len=:), allocatable      :: timeSimUnits       ! simulated time units
-    character(len=:), allocatable      :: flowSimUnits       ! simulated flow units
     character(len=:), allocatable      :: timeObsUnits       ! observed time units
     character(len=:), allocatable      :: flowObsUnits       ! observed flow units
     real(rkind), allocatable           :: timeAligned(:)     ! common time vector
@@ -359,8 +401,13 @@ contains
     ! ordinary SUMMA run, so run the model and return rather than failing
     if(n_calibration_targets(summa1_struc(n)%config) == 0)then
       unscored=.true.
-      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, physics_failed=failed)
+
+      allocate(series(0))
+
+      call run_summa(summa1_struc(n), timeSim, timeSimUnits, &
+                     series, failed, err, cmessage)
       if(err/=0) message=trim(message)//trim(cmessage)
+
       exit trial
     endif
 
@@ -391,7 +438,7 @@ contains
                 'while mizuRoute routes it; name the reach instead'
         err=20; exit trial
       endif
-      if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain) cycle
+      ! Add each distinct simulated series only once
       if(find_series(seriesName(1:nSeries),seriesUnit(1:nSeries),seriesUnitId(1:nSeries), &
                      calTarget%variable,targetUnit(iTarget),calTarget%spatial_id) == integerMissing)then
         nSeries=nSeries+1
@@ -410,12 +457,9 @@ contains
     call resolve_reach_series(summa1_struc(n),series,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
 
-    ! run SUMMA once; every target scores this same simulation
-    if(nSeries > 0)then
-      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, series=series, physics_failed=failed)
-    else
-      call run_summa(summa1_struc(n), timeSim,flowSim, timeSimUnits,flowSimUnits, err,cmessage, physics_failed=failed)
-    endif
+    ! Run SUMMA once and collect every requested simulated series
+    call run_summa(summa1_struc(n), timeSim, timeSimUnits, &
+                   series, failed, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
 
     ! score the simulation against each calibration target
@@ -427,20 +471,18 @@ contains
         if(allocated(valSim)) deallocate(valSim)
         timeVal=timeSim
         timeValUnits=timeSimUnits
-        if(is_routed_streamflow(calTarget%variable) .and. targetUnit(iTarget) == ix_unit_domain)then
-          valSim=flowSim
-          valSimUnits=flowSimUnits
-        else
-          iSeries=find_simulated_series(series,calTarget%variable,targetUnit(iTarget),calTarget%spatial_id)
-          if(iSeries == integerMissing)then
-            message=trim(message)//'calibration target "'//trim(calTarget%name)// &
-                    '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
-            err=20; exit trial
-          endif
-          valSim=series(iSeries)%values
-          valSimUnits=trim(series(iSeries)%units)
+        
+        ! Get the simulated time series for this calibration target
+        iSeries=find_simulated_series(series,calTarget%variable,targetUnit(iTarget),calTarget%spatial_id)
+        if(iSeries == integerMissing)then
+          message=trim(message)//'calibration target "'//trim(calTarget%name)// &
+                  '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
+          err=20; exit trial
         endif
 
+        valSim=series(iSeries)%values
+        valSimUnits=trim(series(iSeries)%units)
+        
         ! read this target's observations
         if(allocated(timeObs)) deallocate(timeObs)
         if(allocated(flowObs)) deallocate(flowObs)
@@ -656,41 +698,31 @@ contains
   ! **************************************************************************************************
   ! run SUMMA
   ! **************************************************************************************************
-  subroutine run_summa(summa_struct, timeSim,flowSim, timeUnits,flowUnits, err,message, series, physics_failed)
+  subroutine run_summa(summa_struct, timeSim, timeUnits, series, physics_failed, err, message)
     USE var_lookup, only: iLookFORCE
     USE globalData, only: forc_meta
     USE globalData, only: numtim
     USE simulated_series, only: sim_series_type
     USE simulated_series, only: collect_simulated_series
-    USE simulated_series, only: ix_unit_reach
     ! dummy arguments
-    type(summa1_type_dec), intent(inout)       :: summa_struct  ! top-level SUMMA data structure
-    real(rkind), allocatable, intent(out)      :: timeSim(:)    ! simulation time
-    real(rkind), allocatable, intent(out)      :: flowSim(:)    ! simulated streamflow
-    character(len=:), allocatable, intent(out) :: timeUnits     ! units and reference time for simulation time
-    character(len=:), allocatable, intent(out) :: flowUnits     ! units for simulated streamflow
-    integer(i4b), intent(out)                  :: err           ! error code
-    character(*), intent(out)                  :: message       ! error message
-    ! SUMMA variables a calibration target asked for, recorded as the run proceeds
-    type(sim_series_type), optional, intent(inout) :: series(:)
-    ! .true. if the error came from the model physics rather than from reading or writing
-    logical(lgt), optional, intent(out)            :: physics_failed
+    type(summa1_type_dec), intent(inout)       :: summa_struct   ! top-level SUMMA data structure
+    real(rkind), allocatable, intent(out)      :: timeSim(:)     ! simulation time
+    character(len=:), allocatable, intent(out) :: timeUnits      ! units and reference time for simulation time
+    type(sim_series_type), intent(inout)       :: series(:)      ! simulated time series
+    logical(lgt), intent(out)                  :: physics_failed ! flag if physics fails
+    integer(i4b), intent(out)                  :: err            ! error code
+    character(*), intent(out)                  :: message        ! error message
     ! locals
     integer(i4b)                               :: modelTimeStep ! index of model time step
-    integer(i4b)                               :: iSeries       ! index of a simulated series
     character(len=1024)                        :: cmessage      ! error message of downwind routine
 
     err=0
     message='run_summa/'
-    if(present(physics_failed)) physics_failed=.false.
+    physics_failed=.false.
 
-    ! define units for time and flow
-    timeUnits = trim(forc_meta(iLookFORCE%time)%varunit) ! time since reference (varies)
-    flowUnits = 'm3/s' ! always in mizuroute
-
-    ! routed streamflow time series
-    allocate(timeSim(numtim), source=realMissing)
-    allocate(flowSim(numtim), source=realMissing)
+    ! Define simulation time
+    timeUnits=trim(forc_meta(iLookFORCE%time)%varunit)
+    allocate(timeSim(numtim),source=realMissing)
 
     ! loop through time
     do modelTimeStep=1,numtim
@@ -706,39 +738,19 @@ contains
       call summa_runPhysics(modelTimeStep, summa_struct, err, cmessage)
       if(err/=0)then
         message=trim(message)//trim(cmessage)
-        if(present(physics_failed)) physics_failed=.true.
+        physics_failed=.true.
         exit
       endif
 
       ! transfer SUMMA fluxes to OpenWQ
       if(openwq_active) call openwq_run_space_step(summa_struct)
 
-      ! save streamflow time series at the outlet: routed by mizuRoute, or else SUMMA's routed runoff
-      call get_streamflow(modelTimeStep, summa_struct, &
-                          timeSim(modelTimeStep),flowSim(modelTimeStep), &
-                          err,cmessage)
+      ! Save simulation time
+      timeSim(modelTimeStep) = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
+
+      ! Collect all requested simulated variables, including streamflow
+      call collect_simulated_series(modelTimeStep, summa_struct, series, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); exit; endif
-
-      ! flow at any reach a target named (unavailable when mizuRoute is not active)
-#ifdef MIZUROUTE_ACTIVE
-      if(mizuroute_active)then ! build-time capability
-       if(summa_struct%config%use_mizuroute)then
-        if(present(series))then
-          do iSeries=1,size(series)
-            if(series(iSeries)%ix_unit /= ix_unit_reach) cycle
-            call get_mizuroute_streamflow(modelTimeStep, summa_struct, series(iSeries)%values(modelTimeStep), &
-                                          series(iSeries)%ix_seg)
-          enddo
-        endif
-       endif
-      endif
-#endif
-
-      ! record the SUMMA variables any calibration target asked for
-      if(present(series))then
-        call collect_simulated_series(modelTimeStep, summa_struct, series, err, cmessage)
-        if(err/=0)then; message=trim(message)//trim(cmessage); exit; endif
-      endif
 
       ! write the model output
       call summa_writeOutputFiles(modelTimeStep, summa_struct, err, cmessage)
@@ -822,52 +834,32 @@ contains
   ! ---------------------------------------------------------------------------------------------------
   ! ---------------------------------------------------------------------------------------------------
 
+  ! **************************************************************************************************
+  ! Get simulation time and streamflow at the basin outlet.
+  ! **************************************************************************************************
   subroutine get_streamflow(modelTimeStep,summa_struct,timeSim,flowSim,err,message)
 
-  USE var_lookup, only: iLookFORCE
-  USE var_lookup, only: iLookBVAR
+    USE var_lookup, only: iLookFORCE
+    USE simulated_series, only: get_outlet_streamflow
 
-  implicit none
+    implicit none
 
-  integer(i4b),          intent(in)    :: modelTimeStep
-  type(summa1_type_dec), intent(inout) :: summa_struct
-  real(rkind),           intent(out)   :: timeSim
-  real(rkind),           intent(out)   :: flowSim
-  integer(i4b),          intent(out)   :: err
-  character(*),          intent(out)   :: message
+    integer(i4b),          intent(in)    :: modelTimeStep
+    type(summa1_type_dec), intent(inout) :: summa_struct
+    real(rkind),           intent(out)   :: timeSim
+    real(rkind),           intent(out)   :: flowSim
+    integer(i4b),          intent(out)   :: err
+    character(*),          intent(out)   :: message
 
-  logical(lgt) :: get_routed
-  integer(i4b) :: iGRU
+    err=0
+    message='get_streamflow/'
 
-  err=0
-  message='get_streamflow/'
+    ! Simulation time
+    timeSim = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
 
-  ! if streamflow is routed using mizuroute
-  get_routed = mizuroute_active .and. summa_struct%config%use_mizuroute
+    ! Streamflow at the basin outlet
+    call get_outlet_streamflow(modelTimeStep,summa_struct,flowSim)
 
-  ! simulation time
-  timeSim = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
-
-  ! get streamflow from mizuroute
-  if(get_routed)then
-#ifdef MIZUROUTE_ACTIVE
-    call get_mizuroute_streamflow(modelTimeStep,summa_struct,flowSim)
-#endif
-
-  ! get streamflow from SUMMA routed runoff
-  else
-
-    flowSim = 0._rkind
-
-    do iGRU=1,size(summa_struct%bvarStruct%gru)
-      flowSim = flowSim + &
-        summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1) * &
-        summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
-    enddo
-
-  endif
-
-end subroutine get_streamflow
-
+  end subroutine get_streamflow
 
 end module summa_simulation

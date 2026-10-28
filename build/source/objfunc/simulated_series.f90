@@ -37,26 +37,33 @@
 ! **************************************************************************************************
 module simulated_series
 
-  USE nr_type,    only: i4b,i8b,rkind,lgt
-  USE summa_type, only: summa1_type_dec
+USE nr_type,    only: i4b,i8b,rkind,lgt
+USE summa_type, only: summa1_type_dec
 
-  USE globalData, only: realMissing
-  USE globalData, only: integerMissing
-  USE globalData, only: gru_struc              ! gru-hru mapping, with the domain information
+USE globalData, only: realMissing
+USE globalData, only: integerMissing
+USE globalData, only: gru_struc              ! gru-hru mapping, with the domain information
 
-  USE var_lookup, only: iLookATTR              ! named variables for the local attributes
-  USE var_lookup, only: iLookBVAR              ! named variables for the basin-average variables
-  USE var_lookup, only: iLookPROG              ! named variables for the prognostic variables
+USE var_lookup, only: iLookATTR              ! named variables for the local attributes
+USE var_lookup, only: iLookBVAR              ! named variables for the basin-average variables
+USE var_lookup, only: iLookPROG              ! named variables for the prognostic variables
+
+USE build_options, only: mizuroute_active
+
+#ifdef MIZUROUTE_ACTIVE
+USE mizuroute_coupling, only: get_mizuroute_streamflow
+#endif
 
   implicit none
   private
 
   ! which SUMMA structure a simulated series is read from
-  integer(i4b), parameter, public :: ix_series_bvar  = 1   ! basin-average variables (GRU)
-  integer(i4b), parameter, public :: ix_series_diag  = 2   ! diagnostic variables   (HRU/domain)
-  integer(i4b), parameter, public :: ix_series_prog  = 3   ! prognostic variables   (HRU/domain)
-  integer(i4b), parameter, public :: ix_series_flux  = 4   ! model fluxes           (HRU/domain)
-  integer(i4b), parameter, public :: ix_series_param = 5   ! model parameters       (HRU/domain)
+  integer(i4b), parameter, public :: ix_series_bvar       = 1   ! basin-average variables (GRU)
+  integer(i4b), parameter, public :: ix_series_diag       = 2   ! diagnostic variables   (HRU/domain)
+  integer(i4b), parameter, public :: ix_series_prog       = 3   ! prognostic variables   (HRU/domain)
+  integer(i4b), parameter, public :: ix_series_flux       = 4   ! model fluxes           (HRU/domain)
+  integer(i4b), parameter, public :: ix_series_param      = 5   ! model parameters       (HRU/domain)
+  integer(i4b), parameter, public :: ix_series_streamflow = 6   ! simulated streamflow   (GRU/reach)
 
   ! which spatial unit of the domain a series is reduced over
   integer(i4b), parameter, public :: ix_unit_domain = 1    ! every GRU, area-weighted
@@ -83,6 +90,7 @@ module simulated_series
   public :: init_simulated_series
   public :: collect_simulated_series
   public :: find_simulated_series
+  public :: get_outlet_streamflow
   public :: is_routed_streamflow
   public :: spatial_unit_index
 
@@ -104,6 +112,37 @@ contains
     end select
 
   end function is_routed_streamflow
+
+  ! **************************************************************************************************
+  ! Get streamflow at the basin outlet.
+  ! Use mizuRoute when active; otherwise sum routed runoff from all GRUs.
+  ! **************************************************************************************************
+  subroutine get_outlet_streamflow(modelTimeStep, summa_struct, flowSim)
+
+    integer(i4b),          intent(in)  :: modelTimeStep
+    type(summa1_type_dec), intent(in)  :: summa_struct
+    real(rkind),           intent(out) :: flowSim
+
+    integer(i4b) :: iGRU
+
+    ! Get routed streamflow from mizuRoute when available and enabled
+    if(mizuroute_active)then
+      if(summa_struct%config%use_mizuroute)then
+        call get_mizuroute_streamflow(modelTimeStep,summa_struct,flowSim)
+        return
+      endif
+    endif
+
+    ! Otherwise calculate streamflow from SUMMA routed runoff
+    flowSim = 0._rkind
+
+    do iGRU=1,size(summa_struct%bvarStruct%gru)
+      flowSim = flowSim + &
+        summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1) * &
+        summa_struct%bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1)
+    enddo
+
+  end subroutine get_outlet_streamflow
 
   ! **************************************************************************************************
   ! The spatial unit a configuration word names, or integerMissing when it names none of them.
@@ -134,9 +173,9 @@ contains
   ! A reach is the exception: it belongs to the river network rather than to SUMMA, so it is left for
   ! the caller to resolve against the mizuRoute topology.
   !
-  ! Routed streamflow over the whole domain is not a SUMMA variable and is not collected here; callers
-  ! ask for it with is_routed_streamflow and take it from mizuRoute.  Streamflow out of one GRU is its
-  ! averageRoutedRunoff times its area, in m3 s-1, for a run without mizuRoute.
+  ! Streamflow at the basin outlet is collected using get_outlet_streamflow.
+  ! The existing spatial-unit identifier ix_unit_domain is used for this target.
+  ! Streamflow from a GRU without mizuRoute is calculated from its routed runoff and area.
   ! **************************************************************************************************
   subroutine init_simulated_series(names,unitKind,unitId,numtim,series,err,message)
     USE get_ixname_module, only: get_ixBvar,get_ixDiag,get_ixProg,get_ixFlux,get_ixParam
@@ -171,24 +210,30 @@ contains
       call resolve_spatial_unit(series(iSeries),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-      ! a reach carries routed streamflow, which the network produces rather than SUMMA
+      ! Streamflow at a river reach
       if(series(iSeries)%ix_unit == ix_unit_reach)then
         if(is_routed_streamflow(names(iSeries)))then
-          series(iSeries)%units='m3/s'
+          series(iSeries)%ix_struct=ix_series_streamflow
+          series(iSeries)%units='m3 s-1'
         else
           message=trim(message)//'"'//trim(names(iSeries))//'" is asked for on a reach, which carries '// &
                   'routed streamflow only'
           err=20; return
         endif
-
-      ! streamflow out of a GRU is its routed runoff over its area, as a gauge measures it
+      
+      ! Streamflow at the basin outlet
+      else if(is_routed_streamflow(names(iSeries)) .and. series(iSeries)%ix_unit == ix_unit_domain)then
+        series(iSeries)%ix_struct=ix_series_streamflow
+        series(iSeries)%units='m3 s-1'
+      
+      ! Streamflow from a GRU without mizuRoute
       else if(is_routed_streamflow(names(iSeries)) .and. series(iSeries)%ix_unit == ix_unit_gru)then
         series(iSeries)%ix_struct=ix_series_bvar
         series(iSeries)%ix_var=iLookBVAR%averageRoutedRunoff
         series(iSeries)%volumetric=.true.
         series(iSeries)%units='m3 s-1'
+      
       else
-
         ! resolve the name against SUMMA's metadata, most likely structure first
         ix=get_ixBvar(trim(names(iSeries)))
         if(ix/=integerMissing)then
@@ -358,7 +403,33 @@ contains
 
     do iSeries=1,size(series)
       if(modelTimeStep > size(series(iSeries)%values)) cycle
-      if(series(iSeries)%ix_unit == ix_unit_reach) cycle
+
+      ! Collect streamflow at the basin outlet
+      if(series(iSeries)%ix_struct == ix_series_streamflow .and. &
+         series(iSeries)%ix_unit == ix_unit_domain)then
+
+        call get_outlet_streamflow(modelTimeStep, summa_struct, &
+                                  series(iSeries)%values(modelTimeStep))
+        cycle
+
+      endif
+
+      ! Collect streamflow at a requested river reach
+      if(series(iSeries)%ix_unit == ix_unit_reach)then
+
+        if(mizuroute_active)then
+          if(summa_struct%config%use_mizuroute)then
+            call get_mizuroute_streamflow(modelTimeStep, summa_struct, &
+                                         series(iSeries)%values(modelTimeStep), &
+                                         series(iSeries)%ix_seg)
+          endif
+        endif
+
+        cycle
+
+      endif
+
+      ! Collect ordinary SUMMA variables
       total=0._rkind
       area =0._rkind
 
