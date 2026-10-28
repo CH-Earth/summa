@@ -520,38 +520,23 @@ contains
     character(*)               , intent(out)   :: message
     logical(lgt), optional, intent(out) :: trial_failed
     ! locals
-    logical(lgt)                       :: failed             ! the model refused or failed on this parameter set
-    logical(lgt)                       :: unscored           ! no calibration target, so nothing to score
-    integer(i4b)                       :: errFinal           ! error code of finalize_summa
-    type(summa1_type_dec), allocatable :: summa1_struc(:)    ! top-level SUMMA data structure
-    integer(i4b), parameter            :: n=1                ! number of SUMMA data structures
-    integer(i4b)                       :: i                  ! looping
-    integer(i4b)                       :: iTarget            ! calibration target index
-    integer(i4b)                       :: nTarget            ! number of calibration targets
-    character(len=4)                   :: runString          ! include run in the output filename
-    character(len=4)                   :: rankString         ! include rank in the output filename
-    character(len=6)                   :: sampleString       ! include sample index in the output filename
-    character(len=:), allocatable      :: outputFileSuffix_orig  ! orig suffix (to restore output suffix)
-    real(rkind), allocatable           :: timeSim(:)         ! simulated time
-    real(rkind), allocatable           :: timeObs(:)         ! observed time
-    real(rkind), allocatable           :: timeBounds(:,:)    ! observed time bounds
-    real(rkind), allocatable           :: flowObs(:)         ! observed streamflow
-    character(len=:), allocatable      :: timeSimUnits       ! simulated time units
-    character(len=:), allocatable      :: timeObsUnits       ! observed time units
-    character(len=:), allocatable      :: flowObsUnits       ! observed flow units
-    real(rkind), allocatable           :: timeAligned(:)     ! common time vector
-    real(rkind), allocatable           :: flowSimAligned(:)  ! flow simulations aligned to the common time period
-    real(rkind), allocatable           :: flowObsAligned(:)  ! flow observations aligned to the common time period
-    type(sim_series_type), allocatable :: series(:)          ! simulated series the targets asked for
-    integer(i4b),          allocatable :: targetUnit(:)      ! spatial unit of each target
-    integer(i4b)                       :: iSeries            ! index of one of them
-    real(rkind), allocatable           :: valSim(:)          ! the simulated series for the current target
-    character(len=:), allocatable      :: valSimUnits        ! its units
-    real(rkind), allocatable           :: valAccum(:)        ! it, integrated from a rate
-    real(rkind), allocatable           :: valAnom(:)         ! a series as departures from its baseline mean
-    real(rkind), allocatable           :: timeVal(:)         ! time coordinate of the simulated series for the current target
-    character(len=:), allocatable      :: timeValUnits       ! its units
-    character(len=1024)                :: cmessage           ! error message of downwind routine
+    logical(lgt)                       :: failed                 ! true if the parameter set causes a model or scoring failure
+    logical(lgt)                       :: unscored               ! true if no calibration targets are configured
+    integer(i4b)                       :: errFinal               ! error code from model finalization
+    type(summa1_type_dec), allocatable :: summa1_struc(:)        ! top-level SUMMA data structures
+    integer(i4b), parameter            :: n=1                    ! index of the SUMMA instance
+    integer(i4b)                       :: iTarget                ! calibration target index
+    integer(i4b)                       :: nTarget                ! number of calibration targets
+    character(len=4)                   :: runString              ! run index for output filenames
+    character(len=4)                   :: rankString             ! MPI rank for output filenames
+    character(len=6)                   :: sampleString           ! sample index for output filenames
+    character(len=:), allocatable      :: outputFileSuffix_orig  ! original output filename suffix
+    real(rkind), allocatable           :: timeSim(:)             ! simulated time series
+    character(len=:), allocatable      :: timeSimUnits           ! simulation time units and reference date
+    type(sim_series_type), allocatable :: series(:)              ! simulated variables requested by calibration targets
+    integer(i4b), allocatable          :: targetUnit(:)          ! spatial unit index for each calibration target
+    character(len=1024)                :: cmessage               ! error message from called routines
+
 
     err=0
     message='evaluate_objectives/'
@@ -590,7 +575,7 @@ contains
       write(sampleString,'(I6.6)') sample_id
       output_fileSuffix=trim(output_fileSuffix)//'_sample'//sampleString
     endif
-    if(summa1_struc(n)%config%n_runs > 1)then
+    if(config%n_runs > 1)then
       write(runString,'(I4.4)') summa1_struc(n)%config%run_index
       output_fileSuffix=trim(output_fileSuffix)//'_run'//runString
     endif
