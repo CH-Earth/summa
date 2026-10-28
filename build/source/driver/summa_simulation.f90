@@ -40,7 +40,6 @@ USE build_options, only: mizuroute_active
 USE build_options, only: openwq_active
 
 #ifdef MIZUROUTE_ACTIVE
-USE mizuroute_coupling,        only: get_mizuroute_streamflow
 USE mizuroute_coupling,        only: get_mizuroute_reach_index
 USE finalize_mizuroute_module, only: finalize_mizuroute
 #endif
@@ -78,8 +77,6 @@ contains
                             param_name,param_value, & ! parameter names and values
                             mpar_out,bpar_out,      & ! model parameter structures
                             err, message)             ! error code and message
-    use globalData, only: numtim
-    use simulated_series, only: sim_series_type, init_simulated_series, ix_unit_domain
     ! dummy arguments
     type(config_info)                    , intent(inout) :: config
     type(parallel_context_type)          , intent(in)    :: domain_parallel
@@ -338,6 +335,156 @@ contains
 
   end subroutine prepare_target_series
 
+  ! **************************************************************************************************
+  ! Score one calibration target against the simulated time series.
+  ! **************************************************************************************************
+  subroutine score_target(config, iTarget, targetUnit, series, timeSim, timeSimUnits, &
+                          objective, failed, err, message)
+
+    use globalData, only: ncid
+    use var_lookup, only: iLookFREQ
+    use simulated_series, only: sim_series_type, find_simulated_series
+    use read_flowobs_module, only: read_observations
+    use timeseries_alignment, only: align_timeseries
+    use series_transform, only: accumulate_series, remove_baseline_mean, balance_between_extremes
+    use metrics, only: compute_metric
+    use write_evaluation_module, only: write_evaluation
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+
+    type(config_info), intent(in) :: config
+    integer(i4b), intent(in) :: iTarget, targetUnit
+    type(sim_series_type), intent(in) :: series(:)
+    real(rkind), intent(in) :: timeSim(:)
+    character(*), intent(in) :: timeSimUnits
+    real(rkind), intent(out) :: objective
+    logical(lgt), intent(inout) :: failed
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
+
+    integer(i4b) :: iSeries
+    real(rkind), allocatable :: timeObs(:),timeBounds(:,:),flowObs(:)
+    real(rkind), allocatable :: timeVal(:),valSim(:),valAccum(:),valAnom(:)
+    real(rkind), allocatable :: timeAligned(:),flowSimAligned(:),flowObsAligned(:)
+    character(len=:), allocatable :: timeObsUnits,flowObsUnits
+    character(len=:), allocatable :: timeValUnits,valSimUnits
+    character(len=1024) :: cmessage
+
+    err=0
+    message=''
+    objective=realMissing
+
+    associate(calTarget => config%calib%targets(iTarget))
+
+      ! Get the simulated series requested by this target
+      iSeries=find_simulated_series(series,calTarget%variable,targetUnit,calTarget%spatial_id)
+      if(iSeries == integerMissing)then
+        message='calibration target "'//trim(calTarget%name)// &
+                '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
+        err=20; return
+      endif
+
+      timeVal=timeSim
+      timeValUnits=timeSimUnits
+      valSim=series(iSeries)%values
+      valSimUnits=trim(series(iSeries)%units)
+
+      ! Read observations
+      call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
+                             timeObs,timeBounds,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+      if(err/=0)then
+        message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+        return
+      endif
+
+      if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
+
+      ! Accumulate a simulated rate when requested
+      if(calTarget%accumulate)then
+        call accumulate_series(timeVal,valSim,timeValUnits,valAccum,err,cmessage)
+        if(err/=0)then
+          message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAccum,valSim)
+        if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
+      endif
+
+      ! Remove the baseline mean from simulated and observed series
+      if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
+        call remove_baseline_mean(timeVal,valSim,timeValUnits,                     &
+                                  calTarget%baseline_start,calTarget%baseline_end, &
+                                  valAnom,err,cmessage)
+        if(err/=0)then
+          message='calibration target "'//trim(calTarget%name)//'" (simulated): '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAnom,valSim)
+
+        call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                    &
+                                  calTarget%baseline_start,calTarget%baseline_end, &
+                                  valAnom,err,cmessage)
+        if(err/=0)then
+          message='calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAnom,flowObs)
+      endif
+
+      ! Calculate the change between seasonal extremes
+      if(len_trim(calTarget%balance) > 0)then
+        call balance_between_extremes(timeVal,valSim,timeValUnits,timeObs,timeObsUnits, &
+                                      calTarget%balance,calTarget%balance_window,      &
+                                      valAnom,err,cmessage)
+        if(err/=0)then
+          message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+        call move_alloc(valAnom,valSim)
+        timeVal=timeObs
+        timeValUnits=timeObsUnits
+      endif
+
+      ! Align simulated and observed time series
+      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,   &
+                            timeObs,flowObs,timeObsUnits,flowObsUnits, &
+                            config%calib%start_date,                  &
+                            config%calib%end_date,                    &
+                            timeBounds,                               &
+                            timeAligned,flowSimAligned,flowObsAligned, &
+                            err,cmessage)
+      if(err/=0)then
+        message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+        return
+      endif
+
+      ! Compute the calibration metric
+      call compute_metric(flowObsAligned,flowSimAligned,             &
+                          calTarget%metric,calTarget%obs_transform, &
+                          objective,err,cmessage)
+      if(err/=0)then
+        message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+        failed=any(ieee_is_finite(flowObsAligned)) .and. .not.any(ieee_is_finite(flowSimAligned))
+        return
+      endif
+
+      ! Write evaluation time series for the first target
+      if(config%write_timeseries .and. iTarget == 1)then
+        call write_evaluation(ncid(iLookFREQ%timestep),   &
+                              config%calib%write_aligned, &
+                              timeAligned,                &
+                              flowObsAligned,flowSimAligned, &
+                              timeObsUnits,flowObsUnits,  &
+                              calTarget%metric,calTarget%obs_transform, &
+                              objective,err,cmessage)
+        if(err/=0)then
+          message=trim(cmessage)
+          return
+        endif
+      endif
+
+    end associate
+
+  end subroutine score_target
 
   ! **************************************************************************************************
   ! Evaluate every calibration target for a specified parameter vector.
@@ -359,22 +506,8 @@ contains
                                  err, message,                      & ! error code and message
                                  trial_failed)                        ! .true. if the error came from the parameter set's own run
     use iso_fortran_env, only: output_unit, error_unit
-    use globalData, only: ncid
-    USE globalData, only: output_fileSuffix
-    use var_lookup, only: iLookFREQ
-    use globalData,              only: numtim
-    use read_flowobs_module,     only: read_observations
-    use timeseries_alignment,    only: align_timeseries
-    use metrics,                 only: compute_metric
-    use write_evaluation_module, only: write_evaluation
-    use series_transform,        only: accumulate_series
-    use series_transform,        only: remove_baseline_mean
-    use series_transform,        only: balance_between_extremes
-    use simulated_series,        only: sim_series_type
-    use simulated_series,        only: find_simulated_series
-    use simulated_series,        only: is_routed_streamflow
-    use simulated_series,        only: ix_unit_domain, ix_unit_gru, ix_unit_reach
-    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    use globalData, only: output_fileSuffix
+    use simulated_series, only: sim_series_type
     ! dummy arguments
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
@@ -500,135 +633,13 @@ contains
                    series, failed, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
 
-    ! score the simulation against each calibration target
+    ! Score the simulation against each calibration target
     do iTarget=1,nTarget
-      associate(calTarget => summa1_struc(n)%config%calib%targets(iTarget))
-
-        ! the simulated series this target is compared against: routed streamflow at the network
-        ! outlet, or the series collected for its variable over its spatial unit
-        if(allocated(valSim)) deallocate(valSim)
-        timeVal=timeSim
-        timeValUnits=timeSimUnits
-        
-        ! Get the simulated time series for this calibration target
-        iSeries=find_simulated_series(series,calTarget%variable,targetUnit(iTarget),calTarget%spatial_id)
-        if(iSeries == integerMissing)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)// &
-                  '" asks for simulated variable "'//trim(calTarget%variable)//'", which was not collected'
-          err=20; exit trial
-        endif
-
-        valSim=series(iSeries)%values
-        valSimUnits=trim(series(iSeries)%units)
-        
-        ! read this target's observations
-        if(allocated(timeObs)) deallocate(timeObs)
-        if(allocated(flowObs)) deallocate(flowObs)
-        if(allocated(timeBounds)) deallocate(timeBounds)
-        call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
-                               timeObs,timeBounds,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
-        if(err/=0)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-          exit trial
-        endif
-
-        ! units the target states override the file's
-        if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
-
-        ! -------------------------------------------------------------------------------------------
-        ! Put the two series on the same footing, as far as this target asks for
-        ! -------------------------------------------------------------------------------------------
-
-        ! integrate a simulated rate into the quantity the observations report
-        if(calTarget%accumulate)then
-          call accumulate_series(timeVal,valSim,timeValUnits,valAccum,err,cmessage)
-          if(err/=0)then
-            message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-            exit trial
-          endif
-          call move_alloc(valAccum,valSim)
-          ! integrating kg m-2 s-1 over seconds leaves kg m-2, which is millimetres of water
-          if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
-        endif
-
-        ! express both sides as departures from the same baseline, which is what an anomaly product
-        ! reports and what removes the constant of integration an accumulated series carries
-        if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
-          call remove_baseline_mean(timeVal,valSim,timeValUnits,                              &
-                                    calTarget%baseline_start,calTarget%baseline_end,          &
-                                    valAnom,err,cmessage)
-          if(err/=0)then
-            message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (simulated): '//trim(cmessage)
-            exit trial
-          endif
-          call move_alloc(valAnom,valSim)
-
-          call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                             &
-                                    calTarget%baseline_start,calTarget%baseline_end,          &
-                                    valAnom,err,cmessage)
-          if(err/=0)then
-            message=trim(message)//'calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
-            exit trial
-          endif
-          call move_alloc(valAnom,flowObs)
-        endif
-
-        ! a balance is the simulated change between seasonal extremes, one value at each observed time
-        if(len_trim(calTarget%balance) > 0)then
-          call balance_between_extremes(timeVal,valSim,timeValUnits,timeObs,timeObsUnits,            &
-                                        calTarget%balance,calTarget%balance_window,valAnom,err,cmessage)
-          if(err/=0)then
-            message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-            exit trial
-          endif
-          call move_alloc(valAnom,valSim)
-          timeVal=timeObs
-          timeValUnits=timeObsUnits
-        endif
-
-        ! align simulated and observed series
-        if(allocated(timeAligned))    deallocate(timeAligned)
-        if(allocated(flowSimAligned)) deallocate(flowSimAligned)
-        if(allocated(flowObsAligned)) deallocate(flowObsAligned)
-        call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,   &
-                              timeObs,flowObs,timeObsUnits,flowObsUnits, &
-                              summa1_struc(n)%config%calib%start_date,   &
-                              summa1_struc(n)%config%calib%end_date,     &
-                              timeBounds,                                &
-                              timeAligned,flowSimAligned,flowObsAligned, &
-                              err,cmessage)
-        if(err/=0)then
-          message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-          exit trial
-        endif
-
-      ! compute this target's metric
-      call compute_metric(flowObsAligned,flowSimAligned,        &
-                          calTarget%metric,calTarget%obs_transform,   &
-                          objective(iTarget),err,cmessage)
-      if(err/=0)then
-        message=trim(message)//'calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        ! observations in the scored period that this simulation gives nothing to pair with: the parameter set failed
-        failed = any(ieee_is_finite(flowObsAligned)) .and. .not.any(ieee_is_finite(flowSimAligned))
-        exit trial
-      endif
-
-      ! write the aligned evaluation time series and objective value.  The SUMMA output file holds one
-      ! such series, so it holds the first target's; the trials file carries every target's value.
-      if(summa1_struc(n)%config%write_timeseries .and. iTarget == 1)then
-        call write_evaluation(ncid(iLookFREQ%timestep),                    &
-                              summa1_struc(n)%config%calib%write_aligned,  &
-                              timeAligned,                                 &
-                              flowObsAligned,flowSimAligned,               &
-                              timeObsUnits,flowObsUnits,                   &
-                              calTarget%metric,calTarget%obs_transform,          &
-                              objective(iTarget),                          &
-                              err,cmessage)
-        if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
-      endif
-
-      end associate
-    enddo
+      call score_target(summa1_struc(n)%config, iTarget, targetUnit(iTarget), &
+                        series, timeSim, timeSimUnits, objective(iTarget), &
+                        failed, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
+    enddo    
 
     end block trial
     if(present(trial_failed)) trial_failed=failed
@@ -871,33 +882,5 @@ contains
   ! ---- HELPER SUBROUTINES ---------------------------------------------------------------------------
   ! ---------------------------------------------------------------------------------------------------
   ! ---------------------------------------------------------------------------------------------------
-
-  ! **************************************************************************************************
-  ! Get simulation time and streamflow at the basin outlet.
-  ! **************************************************************************************************
-  subroutine get_streamflow(modelTimeStep,summa_struct,timeSim,flowSim,err,message)
-
-    USE var_lookup, only: iLookFORCE
-    USE simulated_series, only: get_outlet_streamflow
-
-    implicit none
-
-    integer(i4b),          intent(in)    :: modelTimeStep
-    type(summa1_type_dec), intent(inout) :: summa_struct
-    real(rkind),           intent(out)   :: timeSim
-    real(rkind),           intent(out)   :: flowSim
-    integer(i4b),          intent(out)   :: err
-    character(*),          intent(out)   :: message
-
-    err=0
-    message='get_streamflow/'
-
-    ! Simulation time
-    timeSim = summa_struct%forcStruct%gru(1)%hru(1)%var(iLookFORCE%time)
-
-    ! Streamflow at the basin outlet
-    call get_outlet_streamflow(modelTimeStep,summa_struct,flowSim)
-
-  end subroutine get_streamflow
 
 end module summa_simulation
