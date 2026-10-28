@@ -65,9 +65,7 @@ public :: oriented_objectives
 contains
 
   ! **************************************************************************************************
-  ! Run a complete SUMMA simulation and return the simulated streamflow time series.
-  ! The interface is model agnostic: model-specific initialization, parameter updates,
-  ! simulation, and finalization are handled internally.
+  ! Run a complete SUMMA simulation.
   ! **************************************************************************************************
   subroutine run_simulation(config,                 & ! SUMMA configuration structure
                             domain_parallel,        & ! MPI context for domain parallelism
@@ -119,15 +117,16 @@ contains
 
   end subroutine run_simulation
 
+
   ! **************************************************************************************************
   ! Evaluate every calibration target for a specified parameter vector.
   !
   ! The routine initializes SUMMA, runs the model once, and then scores that one simulation against
-  ! each configured target in turn, returning one objective value per target.  Running the model once
+  ! each configured target in turn, returning one objective value per target. Running the model once
   ! for all targets is the point: the targets are different views of the same simulation, so they must
   ! come from the same run to be comparable.
   !
-  ! Objectives are returned as the metrics themselves, in the order the targets were configured.  It
+  ! Objectives are returned as the metrics themselves, in the order the targets were configured. It
   ! is the caller that decides what to do with them - maximize a weighted sum, or rank a population by
   ! Pareto dominance - so nothing here assumes which way any of them points.
   ! **************************************************************************************************
@@ -141,6 +140,7 @@ contains
     use iso_fortran_env, only: output_unit, error_unit
     use globalData, only: output_fileSuffix
     use simulated_series, only: sim_series_type
+
     ! dummy arguments
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
@@ -152,6 +152,7 @@ contains
     integer(i4b)               , intent(out)   :: err
     character(*)               , intent(out)   :: message
     logical(lgt), optional, intent(out) :: trial_failed
+
     ! locals
     logical(lgt)                       :: failed                 ! true if the parameter set causes a model or scoring failure
     logical(lgt)                       :: unscored               ! true if no calibration targets are configured
@@ -171,15 +172,17 @@ contains
     character(len=1024)                :: cmessage               ! error message from called routines
 
 
+    ! ---- Set up objective evaluation ---------------------------------------------------------
+
     err=0
     message='evaluate_objectives/'
     failed=.false.; unscored=.false.
     if(present(trial_failed)) trial_failed=.false.
-    
+
     ! Allocate objective values
     nTarget = 0
     if(allocated(config%calib%targets)) nTarget = size(config%calib%targets)
-    
+
     allocate(objective(max(1,nTarget)),stat=err)
     if(err/=0)then
       message=trim(message)//'problem allocating objective vector'
@@ -187,18 +190,20 @@ contains
     endif
     objective=realMissing
 
-    ! allocate top-level SUMMA structure
+    ! Allocate top-level SUMMA structure
     allocate(summa1_struc(n),stat=err)
     if(err/=0)then
       message=trim(message)//'problem allocating top-level summa structure'
       return
     endif
 
-    ! populate domain and model-instance parallel contexts
+    ! Populate domain and model-instance parallel contexts
     summa1_struc(n)%domain_parallel=domain_parallel
     summa1_struc(n)%instance_parallel=instance_parallel
 
-    ! define unique output filenames for each rank and sample
+
+    ! ---- Construct unique output filenames --------------------------------------------------
+
     outputFileSuffix_orig=trim(output_fileSuffix)
     if(instance_parallel%size > 1)then
       write(rankString,'(I4.4)') instance_parallel%rank
@@ -213,68 +218,74 @@ contains
       output_fileSuffix=trim(output_fileSuffix)//'_run'//runString
     endif
 
-    ! the model is released after this block however it is left, so a worker can take the next trial
+
+    ! ---- Initialize, simulate, and score ----------------------------------------------------
+
+    ! All exits from this block proceed to finalization and restoration of the output suffix
     trial: block
 
-    ! initialize SUMMA; a parameter set the model refuses is a failed trial
-    call initialize_summa(config, summa1_struc(n), param_name, param_value, &
-                          err=err, message=cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); failed=.true.; exit trial; endif
+      ! Initialize SUMMA
+      call initialize_summa(config, summa1_struc(n), param_name, param_value, &
+                            err=err, message=cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); failed=.true.; exit trial; endif
 
-    ! an objective function needs observations to compare against; without them this is an
-    ! ordinary SUMMA run, so run the model and return rather than failing
-    if(n_calibration_targets(summa1_struc(n)%config) == 0)then
-      unscored=.true.
+      ! Run without scoring if no calibration targets are configured
+      if(n_calibration_targets(summa1_struc(n)%config) == 0)then
+        unscored=.true.
 
-      allocate(series(0))
+        allocate(series(0))
 
+        call run_summa(summa1_struc(n), timeSim, timeSimUnits, &
+                       series, failed, err, cmessage)
+        if(err/=0) message=trim(message)//trim(cmessage)
+
+        exit trial
+      endif
+
+      ! Direct model messages to stderr when stdout is reserved for objective values
+      if(iulog == output_unit) iulog = error_unit
+
+      ! Prepare the simulated time series required by calibration
+      call prepare_target_series(summa1_struc(n)%config, targetUnit, series, err, cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
+
+      ! Resolve requested river reaches against the mizuRoute network
+      call resolve_reach_series(summa1_struc(n),series,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
+
+      ! Run SUMMA once and collect every requested simulated series
       call run_summa(summa1_struc(n), timeSim, timeSimUnits, &
                      series, failed, err, cmessage)
-      if(err/=0) message=trim(message)//trim(cmessage)
-
-      exit trial
-    endif
-
-    ! calibration run: send model chatter to stderr so stdout carries only the metric, unless a caller owns iulog
-    if(iulog == output_unit) iulog = error_unit
-
-    ! Prepare the simulated time series required by calibration
-    call prepare_target_series(summa1_struc(n)%config, targetUnit, series, err, cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
-
-    ! a reach belongs to the river network, so it is resolved against the mizuRoute topology
-    call resolve_reach_series(summa1_struc(n),series,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
-
-    ! Run SUMMA once and collect every requested simulated series
-    call run_summa(summa1_struc(n), timeSim, timeSimUnits, &
-                   series, failed, err, cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
-
-    ! Score the simulation against each calibration target
-    do iTarget=1,nTarget
-      call score_target(summa1_struc(n)%config, iTarget, targetUnit(iTarget), &
-                        series, timeSim, timeSimUnits, objective(iTarget), &
-                        failed, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
-    enddo    
+
+      ! Score the simulation against each calibration target
+      do iTarget=1,nTarget
+        call score_target(summa1_struc(n)%config, iTarget, targetUnit(iTarget), &
+                          series, timeSim, timeSimUnits, objective(iTarget), &
+                          failed, err, cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); exit trial; endif
+      enddo
 
     end block trial
-    if(present(trial_failed)) trial_failed=failed
 
-    ! finalize SUMMA and release model resources, keeping the first error
+
+    ! ---- Finalize simulation and restore state ----------------------------------------------
+
+    ! Finalize SUMMA and release model resources, keeping the first error
     call finalize_summa(summa1_struc(n),errFinal,cmessage)
     if(err==0 .and. errFinal/=0)then; err=errFinal; message=trim(message)//trim(cmessage); endif
 
-    ! release top-level SUMMA data structure
+    ! Release top-level SUMMA data structure
     ! NOTE: Deallocate here because finalize_summa operates on a single array element
     if(allocated(summa1_struc)) deallocate(summa1_struc)
 
-    ! restore output file suffix
+    ! Restore output file suffix
     output_fileSuffix=outputFileSuffix_orig
     if(err/=0 .or. unscored) return
 
-    ! write objective function to standard output
+
+    ! ---- Report objective values ------------------------------------------------------------
+
     if(instance_parallel%size == 1)then
       write(output_unit,'(ES24.16)') objective(1)
     else
