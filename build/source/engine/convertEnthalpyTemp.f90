@@ -74,9 +74,12 @@ public::T2enthTemp_snLaGl
 public::T2enthTemp_soil
 public::enthTemp_or_enthalpy
 
-! the soil lookup table of the HRU last built, kept to be reused where the parameters repeat
-real(rkind),allocatable,save,private :: lastSoilPar(:,:)    ! (4,nSoil) parameters the table was built from
-real(rkind),allocatable,save,private :: lastSoilTab(:,:,:)  ! (nLook,3,nSoil) temperature, integral, second derivative
+! soil lookup tables kept to be reused wherever a layer has the same van Genuchten parameters
+integer(i4b),parameter,private        :: maxSoilTab=32       ! number of soil lookup tables kept for reuse
+real(rkind),allocatable,save,private :: soilTabPar(:,:)     ! (4,maxSoilTab) van Genuchten parameters each kept table was built from
+real(rkind),allocatable,save,private :: soilTab(:,:,:)      ! (nLook,3,maxSoilTab) temperature, integral, second derivative
+integer(i4b),save,private             :: nSoilTab=0          ! number of kept tables
+integer(i4b),save,private             :: nextSoilTab=1       ! slot the next new table goes in, oldest first
 public::enthalpy2T_cas
 public::enthalpy2T_veg
 public::enthalpy2T_snLaGl
@@ -205,8 +208,8 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
   real(rkind)                   :: vGn_m                ! van Genuchten "m" parameter (-)
   real(rkind)                   :: vFracLiq             ! volumetric fraction of liquid water (-)
   real(rkind)                   :: matricHead           ! matric head (m)
-  real(rkind),allocatable       :: soilPar(:,:)         ! van Genuchten parameters this table is built from
-  logical(lgt)                  :: reuse                ! the previous HRU was built from the same parameters
+  real(rkind)                   :: soilPar(4)           ! van Genuchten parameters of this layer's table
+  integer(i4b)                  :: iTab                 ! index of a kept table built from the same parameters
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="T2L_lookup_soil/"
@@ -236,31 +239,24 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
     end do ! (looping through variables)
   end do ! (looping through soil layers)
 
-  ! the table is a function of the van Genuchten parameters alone, and a domain of many HRUs on
-  ! one soil rebuilds the same 8*(nLook-1)*nIntegr8 integrations for each of them
-  allocate(soilPar(4,nSoil), stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating the soil parameter signature'; return; end if
-  soilPar(1,:) = mpar_data%var(iLookPARAM%theta_sat)%dat(1:nSoil)
-  soilPar(2,:) = mpar_data%var(iLookPARAM%theta_res)%dat(1:nSoil)
-  soilPar(3,:) = mpar_data%var(iLookPARAM%vGn_alpha)%dat(1:nSoil)
-  soilPar(4,:) = mpar_data%var(iLookPARAM%vGn_n)%dat(1:nSoil)
-  reuse = .false.
-  if(allocated(lastSoilPar))then
-    if(size(lastSoilPar,2)==nSoil) reuse = all(lastSoilPar == soilPar)
-  end if
-
-  if(reuse)then
-    do iSoil=1,nSoil
-      lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup = lastSoilTab(:,1,iSoil)
-      lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup  = lastSoilTab(:,2,iSoil)
-      lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup      = lastSoilTab(:,3,iSoil)
-    end do
-    deallocate(soilPar)
-    return
+  ! the table is a function of the van Genuchten parameters alone, so layers and HRUs on one soil share it
+  if(.not.allocated(soilTab))then
+    allocate(soilTabPar(4,maxSoilTab), soilTab(nLook,3,maxSoilTab), stat=err)
+    if(err/=0)then; err=20; message=trim(message)//'problem allocating the kept soil lookup tables'; return; end if
   end if
 
   ! loop through soil layers
   do iSoil=1,nSoil
+
+    soilPar = [mpar_data%var(iLookPARAM%theta_sat)%dat(iSoil), mpar_data%var(iLookPARAM%theta_res)%dat(iSoil), &
+               mpar_data%var(iLookPARAM%vGn_alpha)%dat(iSoil), mpar_data%var(iLookPARAM%vGn_n)%dat(iSoil)]
+    iTab = findloc([(all(soilTabPar(:,iLook)==soilPar), iLook=1,nSoilTab)], .true., dim=1)
+    if(iTab>0)then
+      lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup = soilTab(:,1,iTab)
+      lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup  = soilTab(:,2,iTab)
+      lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup      = soilTab(:,3,iTab)
+      cycle
+    end if
 
     ! -----
     ! * make association to variables in the data structures...
@@ -321,22 +317,19 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
       call spline(Tk,Ly,1.e30_rkind,1.e30_rkind,L2,err,cmessage)  ! get the second derivatives
       if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
+      ! keep the table for later layers and HRUs, replacing the oldest once full
+      soilTabPar(:,nextSoilTab) = soilPar
+      soilTab(:,1,nextSoilTab)  = Tk
+      soilTab(:,2,nextSoilTab)  = Ly
+      soilTab(:,3,nextSoilTab)  = L2
+      nSoilTab    = min(nSoilTab+1, maxSoilTab)
+      nextSoilTab = mod(nextSoilTab, maxSoilTab) + 1
+
     ! end asssociation to variables in the data structures
     end associate
 
   end do  ! (looping through soil layers)
 
-  if(allocated(lastSoilPar)) deallocate(lastSoilPar)
-  if(allocated(lastSoilTab)) deallocate(lastSoilTab)
-  allocate(lastSoilPar(4,nSoil), lastSoilTab(nLook,3,nSoil), stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating the stored soil lookup table'; return; end if
-  lastSoilPar = soilPar
-  do iSoil=1,nSoil
-    lastSoilTab(:,1,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup
-    lastSoilTab(:,2,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup
-    lastSoilTab(:,3,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup
-  end do
-  deallocate(soilPar)
 end subroutine T2L_lookup_soil
 
 
