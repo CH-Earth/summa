@@ -1332,7 +1332,7 @@ contains
            THETAP  = ATAN(BB/RC(VEGTYP) * TAN(ACOS(MAX(0.01,COSZ))) )
            ! BGAP    = EXP(-DEN(VEGTYP) * PAI * RC(VEGTYP)**2/COS(THETAP) )
            BGAP    = EXP(-DENFVEG * PAI * RC(VEGTYP)**2/COS(THETAP) )
-           FA      = VAI/(1.33 * PAI * RC(VEGTYP)**3.0 *(BB/RC(VEGTYP))*DENFVEG)
+           FA      = VAI/(1.33 * PAI * RC(VEGTYP)**3 *(BB/RC(VEGTYP))*DENFVEG)
            NEWVAI  = HD*FA
            WGAP    = (1.0-BGAP) * EXP(-0.5*NEWVAI/COSZ)
            GAP     = MIN(1.0-FVEG, BGAP+WGAP)
@@ -1682,7 +1682,7 @@ contains
 
 ! contribution due to air temperature
 
-    RCT = 1.0- 0.0016* ( (TOPT - SFCTMP)**2.0)
+    RCT = 1.0- 0.0016* ( (TOPT - SFCTMP)**2)
     RCT = MAX (RCT,0.0001)
 
 ! contribution due to vapor pressure deficit

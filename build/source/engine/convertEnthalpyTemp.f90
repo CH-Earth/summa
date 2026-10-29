@@ -76,8 +76,8 @@ public::enthTemp_or_enthalpy
 
 ! soil lookup tables kept to be reused wherever a layer has the same van Genuchten parameters
 integer(i4b),parameter,private        :: maxSoilTab=32       ! number of soil lookup tables kept for reuse
-real(rkind),allocatable,save,private :: soilTabPar(:,:)     ! (4,maxSoilTab) van Genuchten parameters each kept table was built from
-real(rkind),allocatable,save,private :: soilTab(:,:,:)      ! (nLook,3,maxSoilTab) temperature, integral, second derivative
+real(rkind),allocatable,save,private  :: soilTabPar(:,:)     ! (4,maxSoilTab) van Genuchten parameters each kept table was built from
+real(rkind),allocatable,save,private  :: soilTab(:,:,:)      ! (nLook,3,maxSoilTab) temperature, integral, second derivative
 integer(i4b),save,private             :: nSoilTab=0          ! number of kept tables
 integer(i4b),save,private             :: nextSoilTab=1       ! slot the next new table goes in, oldest first
 public::enthalpy2T_cas
