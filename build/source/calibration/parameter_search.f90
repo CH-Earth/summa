@@ -60,14 +60,29 @@ module parameter_search
   end type ordered_constraint
 
   ! **************************************************************************************************
+  ! Multiplicative parameter dependency.
+  !
+  ! The dependent parameter is sampled as a multiplier of the reference parameter:
+  !
+  !   physical(dependent) = physical(reference) * sampled(dependent)
+  !
+  ! Indices refer to parameter_spec%params.
+  ! **************************************************************************************************
+  type, public :: multiplier_constraint
+    integer(i4b) :: reference_index = 0
+    integer(i4b) :: dependent_index = 0
+  end type multiplier_constraint
+
+  ! **************************************************************************************************
   ! Model-provided specification of the parameter search problem.
   !
   ! Any model can use the parameter-search routines by populating this structure with scalar trial
   ! values, bounds, sampled flags, transformations, and optional ordered dependencies.
   ! **************************************************************************************************
   type, public :: parameter_spec
-    type(parameter_info),     allocatable :: params(:)
-    type(ordered_constraint), allocatable :: ordered(:)
+    type(parameter_info),        allocatable :: params(:)
+    type(ordered_constraint),    allocatable :: ordered(:)
+    type(multiplier_constraint), allocatable :: multiplier(:)
   end type parameter_spec
 
   ! **************************************************************************************************

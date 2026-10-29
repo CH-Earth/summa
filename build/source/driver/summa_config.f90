@@ -147,6 +147,10 @@ contains
     err = 0
     message = 'load_summa_config/'
 
+    ! Reset parameter dependencies when reading a new case
+    if(allocated(config%calib%ordered)) deallocate(config%calib%ordered)
+    if(allocated(config%calib%multiplier)) deallocate(config%calib%multiplier)
+
     ! ----- initial checks with early return -----
 
     ! No configuration file is required unless mizuRoute is enabled
@@ -1434,89 +1438,178 @@ contains
   end subroutine parse_nsga2_settings
 
   ! **************************************************************************************************
-  ! Parse parameter dependency configuration.
-  ! Reads ordered parameter constraints from the TOML configuration. Each constraint defines
-  ! an ordered list of parameters and the minimum gap between adjacent parameters as a fraction
-  ! of the total parameter range.
+  ! Parse parameter dependencies from TOML.
+  !
+  ! Supported dependencies:
+  !
+  !   [[parameter_dependencies.ordered]]
+  !   parameters = ["parameter1", "parameter2", ...]
+  !   gap_fraction = 0.025
+  !   sample_gaps = false
+  !
+  !   [[parameter_dependencies.multiplier]]
+  !   parameters = ["reference", "dependent"]
+  !
+  ! For multiplier dependencies:
+  !   physical(dependent) = physical(reference) * sampled(dependent)
   ! **************************************************************************************************
-  subroutine parse_parameter_dependencies(subtable, config, ierr, message)
-    use tomlf_all, only: toml_table, toml_array, get_value, len
+  subroutine parse_parameter_dependencies(subtable,config,ierr,message)
+    use tomlf_all, only: toml_table,toml_array,get_value,len
     implicit none
-  
+
     type(toml_table), pointer, intent(in)    :: subtable
     type(config_info),         intent(inout) :: config
     integer(i4b),              intent(out)   :: ierr
     character(*),              intent(out)   :: message
+
     type(toml_array), pointer :: ordered
-    type(toml_table), pointer :: constraint
+    type(toml_array), pointer :: multiplier
     type(toml_array), pointer :: param_list
+    type(toml_table), pointer :: constraint
     integer(i4b) :: i
     integer(i4b) :: istat
     integer(i4b) :: nconstraints
     character(len=1024) :: cmessage
-  
-    ierr = 0
-    message = 'parse_parameter_dependencies/'
-  
-    ! get array of ordered constraints
-    call get_value(subtable, 'ordered', ordered, requested=.false., stat=istat)
-    if(.not.associated(ordered)) return
-    nconstraints = len(ordered)
-  
-    ! allocate constraint structures
-    ! as above: the previous case's constraints may still be allocated
-    if(allocated(config%calib%ordered)) deallocate(config%calib%ordered)
 
-    allocate(config%calib%ordered(nconstraints), stat=ierr)
-    if(ierr/=0)then
-      message=trim(message)//'unable to allocate ordered parameter constraints'
-      return
-    endif
-  
-    ! parse each ordered constraint
-    do i=1,nconstraints
-  
-      call get_value(ordered, i, constraint, stat=istat)
-      if(istat/=0 .or. .not.associated(constraint))then
-        write(message,'(A,I0)') trim(message)// &
-          'unable to read ordered constraint, i = ',i
-        ierr=20; return
-      endif
-  
-      ! parameter list
-      call get_value(constraint, 'parameters', param_list, stat=istat)
-      if(istat/=0 .or. .not.associated(param_list))then
-        write(message,'(A,I0)') trim(message)// &
-          'parameter list not defined for ordered constraint, i = ',i
-        ierr=20; return
-      endif
-  
-      call parse_word_list(param_list,                         &
-                           config%calib%ordered(i)%parameters, &
-                           ierr,cmessage)
+    ierr=0
+    message='parse_parameter_dependencies/'
+    nullify(ordered,multiplier,constraint,param_list)
+
+    ! Multi-case runs reuse the configuration structure
+    if(allocated(config%calib%ordered)) deallocate(config%calib%ordered)
+    if(allocated(config%calib%multiplier)) deallocate(config%calib%multiplier)
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Ordered parameter dependencies
+    ! -----------------------------------------------------------------------------------------------
+    call get_value(subtable,'ordered',ordered,requested=.false.,stat=istat)
+
+    if(associated(ordered))then
+
+      nconstraints=len(ordered)
+      allocate(config%calib%ordered(nconstraints),stat=ierr)
       if(ierr/=0)then
-        message=trim(message)//trim(cmessage)
+        message=trim(message)//'unable to allocate ordered parameter constraints'
         return
       endif
-  
-      ! gap fraction
-      call get_value(constraint, 'gap_fraction', &
-                     config%calib%ordered(i)%gap_fraction, stat=istat)
-      if(istat/=0)then
-        write(message,'(A,I0)') trim(message)// &
-          'gap_fraction not defined for ordered constraint, i = ',i
-        ierr=20; return
+
+      do i=1,nconstraints
+
+        nullify(constraint,param_list)
+
+        call get_value(ordered,i,constraint,stat=istat)
+        if(istat/=0 .or. .not.associated(constraint))then
+          write(cmessage,'(A,I0)') 'unable to read ordered constraint, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        ! Parameter list
+        call get_value(constraint,'parameters',param_list,stat=istat)
+        if(istat/=0 .or. .not.associated(param_list))then
+          write(cmessage,'(A,I0)') 'parameter list not defined for ordered constraint, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        call parse_word_list(param_list,                         &
+                             config%calib%ordered(i)%parameters, &
+                             ierr,cmessage)
+        if(ierr/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+
+        ! Minimum gap between adjacent parameters
+        call get_value(constraint,'gap_fraction', &
+                       config%calib%ordered(i)%gap_fraction,stat=istat)
+        if(istat/=0)then
+          write(cmessage,'(A,I0)') 'gap_fraction not defined for ordered constraint, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        ! Optionally sample the gaps between ordered parameters
+        call get_value(constraint,'sample_gaps', &
+                       config%calib%ordered(i)%sample_gaps,.false.,stat=istat)
+        if(istat/=0)then
+          write(cmessage,'(A,I0)') 'sample_gaps must be true or false, ordered constraint i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+      enddo
+
+    endif
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Multiplicative parameter dependencies
+    ! -----------------------------------------------------------------------------------------------
+    call get_value(subtable,'multiplier',multiplier,requested=.false.,stat=istat)
+
+    if(associated(multiplier))then
+
+      nconstraints=len(multiplier)
+      allocate(config%calib%multiplier(nconstraints),stat=ierr)
+      if(ierr/=0)then
+        message=trim(message)//'unable to allocate multiplier parameter constraints'
+        return
       endif
 
-      ! search every member, the later ones by their gaps
-      call get_value(constraint, 'sample_gaps', config%calib%ordered(i)%sample_gaps, .false., stat=istat)
-      if(istat/=0)then
-        write(message,'(A,I0)') trim(message)// &
-          'sample_gaps must be true or false, ordered constraint i = ',i
-        ierr=20; return
-      endif
-    enddo
-  
+      do i=1,nconstraints
+
+        nullify(constraint,param_list)
+
+        call get_value(multiplier,i,constraint,stat=istat)
+        if(istat/=0 .or. .not.associated(constraint))then
+          write(cmessage,'(A,I0)') 'unable to read multiplier constraint, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        ! Reference and dependent parameter
+        call get_value(constraint,'parameters',param_list,stat=istat)
+        if(istat/=0 .or. .not.associated(param_list))then
+          write(cmessage,'(A,I0)') 'parameter pair not defined for multiplier constraint, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        call parse_word_list(param_list,                            &
+                             config%calib%multiplier(i)%parameters, &
+                             ierr,cmessage)
+        if(ierr/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+
+        ! Exactly two parameters are required
+        if(size(config%calib%multiplier(i)%parameters)/=2)then
+          write(cmessage,'(A,I0)') 'multiplier dependency requires exactly two parameters, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        ! Both names must be nonempty
+        if(len_trim(config%calib%multiplier(i)%parameters(1))==0 .or. &
+           len_trim(config%calib%multiplier(i)%parameters(2))==0)then
+          write(cmessage,'(A,I0)') 'empty parameter name in multiplier dependency, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        ! A parameter cannot depend multiplicatively on itself
+        if(config%calib%multiplier(i)%parameters(1)== &
+           config%calib%multiplier(i)%parameters(2))then
+          write(cmessage,'(A,I0)') 'identical parameters in multiplier dependency, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+      enddo
+
+    endif
+
   end subroutine parse_parameter_dependencies
 
   ! --------------------------------------------------------------------------------------------------

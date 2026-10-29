@@ -84,6 +84,7 @@ MODULE data_types
   real(rkind)       :: lower_bound = 0._rkind
   real(rkind)       :: upper_bound = 0._rkind
   character(len=16) :: transformation = 'none'
+  logical(lgt)      :: is_multiplier = .false.
  end type calib_param_info
 
  ! -----------------------------------------------------------------------------------------------------------
@@ -142,17 +143,22 @@ MODULE data_types
  end type nsga2_info
 
  ! -----------------------------------------------------------------------------------------------------------
-
+ type :: multiplier_dependency
+   character(len=64), allocatable :: parameters(:)    ! Multiplicative parameter dependency.
+ end type multiplier_dependency
+ ! -----------------------------------------------------------------------------------------------------------
+ 
  ! calibration configuration
  type,public  :: calib_info
   character(len=:),  allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
   character(len=:),  allocatable :: obs_transform      ! none, log, power, box-cox
   character(len=:),  allocatable :: start_date         ! start of the calibration time period
   character(len=:),  allocatable :: end_date           ! end of the calibration time period
-  type(calib_param_info),   allocatable :: param_list(:)   ! Parameters included in optimization
-  type(param_bounds_info),  allocatable :: param_bounds(:) ! bounds that replace the parameter files'
-  type(ordered_constraint), allocatable :: ordered(:)      ! ordered parameter constraints
-  type(target_info),        allocatable :: targets(:)      ! calibration targets, one per objective
+  type(calib_param_info),      allocatable :: param_list(:)   ! Parameters included in optimization
+  type(param_bounds_info),     allocatable :: param_bounds(:) ! bounds that replace the parameter files'
+  type(ordered_constraint),    allocatable :: ordered(:)      ! ordered parameter constraints
+  type(multiplier_dependency), allocatable :: multiplier(:)   ! multiplicative parameter dependency
+  type(target_info),           allocatable :: targets(:)      ! calibration targets, one per objective
   integer(i4b)                   :: n_samples      = 1000        ! number of parameter samples to evaluate
   real(rkind)                    :: default_metric = 9999._rkind ! default objective function
   character(len=16)              :: algorithm      = 'dds'       ! dds (on the scalarized targets) or nsga2 (on each)
