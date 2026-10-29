@@ -245,11 +245,14 @@ function hydCond_psi(psi,k_sat,alpha,n,m)
   ! Blend over the interval [-delta,0] using a cubic smoothstep so that value
   ! and first derivative are continuous at the join.
   real(rkind) :: t, s, orig_val
+  real(rkind) :: xn1, sm      ! (alpha psi)**(n-1) and (1 + (alpha psi)**n)**(-m)
 
   if (psi >= 0._rkind) then
     hydCond_psi = k_sat
   else
-    orig_val = k_sat * ( ( (1._rkind - (psi*alpha)**(n-1._rkind) * (1._rkind + (psi*alpha)**n)**(-m))**2_i4b ) / ( (1._rkind + (psi*alpha)**n)**(m/2._rkind) ) )
+    xn1 = (psi*alpha)**(n-1._rkind)
+    sm  = (1._rkind + xn1*psi*alpha)**(-m)
+    orig_val = k_sat * (1._rkind - xn1*sm)**2_i4b * sqrt(sm)
     if (psi < -kBlendHead) then
       hydCond_psi = orig_val
     else ! compute original formula and blend to k_sat using a cubic smoothstep
@@ -322,10 +325,13 @@ function dTheta_dPsi(psi,alpha,theta_res,theta_sat,n,m)
   real(rkind),intent(in) :: n           ! vGn "n" parameter (-)
   real(rkind),intent(in) :: m           ! vGn "m" parameter (-)
   real(rkind)            :: dTheta_dPsi ! derivative of the soil water characteristic (m-1)
+  real(rkind)            :: xn1         ! (alpha psi)**(n-1)
+  real(rkind)            :: s           ! 1 + (alpha psi)**n
 
   if(psi<=0._rkind)then
-    dTheta_dPsi = (theta_sat-theta_res) * &
-                 (-m*(1._rkind + (psi*alpha)**n)**(-m-1._rkind)) * n*(psi*alpha)**(n-1._rkind) * alpha
+    xn1 = (psi*alpha)**(n-1._rkind)
+    s   = 1._rkind + xn1*psi*alpha
+    dTheta_dPsi = (theta_sat-theta_res) * (-m*s**(-m)/s) * n*xn1 * alpha
     if(abs(dTheta_dPsi) < epsilon(psi)) dTheta_dPsi = epsilon(psi) ! use to avoid division by zero if divide by dTheta_dPsi
   else
     dTheta_dPsi = epsilon(psi) ! use to avoid division by zero if divide by dTheta_dPsi
@@ -358,14 +364,16 @@ function dPsi_dTheta(volFracLiq,alpha,theta_res,theta_sat,n,m)
    ! compute effective water content
    theta_e = max(theta_e_min,(volFracLiq - theta_res) / (theta_sat - theta_res))
    ! compute the 1st function and derivative
-   y1 = theta_e**(-1._rkind/m) - 1._rkind
-   d1 = (-1._rkind/m)*theta_e**(-1._rkind/m - 1._rkind) / (theta_sat - theta_res)
+   y1 = theta_e**(-1._rkind/m)
+   d1 = (-1._rkind/m)*(y1/theta_e) / (theta_sat - theta_res)
+   y1 = y1 - 1._rkind
    ! compute the 2nd function and derivative
    ! note: impose a minimum value for y1 to avoid divison by zero and complex values
    !y2 = y1**(1._rkind/n)                         ! original expression
    !d2 = (1._rkind/n)*y1**(1._rkind/n - 1._rkind) ! original expression
-   y2 = max(y1_min,y1)**(1._rkind/n)
-   d2 = (1._rkind/n)*max(y1_min,y1)**(1._rkind/n - 1._rkind) ! impose a minimum value for y1 to avoid divison by zero and complex values
+   y1 = max(y1_min,y1)
+   y2 = y1**(1._rkind/n)
+   d2 = (1._rkind/n)*(y2/y1)
    ! compute the final function value
    dPsi_dTheta = d1*d2/alpha
   else
@@ -396,20 +404,22 @@ function dHydCond_dPsi(psi,k_sat,alpha,n,m)
   real(rkind)                :: d_nm          ! df(x)/dpsi for the numerator
   real(rkind)                :: d_dm          ! df(x)/dpsi for the denominator
   real(rkind)                :: t,s,orig_val,orig_d,ds_dpsi
+  real(rkind)                :: xs            ! 1 + (alpha psi)**n
   
   if (psi >= 0._rkind) then
     dHydCond_dPsi = 0._rkind
   else
     ! compute the derivative for the numerator (original Van Genuchten form)
     f_x1 = (psi*alpha)**(n - 1._rkind)
-    f_x2 = (1._rkind + (psi*alpha)**n)**(-m)
-    d_x1 = alpha * (n - 1._rkind)*(psi*alpha)**(n - 2._rkind)
-    d_x2 = alpha * n*(psi*alpha)**(n - 1._rkind) * (-m)*(1._rkind + (psi*alpha)**n)**(-m - 1._rkind)
+    xs   = 1._rkind + f_x1*psi*alpha
+    f_x2 = xs**(-m)
+    d_x1 = alpha * (n - 1._rkind)*f_x1/(psi*alpha)
+    d_x2 = alpha * n*f_x1 * (-m)*f_x2/xs
     f_nm = (1._rkind - f_x1*f_x2)**2_i4b
     d_nm = (-d_x1*f_x2 - f_x1*d_x2) * 2._rkind*(1._rkind - f_x1*f_x2)
     ! compute the derivative for the denominator
-    f_dm = (1._rkind + (psi*alpha)**n)**(m/2._rkind)
-    d_dm = alpha * n*(psi*alpha)**(n - 1._rkind) * (m/2._rkind)*(1._rkind + (psi*alpha)**n)**(m/2._rkind - 1._rkind)
+    f_dm = 1._rkind/sqrt(f_x2)
+    d_dm = alpha * n*f_x1 * (m/2._rkind)*f_dm/xs
     ! and combine to get the original derivative
     orig_val = k_sat * (f_nm / f_dm)
     orig_d   = k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2_i4b)
@@ -465,12 +475,14 @@ function dTheta_dTk(Tk,theta_res,theta_sat,alpha,n,m)
   ! local variables
   real(rkind)            :: kappa         ! constant (m K-1)
   real(rkind)            :: xtemp         ! alpha*kappa*(Tk-Tfreeze) -- dimensionless variable (used more than once)
+  real(rkind)            :: xn1           ! xtemp**(n-1)
   ! compute kappa (m K-1)
   kappa =  LH_fus/(gravity*Tfreeze)    ! NOTE: J = kg m2 s-2
   ! define a tempory variable that is used more than once (-)
   xtemp = alpha*kappa*(Tk-Tfreeze)
   ! differentiate the freezing curve w.r.t. temperature -- making use of the chain rule
-  dTheta_dTk = (alpha*kappa) * n*xtemp**(n - 1._rkind) * (-m)*(1._rkind + xtemp**n)**(-m - 1._rkind) * (theta_sat - theta_res)
+  xn1 = xtemp**(n - 1._rkind)
+  dTheta_dTk = (alpha*kappa) * n*xn1 * (-m)*(1._rkind + xn1*xtemp)**(-m - 1._rkind) * (theta_sat - theta_res)
 end function dTheta_dTk
 
 
