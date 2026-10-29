@@ -181,12 +181,12 @@ subroutine summaSolv4ida(&
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
-  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
-  type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
-  type(var_d),        intent(in)  :: forc_data              ! model forcing data
-  type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
-  type(var_dlength),  intent(in)  :: prog_data              ! prognostic variables for a local HRU
+  type(zLookup),      intent(in),target :: lookup_data       ! lookup tables
+  type(var_i),        intent(in),target :: type_data         ! type of vegetation and soil
+  type(var_dlength),  intent(in),target :: mpar_data         ! model parameters
+  type(var_d),        intent(in),target :: forc_data         ! model forcing data
+  type(var_dlength),  intent(in),target :: bvar_data         ! model variables for the local basin
+  type(var_dlength),  intent(in),target :: prog_data         ! prognostic variables for a local HRU
    ! input-output: data structures
   type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
@@ -302,12 +302,12 @@ subroutine summaSolv4ida(&
     eqns_data%computeVegFlux = computeVegFlux
     eqns_data%scalarSolution = scalarSolution
     eqns_data%deriv_data     = deriv_data
-    eqns_data%lookup_data    = lookup_data
-    eqns_data%type_data      = type_data
-    eqns_data%mpar_data      = mpar_data
-    eqns_data%forc_data      = forc_data
-    eqns_data%bvar_data      = bvar_data
-    eqns_data%prog_data      = prog_data
+    eqns_data%lookup_data    => lookup_data
+    eqns_data%type_data      => type_data
+    eqns_data%mpar_data      => mpar_data
+    eqns_data%forc_data      => forc_data
+    eqns_data%bvar_data      => bvar_data
+    eqns_data%prog_data      => prog_data
     eqns_data%indx_data      = indx_data
     eqns_data%diag_data      = diag_data
     eqns_data%flux_data      = flux_data
@@ -615,8 +615,10 @@ subroutine summaSolv4ida(&
       dCompress_dPsiPrev(:)                  = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
       tretPrev                               = tret(1)
       resVecPrev(:)                          = eqns_data%resVec(:)
-      flux_prev                              = eqns_data%flux_data
-    
+      do iVar=1,size(flux_meta) ! copy in place, a whole-type assignment reallocates every flux array each step
+        flux_prev%var(iVar)%dat(:) = eqns_data%flux_data%var(iVar)%dat(:)
+      end do
+
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
         if (retvalr .eq. IDA_ROOT_RETURN) then ! IDASolve succeeded and found one or more roots at tret(1)
@@ -641,9 +643,15 @@ subroutine summaSolv4ida(&
     
     if(idaSucceeds)then
       ! copy to output data
-      diag_data     = eqns_data%diag_data
-      flux_data     = eqns_data%flux_data
-      deriv_data    = eqns_data%deriv_data
+      do iVar=1,size(diag_data%var) ! copy in place, a whole-type assignment reallocates every array
+        diag_data%var(iVar)%dat(:) = eqns_data%diag_data%var(iVar)%dat(:)
+      end do
+      do iVar=1,size(flux_data%var)
+        flux_data%var(iVar)%dat(:) = eqns_data%flux_data%var(iVar)%dat(:)
+      end do
+      do iVar=1,size(deriv_data%var)
+        deriv_data%var(iVar)%dat(:) = eqns_data%deriv_data%var(iVar)%dat(:)
+      end do
       ixSaturation  = eqns_data%ixSaturation
       indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of flux calculations changes in indx_data
       err           = eqns_data%err

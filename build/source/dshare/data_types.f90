@@ -1021,16 +1021,16 @@ MODULE data_types
  ! ** iLayerFlux
  type, public :: in_type_iLayerFlux ! intent(in) data
    ! input: state variables
-   real(rkind),allocatable :: nodeMatricHeadLiqTrial(:) ! liquid matric head at the soil nodes (m)
+   real(rkind)             :: nodeMatricHeadLiqTrial(2) ! liquid matric head at the soil nodes (m)
    ! input: model coordinate variables
-   real(rkind),allocatable :: nodeHeight(:)             ! height at the mid-point of the lower layer (m)
+   real(rkind)             :: nodeHeight(2)             ! height at the mid-point of the lower layer (m)
    ! input: temperature derivatives
-   real(rkind),allocatable :: dPsiLiq_dTemp(:)          ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-   real(rkind),allocatable :: dHydCond_dTemp(:)         ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+   real(rkind)             :: dPsiLiq_dTemp(2)          ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+   real(rkind)             :: dHydCond_dTemp(2)         ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
    ! input: transmittance
-   real(rkind),allocatable :: nodeHydCondTrial(:)       ! hydraulic conductivity at layer mid-points (m s-1)
+   real(rkind)             :: nodeHydCondTrial(2)       ! hydraulic conductivity at layer mid-points (m s-1)
     ! input: transmittance derivatives
-   real(rkind),allocatable :: dHydCond_dMatric(:)       ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
+   real(rkind)             :: dHydCond_dMatric(2)       ! derivative in hydraulic conductivity w.r.t matric head (m s-1)
   contains
    procedure :: initialize => initialize_in_iLayerFlux
  end type in_type_iLayerFlux

@@ -74,9 +74,12 @@ public::T2enthTemp_snLaGl
 public::T2enthTemp_soil
 public::enthTemp_or_enthalpy
 
-! the soil lookup table of the HRU last built, kept to be reused where the parameters repeat
-real(rkind),allocatable,save,private :: lastSoilPar(:,:)    ! (4,nSoil) parameters the table was built from
-real(rkind),allocatable,save,private :: lastSoilTab(:,:,:)  ! (nLook,3,nSoil) temperature, integral, second derivative
+! soil lookup tables kept to be reused wherever a layer has the same van Genuchten parameters
+integer(i4b),parameter,private        :: maxSoilTab=32       ! number of soil lookup tables kept for reuse
+real(rkind),allocatable,save,private  :: soilTabPar(:,:)     ! (4,maxSoilTab) van Genuchten parameters each kept table was built from
+real(rkind),allocatable,save,private  :: soilTab(:,:,:)      ! (nLook,3,maxSoilTab) temperature, integral, second derivative
+integer(i4b),save,private             :: nSoilTab=0          ! number of kept tables
+integer(i4b),save,private             :: nextSoilTab=1       ! slot the next new table goes in, oldest first
 public::enthalpy2T_cas
 public::enthalpy2T_veg
 public::enthalpy2T_snLaGl
@@ -205,8 +208,8 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
   real(rkind)                   :: vGn_m                ! van Genuchten "m" parameter (-)
   real(rkind)                   :: vFracLiq             ! volumetric fraction of liquid water (-)
   real(rkind)                   :: matricHead           ! matric head (m)
-  real(rkind),allocatable       :: soilPar(:,:)         ! van Genuchten parameters this table is built from
-  logical(lgt)                  :: reuse                ! the previous HRU was built from the same parameters
+  real(rkind)                   :: soilPar(4)           ! van Genuchten parameters of this layer's table
+  integer(i4b)                  :: iTab                 ! index of a kept table built from the same parameters
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="T2L_lookup_soil/"
@@ -236,31 +239,24 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
     end do ! (looping through variables)
   end do ! (looping through soil layers)
 
-  ! the table is a function of the van Genuchten parameters alone, and a domain of many HRUs on
-  ! one soil rebuilds the same 8*(nLook-1)*nIntegr8 integrations for each of them
-  allocate(soilPar(4,nSoil), stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating the soil parameter signature'; return; end if
-  soilPar(1,:) = mpar_data%var(iLookPARAM%theta_sat)%dat(1:nSoil)
-  soilPar(2,:) = mpar_data%var(iLookPARAM%theta_res)%dat(1:nSoil)
-  soilPar(3,:) = mpar_data%var(iLookPARAM%vGn_alpha)%dat(1:nSoil)
-  soilPar(4,:) = mpar_data%var(iLookPARAM%vGn_n)%dat(1:nSoil)
-  reuse = .false.
-  if(allocated(lastSoilPar))then
-    if(size(lastSoilPar,2)==nSoil) reuse = all(lastSoilPar == soilPar)
-  end if
-
-  if(reuse)then
-    do iSoil=1,nSoil
-      lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup = lastSoilTab(:,1,iSoil)
-      lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup  = lastSoilTab(:,2,iSoil)
-      lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup      = lastSoilTab(:,3,iSoil)
-    end do
-    deallocate(soilPar)
-    return
+  ! the table is a function of the van Genuchten parameters alone, so layers and HRUs on one soil share it
+  if(.not.allocated(soilTab))then
+    allocate(soilTabPar(4,maxSoilTab), soilTab(nLook,3,maxSoilTab), stat=err)
+    if(err/=0)then; err=20; message=trim(message)//'problem allocating the kept soil lookup tables'; return; end if
   end if
 
   ! loop through soil layers
   do iSoil=1,nSoil
+
+    soilPar = [mpar_data%var(iLookPARAM%theta_sat)%dat(iSoil), mpar_data%var(iLookPARAM%theta_res)%dat(iSoil), &
+               mpar_data%var(iLookPARAM%vGn_alpha)%dat(iSoil), mpar_data%var(iLookPARAM%vGn_n)%dat(iSoil)]
+    iTab = findloc([(all(soilTabPar(:,iLook)==soilPar), iLook=1,nSoilTab)], .true., dim=1)
+    if(iTab>0)then
+      lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup = soilTab(:,1,iTab)
+      lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup  = soilTab(:,2,iTab)
+      lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup      = soilTab(:,3,iTab)
+      cycle
+    end if
 
     ! -----
     ! * make association to variables in the data structures...
@@ -321,22 +317,19 @@ subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    nu
       call spline(Tk,Ly,1.e30_rkind,1.e30_rkind,L2,err,cmessage)  ! get the second derivatives
       if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
+      ! keep the table for later layers and HRUs, replacing the oldest once full
+      soilTabPar(:,nextSoilTab) = soilPar
+      soilTab(:,1,nextSoilTab)  = Tk
+      soilTab(:,2,nextSoilTab)  = Ly
+      soilTab(:,3,nextSoilTab)  = L2
+      nSoilTab    = min(nSoilTab+1, maxSoilTab)
+      nextSoilTab = mod(nextSoilTab, maxSoilTab) + 1
+
     ! end asssociation to variables in the data structures
     end associate
 
   end do  ! (looping through soil layers)
 
-  if(allocated(lastSoilPar)) deallocate(lastSoilPar)
-  if(allocated(lastSoilTab)) deallocate(lastSoilTab)
-  allocate(lastSoilPar(4,nSoil), lastSoilTab(nLook,3,nSoil), stat=err)
-  if(err/=0)then; err=20; message=trim(message)//'problem allocating the stored soil lookup table'; return; end if
-  lastSoilPar = soilPar
-  do iSoil=1,nSoil
-    lastSoilTab(:,1,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup
-    lastSoilTab(:,2,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup
-    lastSoilTab(:,3,iSoil) = lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup
-  end do
-  deallocate(soilPar)
 end subroutine T2L_lookup_soil
 
 
@@ -617,7 +610,8 @@ subroutine T2enthTemp_soil(&
                       mLayerTemp,               & ! intent(in):  layer temperature (K)
                       mLayerMatricHead,         & ! intent(in):  total water matric potential (m)
                       mLayerEnthTemp,           & ! intent(out): temperature component of enthalpy soil layer (J m-3)
-                      err,message)                ! intent(out): error code and message
+                      err,message,              & ! intent(out): error code and message
+                      volFracWat0)                ! intent(in):  optional total water content of mLayerMatricHead if computed outside (-)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
@@ -645,6 +639,7 @@ subroutine T2enthTemp_soil(&
   ! output: error control
   integer(i4b),intent(out)         :: err                    ! error code
   character(*),intent(out)         :: message                ! returned error message
+  real(rkind),intent(in),optional  :: volFracWat0            ! total water content of mLayerMatricHead if computed outside (-)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   real(rkind)                      :: Tcrit                  ! temperature where all water is unfrozen (K)
@@ -670,7 +665,11 @@ subroutine T2enthTemp_soil(&
   err=0; message="T2enthTemp_soil/"
 
   Tcrit      = crit_soilT( mLayerMatricHead )
-  volFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+  if(present(volFracWat0))then
+    volFracWat = volFracWat0
+  else
+    volFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+  endif
   diffT      = mLayerTemp - Tfreeze
   diff0      = Tcrit - Tfreeze
 
@@ -943,7 +942,7 @@ subroutine enthalpy2T_veg(&
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
-  real(rkind)                      :: vec(9)             ! vector of parameters for the enthalpy function
+  real(rkind)                      :: vec(10)            ! vector of parameters for the enthalpy function
    ! variable derivatives
   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
@@ -1060,7 +1059,7 @@ subroutine enthalpy2T_snLaGl(&
   real(rkind)                      :: diffT              ! temperature difference of temp from Tfreeze
   real(rkind)                      :: integral           ! integral of snow freezing curve
   real(rkind)                      :: fLiq               ! fraction liquid 
-  real(rkind)                      :: vec(9)             ! vector of parameters for the enthalpy function
+  real(rkind)                      :: vec(10)            ! vector of parameters for the enthalpy function
   real(rkind)                      :: real_noLiq         ! real value of noLiq for the vector of parameters
    ! variable derivatives
   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
@@ -1215,7 +1214,7 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: integral_frz_upp       ! upper limit of integral of frozen soil water content (from Tfreeze to soil temperature)
   real(rkind)                      :: arg                    ! argument of soil hypergeometric function
   real(rkind)                      :: gauss_hg_T             ! soil hypergeometric function result
-  real(rkind)                      :: vec(9)                 ! vector of parameters for the enthalpy function
+  real(rkind)                      :: vec(10)                ! vector of parameters for the enthalpy function
   ! variable derivatives    
   real(rkind)                      :: dvolFracWat_dPsi0      ! derivative of the soil water content w.r.t. matric head
   real(rkind)                      :: dintegral_unf_dWat     ! derivative of integral of unfrozen soil water content with water content
@@ -1295,7 +1294,7 @@ subroutine enthalpy2T_soil(&
     ! find the root of the function
     ! inputs = function, initial point, out point, lower bound, upper bound, and the vector of parameters
     T = min(mLayerTemp, Tcrit) ! initial guess
-    vec(1:9) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead/)
+    vec(1:10) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead, volFracWat/)
     if (Tcrit>0._rkind) then
       call brent(diff_H_soil, T, T_out, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     else
@@ -1418,7 +1417,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   implicit none
   real(rkind) :: brent0
   integer, parameter :: d = rkind
-  real(rkind), intent(IN) :: x1, x2, fx1, fx2, vec(9), tol_x, tol_f
+  real(rkind), intent(IN) :: x1, x2, fx1, fx2, vec(10), tol_x, tol_f
   real(rkind), external :: fun
   integer, intent(IN) :: detail
   logical(lgt), intent(in), optional :: use_lookup
@@ -1574,7 +1573,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     
     implicit none
     integer, parameter :: d = rkind
-    real(rkind), intent(in) :: x0, vec(9)
+    real(rkind), intent(in) :: x0, vec(10)
     real(rkind), external :: fun
     real(rkind), intent(out) :: brent_out
     real(rkind), intent(in) :: LowerBound, UpperBound
@@ -1744,7 +1743,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
     implicit none
     real(rkind) :: diff_H_snLaGl
-    real(rkind) , intent(IN) :: mLayerTemp, vec(9) 
+    real(rkind) , intent(IN) :: mLayerTemp, vec(10) 
     real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, snowfrz_scale, fLiq
     logical(lgt) :: noLiq
   
@@ -1764,7 +1763,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
     implicit none
     real(rkind) :: diff_H_soil
-    real(rkind) , intent(in) :: mLayerTemp, vec(9) 
+    real(rkind) , intent(in) :: mLayerTemp, vec(10) 
     logical(lgt), intent(in) :: use_lookup
     type(zLookup),intent(in) :: lookup_data
     integer(i4b), intent(in) :: ixControlIndex
@@ -1782,12 +1781,12 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     vGn_m            = vec(7)
     integral_frz_low = vec(8)
     mLayerMatricHead = vec(9)
+    volFracWat       = vec(10)
   
     call T2enthTemp_soil(use_lookup, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, &
                          ixControlIndex, lookup_data, integral_frz_low, mLayerTemp, mLayerMatricHead, &
-                         mLayerEnthTemp, err, cmessage)
+                         mLayerEnthTemp, err, cmessage, volFracWat0=volFracWat)
     if(err/=0) then; cmessage="diff_H_soil inside Brent solver"//trim(cmessage); print*, cmessage; stop; end if
-    volFracWat   = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
     mLayerPsiLiq = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
     fLiq         = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! here fLiq is the total liquid fraction, not fraction of water fraction that is liquid

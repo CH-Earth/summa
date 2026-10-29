@@ -166,12 +166,20 @@ function d2Theta_dPsi2(psi,alpha,theta_res,theta_sat,n,m)
   real(rkind)            :: d2Theta_dPsi2 ! derivative of the soil water characteristic (m-1)
   real(rkind)            :: mult_fcn
   real(rkind)            :: mult_fcnp
+  real(rkind)            :: xn1         ! (alpha psi)**(n-1)
+  real(rkind)            :: s           ! 1 + (alpha psi)**n
+  real(rkind)            :: sm          ! s**(-m)
+  real(rkind)            :: dTheta      ! dTheta_dPsi (m-1)
   if(psi<0._rkind)then
-    mult_fcn = (-m*n*alpha*(alpha*psi)**(n-1._rkind)) * ( 1._rkind + (psi*alpha)**n )**(-1._rkind)
-    mult_fcnp = -m*n*alpha*(n-1._rkind)*alpha*(alpha*psi)**(n-2._rkind)*( 1._rkind + (psi*alpha)**n )**(-1._rkind) - &
-                ( n*alpha*(alpha*psi)**(n-1._rkind)*(1._rkind + (psi*alpha)**n)**(-2._rkind) ) * ( -m*n*alpha*(alpha*psi)**(n-1._rkind) )
-    d2Theta_dPsi2 = mult_fcn * dTheta_dPsi(psi,alpha,theta_res,theta_sat,n,m) + &
-                    mult_fcnp * ( volFracLiq(psi,alpha,theta_res,theta_sat,n,m) - theta_res )
+    xn1 = (alpha*psi)**(n-1._rkind)
+    s   = 1._rkind + xn1*alpha*psi
+    sm  = s**(-m)
+    mult_fcn  = (-m*n*alpha*xn1) / s
+    mult_fcnp = -m*n*alpha*(n-1._rkind)*alpha*(xn1/(alpha*psi)) / s - &
+                ( n*alpha*xn1/(s*s) ) * ( -m*n*alpha*xn1 )
+    dTheta = (theta_sat-theta_res) * (-m*sm/s) * n*xn1 * alpha ! dTheta_dPsi and volFracLiq inlined to share the powers
+    if(abs(dTheta) < epsilon(psi)) dTheta = epsilon(psi)
+    d2Theta_dPsi2 = mult_fcn * dTheta + mult_fcnp * (theta_sat - theta_res)*sm
   else
     d2Theta_dPsi2 = 0._rkind
   end if
@@ -193,13 +201,17 @@ function d2Theta_dTk2(Tk,theta_res,theta_sat,alpha,n,m)
   ! local variables
   real(rkind)            :: kappa         ! constant (m K-1)
   real(rkind)            :: xtemp         ! alpha*kappa*(Tk-Tfreeze) -- dimensionless variable (used more than once)
+  real(rkind)            :: xn1, s, sm1   ! xtemp**(n-1), 1 + xtemp**n, s**(-m-1)
   ! compute kappa (m K-1)
   kappa =  LH_fus/(gravity*Tfreeze)    ! NOTE: J = kg m2 s-2
   ! define a tempory variable that is used more than once (-)
   xtemp = alpha*kappa*(Tk-Tfreeze)
   ! differentiate the freezing curve w.r.t. temperature -- making use of the chain rule
-  d2Theta_dTk2 = (-alpha*kappa*m*n*alpha*kappa)* (theta_sat - theta_res) * (  (n-1)*xtemp**(n - 2._rkind) * (1._rkind + xtemp**n)**(-m - 1._rkind) &
-                                                                          + n*(-m-1)*xtemp**(2*n - 2._rkind) * (1._rkind + xtemp**n)**(-m - 2._rkind) )
+  xn1 = xtemp**(n - 1._rkind)
+  s   = 1._rkind + xn1*xtemp
+  sm1 = s**(-m - 1._rkind)
+  d2Theta_dTk2 = (-alpha*kappa*m*n*alpha*kappa)* (theta_sat - theta_res) * (  (n-1)*(xn1/xtemp) * sm1 &
+                                                                          + n*(-m-1)*xn1*xn1 * sm1/s )
 end function d2Theta_dTk2
 
 end module soil_utilsAddPrime_module
