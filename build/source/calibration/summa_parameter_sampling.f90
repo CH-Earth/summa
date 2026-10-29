@@ -201,7 +201,8 @@ contains
     nTarget=max(n_calibration_targets(config),1)
 
     if(instance_parallel%rank /= 0)then
-      call serve_trials(config,domain_parallel,instance_parallel,param_name, &
+      call serve_trials(config,domain_parallel,instance_parallel, &
+                        param_spec,search,param_name,               &
                         size(param_spec%params),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       return
@@ -324,7 +325,7 @@ contains
       call propose_trial(config,param_spec,search,i,nSamples,search_state,ledger,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       call date_and_time(values=ledger%start_time(:,i))
-      call send_sample(worker,i,ledger%override(:,i),instance_parallel%comm,mpi_err)
+      call send_sample(worker,i,ledger%value(:,i),instance_parallel%comm,mpi_err)
       call check_mpi(instance_parallel%rank,mpi_err,'unable to send parameter sample')
       worker_sample(worker)=i
       nActive=nActive+1
@@ -403,19 +404,24 @@ contains
   ! A trial the model refuses or fails on is saved as a repro case and reported to rank 0 as failed,
   ! and the worker goes on to the next; any other error ends the calibration.
   ! **************************************************************************************************
-  subroutine serve_trials(config,domain_parallel,instance_parallel,param_name,nParam,err,message)
+  subroutine serve_trials(config,domain_parallel,instance_parallel, &
+                          param_spec,search,param_name,nParam,err,message)
     USE globalData,                only: iulog
     USE summa_simulation,          only: evaluate_objectives
+    USE summa_parameter_spec,      only: build_summa_parameter_overrides
     USE calibration_output_module, only: write_failed_trial
     implicit none
     type(config_info),           intent(inout) :: config
     type(parallel_context_type), intent(in)    :: domain_parallel
     type(parallel_context_type), intent(in)    :: instance_parallel
+    type(parameter_spec),        intent(in)    :: param_spec
+    type(parameter_search_info), intent(in)    :: search
     character(len=64),           intent(in)    :: param_name(:)
     integer(i4b),                intent(in)    :: nParam            ! length of the override vector
     integer(i4b),                intent(out)   :: err
     character(*),                intent(out)   :: message
     real(rkind), allocatable :: objective(:)
+    real(rkind)  :: sampled_values(size(search%param_names))
     real(rkind)  :: param_override(nParam)
     integer(i4b) :: sample_id
     integer(i4b) :: mpi_err
@@ -427,20 +433,32 @@ contains
     err=0
     message='serve_trials/'
     do
-      call receive_sample(sample_id,param_override,stop_worker, &
-                          instance_parallel%comm,instance_parallel%rank,mpi_err)
-      call check_mpi(instance_parallel%rank,mpi_err,'unable to receive parameter sample')
-      if(stop_worker) exit
 
-      call evaluate_objectives(config,                              & ! SUMMA configuration structure
-                               domain_parallel,instance_parallel,   & ! MPI context for model domain and model-instance parallelism
-                               sample_id,param_name,param_override, & ! complete parameter overrides
-                               objective,err,cmessage,failed)         ! objective value per target and error control
-      if(err/=0 .and. .not.failed)then
+      ! Receive calibration coordinates from the dispatcher.
+      call receive_sample(sample_id,sampled_values,stop_worker, &
+                          instance_parallel%comm,instance_parallel%rank,mpi_err)
+      
+      call check_mpi(instance_parallel%rank,mpi_err, &
+                     'unable to receive parameter sample')
+      
+      if(stop_worker) exit
+      
+      ! Convert calibration coordinates into SUMMA parameter overrides.
+      call build_summa_parameter_overrides(param_spec,search%param_names, &
+                                           sampled_values,param_override,  &
+                                           err,cmessage)
+      
+      if(err/=0)then
         message=trim(message)//trim(cmessage)
         call abort_mpi(instance_parallel%rank,trim(message))
       endif
-
+      
+      ! Evaluate the physical model with the resulting overrides.
+      call evaluate_objectives(config,                              &
+                               domain_parallel,instance_parallel,   &
+                               sample_id,param_name,param_override, &
+                               objective,err,cmessage,failed)
+      
       if(failed)then
         call write_failed_trial(config,sample_id,instance_parallel%rank,param_name,param_override,cmessage,dir)
         write(output_unit,'(A,I0,A)') 'trial ',sample_id,' failed; saved in '//dir//': '//trim(cmessage)
