@@ -320,3 +320,4 @@ AFTER tag of v4.0.0-exp-Sundials
      Cases dispatched dynamically to case groups by an MPI counter; search state shared by random and DDS sampling.
      Solver failures recoverable in calibration; --home and --persistent-output options; Fir build and SLURM scripts in utils/hpc/fir, commit 88cc8242 Oct 23, 2026
 -88) liquidHead frozen-soil liquid head near saturation computed without cancellation, as in liquidHeadPrime, to reduce roundoff bouncing, commit f7ae0fbd Oct 28, 2026
+-89) soil_utils.f90 van Genuchten derivatives built from two powers each, commit 3d80d903 Oct 29, 2026
