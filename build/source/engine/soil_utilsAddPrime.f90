@@ -38,6 +38,9 @@ USE soil_utils_module,only:dTheta_dPsi
 USE soil_utils_module,only:satDeficit
 USE soil_utils_module,only:log1pAcc
 USE soil_utils_module,only:expm1Acc
+USE soil_utils_module,only:smoothHead
+USE soil_utils_module,only:dSmoothHead_dPsi
+USE soil_utils_module,only:d2SmoothHead_dPsi2
 
 ! privacy
 implicit none
@@ -47,6 +50,7 @@ private
 
 public::liquidHeadPrime
 public::d2Theta_dPsi2
+public::d2VolFracTot_dPsi2
 public::d2Theta_dTk2
 contains
 
@@ -99,12 +103,16 @@ subroutine liquidHeadPrime(&
   real(rkind)                 :: effSatPrime                               ! effective saturation time derivative (-)
   real(rkind)                 :: xDef                                      ! saturation deficit of the total water, theta_sat - volFracLiq - volFracIce (-)
   real(rkind)                 :: satTerm                                   ! effSat**(-1/m) - 1 (-)
+  real(rkind)                 :: psiS                                      ! smoothed total head seen by the water retention curve (m)
+  real(rkind)                 :: dPsiS                                     ! derivative of psiS w.r.t. total head (-)
   ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHeadPrime/'
 
   ! ** partially frozen soil
-  if(volFracIce > epsilon(1._rkind) .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
+  if(volFracIce > epsilon(1._rkind))then  ! check that ice exists
+    psiS  = smoothHead(matricHeadTotal)
+    dPsiS = dSmoothHead_dPsi(matricHeadTotal)
     ! -----
     ! - compute liquid water matric potential...
     ! ------------------------------------------
@@ -113,7 +121,7 @@ subroutine liquidHeadPrime(&
     ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
     ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
     xNum   = volFracLiq - theta_res
-    xDef   = satDeficit(matricHeadTotal,vGn_alpha,theta_sat,theta_res,vGn_n,vGn_m)
+    xDef   = satDeficit(psiS,vGn_alpha,theta_sat,theta_res,vGn_n,vGn_m)
     xDen   = xNum + xDef  ! theta_sat - volFracIce - theta_res, without cancellation near saturation
     effSat = xNum/xDen    ! effective saturation
 
@@ -127,15 +135,16 @@ subroutine liquidHeadPrime(&
       matricHeadLiq   = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
       dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
     endif
+    matricHeadLiq = matricHeadLiq + (matricHeadTotal - psiS) ! equals the total head as the ice vanishes
     if (satTerm > 0._rkind .and. volFracLiqPrime.ne.realMissing .and. volFracIcePrime.ne.realMissing)then
       effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2_i4b
-      matricHeadLiqPrime = dPsiLiq_dEffSat*effSatPrime
+      matricHeadLiqPrime = dPsiLiq_dEffSat*effSatPrime + (1._rkind - dPsiS)*matricHeadTotalPrime
     else
-      matricHeadLiqPrime = 0._rkind
+      matricHeadLiqPrime = (1._rkind - dPsiS)*matricHeadTotalPrime
     endif
 
     ! derivative in the liquid water matric potential w.r.t. the total water matric potential
-    dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
+    dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b) + 1._rkind - dPsiS
     ! derivative in the liquid water matric potential w.r.t. temperature
     dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2_i4b) + dTheta_dT/xDen
     dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
@@ -184,6 +193,19 @@ function d2Theta_dPsi2(psi,alpha,theta_res,theta_sat,n,m)
     d2Theta_dPsi2 = 0._rkind
   end if
 end function d2Theta_dPsi2
+
+! ******************************************************************************************************************************
+! public function d2VolFracTot_dPsi2: second derivative of total water w.r.t. total matric head (m-2), curve at smoothHead(psi)
+! ******************************************************************************************************************************
+function d2VolFracTot_dPsi2(psi,alpha,theta_res,theta_sat,n,m)
+  implicit none
+  real(rkind),intent(in) :: psi,alpha,theta_res,theta_sat,n,m ! total matric head (m) and van Genuchten parameters
+  real(rkind)            :: d2VolFracTot_dPsi2                ! second derivative of total water (m-2)
+  real(rkind)            :: psiS                              ! smoothed head (m)
+  psiS = smoothHead(psi)
+  d2VolFracTot_dPsi2 = d2Theta_dPsi2(psiS,alpha,theta_res,theta_sat,n,m)*dSmoothHead_dPsi(psi)**2_i4b &
+                     + dTheta_dPsi(psiS,alpha,theta_res,theta_sat,n,m)*d2SmoothHead_dPsi2(psi)
+end function d2VolFracTot_dPsi2
 
 
 ! ******************************************************************************************************************************

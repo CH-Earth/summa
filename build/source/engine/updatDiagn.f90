@@ -87,6 +87,7 @@ USE soil_utils_module,only:dTheta_dPsi                ! derivative in liquid wat
 USE soil_utils_module,only:matricHead                 ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq                 ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT                 ! compute critical temperature below which ice exists
+USE soil_utils_module,only:dVolFracTot_dPsi           ! derivative of total water w.r.t. total matric head (soil)
 USE soil_utils_module,only:liquidHead                 ! compute the liquid water matric potential
 USE convertEnthalpyTemp_module,only:T2enthTemp_cas    ! convert temperature to enthalpy for canopy air space
 USE convertEnthalpyTemp_module,only:T2enthTemp_veg    ! convert temperature to enthalpy for vegetation
@@ -444,7 +445,7 @@ subroutine updatDiagn(&
         if(ixDomainType==iname_soil)then
           select case( ixStateType(ixFullVector) )
             case(iname_lmpLayer); dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
-            case default;         dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
+            case default;         dVolTot_dPsi0(ixControlIndex) = dVolFracTot_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
           end select
         endif
 

@@ -90,6 +90,8 @@ USE soil_utils_module,only:dPsi_dTheta                    ! derivative in matric
 USE soil_utils_module,only:matricHead                     ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq                     ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT                     ! compute critical temperature below which ice exists
+USE soil_utils_module,only:dVolFracTot_dPsi               ! derivative of total water w.r.t. total matric head (soil)
+USE soil_utilsAddPrime_module,only:d2VolFracTot_dPsi2     ! second derivative of total water w.r.t. total matric head (soil)
 USE soil_utilsAddPrime_module,only:liquidHeadPrime        ! compute the liquid water matric potential
 USE soil_utilsAddPrime_module,only:d2Theta_dPsi2          ! second derivative in the liquid water content w.r.t. liquid water matric potential (soil)
 USE soil_utilsAddPrime_module,only:d2Theta_dTk2           ! second derivative in the freezing curve w.r.t. temperature (soil)
@@ -555,8 +557,8 @@ subroutine updatDiagnWithPrime(&
               dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
               if(computeJac) d2VolTot_dPsi02(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
             case default
-              dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-              if(computeJac) d2VolTot_dPsi02(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
+              dVolTot_dPsi0(ixControlIndex) = dVolFracTot_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
+              if(computeJac) d2VolTot_dPsi02(ixControlIndex) = d2VolFracTot_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
                                                 vGn_n(ixControlIndex),vGn_m(ixControlIndex))
             end select
         endif
