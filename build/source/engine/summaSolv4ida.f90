@@ -615,8 +615,10 @@ subroutine summaSolv4ida(&
       dCompress_dPsiPrev(:)                  = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
       tretPrev                               = tret(1)
       resVecPrev(:)                          = eqns_data%resVec(:)
-      flux_prev                              = eqns_data%flux_data
-    
+      do iVar=1,size(flux_meta) ! copy in place, a whole-type assignment reallocates every flux array each step
+        flux_prev%var(iVar)%dat(:) = eqns_data%flux_data%var(iVar)%dat(:)
+      end do
+
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
         if (retvalr .eq. IDA_ROOT_RETURN) then ! IDASolve succeeded and found one or more roots at tret(1)
