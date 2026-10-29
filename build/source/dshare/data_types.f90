@@ -893,7 +893,6 @@ MODULE data_types
  type, public :: in_type_diagv_node ! intent(in) data
    ! input: state and diagnostic variables
    real(rkind)            :: scalarMatricHeadLiqTrial  ! liquid matric head in each layer (m)
-   real(rkind)            :: scalarMatricHeadTrial     ! total matric head in each layer (m)
    real(rkind)            :: scalarVolFracLiqTrial     ! volumetric fraction of liquid water in a given layer (-)
    real(rkind)            :: scalarVolFracIceTrial     ! volumetric fraction of ice in a given layer (-)
    ! input: pre-computed derivatives
@@ -1983,7 +1982,6 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
   &)
    ! input: state variables
    in_diagv_node % scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(iSoil) ! liquid matric head in each layer (m)
-   in_diagv_node % scalarMatricHeadTrial    = in_soilLiqFlux % mLayerMatricHeadTrial(iSoil) ! total matric head in each layer (m)
    in_diagv_node % scalarVolFracLiqTrial    = mLayerVolFracLiqTrial(iSoil)    ! volumetric fraction of liquid water in a given layer (-)
    in_diagv_node % scalarVolFracIceTrial    = mLayerVolFracIceTrial(iSoil)    ! volumetric fraction of ice in a given layer (-)
    in_diagv_node % dTheta_dTk               = mLayerdTheta_dTk(iSoil)         ! derivative in volumetric liquid water content w.r.t. temperature (K-1)

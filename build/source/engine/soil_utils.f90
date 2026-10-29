@@ -55,6 +55,8 @@ public::d2SmoothHead_dPsi2
 public::volFracTot
 public::dVolFracTot_dPsi
 public::matricHeadTot
+public::unsmoothHead
+public::dUnsmoothHead_dPsi
 public::liquidHead
 public::gammp,gammp_complex
 public::dgammp_dx
@@ -139,14 +141,12 @@ subroutine liquidHead(&
   real(rkind)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
   real(rkind)                       :: xDef                                      ! saturation deficit of the total water, theta_sat - volFracLiq - volFracIce (-)
   real(rkind)                       :: satTerm                                   ! effSat**(-1/m) - 1 (-)
-  real(rkind)                       :: psiS                                      ! smoothed total head seen by the water retention curve (m)
    ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHead/'
 
   ! ** partially frozen soil
   if(volFracIce > epsilon(1._rkind))then  ! check that ice exists
-    psiS = smoothHead(matricHeadTotal)
 
     ! -----
     ! - compute liquid water matric potential...
@@ -156,7 +156,7 @@ subroutine liquidHead(&
     ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
     ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
     xNum   = volFracLiq - theta_res
-    xDef   = satDeficit(psiS,vGn_alpha,theta_sat,theta_res,vGn_n,vGn_m)
+    xDef   = satDeficit(smoothHead(matricHeadTotal),vGn_alpha,theta_sat,theta_res,vGn_n,vGn_m)
     xDen   = xNum + xDef  ! theta_sat - volFracIce - theta_res, without cancellation near saturation
     effSat = xNum/xDen    ! effective saturation
 
@@ -170,7 +170,8 @@ subroutine liquidHead(&
       matricHeadLiq   = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
       dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
     endif
-    matricHeadLiq = matricHeadLiq + (matricHeadTotal - psiS) ! equals the total head as the ice vanishes
+    dPsiLiq_dEffSat = dPsiLiq_dEffSat*dUnsmoothHead_dPsi(matricHeadLiq)
+    matricHeadLiq   = unsmoothHead(matricHeadLiq) ! liquid water is the retention curve at smoothHead(matricHeadLiq), as total water is
 
     ! -----
     ! - compute derivative in the liquid water matric potential w.r.t. the total water matric potential...
@@ -184,7 +185,7 @@ subroutine liquidHead(&
         err=20; return
       endif
       ! (compute derivative in the liquid water matric potential w.r.t. the total water matric potential)
-      dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b) + 1._rkind - dSmoothHead_dPsi(matricHeadTotal)
+      dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
     endif  ! if dPsiLiq_dTemp is desired
 
     ! -----
@@ -909,9 +910,27 @@ function matricHeadTot(theta,alpha,theta_res,theta_sat,n,m)
   real(rkind)            :: matricHeadTot                       ! total matric head (m), 0 at or above theta_sat
   real(rkind)            :: psiS                                ! smoothed head on the van Genuchten curve (m)
   psiS = matricHead(theta,alpha,theta_res,theta_sat,n,m)
-  matricHeadTot = 0._rkind
-  if(psiS < 0._rkind) matricHeadTot = psiS - 0.25_rkind*psiSmooth**2_i4b/psiS ! inverse of smoothHead
+  matricHeadTot = unsmoothHead(psiS)
 end function matricHeadTot
+
+! ******************************************************************************************************************************
+! public functions unsmoothHead, dUnsmoothHead_dPsi: inverse of smoothHead for a smoothed head psiS < 0 (m), 0 otherwise, and its derivative (-)
+! ******************************************************************************************************************************
+function unsmoothHead(psiS)
+  implicit none
+  real(rkind),intent(in) :: psiS         ! smoothed head on the van Genuchten curve (m)
+  real(rkind)            :: unsmoothHead ! head whose smoothHead is psiS (m)
+  unsmoothHead = 0._rkind
+  if(psiS < 0._rkind) unsmoothHead = psiS - 0.25_rkind*psiSmooth**2_i4b/psiS
+end function unsmoothHead
+
+function dUnsmoothHead_dPsi(psiS)
+  implicit none
+  real(rkind),intent(in) :: psiS               ! smoothed head on the van Genuchten curve (m)
+  real(rkind)            :: dUnsmoothHead_dPsi ! derivative of unsmoothHead (-)
+  dUnsmoothHead_dPsi = 1._rkind
+  if(psiS < 0._rkind) dUnsmoothHead_dPsi = 1._rkind + 0.25_rkind*psiSmooth**2_i4b/psiS**2_i4b
+end function dUnsmoothHead_dPsi
 
 ! ******************************************************************************************************************************
 ! public function satDeficit: theta_sat minus the total water content (-) at a matric head psi <= 0 (m), accurate as psi -> 0

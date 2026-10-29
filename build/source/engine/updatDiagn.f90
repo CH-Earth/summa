@@ -86,6 +86,8 @@ USE soil_utils_module,only:dTheta_dTk                 ! derivative in volumetric
 USE soil_utils_module,only:dTheta_dPsi                ! derivative in liquid water content w.r.t. matric potential (soil)
 USE soil_utils_module,only:matricHead                 ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq                 ! compute volumetric fraction of liquid water
+USE soil_utils_module,only:volFracTot                 ! compute volumetric fraction of total water based on total matric head
+USE soil_utils_module,only:matricHeadTot              ! compute the total matric head based on total water content
 USE soil_utils_module,only:crit_soilT                 ! compute critical temperature below which ice exists
 USE soil_utils_module,only:dVolFracTot_dPsi           ! derivative of total water w.r.t. total matric head (soil)
 USE soil_utils_module,only:liquidHead                 ! compute the liquid water matric potential
@@ -378,15 +380,15 @@ subroutine updatDiagn(&
           select case( ixStateType(ixFullVector) )
             ! --> update the total water from the liquid water matric potential
             case(iname_lmpLayer)
-              effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))  ! effective saturation
+              effSat = volFracTot(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))  ! effective saturation
               avPore = theta_sat(ixControlIndex) - mLayerVolFracIceTrial(iLayer) - theta_res(ixControlIndex)  ! available pore space
               mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res(ixControlIndex)
               mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
-              mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-              if(mLayerMatricHeadLiqTrial(ixControlIndex) > 0._rkind) mLayerMatricHeadTrial(ixControlIndex) = mLayerMatricHeadLiqTrial(ixControlIndex) ! saturated: total and liquid heads are the same pressure
+              mLayerMatricHeadTrial(ixControlIndex) = matricHeadTot(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
+              if(mLayerVolFracIceTrial(iLayer) <= epsilon(1._rkind)) mLayerMatricHeadTrial(ixControlIndex) = mLayerMatricHeadLiqTrial(ixControlIndex) ! no ice: total and liquid heads are the same
             ! --> update the total water from the total water matric potential
             case(iname_matLayer)
-              mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
+              mLayerVolFracWatTrial(iLayer) = volFracTot(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
             ! --> update the total water matric potential (assume already have mLayerVolFracWatTrial given block above)
             case(iname_liqLayer, iname_watLayer)
               mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
@@ -444,7 +446,7 @@ subroutine updatDiagn(&
         ! NOTE 2: for case "iname_lmpLayer", dVolTot_dPsi0 = dVolLiq_dPsi
         if(ixDomainType==iname_soil)then
           select case( ixStateType(ixFullVector) )
-            case(iname_lmpLayer); dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+            case(iname_lmpLayer); dVolTot_dPsi0(ixControlIndex) = dVolFracTot_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
             case default;         dVolTot_dPsi0(ixControlIndex) = dVolFracTot_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
           end select
         endif

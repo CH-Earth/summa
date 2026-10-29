@@ -786,6 +786,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   USE soil_utils_module,only:crit_soilT     ! compute the critical temperature below which ice exists
   USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
   USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
+  USE soil_utils_module,only:volFracTot     ! compute volumetric fraction of total water based on total matric head
+  USE soil_utils_module,only:matricHeadTot  ! compute the total matric head based on total water content
 
   implicit none
   
@@ -1023,11 +1025,11 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if(ixLiq/=integerMissing)then
             select case( ixStateType_subset(ixLiq) )     
               case(iname_lmpLayer)
-                effSat = volFracLiq(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),0._rkind,1._rkind,vGn_n(iLayer),vGn_m(iLayer))  ! effective saturation
+                effSat = volFracTot(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),0._rkind,1._rkind,vGn_n(iLayer),vGn_m(iLayer))  ! effective saturation
                 avPore = theta_sat(iLayer) - mLayerVolFracIce(iLayer+nSnow+nLake) - theta_res(iLayer)  ! available pore space
                 scalarLiq = effSat*avPore + theta_res(iLayer)
-                xPsi00 = matricHead(scalarLiq + mLayerVolFracIce(iLayer+nSnow+nLake),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-                if(stateVecPrev(ixLiq) + xInc(ixLiq) > 0._rkind) xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! saturated: total and liquid heads are the same pressure
+                xPsi00 = matricHeadTot(scalarLiq + mLayerVolFracIce(iLayer+nSnow+nLake),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+                if(mLayerVolFracIce(iLayer+nSnow+nLake) <= epsilon(1._rkind)) xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! no ice: total and liquid heads are the same
               case(iname_matLayer); xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! only true if using iname_matLayer, otherwise may want to fix this
               case(iname_watLayer); xPsi00 = matricHead(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
               case(iname_liqLayer) 

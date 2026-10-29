@@ -595,9 +595,7 @@ subroutine diagv_node(in_diagv_node,out_diagv_node)
   USE soil_utils_module,only:dPsi_dTheta          ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
   USE soil_utils_module,only:dHydCond_dPsi        ! compute derivative in hydraulic conductivity w.r.t. matric head (s-1)
   USE soil_utils_module,only:dIceImpede_dTemp     ! compute the derivative in the ice impedance factor w.r.t. temperature (K-1)
-  USE soil_utils_module,only:smoothHead           ! smoothed total head seen by the water retention curve (m)
-  USE soil_utils_module,only:dSmoothHead_dPsi     ! derivative of the smoothed total head (-)
-  USE soil_utils_module,only:dVolFracTot_dPsi     ! derivative of total water w.r.t. total matric head (m-1)
+  USE soil_utils_module,only:dVolFracTot_dPsi     ! derivative of the smoothed retention curve w.r.t. matric head (m-1)
   ! compute hydraulic transmittance and derivatives for all layers
   implicit none
   ! input: model control, variables, derivatives, and parameters
@@ -614,8 +612,6 @@ subroutine diagv_node(in_diagv_node,out_diagv_node)
   real(rkind)                      :: dHydCondMicro_dTemp       ! derivative in hydraulic conductivity of micropores w.r.t temperature (m s-1 K-1)
   real(rkind)                      :: dIceImpede_dLiq           ! derivative in ice impedence factor w.r.t. volumetric liquid water content (-)
   real(rkind)                      :: dIce_dPsiLiq              ! derivative in volumetric ice w.r.t. liquid matric head at fixed temperature (m-1)
-  real(rkind)                      :: psiLiqVG                  ! liquid matric head on the van Genuchten curve, without the smooth-min offset (m)
-  real(rkind)                      :: dVolTot                   ! derivative in total water w.r.t. total matric head (m-1)
   real(rkind)                      :: availPore                 ! pore space not filled by ice, above residual (-)
   real(rkind)                      :: hydCond_noIce             ! hydraulic conductivity in the absence of ice (m s-1)
   real(rkind)                      :: dK_dPsi__noIce            ! derivative in hydraulic conductivity w.r.t matric head, in the absence of ice (s-1)
@@ -700,7 +696,6 @@ contains
   associate(&
    ! input: state and diagnostic variables
    scalarMatricHeadLiqTrial => in_diagv_node % scalarMatricHeadLiqTrial, & ! liquid matric head in each layer (m)
-   scalarMatricHeadTrial    => in_diagv_node % scalarMatricHeadTrial   , & ! total matric head in each layer (m)
    scalarVolFracIceTrial    => in_diagv_node % scalarVolFracIceTrial   , & ! volumetric fraction of ice in a given layer (-)
    scalarVolFracLiqTrial    => in_diagv_node % scalarVolFracLiqTrial   , & ! volumetric fraction of liquid water in a given layer (-)
    ! input: pre-computed derivatives
@@ -754,12 +749,8 @@ contains
      ! at fixed temperature more total water is more ice, which raises the liquid head (liquidHead) and the impedance
      availPore    = theta_sat - scalarVolFracIceTrial - theta_res
      dIce_dPsiLiq = 0._rkind
-     psiLiqVG     = scalarMatricHeadLiqTrial - (scalarMatricHeadTrial - smoothHead(scalarMatricHeadTrial))
-     if (psiLiqVG < 0._rkind .and. scalarVolFracLiqTrial - theta_res > verySmaller) then
-       dIce_dPsiLiq = availPore**2_i4b/(scalarVolFracLiqTrial - theta_res)*dTheta_dPsi(psiLiqVG,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
-       dVolTot      = dVolFracTot_dPsi(scalarMatricHeadTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-       dIce_dPsiLiq = dIce_dPsiLiq*dVolTot/(dVolTot + dIce_dPsiLiq*(1._rkind - dSmoothHead_dPsi(scalarMatricHeadTrial))) ! liquidHead adds psi - smoothHead(psi)
-     end if
+     if (scalarVolFracLiqTrial - theta_res > verySmaller) &
+       dIce_dPsiLiq = availPore**2_i4b/(scalarVolFracLiqTrial - theta_res)*dVolFracTot_dPsi(scalarMatricHeadLiqTrial,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
      dHydCondMicro_dMatric = -hydCond_noIce*log(10._rkind)*f_impede*iceImpedeFac*dIce_dPsiLiq + dK_dPsi__noIce*iceImpedeFac
    else
      dHydCondMicro_dTemp   = 0._rkind

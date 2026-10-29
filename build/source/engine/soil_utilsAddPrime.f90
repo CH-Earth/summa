@@ -41,6 +41,8 @@ USE soil_utils_module,only:expm1Acc
 USE soil_utils_module,only:smoothHead
 USE soil_utils_module,only:dSmoothHead_dPsi
 USE soil_utils_module,only:d2SmoothHead_dPsi2
+USE soil_utils_module,only:unsmoothHead
+USE soil_utils_module,only:dUnsmoothHead_dPsi
 
 ! privacy
 implicit none
@@ -103,16 +105,12 @@ subroutine liquidHeadPrime(&
   real(rkind)                 :: effSatPrime                               ! effective saturation time derivative (-)
   real(rkind)                 :: xDef                                      ! saturation deficit of the total water, theta_sat - volFracLiq - volFracIce (-)
   real(rkind)                 :: satTerm                                   ! effSat**(-1/m) - 1 (-)
-  real(rkind)                 :: psiS                                      ! smoothed total head seen by the water retention curve (m)
-  real(rkind)                 :: dPsiS                                     ! derivative of psiS w.r.t. total head (-)
   ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHeadPrime/'
 
   ! ** partially frozen soil
   if(volFracIce > epsilon(1._rkind))then  ! check that ice exists
-    psiS  = smoothHead(matricHeadTotal)
-    dPsiS = dSmoothHead_dPsi(matricHeadTotal)
     ! -----
     ! - compute liquid water matric potential...
     ! ------------------------------------------
@@ -121,7 +119,7 @@ subroutine liquidHeadPrime(&
     ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
     ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
     xNum   = volFracLiq - theta_res
-    xDef   = satDeficit(psiS,vGn_alpha,theta_sat,theta_res,vGn_n,vGn_m)
+    xDef   = satDeficit(smoothHead(matricHeadTotal),vGn_alpha,theta_sat,theta_res,vGn_n,vGn_m)
     xDen   = xNum + xDef  ! theta_sat - volFracIce - theta_res, without cancellation near saturation
     effSat = xNum/xDen    ! effective saturation
 
@@ -135,16 +133,17 @@ subroutine liquidHeadPrime(&
       matricHeadLiq   = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
       dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
     endif
-    matricHeadLiq = matricHeadLiq + (matricHeadTotal - psiS) ! equals the total head as the ice vanishes
+    dPsiLiq_dEffSat = dPsiLiq_dEffSat*dUnsmoothHead_dPsi(matricHeadLiq)
+    matricHeadLiq   = unsmoothHead(matricHeadLiq) ! liquid water is the retention curve at smoothHead(matricHeadLiq), as total water is
     if (satTerm > 0._rkind .and. volFracLiqPrime.ne.realMissing .and. volFracIcePrime.ne.realMissing)then
       effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2_i4b
-      matricHeadLiqPrime = dPsiLiq_dEffSat*effSatPrime + (1._rkind - dPsiS)*matricHeadTotalPrime
+      matricHeadLiqPrime = dPsiLiq_dEffSat*effSatPrime
     else
-      matricHeadLiqPrime = (1._rkind - dPsiS)*matricHeadTotalPrime
+      matricHeadLiqPrime = 0._rkind
     endif
 
     ! derivative in the liquid water matric potential w.r.t. the total water matric potential
-    dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b) + 1._rkind - dPsiS
+    dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
     ! derivative in the liquid water matric potential w.r.t. temperature
     dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2_i4b) + dTheta_dT/xDen
     dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
