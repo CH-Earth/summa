@@ -109,7 +109,7 @@ subroutine groundwatr(&
   type(out_type_groundwatr),intent(out)  :: out_groundwatr    ! baseflow and error control
   ! general local variables
   integer(i4b)                           :: iLayer            ! index of soil layer
-  real(rkind)                            :: fieldCapacity_use ! field capacity used to determine the "active" portion of the soil profile
+  real(rkind)                            :: fieldCapacity_use(in_groundwatr%nSoil) ! water content below which a layer does not drain laterally (-)
   character(len=256)                     :: cmessage          ! error message
   ! ***************************************************************************************
   ! associate variables in data structures
@@ -132,6 +132,7 @@ subroutine groundwatr(&
     ! input: baseflow parameters
     fieldCapacity       => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),     & ! intent(in):    [dp] field capacity (-)
     theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in):    [dp] soil porosity (-)
+    theta_res           => mpar_data%var(iLookPARAM%theta_res)%dat,            & ! intent(in):    [dp] soil residual volumetric water content (-)
     ! input-output: baseflow
     ixSaturation        => io_groundwatr % ixSaturation,                       & ! intent(inout): [i4b] index of lowest saturated layer (NOTE: only computed on the first iteration)
     ! output: diagnostic variables
@@ -155,13 +156,13 @@ subroutine groundwatr(&
     ! (1) compute the "active" portion of the soil profile
     ! ************************************************************************************************
     fieldCapacity_use = fieldCapacity
-    if(nGlce>0) fieldCapacity_use = 0._rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
+    if(nGlce>0) fieldCapacity_use = theta_res(1:nSoil) ! over glacier ice all water above the residual is "active" for flow
 
     ! get index of the layer closest to surface that is more than field capacity (NOTE: only compute on the first flux call)
     if (getSatDepth) then
       ixSaturation = nSoil+1  ! unsaturated profile when ixSaturation>nSoil
       do iLayer=nSoil,1,-1  ! start at the lowest soil layer and work upwards to the top layer
-        if (mLayerVolFracLiq(iLayer) > fieldCapacity_use) then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
+        if (mLayerVolFracLiq(iLayer) > fieldCapacity_use(iLayer)) then; ixSaturation = iLayer  ! index of saturated layer -- keeps getting over-written as move upwards
         else; exit; end if                                                         ! only consider saturated layer at the bottom of the soil profile
       end do  ! end looping through soil layers
     end if
@@ -299,7 +300,7 @@ subroutine computBaseflow(&
   real(rkind),parameter              :: xCenter=0.001_rkind   ! center of the exfiltration function (m)
   real(rkind),parameter              :: xWidth=0.0001_rkind   ! width of the exfiltration function (m)
   real(rkind)                        :: expF,logF             ! logistic smoothing function (-)
-  real(rkind)                        :: fieldCapacity_use     ! field capacity used to determine the "active" portion of the soil profile
+  real(rkind)                        :: fieldCapacity_use(nSoil) ! water content below which a layer does not drain laterally (-)
   real(rkind)                        :: kAnisotropic_use     ! anisotropy factor used to compute transmissivity
   ! local variables for the lateral flux among soil columns
   real(rkind)                        :: activePorosity        ! "active" porosity associated with storage above a threshold (-)
@@ -352,6 +353,7 @@ subroutine computBaseflow(&
     fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),           & ! intent(in):  [dp]    field capacity (-)
     f_impede                => mpar_data%var(iLookPARAM%f_impede)%dat(1),                & ! intent(in):  [dp]    ice impedance parameter (-)
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                  & ! intent(in):  [dp(:)] soil porosity (-)
+    theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat,                  & ! intent(in):  [dp(:)] soil residual volumetric water content (-)
     ! output: diagnostic variables
     scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),       & ! intent(out): [dp]    exfiltration from the soil profile (m s-1)
     mLayerColumnOutflow     => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat          & ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
@@ -365,7 +367,7 @@ subroutine computBaseflow(&
     fieldCapacity_use = fieldCapacity
     kAnisotropic_use = kAnisotropic
     if(nGlce>0)then
-      fieldCapacity_use = 0._rkind ! if glacier ice layers are present, set field capacity to zero (i.e. all water is "active" for flow)
+      fieldCapacity_use = theta_res(1:nSoil) ! over glacier ice all water above the residual is "active" for flow
       kAnisotropic_use = kAnisotropic*10._rkind ! if glacier ice layers are present, increase anisotropy factor to reflect higher hydraulic conductivity in glacier debris
     end if
 
@@ -379,8 +381,8 @@ subroutine computBaseflow(&
     ! compute the water table thickness (m) in each layer, working from the bottom of the profile up
     do iLayer=nSoil,ixSaturation,-1  ! loop through "active" soil layers, from lowest to highest
       ! define drainable water in each layer (m)
-      activePorosity = theta_sat(iLayer) - fieldCapacity_use ! "active" porosity (-)
-      drainableWater = mLayerDepth(iLayer)*(max(0._rkind,mLayerVolFracLiq(iLayer) - fieldCapacity_use))/activePorosity
+      activePorosity = theta_sat(iLayer) - fieldCapacity_use(iLayer) ! "active" porosity (-)
+      drainableWater = mLayerDepth(iLayer)*(max(0._rkind,mLayerVolFracLiq(iLayer) - fieldCapacity_use(iLayer)))/activePorosity
       if (iLayer==nSoil) then
         zActive(iLayer) = drainableWater                        ! water table thickness associated with storage in a given layer (m)
       else
@@ -445,7 +447,7 @@ subroutine computBaseflow(&
       dCap_dOutflow(iLayer) = 1._rkind
       dCap_dLiq(iLayer)     = 0._rkind
       qOutflow    = mLayerColumnOutflow(iLayer)/area                                                          ! m s-1
-      qOutflowMax = mLayerDepth(iLayer)*max(0._rkind, mLayerVolFracLiq(iLayer) - fieldCapacity_use)/data_step ! m s-1
+      qOutflowMax = mLayerDepth(iLayer)*max(0._rkind, mLayerVolFracLiq(iLayer) - fieldCapacity_use(iLayer))/data_step ! m s-1
       if(qOutflow > 0._rkind .and. qOutflowMax > tiny(qOutflowMax))then
         xCap  = qOutflow/qOutflowMax
         tCap  = tanh(xCap)
@@ -508,9 +510,9 @@ subroutine computBaseflow(&
     length2area = tan_slope*contourLength/area
 
     ! compute the ratio of layer depth to maximum water holding capacity (-)
-    depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/(theta_sat(1:nSoil) - fieldCapacity_use)/soilDepth
+    depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/(theta_sat(1:nSoil) - fieldCapacity_use(1:nSoil))/soilDepth
     do iLayer=1,nSoil
-      if (mLayerVolFracLiq(iLayer) <= fieldCapacity_use) depth2capacity(iLayer) = 0._rkind
+      if (mLayerVolFracLiq(iLayer) <= fieldCapacity_use(iLayer)) depth2capacity(iLayer) = 0._rkind
     end do
 
     ! loop through soil layers
