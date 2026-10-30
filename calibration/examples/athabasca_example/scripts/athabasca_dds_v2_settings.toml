@@ -1,0 +1,31 @@
+# Settings for calibrate_athabasca_asyncdds_mpi_develop_v2.py.
+# Same format as the [calibration.parameter_transformations] and [[parameter_dependencies.ordered]]
+# sections of the SUMMA develop calibration TOML (summa_parameter_sampling.f90 / parameter_search.f90),
+# so the two DDS implementations can be run with the same search settings.
+# Bounds and defaults of the 15 calibrated parameters still come from athabasca_params.csv.
+
+[transformations]
+# "log": DDS perturbs ln(value), with step 0.2 x (ln upper - ln lower), as in parameter_search.f90.
+# Parameters not listed are searched in linear space (as in v1).
+k_soil = "log"                  # 1e-8 to 1e-2 (six orders of magnitude); in the develop template
+#aquiferBaseflowRate = "log"    # 1e-9 to 1e-5; commented out in the develop template too
+#routingGammaScale   = "log"    # 1 to 1e5
+
+[[ordered]]
+# Candidates that break an ordered list are redrawn before any model run (as in parameter_search.f90).
+# Minimum gap between neighbours = gap_fraction x (upper bound of last - lower bound of first).
+# The develop template uses 0.25 here; with these bounds (bottom 0-5 m, top 0.05-100 m) that would
+# require top >= bottom + 25 m and exclude the default top of 20 m, so 0 (top > bottom) is used.
+parameters   = ["heightCanopyBottom", "heightCanopyTop"]
+gap_fraction = 0.0
+
+[[ordered]]
+# theta_res, critSoilTranspire and fieldCapacity are not calibrated: their fixed values and bounds
+# are read from settings/SUMMA/localParamInfo.txt, unless given in [fixed] below.
+parameters   = ["theta_res", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025            # as in the develop template
+
+[fixed]
+# Optional: values (and bounds) of non-calibrated parameters used in [[ordered]], if they should not
+# be taken from localParamInfo.txt, e.g. because trialParams.nc sets other values:
+# fieldCapacity = { value = 0.20, lower = 0.0, upper = 1.0 }
