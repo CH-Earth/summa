@@ -104,10 +104,50 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
 - SCE-UA: burn-in of 1,519 runs and about two shuffling loops within the budget; not a fair test of
   SCE-UA at this budget.
 
+## Oct 22-24: Pymoo genetic algorithm on the same J()
+
+- `scripts/pymoo/calibrate_athabasca_pymoo.py`: rank 0 runs the GA and hands out sets to free workers;
+  population 98 (defaults + 97 Latin hypercube sets), 49 offspring per generation, 4,998 runs in total.
+- Smoke test 21591237 passed; full run 21595996 (whole node): best KGE 0.8821 in 35.6 h. None of the 97
+  random starting sets had a positive KGE; 79 of the 91 failures were canopy-invalid sets with no SUMMA run.
+
+## Oct 23-26: async DDS v2 (job 21608093)
+
+- `scripts/calibrate_athabasca_asyncdds_mpi_develop_v2.py` with `scripts/athabasca_dds_v2_settings.toml`:
+  log-space k_soil (1e-8 to 1e-2), ordered constraints checked before a run, defaults + 48 DDS steps in the
+  first wave. Bounds reflected and start from the defaults, as in v1.
+- 5,000 runs in 41.5 h: best KGE 0.8925 (v1 0.8806); KGE 0.85 after 1,255 runs (v1 2,355); idle workers
+  0.4% (v1 2.2%).
+
+## Oct 23-26: SUMMA develop's own Fortran DDS on Athabasca
+
+- Code used unmodified: `summa_driver_opt.f90`, `summa_parameter_sampling.f90`, `parameter_search.f90`,
+  built as `summa_mizuroute_opt.exe` from the same develop checkout as `libsumma.so` (`slurm/build_develop_opt.sh`).
+- Inputs from the J() setup (`scripts/fortran_dds/setup_fortran_dds.py`): same 15 parameters, bounds, 5,000
+  runs, log k_soil, canopy constraint.
+- Check 21604889: the default set gives KGE 0.55281681983953113, identical to `J()` to 16 digits.
+- Smoke tests found four setup fixes: spin-up start, state folder, theta_sat lower bound 0.39 (a failed run
+  stops the whole job), and no `seg_outlet` (in subset mode each run writes a topology file into the shared
+  `hfabric_path`).
+- Full run 21621404: 5,000 runs in 20.9 h (239 runs/h), no failures, best KGE 0.8056. It stops improving
+  after about 1,000 runs.
+
+## Oct 26-28: six-way comparison and load balancing
+
+- Table and best-so-far figure from `scripts/compare_athabasca_optimizers.py` (README, "Six calibrations
+  compared"). v2 is best (0.8925), then GA 0.8821 and v1 0.8806.
+- `scripts/plot_worker_timeline_athabasca.py`: DDS runs keep every worker busy; the GA shows idle stripes at
+  generation boundaries; SCE-UA scores KGE <= -1 in most runs and leaves most workers idle twice for hours.
+- `scripts/load_balance_athabasca.py`, `scripts/plot_load_balance_scaling.py`: replaying 1,000-run blocks
+  on 192/95/47/23 workers gives an idle fraction of about 14% at 5 evaluations per worker, falling to about
+  1% at 43.
+
 ## Next
 
 - Update this branch to current develop and bring in the develop version of `summa_c_api.f90`.
 - Repeat the develop calibration with 3-5 seeds (async DDS and SPOTPY DDS); raise the theta_sat lower
   bound to ~0.39 and widen the routingGammaScale upper bound.
-- Pymoo genetic algorithm on the same J() (driver in testing on Anvil, Oct 22).
 - If SCE-UA is repeated: fewer complexes than workers, or a larger budget.
+- Repeat v2, GA and v1 with 3-5 seeds; run the Fortran DDS from the defaults with reflection at the bounds
+  to separate the code from these two choices.
+- Validate the best sets outside 2016-2019.
