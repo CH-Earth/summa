@@ -101,13 +101,6 @@ USE mDecisions_module,only:       &
 private
 public::run_oneGRU
 
-! cached downHRUindex cascade order for one GRU
-type :: cascade_order
-  integer(i8b)              :: gru_id = 0
-  integer(i4b), allocatable :: downIdx(:)      ! index of the downslope HRU (0 = GRU outlet)
-  integer(i4b), allocatable :: hruOrder(:)     ! HRU indices upslope before downslope
-end type cascade_order
-type(cascade_order),allocatable,save :: cascade(:)
 contains
 
 ! ************************************************************************************************
@@ -189,9 +182,6 @@ subroutine run_oneGRU(&
   integer(i4b)                        :: ixDangling                     ! first dangling HRU, for the message
   integer(i4b)                        :: ixInverted                     ! first inverted HRU, for the message
   logical(lgt)                        :: found                          ! the downslope HRU was found in this GRU
-  integer(i4b)                        :: iCache                         ! loop through the cached cascade orders
-  integer(i4b)                        :: ixCache                        ! cached cascade order for this GRU (0 = not yet built)
-  type(cascade_order), allocatable    :: cascadeTmp(:)                  ! for growing the cache
   logical(lgt)                        :: runHRU                         ! flag to run the HRU (it has area)
   logical(lgt)                        :: computeVegFluxFlag             ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   real(rkind)                         :: fracDOM                        ! fractional area of a given HRU domain in GRU (-)
@@ -314,17 +304,9 @@ subroutine run_oneGRU(&
   allocate(downIdx(gruInfo%hruCount), inDegree(gruInfo%hruCount), hruOrder(gruInfo%hruCount), stat=err)
   if(err/=0)then; message=trim(message)//'problem allocating cascade ordering arrays'; return; endif
 
-  if(.not.allocated(cascade)) allocate(cascade(0))
-  ixCache = 0
-  do iCache=1,size(cascade)
-    if(cascade(iCache)%gru_id == gruInfo%gru_id .and. size(cascade(iCache)%downIdx) == gruInfo%hruCount)then
-      ixCache = iCache; exit
-    endif
-  enddo
-
-  if(ixCache > 0)then
-    downIdx  = cascade(ixCache)%downIdx
-    hruOrder = cascade(ixCache)%hruOrder
+  if(allocated(gruInfo%hruOrder))then
+    downIdx  = gruInfo%downIdx
+    hruOrder = gruInfo%hruOrder
   else
   downIdx(:) = 0; inDegree(:) = 0
   nDangling = 0; nInverted = 0; nOutlet = 0; ixDangling = 0; ixInverted = 0
@@ -387,15 +369,9 @@ subroutine run_oneGRU(&
       &downslope (check downHRUindex in the attributes file)'; return
   endif
 
-  ! keep it for every later step
-  allocate(cascadeTmp(size(cascade)+1), stat=err)
-  if(err/=0)then; message=trim(message)//'problem growing the cascade order cache'; return; endif
-  ixCache = size(cascade) + 1
-  cascadeTmp(1:size(cascade)) = cascade
-  call move_alloc(cascadeTmp, cascade)
-  cascade(ixCache)%gru_id   = gruInfo%gru_id
-  cascade(ixCache)%downIdx  = downIdx
-  cascade(ixCache)%hruOrder = hruOrder
+  ! keep it in this GRU's own gru_struc entry for every later step
+  gruInfo%downIdx  = downIdx
+  gruInfo%hruOrder = hruOrder
   end if  ! (cascade order not yet cached for this GRU)
 
   ! ********** RUN FOR ONE HRU ********************************************************************************************
@@ -804,6 +780,7 @@ subroutine run_oneGRU(&
     enddo ! (looping through HRUs)
   endif ! (if updated glacier or wetland area)
   call date_and_time(values=endUpdateArea)
+  !$omp atomic update
   elapsedUpdateArea = elapsedUpdateArea + elapsedSec(startUpdateArea,endUpdateArea)
 
   deallocate(downIdx,inDegree,hruOrder)

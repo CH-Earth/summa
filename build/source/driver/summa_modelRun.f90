@@ -225,7 +225,7 @@ contains
   !$omp          private(iGRU, jGRU) &  ! GRU indices are private for a given thread
   !$omp          shared(openMPstart, openMPend)   & ! access constant variables
   !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
-  !$omp          shared(summa1_struc, gru_struc) &
+  !$omp          shared(summa1_struc, gru_struc, elapsedUpdateArea) &
   !$omp          shared(errGRU, msgGRU) &
   !$omp          private(err, cmessage)
  ! associate to elements in the data structure, gru_struc

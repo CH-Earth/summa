@@ -27,6 +27,7 @@ USE nr_type
 USE data_types,only:&
                     var_ilength,      & ! data vector with variable length dimension (i4b)
                     var_dlength,      & ! data vector with variable length dimension (rkind)
+                    zLookup,          & ! lookup tables
                     model_options       ! defines the model decisions
 
 ! named variables for snow and soil
@@ -61,6 +62,7 @@ contains
                        tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
                        mpar_data,                   & ! intent(in):    model parameters
+                       lookup_data,                 & ! intent(in):    lookup tables
                        indx_data,                   & ! intent(inout): type of each layer
                        prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
                        diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
@@ -79,6 +81,7 @@ contains
  logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
+ type(zLookup),intent(in)        :: lookup_data         ! lookup tables
  type(var_ilength),intent(inout) :: indx_data           ! type of each layer
  type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
@@ -120,6 +123,7 @@ contains
                  tooMuchMelt,                 & ! intent(in):    flag to force merge of snow/firn/ice layers
                  model_decisions,             & ! intent(in):    model decisions
                  mpar_data,                   & ! intent(in):    model parameters
+                 lookup_data,                 & ! intent(in):    lookup tables
                  indx_data,                   & ! intent(inout): type of each layer
                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU

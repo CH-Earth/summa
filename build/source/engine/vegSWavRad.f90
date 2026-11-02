@@ -69,12 +69,15 @@ contains
                        nLayers,                      & ! intent(in):    total number of layers
                        computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                        type_data,                    & ! intent(in):    classification of veg, soil etc. for a local HRU
+                       mpar_data,                    & ! intent(in):    model parameters
                        prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
                        diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
                        flux_data,                    & ! intent(inout): model flux variables
                        err,message)                    ! intent(out): error control
  ! external routines
  USE NOAHMP_ROUTINES,only:radiation                                ! subroutine to calculate albedo and shortwave radiaiton in the canopy
+ USE noahmp_globals,only:noahmp_context                            ! Noah-MP parameters for a single HRU
+ USE noahmpContext_module,only:noahmpContext                       ! get the Noah-MP parameters for a single HRU
  implicit none
  ! dummy variables
  real(rkind),intent(in)          :: dt                             ! time step (s) -- only used in Noah-MP radiation, to compute albedo
@@ -85,6 +88,7 @@ contains
  integer(i4b),intent(in)         :: nLayers                        ! total number of layers
  logical(lgt),intent(in)         :: computeVegFlux                 ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
  type(var_i),intent(in)          :: type_data                      ! classification of veg, soil etc. for a local HRU
+ type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
  type(var_dlength),intent(inout) :: prog_data                      ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                      ! model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                      ! model flux variables
@@ -103,6 +107,7 @@ contains
  integer(i4b)                    :: ist                            ! Surface type:  IST=1 => soil;  IST=2 => lake or glacier ice
  integer(i4b)                    :: nSoil_use                      ! number of soil layers used in the radiation routine
  real(rkind),allocatable         :: mLayerVolFracLiq_use(:)        ! water content in the soil layer when there is no soil
+ type(noahmp_context)            :: context                        ! Noah-MP parameters for this HRU
 
  ! ----------------------------------------------------------------------------------------------------------------------------------
  ! make association between local variables and the information in the data structures
@@ -168,6 +173,10 @@ contains
  ! compute the sum of snow mass and new snowfall (kg m-2 [mm])
  snowmassPlusNewsnow = scalarSWE + scalarSnowfall*dt
 
+ ! get the Noah-MP parameters for this HRU (canopy heights used in the two-stream radiation)
+ call noahmpContext(type_data,mpar_data,context,err,cmessage)
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
  ! * compute radiation fluxes...
  ! -----------------------------
  select case(ix_canopySrad)
@@ -195,6 +204,7 @@ contains
                   spectralIncomingDirect(1:nSpecBand),  & ! intent(in): incoming direct solar radiation in each wave band (w m-2)
                   spectralIncomingDiffuse(1:nSpecBand), & ! intent(in): incoming diffuse solar radiation in each wave band (w m-2)
                   scalarVegFraction,                    & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+                  context,                              & ! intent(in): Noah-MP parameters for this HRU
                   ! output
                   scalarSnowAlbedo,                     & ! intent(inout): snow albedo (-)
                   scalarSnowAge,                        & ! intent(inout): non-dimensional snow age (-)
@@ -233,6 +243,7 @@ contains
                   scalarExposedLAI,                                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
                   scalarExposedSAI,                                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
                   scalarVegFraction,                                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+                  context,                                            & ! intent(in): Noah-MP parameters for this HRU
                   scalarCanopyWetFraction,                            & ! intent(in): fraction of lai, sai that is wetted (-)
                   scalarGroundSnowFraction,                           & ! intent(in): fraction of ground that is snow covered (-)
                   mLayerVolFracLiq(1),                                & ! intent(in): volumetric liquid water content in the upper-most soil layer (-)
@@ -288,6 +299,7 @@ contains
                       scalarExposedLAI,                                   & ! intent(in): exposed leaf area index after burial by snow (m2 m-2)
                       scalarExposedSAI,                                   & ! intent(in): exposed stem area index after burial by snow (m2 m-2)
                       scalarVegFraction,                                  & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+                      context,                                            & ! intent(in): Noah-MP parameters for this HRU
                       scalarCanopyWetFraction,                            & ! intent(in): fraction of lai, sai that is wetted (-)
                       scalarGroundSnowFraction,                           & ! intent(in): fraction of ground that is snow covered (-)
                       scalarVolFracLiqUpper,                              & ! intent(in): volumetric liquid water content in the upper-most non-snow layer (-)
@@ -315,6 +327,7 @@ contains
  ! Noah vegetation tables
  USE NOAHMP_VEG_PARAMETERS, only: RHOS,RHOL                                  ! Noah-MP: stem and leaf reflectance for each wave band
  USE NOAHMP_VEG_PARAMETERS, only: TAUS,TAUL                                  ! Noah-MP: stem and leaf transmittance for each wave band
+ USE noahmp_globals,only:noahmp_context                                      ! Noah-MP parameters for a single HRU
  ! input
  integer(i4b),intent(in)           :: nLake, nSoil, nGlce                       ! number of lake, soil, and glce layers
  integer(i4b),intent(in)           :: vegTypeIndex                              ! vegetation type index
@@ -331,6 +344,7 @@ contains
  real(rkind),intent(in)            :: scalarExposedLAI                          ! exposed leaf area index after burial by snow (m2 m-2)
  real(rkind),intent(in)            :: scalarExposedSAI                          ! exposed stem area index after burial by snow (m2 m-2)
  real(rkind),intent(in)            :: scalarVegFraction                         ! vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+ type(noahmp_context),intent(in)   :: context                                   ! Noah-MP parameters for this HRU
  real(rkind),intent(in)            :: scalarCanopyWetFraction                   ! fraction of canopy that is wet (-)
  real(rkind),intent(in)            :: scalarGroundSnowFraction                  ! fraction of ground that is snow covered (-)
  real(rkind),intent(in)            :: scalarVolFracLiqUpper                     ! volumetric liquid water content in the upper-most non-snow layer (-)
@@ -806,6 +820,7 @@ contains
                    spectralVegReflc,                  & ! intent(in): leaf+stem reflectance (1:nSpecBand)
                    spectralVegTrans,                  & ! intent(in): leaf+stem transmittance (1:nSpecBand)
                    scalarVegFraction,                 & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+                   context,                           & ! intent(in): Noah-MP parameters for this HRU
                    ! output
                    spectralCanopyAbsorbedDirect,      & ! intent(out): flux abs by veg layer (per unit incoming flux), (1:nSpecBand)
                    spectralTotalReflectedDirect,      & ! intent(out): flux refl above veg layer (per unit incoming flux), (1:nSpecBand)
@@ -834,6 +849,7 @@ contains
                    spectralVegReflc,                  & ! intent(in): leaf+stem reflectance (1:nSpecBand)
                    spectralVegTrans,                  & ! intent(in): leaf+stem transmittance (1:nSpecBand)
                    scalarVegFraction,                 & ! intent(in): vegetation fraction (=1 forces no canopy gaps and open areas in radiation routine)
+                   context,                           & ! intent(in): Noah-MP parameters for this HRU
                    ! output
                    spectralCanopyAbsorbedDiffuse,     & ! intent(out): flux abs by veg layer (per unit incoming flux), (1:nSpecBand)
                    spectralTotalReflectedDiffuse,     & ! intent(out): flux refl above veg layer (per unit incoming flux), (1:nSpecBand)
