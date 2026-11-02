@@ -300,9 +300,16 @@ MODULE data_types
  type, public :: vLookup
   type(dLookup),allocatable              :: var(:)                        ! var(:)%lookup(:)
  endtype vLookup
+ ! ** snow/ice temperature-enthalpy lookup tables, built once for each value of snowfrz_scale and shared by every HRU that uses it
+ type, public :: snowLookup
+  real(rkind)                            :: snowfrz_scale                 ! freezing curve scaling parameter the tables were built from (K-1)
+  real(rkind),allocatable                :: H(:,:)                        ! H(:,1) snow, H(:,2) ice -- enthalpy values (J kg-1)
+  real(rkind),allocatable                :: T(:,:)                        ! T(:,1) snow, T(:,2) ice -- temperature values (K)
+ endtype snowLookup
  ! ** double precision type for a variable number of soil layers
  type, public :: zLookup
   type(vLookup),allocatable              :: z(:)                          ! z(:)%var(:)%lookup(:)
+  type(snowLookup),pointer               :: snow=>null()                  ! snow/ice lookup tables (shared, read-only once built)
  endtype zLookup
   ! ** double precision type for a variable number of soil layers
  type, public :: dom_z_vLookup

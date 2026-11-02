@@ -121,6 +121,9 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! conversion functions
  USE convert_funcs_module,only:satVapPress   ! function to compute the saturated vapor pressure (Pa)
+ ! Noah-MP parameters
+ USE noahmp_globals,only:noahmp_context      ! Noah-MP parameters for a single HRU
+ USE noahmpContext_module,only:noahmpContext ! get the Noah-MP parameters for a single HRU
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
  real(rkind),intent(in)             :: scalarVegetationTemp      ! vegetation temperature (K)
@@ -147,6 +150,7 @@ contains
  real(rkind)                        :: scalarStomResist          ! stomatal resistance (s m-1)
  real(rkind)                        :: scalarPhotosynthesis      ! photosynthesis (umol CO2 m-2 s-1)
  real(rkind)                        :: ci                        ! intercellular co2 partial pressure (Pa)
+ type(noahmp_context)               :: context                   ! Noah-MP parameters for this HRU
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
 
  ! associate variables in the data structure
@@ -268,11 +272,17 @@ contains
   ! compute stomatal resistance (wrapper around the Noah-MP routines)
   ! NOTE: canopy air vapor pressure is from the previous time step
   case(BallBerry,Jarvis)
+   ! get the Noah-MP parameters for this HRU (canopy stress parameters used in Jarvis)
+   if(ix_stomResist==Jarvis)then
+    call noahmpContext(type_data,mpar_data,context,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   end if
    call stomResist_NoahMP(&
                           ! input (model decisions)
                           ix_stomResist,                     & ! intent(in): choice of function for stomatal resistance
                           ! input (local attributes)
                           vegTypeIndex,                      & ! intent(in): vegetation type index
+                          context,                           & ! intent(in): Noah-MP parameters for this HRU (only used in Jarvis)
                           ! input (forcing)
                           airtemp,                           & ! intent(in): air temperature at some height above the surface (K)
                           airpres,                           & ! intent(in): air pressure at some height above the surface (Pa)
@@ -1010,6 +1020,7 @@ contains
                               ixStomResist,                        & ! intent(in): choice of function for stomatal resistance
                               ! input (local attributes)
                               vegTypeIndex,                        & ! intent(in): vegetation type index
+                              context,                             & ! intent(in): Noah-MP parameters for this HRU (only used in Jarvis)
                               ! input (forcing)
                               airtemp,                             & ! intent(in): air temperature at some height above the surface (K)
                               airpres,                             & ! intent(in): air pressure at some height above the surface (Pa)
@@ -1040,11 +1051,13 @@ contains
  USE mDecisions_module, only: BallBerry,Jarvis                ! options for the choice of function for stomatal resistance
  USE NOAHMP_ROUTINES,only:stomata                             ! compute canopy resistance based on Ball-Berry
  USE NOAHMP_ROUTINES,only:canres                              ! compute canopy resistance based Jarvis
+ USE noahmp_globals,only:noahmp_context                       ! Noah-MP parameters for a single HRU
  implicit none
  ! input (model decisions)
  integer(i4b),intent(in)       :: ixStomResist                ! choice of function for stomatal resistance
  ! input (local attributes)
  integer(i4b),intent(in)       :: vegTypeIndex                ! vegetation type index
+ type(noahmp_context),intent(in) :: context                   ! Noah-MP parameters for this HRU (only used in Jarvis)
  ! input (forcing)
  real(rkind),intent(in)           :: airtemp                     ! measured air temperature at some height above the surface (K)
  real(rkind),intent(in)           :: airpres                     ! measured air pressure at some height above the surface (Pa)
@@ -1121,6 +1134,7 @@ contains
                  scalarTranspireLim,                 & ! intent(in): weighted average of the soil moiture factor controlling stomatal resistance (-)
                  scalarVP_CanopyAir,                 & ! intent(in): canopy air vapor pressure (Pa)
                  airpres,                            & ! intent(in): air pressure at some height above the surface (Pa)
+                 context,                            & ! intent(in): Noah-MP parameters for this HRU
                  ! output
                  scalarStomResist,                   & ! intent(out): stomatal resistance (s m-1)
                  scalarPhotosynthesis                ) ! intent(out): photosynthesis (umolco2 m-2 s-1)

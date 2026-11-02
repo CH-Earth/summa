@@ -25,6 +25,7 @@ USE nr_type
 USE data_types,only:var_iLength                    ! var(:)%dat(:)
 USE data_types,only:var_dLength                    ! var(:)%dat(:)
 USE data_types,only:zLookup                        ! z(:)%var(:)%lookup(:)
+USE data_types,only:snowLookup                     ! snow/ice temperature-enthalpy lookup tables
 
 ! constants
 USE multiconst, only: gravity, &                          ! gravitational acceleration (m s-1)
@@ -65,6 +66,7 @@ USE globalData,only:icefrz_mult                    ! freezing curve scaling fact
 
 implicit none
 public::T2H_lookup_snWat
+public::T2H_lookup_reset
 public::T2L_lookup_soil
 public::enthalpy2T_snLaGlWat
 public::T2enthalpy_snLaGlWat
@@ -73,6 +75,8 @@ public::T2enthTemp_veg
 public::T2enthTemp_snLaGl
 public::T2enthTemp_soil
 public::enthTemp_or_enthalpy
+
+! NOTE: table builders (T2L_lookup_soil, T2H_lookup_snWat, T2H_lookup_reset) are not thread-safe; tables are read-only once built
 
 ! soil lookup tables kept to be reused wherever a layer has the same van Genuchten parameters
 integer(i4b),parameter,private        :: maxSoilTab=32       ! number of soil lookup tables kept for reuse
@@ -89,8 +93,14 @@ private::brent, brent0, diff_H_veg, diff_H_snLaGl, diff_H_soil
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter                 :: nlook=10001       ! number of elements in the lookup table
-real(rkind),dimension(nlook,2),public  :: H_lookup          ! enthalpy values (J kg-1)
-real(rkind),dimension(nlook,2),public  :: T_lookup          ! temperature values (K)
+
+! snow/ice lookup tables kept for every value of snowfrz_scale in use; each HRU points to its own (see zLookup%snow)
+! NOTE: tables are allocated individually, so growing the list does not move the tables HRUs point to
+type,private :: snowTabPtr
+  type(snowLookup),pointer             :: p=>null()         ! snow/ice lookup tables for one value of snowfrz_scale
+end type snowTabPtr
+type(snowTabPtr),allocatable,save,private :: snowTabs(:)    ! kept snow/ice lookup tables
+integer(i4b),save,private              :: nSnowTab=0        ! number of kept snow/ice lookup tables
 contains
 
 
@@ -98,8 +108,9 @@ contains
 ! public subroutine T2H_lookup_snWat: define a look-up table to liquid + ice enthalpy based on temperature
 !                                     appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
-subroutine T2H_lookup_snWat(mpar_data,needLookup_ice,        &  ! intent(in):    parameter data structure
-                           err,message)
+subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    parameter data structure
+                            lookup_data,                   &  ! intent(inout): lookup tables (points to the snow/ice tables on output)
+                            err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines 
   USE nr_utils_module,only:arth                         ! use to build vectors with regular increments
@@ -108,7 +119,7 @@ subroutine T2H_lookup_snWat(mpar_data,needLookup_ice,        &  ! intent(in):   
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare dummy variables
   type(var_dlength),intent(in)  :: mpar_data            ! model parameters
-  logical(lgt),intent(in)       :: needLookup_ice       ! flag to compute enthalpy lookup table for ice
+  type(zLookup),intent(inout)   :: lookup_data          ! lookup tables for this HRU
   integer(i4b),intent(out)      :: err                  ! error code
   character(*),intent(out)      :: message              ! error message
   ! declare local variables
@@ -123,12 +134,29 @@ subroutine T2H_lookup_snWat(mpar_data,needLookup_ice,        &  ! intent(in):   
   integer(i4b)                  :: ilook                ! loop through lookup table
   integer(i4b)                  :: i                    ! loop through snow/ice
   real(rkind)                   :: frz_scale_use        ! freezing curve scaling parameter (K-1)
+  type(snowLookup),pointer      :: snowTab              ! snow/ice lookup tables for this value of snowfrz_scale
+  type(snowTabPtr),allocatable  :: tmpTabs(:)           ! temporary list used to grow the list of kept tables
+  integer(i4b)                  :: iTab                 ! index of kept table
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="T2H_lookup_snWat/"
 
   ! associate
   associate( snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) )
+
+   ! reuse the tables if they were already built for this value of snowfrz_scale
+   do iTab=1,nSnowTab
+     if(snowTabs(iTab)%p%snowfrz_scale == snowfrz_scale)then
+       lookup_data%snow => snowTabs(iTab)%p
+       return
+     end if
+   end do
+
+   ! build new tables, for both snow and ice
+   allocate(snowTab)
+   allocate(snowTab%H(nlook,2), snowTab%T(nlook,2), stat=err)
+   if(err/=0)then; message=trim(message)//'problem allocating lookup tables'; return; end if
+   snowTab%snowfrz_scale = snowfrz_scale
 
    ! define initial temperature vector
    T_incr = (Tfreeze - T_start) / real(nlook-1, kind(rkind))  ! temperature increment
@@ -140,13 +168,7 @@ subroutine T2H_lookup_snWat(mpar_data,needLookup_ice,        &  ! intent(in):   
      if (i==1)then
        frz_scale_use = snowfrz_scale
      elseif (i==2)then
-       if (.not. needLookup_ice)then
-         H_lookup(:,i) = realMissing  ! set to missing values if not computing enthalpy lookup table for ice
-         T_lookup(:,i) = realMissing  ! set to missing values if not computing enthalpy lookup table for ice
-         cycle  ! skip ice if not computing enthalpy lookup table for ice
-       else
-         frz_scale_use = snowfrz_scale*icefrz_mult
-       endif
+       frz_scale_use = snowfrz_scale*icefrz_mult
      end if
 
      do ilook=1,nlook
@@ -155,22 +177,46 @@ subroutine T2H_lookup_snWat(mpar_data,needLookup_ice,        &  ! intent(in):   
 
      ! define the final enthalpy vector
      H_incr   = (-Hy(1)) / real(nlook-1, kind(rkind))  ! enthalpy increment
-     H_lookup(:,i) = arth(Hy(1),H_incr,nlook)
+     snowTab%H(:,i) = arth(Hy(1),H_incr,nlook)
 
      ! use cubic spline interpolation to obtain temperature values at the desired values of enthalpy
      call spline(Hy,Tk,1.e30_rkind,1.e30_rkind,H2,err,cmessage)  ! get the second derivatives
      if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
      do ilook=1,nlook
-       call splint(Hy,Tk,H2,H_lookup(ilook,i),T_lookup(ilook,i),dT,err,cmessage)
+       call splint(Hy,Tk,H2,snowTab%H(ilook,i),snowTab%T(ilook,i),dT,err,cmessage)
        if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
      end do
 
    enddo ! (i=1,2)
 
+   ! keep the tables for reuse, and point this HRU to them
+   if(.not.allocated(snowTabs)) allocate(snowTabs(8))
+   if(nSnowTab == size(snowTabs))then
+     allocate(tmpTabs(2*size(snowTabs)))
+     tmpTabs(1:nSnowTab) = snowTabs(1:nSnowTab)
+     call move_alloc(tmpTabs, snowTabs)
+   end if
+   nSnowTab = nSnowTab + 1
+   snowTabs(nSnowTab)%p => snowTab
+   lookup_data%snow => snowTab
+
   end associate
 
  end subroutine T2H_lookup_snWat
+
+! ************************************************************************************************************************
+! public subroutine T2H_lookup_reset: free the kept snow/ice lookup tables
+! NOTE: any HRU still pointing to the tables must call T2H_lookup_snWat again before they are used
+! ************************************************************************************************************************
+subroutine T2H_lookup_reset()
+  implicit none
+  integer(i4b)                  :: iTab                 ! index of kept table
+  do iTab=1,nSnowTab
+    deallocate(snowTabs(iTab)%p)
+  end do
+  nSnowTab = 0
+end subroutine T2H_lookup_reset
 
 ! ************************************************************************************************************************
 ! public subroutine T2L_lookup_soil: define a look-up table to compute integral of soil Clapeyron equation liquid water
@@ -337,7 +383,7 @@ end subroutine T2L_lookup_soil
 ! public subroutine enthalpy2T_snLaGlWat: compute temperature based on specific temperature component of liquid + ice enthalpy 
 !                                      appropriate when no dry mass, as in snow/ice. Uses look-up table for enthalpy
 ! ************************************************************************************************************************
-subroutine enthalpy2T_snLaGlWat(Hy,BulkDenWater,fc_param,Tk,do_snow,err,message)
+subroutine enthalpy2T_snLaGlWat(Hy,BulkDenWater,fc_param,Tk,do_snow,snowTab,err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -347,6 +393,7 @@ subroutine enthalpy2T_snLaGlWat(Hy,BulkDenWater,fc_param,Tk,do_snow,err,message)
   real(rkind),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
   real(rkind),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)
   logical(lgt),intent(in)     :: do_snow       ! flag to compute enthalpy lookup table for snow (otherwise for ice)
+  type(snowLookup),intent(in) :: snowTab       ! snow/ice lookup tables for this HRU
   integer(i4b),intent(out)    :: err           ! error code
   character(*),intent(out)    :: message       ! error message
   ! declare local variables
@@ -376,9 +423,9 @@ subroutine enthalpy2T_snLaGlWat(Hy,BulkDenWater,fc_param,Tk,do_snow,err,message)
   end if
  
   ! ***** get initial guess and derivative assuming all water is frozen
-  if(H_spec<H_lookup(1,ind))then ! process cases below the limit of the look-up table
+  if(H_spec<snowTab%H(1,ind))then ! process cases below the limit of the look-up table
     ! get temperature guess
-    Tg0 = (H_spec - H_lookup(1,ind))/Cp_ice + T_lookup(1,ind)
+    Tg0 = (H_spec - snowTab%H(1,ind))/Cp_ice + snowTab%T(1,ind)
     Tg1 = Tg0+dx
     ! compute enthalpy
     Ht0 = T2enthalpy_snLaGlWat(Tg0,1._rkind,fc_param)
@@ -390,20 +437,20 @@ subroutine enthalpy2T_snLaGlWat(Hy,BulkDenWater,fc_param,Tk,do_snow,err,message)
   ! ***** get initial guess and derivative from the look-up table
   else
     ! get enthalpy increment
-    H_incr = H_lookup(2,ind) - H_lookup(1,ind)
+    H_incr = snowTab%H(2,ind) - snowTab%H(1,ind)
     ! get position in lookup table
-    i0 = ceiling( (H_spec - H_lookup(1,ind)) / H_incr, kind(i4b) )
+    i0 = ceiling( (H_spec - snowTab%H(1,ind)) / H_incr, kind(i4b) )
     ! check found the appropriate value in the look-up table
-    if(H_spec < H_lookup(i0,ind) .or. H_spec > H_lookup(i0+1,ind) .or. &
+    if(H_spec < snowTab%H(i0,ind) .or. H_spec > snowTab%H(i0+1,ind) .or. &
        i0 < 1 .or. i0+1 > nlook)then
      err=10; message=trim(message)//'problem finding appropriate value in lookup table'; return
     end if
     ! get temperature guess
-    Tg0 = T_lookup(i0,ind)
-    Tg1 = T_lookup(i0+1,ind)
+    Tg0 = snowTab%T(i0,ind)
+    Tg1 = snowTab%T(i0+1,ind)
     ! compute function evaluations
-    f0  = H_lookup(i0,ind) - H_spec
-    f1  = H_lookup(i0+1,ind) - H_spec
+    f0  = snowTab%H(i0,ind) - H_spec
+    f1  = snowTab%H(i0+1,ind) - H_spec
   end if
 
   ! compute initial derivative

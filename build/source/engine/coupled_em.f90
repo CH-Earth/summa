@@ -615,6 +615,7 @@ subroutine coupled_em(&
                     nLayers,                      & ! intent(in):    total number of layers
                     computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                     type_data,                    & ! intent(in):    type of vegetation and soil
+                    mpar_data,                    & ! intent(in):    model parameters
                     prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
                     diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
                     flux_data,                    & ! intent(inout): model flux variables
@@ -795,6 +796,7 @@ subroutine coupled_em(&
                         doLayerMerge,               & ! intent(in):    flag to force merge of snow layers
                         model_decisions,            & ! intent(in):    model decisions
                         mpar_data,                  & ! intent(in):    model parameters
+                        lookup_data,                & ! intent(in):    lookup tables
                         indx_data,                  & ! intent(inout): type of each layer
                         prog_data,                  & ! intent(inout): model prognostic variables for a local HRU
                         diag_data,                  & ! intent(inout): model diagnostic variables for a local HRU

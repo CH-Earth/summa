@@ -87,6 +87,8 @@ contains
  ! -------------------------------------------------------------------------------------------------
  ! modules
  USE NOAHMP_ROUTINES,only:phenology         ! determine vegetation phenology
+ USE noahmp_globals,only:noahmp_context      ! Noah-MP parameters for a single HRU
+ USE noahmpContext_module,only:noahmpContext ! get the Noah-MP parameters for a single HRU
  implicit none
  ! -------------------------------------------------------------------------------------------------
  ! input/output
@@ -112,6 +114,8 @@ contains
  real(rkind)                     :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
  real(rkind)                     :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
  real(rkind)                     :: minExpLogHgt               ! minimum height above ground for logarithmic wind profile (m)
+ type(noahmp_context)            :: context                    ! Noah-MP parameters for this HRU
+ character(len=256)              :: cmessage                   ! error message of downwind routine
 
  ! initialize error control
  err=0; message="vegPhenlgy/"
@@ -184,6 +188,9 @@ contains
  ! determine vegetation phenology
  ! NOTE: recomputing phenology every sub-step accounts for changes in exposed vegetation associated with changes in snow depth
  else
+   call noahmpContext(type_data,mpar_data,context,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
    call phenology(&
                  ! input
                  vegTypeIndex,                & ! intent(in): vegetation type index
@@ -193,6 +200,7 @@ contains
                  latitude,                    & ! intent(in): latitude
                  yearLength,                  & ! intent(in): number of days in the current year
                  fracJulDay,                  & ! intent(in): fractional julian days since the start of year
+                 context,                     & ! intent(in): Noah-MP parameters for this HRU
                  scalarLAI,                   & ! intent(inout): one-sided leaf area index (m2 m-2)
                  scalarSAI,                   & ! intent(inout): one-sided stem area index (m2 m-2)
                  ! output
