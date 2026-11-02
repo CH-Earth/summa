@@ -69,6 +69,9 @@ USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
 
+! parallelism
+USE parallel_context, only: parallel_context_type
+
 ! objective function
 USE data_types,      only: obs_fileinfo    ! information on the observation file
 USE data_types,      only: calib_info      ! calibration configuration
@@ -81,6 +84,9 @@ USE mizuroute_types, only: mizuroute_domain
 implicit none
 
 private
+
+! re-export parallel context so available with summa_type use statements
+public :: parallel_context_type
 
 ! ***********************************************************************************************************
 ! Configuration information shared across SUMMA simulations.
@@ -152,15 +158,6 @@ type, public :: config_info
   type(mizuroute_info)           :: mizu_info               ! mizuRoute configuration infirmation
 #endif
 end type config_info
-
-! ************************************************************************
-! * parallel communication context
-! ************************************************************************
-type, public :: parallel_context_type
-  integer(I4B) :: comm = -1
-  integer(I4B) :: rank = 0
-  integer(I4B) :: size = 1
-end type parallel_context_type
 
 ! ************************************************************************
 ! * top-level summa data type

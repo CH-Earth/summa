@@ -24,6 +24,7 @@ module calibration_output_module
 
   USE data_types,       only: target_info
   USE parameter_search, only: parameter_spec
+  USE parameter_search, only: param_physical
 
   implicit none
   private
@@ -126,11 +127,22 @@ contains
       ! Parameter variables and metadata
       ! -----------------------------------------------------------------------------------------------
       do iParam=1,size(spec%params)
+        
+        ! Only sampled calibration variables have one value per trial.
+        if(.not.spec%params(iParam)%sampled) cycle
+      
+        ! parameters
         ierr=nf90_def_var(ncid,trim(spec%params(iParam)%name),NF90_DOUBLE, (/dim_sample/),varid_param)
         if(ierr/=nf90_noerr) exit netcdf_block
         ierr=nf90_put_att(ncid,varid_param,'long_name', trim(spec%params(iParam)%long_name))
         if(ierr/=nf90_noerr) exit netcdf_block
-        ierr=nf90_put_att(ncid,varid_param,'units', trim(spec%params(iParam)%units))
+        
+        ! Units: multipliers and parameter ratios are dimensionless.
+        if(spec%params(iParam)%param_type==param_physical)then
+          ierr=nf90_put_att(ncid,varid_param,'units',trim(spec%params(iParam)%units))
+        else
+          ierr=nf90_put_att(ncid,varid_param,'units','-')
+        endif
         if(ierr/=nf90_noerr) exit netcdf_block
 
         ! native physical parameter bounds
@@ -143,6 +155,16 @@ contains
         ierr=nf90_put_att(ncid,varid_param,'transformation', trim(spec%params(iParam)%transformation))
         if(ierr/=nf90_noerr) exit netcdf_block
 
+        ! metadata describing how the calibration variable constructs physical fields.
+        ierr=nf90_put_att(ncid,varid_param,'param_type',spec%params(iParam)%param_type)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        
+        if(len_trim(spec%params(iParam)%reference_name)>0)then
+          ierr=nf90_put_att(ncid,varid_param,'reference_name', &
+                            trim(spec%params(iParam)%reference_name))
+          if(ierr/=nf90_noerr) exit netcdf_block
+        endif
+
         ! parameter sampling status
         if(spec%params(iParam)%sampled)then
           sampled=1
@@ -150,10 +172,6 @@ contains
           sampled=0
         endif
         ierr=nf90_put_att(ncid,varid_param,'sampled',sampled)
-        if(ierr/=nf90_noerr) exit netcdf_block
-
-        ! scalar trial value supplied by the model-specific parameter specification
-        ierr=nf90_put_att(ncid,varid_param,'trial_value',spec%params(iParam)%trial_value)
         if(ierr/=nf90_noerr) exit netcdf_block
 
       enddo
@@ -272,7 +290,7 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'global_case_group',global_case_group)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','physical')
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','untransformed_calibration_variables')
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'algorithm',trim(algorithm))
       if(ierr/=nf90_noerr) exit netcdf_block
@@ -537,23 +555,32 @@ contains
   ! and rerun.sh, which reruns the trial with the serial driver built beside this one. Returns the
   ! directory in dir.
   ! **************************************************************************************************
-  subroutine write_failed_trial(config,sample_id,worker_rank,param_names,param_values,error_message,dir)
+  subroutine write_failed_trial(config,sample_id,worker_rank,param_names,param_values, &
+                                error_message,dir,allow_serial_rerun,err,message)
     USE summa_type,       only: config_info
     USE summaFileManager, only: OUTPUT_PATH,STATE_PATH,SETTINGS_PATH,MODEL_INITCOND
     implicit none
-    type(config_info), intent(in)  :: config
-    integer(i4b),      intent(in)  :: sample_id
-    integer(i4b),      intent(in)  :: worker_rank
-    character(*),      intent(in)  :: param_names(:)
-    real(rkind),       intent(in)  :: param_values(:)
-    character(*),      intent(in)  :: error_message
-    character(len=:), allocatable, intent(out) :: dir
+    ! dummy
+    type(config_info)            , intent(in)        :: config             ! SUMMA configuration
+    integer(i4b)                 , intent(in)        :: sample_id          ! Calibration sample identifier
+    integer(i4b)                 , intent(in)        :: worker_rank        ! MPI worker rank
+    character(*)                 , intent(in)        :: param_names(:)     ! Sampled calibration parameter names
+    real(rkind)                  , intent(in)        :: param_values(:)    ! Sampled calibration parameter values
+    character(*)                 , intent(in)        :: error_message      ! Reason the calibration trial failed
+    character(len=:), allocatable, intent(out)       :: dir                ! Directory containing failed-trial diagnostics
+    logical(lgt), optional       , intent(in)        :: allow_serial_rerun ! Allow replay using scalar parameter overrides
+    integer(i4b)                 , intent(out)       :: err                ! Error code
+    character(*)                 , intent(out)       :: message            ! Error message
+    ! local
     character(len=:), allocatable :: exe,serial_exe,init_state,source_rev,launch_dir
     character(len=32)   :: val
     character(len=4096) :: line
     integer(i4b) :: unit,iParam,ix,ios
     logical(lgt) :: rerunnable
 
+    err=0
+    message='write_failed_trial/'
+    
     ! one directory per trial
     write(val,'(i6.6)') sample_id
     if(trim(config%calib%algorithm) == 'nsga2')then
@@ -595,6 +622,11 @@ contains
 
     ! a manifest case is built from a template, so only a single configuration file can be rerun as it stands
     rerunnable=allocated(config%config_file) .and. .not.allocated(config%manifest_file)
+
+    if(present(allow_serial_rerun))then
+      if(.not.allow_serial_rerun) rerunnable=.false.
+    endif
+    
     if(allocated(config%config_file)) call execute_command_line('cp "'//config%config_file//'" "'//dir//'config.toml"')
 
     ! trial.json

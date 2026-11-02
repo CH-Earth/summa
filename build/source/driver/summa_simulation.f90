@@ -36,6 +36,8 @@ USE globalData, only: integerMissing
 USE globalData, only: realMissing
 USE globalData, only: iulog
 
+USE summa_parameter_fields, only: summa_calibration_adapter
+
 USE build_options, only: mizuroute_active
 USE build_options, only: openwq_active
 
@@ -135,24 +137,26 @@ contains
   subroutine evaluate_objectives(config,                            & ! SUMMA configuration structure
                                  domain_parallel,                   & ! MPI context for domain parallelism
                                  instance_parallel,                 & ! MPI context for model-instance parallelism
-                                 sample_id, param_name,param_value, & ! sample ID + parameter names and values
-                                 objective,                         & ! objective value for each target
-                                 err, message,                      & ! error code and message
-                                 trial_failed)                        ! .true. if the error came from the parameter set's own run
+                                 sample_id,param_name,param_value,  & ! Sample ID and parameter overrides
+                                 objective,                         & ! Objective values for each calibration target
+                                 trial_failed,                      & ! True if the parameter set caused the trial to fail
+                                 calibration,                       & ! Field-based calibration adapter
+                                 err,message)                         ! Error code and message
     use iso_fortran_env, only: output_unit, error_unit
     use globalData, only: output_fileSuffix
     use simulated_series, only: sim_series_type
     ! dummy arguments
-    type(config_info),           intent(inout) :: config
-    type(parallel_context_type), intent(in)    :: domain_parallel
-    type(parallel_context_type), intent(in)    :: instance_parallel
-    integer(i4b)               , intent(in)    :: sample_id
-    character(*)               , intent(in)    :: param_name(:)
-    real(rkind)                , intent(in)    :: param_value(:)
-    real(rkind), allocatable   , intent(out)   :: objective(:)
-    integer(i4b)               , intent(out)   :: err
-    character(*)               , intent(out)   :: message
-    logical(lgt), optional, intent(out) :: trial_failed
+    type(config_info)                        , intent(inout) :: config            ! SUMMA configuration structure
+    type(parallel_context_type)              , intent(in)    :: domain_parallel   ! MPI context for domain parallelism
+    type(parallel_context_type)              , intent(in)    :: instance_parallel ! MPI context for instance parallelism
+    integer(i4b)                             , intent(in)    :: sample_id         ! Calibration sample identifier
+    character(*)                             , intent(in)    :: param_name(:)     ! Parameter names for scalar overrides
+    real(rkind)                              , intent(in)    :: param_value(:)    ! Parameter values for scalar overrides
+    real(rkind), allocatable                 , intent(out)   :: objective(:)      ! Objective values for each target
+    logical(lgt), optional                   , intent(out)   :: trial_failed      ! True if the parameter set caused the trial to fail
+    type(summa_calibration_adapter), optional, intent(inout) :: calibration       ! Field-based calibration adapter
+    integer(i4b)                             , intent(out)   :: err               ! Error code
+    character(*)                             , intent(out)   :: message           ! Error message
     ! locals
     logical(lgt)                       :: failed                 ! true if the parameter set causes a model or scoring failure
     logical(lgt)                       :: unscored               ! true if no calibration targets are configured
@@ -222,9 +226,9 @@ contains
     ! All exits from this block proceed to finalization and restoration of the output suffix
     trial: block
 
-      ! Initialize SUMMA
-      call initialize_summa(config, summa1_struc(n), param_name, param_value, &
-                            err=err, message=cmessage)
+      ! Initialize SUMMA, optionally applying field-based calibration.
+      call initialize_summa(config,summa1_struc(n),param_name,param_value, &
+                            calibration=calibration,err=err,message=cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); failed=.true.; exit trial; endif
 
       ! Run without scoring if no calibration targets are configured
@@ -299,17 +303,21 @@ contains
   ! **************************************************************************************************
   ! initialize SUMMA
   ! **************************************************************************************************
-  subroutine initialize_summa(config, summa_struct, param_name, param_value, &
-                              mpar_out, bpar_out, err, message)
-    type(config_info)                    , intent(inout)    :: config
-    type(summa1_type_dec)                , intent(inout)    :: summa_struct
-    character(*)                         , intent(in)       :: param_name(:)
-    real(rkind)                          , intent(in)       :: param_value(:)
-    type(gru_hru_dom_doublevec), optional, intent(out)      :: mpar_out
-    type(gru_double)           , optional, intent(out)      :: bpar_out
-    integer(i4b)                         , intent(out)      :: err
-    character(*)                         , intent(out)      :: message
-    character(len=1024) :: cmessage
+  subroutine initialize_summa(config,summa_struct,param_name,param_value, &
+                              mpar_out,bpar_out,calibration,err,message)
+    ! dummy arguments
+    type(config_info)                        , intent(inout)    :: config        ! SUMMA configuration
+    type(summa1_type_dec)                    , intent(inout)    :: summa_struct  ! SUMMA model data structures
+    character(*)                             , intent(in)       :: param_name(:) ! Parameter names for scalar overrides
+    real(rkind)                              , intent(in)       :: param_value(:)! Parameter values for scalar overrides
+    type(gru_hru_dom_doublevec)    , optional, intent(out)      :: mpar_out      ! Initialized model parameter fields
+    type(gru_double)               , optional, intent(out)      :: bpar_out      ! Initialized basin parameter fields
+    type(summa_calibration_adapter), optional, intent(inout)    :: calibration   ! Field-based calibration adapter
+    integer(i4b)                             , intent(out)      :: err           ! Error code
+    character(*)                             , intent(out)      :: message       ! Error message
+    ! local
+    character(len=1024) :: cmessage                                        ! Local error message
+
 
     err = 0
     message = 'initialize_summa/'
@@ -319,7 +327,8 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! initialize parameter data structures
-    call summa_paramSetup(summa_struct, param_name, param_value, err, cmessage)
+    call summa_paramSetup(summa_struct, param_name, param_value, &
+                          calibration, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! read restart data and reset model state

@@ -7,7 +7,7 @@ module summa_parameter_spec
   USE globalData,       only: iulog
 
   USE parameter_search, only: parameter_spec
-  USE parameter_search, only: decode_gap_chains
+  USE parameter_search, only: param_physical,param_spatial_multiplier,param_ratio
 
   implicit none
   private
@@ -35,15 +35,19 @@ contains
   !
   ! Spatially varying calibration parameters and spatial regularization are not currently supported.
   ! **************************************************************************************************
-  subroutine get_summa_parameter_spec(config, spec, mpar_init, bpar_init, err, message)
+  subroutine get_summa_parameter_spec(config,spec,param_map,mpar_init,bpar_init,err,message)
+    USE summa_parameter_fields, only: summa_parameter_map
+    USE get_ixname_module, only: get_ixParam,get_ixBpar
+    USE param_override_module, only: split_domain_target
     implicit none
     ! dummy
-    type(config_info)             , intent(in)  :: config
-    type(parameter_spec)          , intent(out) :: spec
-    type(var_dlength),    optional, intent(in)  :: mpar_init  ! initialized HRU parameters, single-domain runs only
-    type(var_d),          optional, intent(in)  :: bpar_init  ! initialized basin parameters, single-domain runs only
-    integer(i4b)                  , intent(out) :: err
-    character(*)                  , intent(out) :: message
+    type(config_info)                     , intent(in)  :: config
+    type(parameter_spec)                  , intent(out) :: spec
+    type(var_dlength),            optional, intent(in)  :: mpar_init     ! initialized HRU parameters, single-domain runs only
+    type(var_d),                  optional, intent(in)  :: bpar_init     ! initialized basin parameters, single-domain runs only
+    type(summa_parameter_map), allocatable, intent(out) :: param_map(:)  ! Resolved SUMMA parameter locations
+    integer(i4b)                          , intent(out) :: err
+    character(*)                          , intent(out) :: message
     ! local
     character(len=64), allocatable :: param_names(:)
     logical(lgt),      allocatable :: sampled(:)
@@ -61,6 +65,8 @@ contains
     real(rkind)  :: original_value
     logical(lgt) :: isMultiplier
     logical(lgt) :: hasMultiplierBounds
+    logical(lgt) :: isBasin                                 ! True if the ordered constraint contains basin parameters
+    character(len=64) :: base_name                          ! Parameter name without its domain qualifier
     character(len=1024) :: cmessage
 
     err = 0
@@ -89,6 +95,10 @@ contains
         endif
         nMax = nMax + size(config%calib%ordered(i)%parameters)
       enddo
+    endif
+    ! Include parameters referenced by parameter ratios.
+    if(allocated(config%calib%multiplier))then
+      nMax = nMax + size(config%calib%multiplier)
     endif
     allocate(param_names(nMax),sampled(nMax),stat=err)
     if(err/=0)then
@@ -122,11 +132,25 @@ contains
           if(ix == 0)then
             nParam = nParam + 1
             param_names(nParam) = trim(config%calib%ordered(i)%parameters(j))
-            sampled(nParam)     = config%calib%ordered(i)%sample_gaps
-          else
-            if(config%calib%ordered(i)%sample_gaps) sampled(ix) = .true.
+            sampled(nParam)     = .false.
           endif
         enddo
+      enddo
+    endif
+    ! -----------------------------------------------------------------------------------------------
+    ! Add parameters required only as references for parameter ratios.
+    ! -----------------------------------------------------------------------------------------------
+    if(allocated(config%calib%multiplier))then
+      do i=1,size(config%calib%multiplier)
+    
+        ix=find_parameter(trim(config%calib%multiplier(i)%parameters(1)),param_names(1:nParam))
+    
+        if(ix==0)then
+          nParam=nParam+1
+          param_names(nParam)=trim(config%calib%multiplier(i)%parameters(1))
+          sampled(nParam)=.false.
+        endif
+    
       enddo
     endif
     ! -----------------------------------------------------------------------------------------------
@@ -171,6 +195,23 @@ contains
                                     spec%params(i)%long_name,   &
                                     mpar_init,bpar_init,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    enddo
+
+    ! Copy the parameterization metadata for the sampled calibration parameters.
+    do i=1,nSumma
+      spec%params(i)%param_type=config%calib%param_list(i)%param_type
+      spec%params(i)%reference_name=config%calib%param_list(i)%reference_name
+    enddo
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Resolve calibration parameters to SUMMA model and basin parameter indices.
+    ! -----------------------------------------------------------------------------------------------
+    allocate(param_map(nParam))
+
+    do i=1,nParam
+      call split_domain_target(spec%params(i)%name,base_name,param_map(i)%domain_type)
+      param_map(i)%ixM=get_ixParam(trim(base_name))
+      param_map(i)%ixB=get_ixBpar(trim(base_name))
     enddo
 
     ! -----------------------------------------------------------------------------------------------
@@ -229,39 +270,19 @@ contains
         endif
 
         ! Check whether this parameter is sampled as a multiplier
-        isMultiplier = .false.
-        if(allocated(config%calib%multiplier))then
-          do j=1,size(config%calib%multiplier)
-            if(trim(config%calib%param_list(i)%name) == &
-               trim(config%calib%multiplier(j)%parameters(2)))then
-              isMultiplier = .true.
-              exit
-            endif
-          enddo
-        endif
+        isMultiplier=(spec%params(ix)%param_type /= param_physical)
 
         ! A multiplier searches a ratio, not the native physical parameter.
         ! Require explicit search bounds, either inline or in parameter_bounds.
         if(isMultiplier)then
-          hasMultiplierBounds = config%calib%param_list(i)%has_lower .and. &
-                                config%calib%param_list(i)%has_upper
-
-          if(allocated(config%calib%param_bounds))then
-            do j=1,size(config%calib%param_bounds)
-              if(trim(config%calib%param_bounds(j)%name) == &
-                 trim(config%calib%param_list(i)%name))then
-                hasMultiplierBounds = .true.
-                exit
-              endif
-            enddo
-          endif
-
-          if(.not.hasMultiplierBounds)then
-            message=trim(message)//'multiplier requires explicit lower and upper bounds: '// &
+          if(.not.config%calib%param_list(i)%has_lower .or. &
+             .not.config%calib%param_list(i)%has_upper)then
+            message=trim(message)//'spatial multiplier or parameter ratio requires explicit bounds: '// &
                     trim(config%calib%param_list(i)%name)
             err=20; return
           endif
         endif
+
 
         ! Bounds not given in the configuration retain the existing bounds
         lower = spec%params(ix)%lower
@@ -338,7 +359,26 @@ contains
         spec%ordered(i)%param_index(j) = ix
       enddo
       spec%ordered(i)%gap_fraction = config%calib%ordered(i)%gap_fraction
-      spec%ordered(i)%sample_gaps  = config%calib%ordered(i)%sample_gaps
+    enddo
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Ensure ordered constraints do not mix model and basin parameters.
+    ! -----------------------------------------------------------------------------------------------
+    do i=1,size(spec%ordered)
+   
+      ix=spec%ordered(i)%param_index(1)
+      isBasin=(param_map(ix)%ixB > 0)
+   
+      do j=2,size(spec%ordered(i)%param_index)
+   
+        ix=spec%ordered(i)%param_index(j)
+   
+        if((param_map(ix)%ixB > 0) .neqv. isBasin)then
+          message=trim(message)//'ordered constraint cannot mix mpar and bpar parameters'
+          err=20; return
+        endif
+   
+      enddo
     enddo
 
     ! -----------------------------------------------------------------------------------------------
@@ -365,13 +405,6 @@ contains
 
       if(ixReference == 0 .or. ixDependent == 0)then
         message=trim(message)//'multiplier parameter not found in parameter registry'
-        err=20; return
-      endif
-
-      ! Both parameters must be included in the calibration list.
-      if(.not.spec%params(ixReference)%sampled .or. &
-         .not.spec%params(ixDependent)%sampled)then
-        message=trim(message)//'multiplier parameters must both be sampled'
         err=20; return
       endif
 
@@ -483,7 +516,6 @@ contains
         param_values(i) = spec%params(i)%trial_value
       endif
     enddo
-    call decode_gap_chains(spec,param_values)
 
     ! Apply multiplicative parameter dependencies.
     do i=1,size(spec%multiplier)

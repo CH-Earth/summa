@@ -4,6 +4,34 @@ module parameter_search
 
   implicit none
   private
+  
+  ! **************************************************************************************************
+  ! Parameterization types used to construct physical parameter fields from calibration variables.
+  !
+  ! The calibration variable x can represent:
+  !   1. A physical parameter value
+  !   2. A spatial multiplier applied to an initialized parameter field
+  !   3. A parameter ratio applied to another parameter's effective physical values
+  !
+  ! The effective physical parameter values are:
+  !
+  !   Physical parameter:
+  !     P(i) = x
+  !
+  !   Spatial multiplier:
+  !     P(i) = x * P_init(i)
+  !
+  !   Parameter ratio:
+  !     P(i) = x * P_ref(i)
+  !
+  ! Here, i indexes the spatial elements of the parameter field.
+  ! Physical parameters are assigned a uniform value across all elements.
+  ! Spatial multipliers preserve the variability of the initialized field,
+  ! while parameter ratios use the effective values of a reference parameter.
+  ! **************************************************************************************************
+  integer(i4b), parameter, public :: param_physical = 1
+  integer(i4b), parameter, public :: param_spatial_multiplier = 2
+  integer(i4b), parameter, public :: param_ratio = 3
 
   ! **************************************************************************************************
   ! State information used to generate parameter samples during a search.
@@ -25,11 +53,19 @@ module parameter_search
   ! Information describing one model parameter.
   !
   ! The model-specific layer populates this structure. Parameters with sampled=.true. are included
-  ! in the search vector. Parameters with sampled=.false. may still participate in parameter
-  ! dependencies using their scalar trial value.
+  ! in the search vector, with one scalar calibration variable per parameter. The param_type
+  ! determines how this variable is used to construct the effective physical parameter field:
   !
-  ! The current implementation assumes that all parameters represented by this structure are
-  ! spatially uniform. Spatially varying parameter fields are not currently supported.
+  !   - Physical parameter: assign a spatially uniform value
+  !   - Spatial multiplier: scale the initialized parameter field
+  !   - Parameter ratio: scale the effective field of a reference parameter
+  !
+  ! Parameters with sampled=.false. retain their initialized values but may participate in
+  ! ordered constraints or serve as reference parameters. The reference_name identifies the
+  ! parameter used in a ratio, without assuming how its physical values are stored.
+  !
+  ! The lower and upper bounds apply to the scalar calibration variable, not necessarily
+  ! to the resulting physical parameter values.
   ! **************************************************************************************************
   type, public :: parameter_info
     character(len=64)  :: name
@@ -40,6 +76,8 @@ module parameter_search
     real(rkind)        :: upper
     logical(lgt)       :: sampled = .false.
     character(len=16)  :: transformation = 'none'
+    integer(i4b)       :: param_type = param_physical   ! Physical value, spatial multiplier, or parameter ratio
+    character(len=64)  :: reference_name = ''           ! Name of the reference parameter for a parameter ratio
   end type parameter_info
 
   ! **************************************************************************************************
@@ -56,7 +94,6 @@ module parameter_search
   type, public :: ordered_constraint
     integer(i4b), allocatable :: param_index(:)
     real(rkind)               :: gap_fraction = 0._rkind
-    logical(lgt)              :: sample_gaps = .false.
   end type ordered_constraint
 
   ! **************************************************************************************************
@@ -91,7 +128,6 @@ module parameter_search
   type :: ordered_search_info
     integer(i4b), allocatable :: param_index(:)
     real(rkind)               :: gap
-    logical(lgt)              :: sample_gaps = .false.
   end type ordered_search_info
 
   ! **************************************************************************************************
@@ -120,7 +156,6 @@ module parameter_search
   public :: transform_parameter
   public :: inverse_transform_parameter
   public :: check_ordered_constraints
-  public :: decode_gap_chains
 
 contains
 
@@ -343,8 +378,6 @@ contains
     logical(lgt) :: changed
     real(rkind)  :: range_lower
     real(rkind)  :: range_upper
-    integer(i4b) :: ixSearch
-    real(rkind), allocatable :: upper_room(:)
     character(len=256) :: cmessage
 
     err = 0
@@ -452,26 +485,6 @@ contains
 
     enddo
 
-    ! Gap-sampled chains must not share parameters with other constraints.
-    ! Their search variables are encoded as fractions, not physical values.
-    do iConstraint=1,size(search%ordered)
-      if(.not.spec%ordered(iConstraint)%sample_gaps) cycle
-
-      do i=1,size(search%ordered(iConstraint)%param_index)
-        ixParam=search%ordered(iConstraint)%param_index(i)
-
-        do j=1,size(search%ordered)
-          if(j==iConstraint) cycle
-
-          if(any(search%ordered(j)%param_index==ixParam))then
-            message=trim(message)//'gap-sampled parameter appears in multiple ordered constraints: '// &
-                    trim(search%params(ixParam)%name)
-            err=20; return
-          endif
-        enddo
-      enddo
-    enddo
-
     ! -----------------------------------------------------------------------------------------------
     ! Initialize feasible physical bounds.
     ! Fixed parameters have zero-width intervals at their initialized values.
@@ -563,99 +576,7 @@ contains
       endif
     enddo
 
-    ! -----------------------------------------------------------------------------------------------
-    ! A chain searched by its gaps: the first member up to the highest value that leaves room for
-    ! the rest, and every later member as a fraction of its room; these replace the bounds above
-    ! -----------------------------------------------------------------------------------------------
-    do iConstraint=1,size(search%ordered)
-      nOrdered = size(search%ordered(iConstraint)%param_index)
-      search%ordered(iConstraint)%sample_gaps = spec%ordered(iConstraint)%sample_gaps
-      if(search%ordered(iConstraint)%sample_gaps)then
-        call chain_uppers(spec,iConstraint,upper_room)
-        do i=1,nOrdered
-          ixParam = search%ordered(iConstraint)%param_index(i)
-          ixSearch = search%search_index(ixParam)
-          if(ixSearch == 0)then
-            message=trim(message)//'a chain searched by its gaps needs every member searched: '//trim(search%params(ixParam)%name)
-            err=20; return
-          endif
-          if(upper_room(i) < search%params(ixParam)%lower)then
-            write(message,'(A,ES12.5,A,ES12.5)') trim(message)//'ordered constraint leaves no room for '// &
-              trim(search%params(ixParam)%name)//': highest value that fits = ',upper_room(i),', lower bound = ',search%params(ixParam)%lower
-            err=20; return
-          endif
-          if(i == 1)then
-            search%upper(ixSearch) = min(search%upper(ixSearch), upper_room(1))
-            call transform_parameter(search%upper(ixSearch),search%transformation(ixSearch),search%search_upper(ixSearch),err,cmessage)
-            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-          else
-            if(trim(search%transformation(ixSearch)) /= 'none')then
-              message=trim(message)//'a chain searched by its gaps cannot transform a later member: '//trim(search%params(ixParam)%name)
-              err=20; return
-            endif
-            search%lower(ixSearch)=0._rkind;        search%upper(ixSearch)=1._rkind
-            search%search_lower(ixSearch)=0._rkind; search%search_upper(ixSearch)=1._rkind
-          endif
-        enddo
-        deallocate(upper_room)
-      endif
-    enddo
-
   end subroutine initialize_constraints
-
-  ! **************************************************************************************************
-  ! The highest value each member of ordered chain iConstraint can take and still leave room, by the
-  ! minimum gap, for every member after it.
-  ! **************************************************************************************************
-  subroutine chain_uppers(spec,iConstraint,upper_room)
-    implicit none
-    type(parameter_spec),     intent(in)  :: spec
-    integer(i4b),             intent(in)  :: iConstraint
-    real(rkind), allocatable, intent(out) :: upper_room(:)
-    integer(i4b) :: i,n
-    real(rkind)  :: gap
-
-    associate(chain => spec%ordered(iConstraint)%param_index)
-    n=size(chain)
-    gap=spec%ordered(iConstraint)%gap_fraction*(spec%params(chain(n))%upper - spec%params(chain(1))%lower)
-    allocate(upper_room(n))
-    upper_room(n)=spec%params(chain(n))%upper
-    do i=n-1,1,-1
-      upper_room(i)=min(spec%params(chain(i))%upper, upper_room(i+1)-gap)
-    enddo
-    end associate
-
-  end subroutine chain_uppers
-
-  ! **************************************************************************************************
-  ! Turn the fractions a chain searched by its gaps carries for its later members into values.
-  !
-  ! param_values is indexed like spec%params and holds the first member's value and the later members'
-  ! fractions (0-1) of their room; on return it holds every member's value.
-  ! **************************************************************************************************
-  subroutine decode_gap_chains(spec,param_values)
-    implicit none
-    type(parameter_spec), intent(in)    :: spec
-    real(rkind),          intent(inout) :: param_values(:)
-    real(rkind), allocatable :: upper_room(:)
-    integer(i4b) :: iConstraint,i,n
-    real(rkind)  :: gap,low
-
-    if(.not.allocated(spec%ordered)) return
-    do iConstraint=1,size(spec%ordered)
-      if(.not.spec%ordered(iConstraint)%sample_gaps) cycle
-      associate(chain => spec%ordered(iConstraint)%param_index)
-      n=size(chain)
-      gap=spec%ordered(iConstraint)%gap_fraction*(spec%params(chain(n))%upper - spec%params(chain(1))%lower)
-      call chain_uppers(spec,iConstraint,upper_room)
-      do i=2,n
-        low=max(spec%params(chain(i))%lower, param_values(chain(i-1))+gap)
-        param_values(chain(i))=low + param_values(chain(i))*(upper_room(i)-low)
-      enddo
-      end associate
-    enddo
-
-  end subroutine decode_gap_chains
 
   ! **************************************************************************************************
   ! Generate the next parameter sample for the selected search method.
@@ -1118,7 +1039,6 @@ contains
 
     check_ordered_constraints = .true.
     do iConstraint=1,size(search%ordered)
-      if(search%ordered(iConstraint)%sample_gaps) cycle   ! ordered by construction
       do i=1,size(search%ordered(iConstraint)%param_index)
         ixParam  = search%ordered(iConstraint)%param_index(i)
         ixSearch = search%search_index(ixParam)
