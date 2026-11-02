@@ -92,6 +92,7 @@ USE soil_utils_module,only:volFracLiq                     ! compute volumetric f
 USE soil_utils_module,only:volFracTot                     ! compute volumetric fraction of total water based on total matric head
 USE soil_utils_module,only:unsmoothHead                   ! inverse of the smooth min(psi,0)
 USE soil_utils_module,only:dUnsmoothHead_dPsi             ! derivative of the inverse of the smooth min(psi,0)
+USE soil_utils_module,only:psiSmooth                      ! width of the smooth min(psi,0) (m)
 USE soil_utils_module,only:crit_soilT                     ! compute critical temperature below which ice exists
 USE soil_utils_module,only:dVolFracTot_dPsi               ! derivative of total water w.r.t. total matric head (soil)
 USE soil_utilsAddPrime_module,only:d2VolFracTot_dPsi2     ! second derivative of total water w.r.t. total matric head (soil)
@@ -433,6 +434,10 @@ subroutine updatDiagnWithPrime(&
               psiS = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
               mLayerMatricHeadTrial(ixControlIndex) = unsmoothHead(psiS)
               mLayerMatricHeadPrime(ixControlIndex) = dUnsmoothHead_dPsi(psiS)*dPsi_dTheta(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) * mLayerVolFracWatPrime(iLayer)
+              if(mLayerVolFracIceTrial(iLayer) <= epsilon(1._rkind) .or. mLayerMatricHeadLiqTrial(ixControlIndex) >= psiSmooth)then ! no ice or saturated: total and liquid heads are the same
+                mLayerMatricHeadTrial(ixControlIndex) = mLayerMatricHeadLiqTrial(ixControlIndex)
+                mLayerMatricHeadPrime(ixControlIndex) = mLayerMatricHeadLiqPrime(ixControlIndex)
+              end if
               ! --> update the total water from the total water matric potential
             case(iname_matLayer)
               mLayerVolFracWatTrial(iLayer) = volFracTot(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))

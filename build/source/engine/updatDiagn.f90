@@ -88,6 +88,7 @@ USE soil_utils_module,only:matricHead                 ! compute the matric head 
 USE soil_utils_module,only:volFracLiq                 ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:volFracTot                 ! compute volumetric fraction of total water based on total matric head
 USE soil_utils_module,only:matricHeadTot              ! compute the total matric head based on total water content
+USE soil_utils_module,only:psiSmooth                  ! width of the smooth min(psi,0) (m)
 USE soil_utils_module,only:crit_soilT                 ! compute critical temperature below which ice exists
 USE soil_utils_module,only:dVolFracTot_dPsi           ! derivative of total water w.r.t. total matric head (soil)
 USE soil_utils_module,only:liquidHead                 ! compute the liquid water matric potential
@@ -385,7 +386,8 @@ subroutine updatDiagn(&
               mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res(ixControlIndex)
               mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
               mLayerMatricHeadTrial(ixControlIndex) = matricHeadTot(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-              if(mLayerVolFracIceTrial(iLayer) <= epsilon(1._rkind)) mLayerMatricHeadTrial(ixControlIndex) = mLayerMatricHeadLiqTrial(ixControlIndex) ! no ice: total and liquid heads are the same
+              if(mLayerVolFracIceTrial(iLayer) <= epsilon(1._rkind) .or. mLayerMatricHeadLiqTrial(ixControlIndex) >= psiSmooth) &
+                mLayerMatricHeadTrial(ixControlIndex) = mLayerMatricHeadLiqTrial(ixControlIndex) ! no ice or saturated: total and liquid heads are the same
             ! --> update the total water from the total water matric potential
             case(iname_matLayer)
               mLayerVolFracWatTrial(iLayer) = volFracTot(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))

@@ -43,6 +43,7 @@ USE soil_utils_module,only:dSmoothHead_dPsi
 USE soil_utils_module,only:d2SmoothHead_dPsi2
 USE soil_utils_module,only:unsmoothHead
 USE soil_utils_module,only:dUnsmoothHead_dPsi
+USE soil_utils_module,only:psiSmooth
 
 ! privacy
 implicit none
@@ -134,7 +135,7 @@ subroutine liquidHeadPrime(&
       dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
     endif
     dPsiLiq_dEffSat = dPsiLiq_dEffSat*dUnsmoothHead_dPsi(matricHeadLiq)
-    matricHeadLiq   = unsmoothHead(matricHeadLiq) ! liquid water is the retention curve at smoothHead(matricHeadLiq), as total water is
+    matricHeadLiq   = unsmoothHead(matricHeadLiq) + max(matricHeadTotal - psiSmooth, 0._rkind) ! retention curve at smoothHead(matricHeadLiq); the total head above psiSmooth
     if (satTerm > 0._rkind .and. volFracLiqPrime.ne.realMissing .and. volFracIcePrime.ne.realMissing)then
       effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2_i4b
       matricHeadLiqPrime = dPsiLiq_dEffSat*effSatPrime
@@ -144,6 +145,10 @@ subroutine liquidHeadPrime(&
 
     ! derivative in the liquid water matric potential w.r.t. the total water matric potential
     dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
+    if(matricHeadTotal > psiSmooth)then
+      dPsiLiq_dPsi0 = dPsiLiq_dPsi0 + 1._rkind
+      if(matricHeadLiqPrime/=realMissing) matricHeadLiqPrime = matricHeadLiqPrime + matricHeadTotalPrime
+    end if
     ! derivative in the liquid water matric potential w.r.t. temperature
     dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2_i4b) + dTheta_dT/xDen
     dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp

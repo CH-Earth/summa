@@ -788,6 +788,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
   USE soil_utils_module,only:volFracTot     ! compute volumetric fraction of total water based on total matric head
   USE soil_utils_module,only:matricHeadTot  ! compute the total matric head based on total water content
+  USE soil_utils_module,only:psiSmooth      ! width of the smooth min(psi,0) (m)
 
   implicit none
   
@@ -1029,7 +1030,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
                 avPore = theta_sat(iLayer) - mLayerVolFracIce(iLayer+nSnow+nLake) - theta_res(iLayer)  ! available pore space
                 scalarLiq = effSat*avPore + theta_res(iLayer)
                 xPsi00 = matricHeadTot(scalarLiq + mLayerVolFracIce(iLayer+nSnow+nLake),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-                if(mLayerVolFracIce(iLayer+nSnow+nLake) <= epsilon(1._rkind)) xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! no ice: total and liquid heads are the same
+                if(mLayerVolFracIce(iLayer+nSnow+nLake) <= epsilon(1._rkind) .or. stateVecPrev(ixLiq) + xInc(ixLiq) >= psiSmooth) &
+                  xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! no ice or saturated: total and liquid heads are the same
               case(iname_matLayer); xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! only true if using iname_matLayer, otherwise may want to fix this
               case(iname_watLayer); xPsi00 = matricHead(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
               case(iname_liqLayer) 

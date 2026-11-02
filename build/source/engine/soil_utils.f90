@@ -58,6 +58,7 @@ public::matricHeadTot
 public::unsmoothHead
 public::dUnsmoothHead_dPsi
 public::liquidHead
+public::psiSmooth
 public::gammp,gammp_complex
 public::dgammp_dx
 public::LogSumExp
@@ -171,7 +172,7 @@ subroutine liquidHead(&
       dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
     endif
     dPsiLiq_dEffSat = dPsiLiq_dEffSat*dUnsmoothHead_dPsi(matricHeadLiq)
-    matricHeadLiq   = unsmoothHead(matricHeadLiq) ! liquid water is the retention curve at smoothHead(matricHeadLiq), as total water is
+    matricHeadLiq   = unsmoothHead(matricHeadLiq) + max(matricHeadTotal - psiSmooth, 0._rkind) ! retention curve at smoothHead(matricHeadLiq); the total head above psiSmooth
 
     ! -----
     ! - compute derivative in the liquid water matric potential w.r.t. the total water matric potential...
@@ -186,6 +187,7 @@ subroutine liquidHead(&
       endif
       ! (compute derivative in the liquid water matric potential w.r.t. the total water matric potential)
       dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
+      if(matricHeadTotal > psiSmooth) dPsiLiq_dPsi0 = dPsiLiq_dPsi0 + 1._rkind
     endif  ! if dPsiLiq_dTemp is desired
 
     ! -----
@@ -852,17 +854,19 @@ function SoftArgMax(alpha,x) result(SAM)
 end function SoftArgMax
 
 ! ******************************************************************************************************************************
-! public functions smoothHead, dSmoothHead_dPsi, d2SmoothHead_dPsi2: smooth min(psi,0) of total matric head psi (m), width psiSmooth,
-! and its first (-) and second (m-1) derivatives; always negative, so total water stays just below theta_sat at positive head
+! public functions smoothHead, dSmoothHead_dPsi, d2SmoothHead_dPsi2: smooth min(psi,0) of total matric head psi (m), and its first (-)
+! and second (m-1) derivatives; quadratic for |psi| < psiSmooth, exactly psi below and 0 above, so total water is theta_sat at psi >= psiSmooth
 ! ******************************************************************************************************************************
 function smoothHead(psi)
   implicit none
   real(rkind),intent(in) :: psi        ! total matric head (m)
-  real(rkind)            :: smoothHead ! 0.5*(psi - sqrt(psi**2 + psiSmooth**2)) (m)
-  if(psi > 0._rkind)then
-    smoothHead = -0.5_rkind*psiSmooth**2_i4b/(sqrt(psi**2_i4b + psiSmooth**2_i4b) + psi) ! no cancellation at large psi
+  real(rkind)            :: smoothHead ! smooth min(psi,0) (m)
+  if(psi <= -psiSmooth)then
+    smoothHead = psi
+  elseif(psi >= psiSmooth)then
+    smoothHead = 0._rkind
   else
-    smoothHead = 0.5_rkind*(psi - sqrt(psi**2_i4b + psiSmooth**2_i4b))
+    smoothHead = -0.25_rkind*(psi - psiSmooth)**2_i4b/psiSmooth
   end if
 end function smoothHead
 
@@ -870,12 +874,12 @@ function dSmoothHead_dPsi(psi)
   implicit none
   real(rkind),intent(in) :: psi              ! total matric head (m)
   real(rkind)            :: dSmoothHead_dPsi ! derivative of smoothHead (-)
-  real(rkind)            :: r                ! sqrt(psi**2 + psiSmooth**2) (m)
-  r = sqrt(psi**2_i4b + psiSmooth**2_i4b)
-  if(psi > 0._rkind)then
-    dSmoothHead_dPsi = 0.5_rkind*psiSmooth**2_i4b/(r*(r + psi))
+  if(psi <= -psiSmooth)then
+    dSmoothHead_dPsi = 1._rkind
+  elseif(psi >= psiSmooth)then
+    dSmoothHead_dPsi = 0._rkind
   else
-    dSmoothHead_dPsi = 0.5_rkind*(1._rkind - psi/r)
+    dSmoothHead_dPsi = 0.5_rkind*(psiSmooth - psi)/psiSmooth
   end if
 end function dSmoothHead_dPsi
 
@@ -883,7 +887,8 @@ function d2SmoothHead_dPsi2(psi)
   implicit none
   real(rkind),intent(in) :: psi                ! total matric head (m)
   real(rkind)            :: d2SmoothHead_dPsi2 ! second derivative of smoothHead (m-1)
-  d2SmoothHead_dPsi2 = -0.5_rkind*psiSmooth**2_i4b/sqrt(psi**2_i4b + psiSmooth**2_i4b)**3_i4b
+  d2SmoothHead_dPsi2 = 0._rkind
+  if(abs(psi) < psiSmooth) d2SmoothHead_dPsi2 = -0.5_rkind/psiSmooth
 end function d2SmoothHead_dPsi2
 
 ! ******************************************************************************************************************************
@@ -907,29 +912,39 @@ end function dVolFracTot_dPsi
 function matricHeadTot(theta,alpha,theta_res,theta_sat,n,m)
   implicit none
   real(rkind),intent(in) :: theta,alpha,theta_res,theta_sat,n,m ! total water content (-) and van Genuchten parameters
-  real(rkind)            :: matricHeadTot                       ! total matric head (m), 0 at or above theta_sat
+  real(rkind)            :: matricHeadTot                       ! total matric head (m), psiSmooth at or above theta_sat
   real(rkind)            :: psiS                                ! smoothed head on the van Genuchten curve (m)
   psiS = matricHead(theta,alpha,theta_res,theta_sat,n,m)
   matricHeadTot = unsmoothHead(psiS)
 end function matricHeadTot
 
 ! ******************************************************************************************************************************
-! public functions unsmoothHead, dUnsmoothHead_dPsi: inverse of smoothHead for a smoothed head psiS < 0 (m), 0 otherwise, and its derivative (-)
+! public functions unsmoothHead, dUnsmoothHead_dPsi: inverse of smoothHead (m), psiSmooth for a smoothed head psiS >= 0, and its derivative (-)
 ! ******************************************************************************************************************************
 function unsmoothHead(psiS)
   implicit none
   real(rkind),intent(in) :: psiS         ! smoothed head on the van Genuchten curve (m)
   real(rkind)            :: unsmoothHead ! head whose smoothHead is psiS (m)
-  unsmoothHead = 0._rkind
-  if(psiS < 0._rkind) unsmoothHead = psiS - 0.25_rkind*psiSmooth**2_i4b/psiS
+  if(psiS <= -psiSmooth)then
+    unsmoothHead = psiS
+  elseif(psiS >= 0._rkind)then
+    unsmoothHead = psiSmooth
+  else
+    unsmoothHead = psiSmooth - 2._rkind*sqrt(-psiSmooth*psiS)
+  end if
 end function unsmoothHead
 
 function dUnsmoothHead_dPsi(psiS)
   implicit none
   real(rkind),intent(in) :: psiS               ! smoothed head on the van Genuchten curve (m)
   real(rkind)            :: dUnsmoothHead_dPsi ! derivative of unsmoothHead (-)
-  dUnsmoothHead_dPsi = 1._rkind
-  if(psiS < 0._rkind) dUnsmoothHead_dPsi = 1._rkind + 0.25_rkind*psiSmooth**2_i4b/psiS**2_i4b
+  if(psiS <= -psiSmooth)then
+    dUnsmoothHead_dPsi = 1._rkind
+  elseif(psiS >= 0._rkind)then
+    dUnsmoothHead_dPsi = 0._rkind
+  else
+    dUnsmoothHead_dPsi = sqrt(-psiSmooth/psiS)
+  end if
 end function dUnsmoothHead_dPsi
 
 ! ******************************************************************************************************************************
