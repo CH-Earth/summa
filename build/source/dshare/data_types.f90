@@ -272,6 +272,8 @@ MODULE data_types
   type(grid_info), allocatable           :: gridInfo(:)                   ! basic information of grids within the gru
   type(glac_info), allocatable           :: glacInfo(:)                   ! basic information of glaciers within the gru 
   integer(i4b)                           :: gru_nc                        ! index of gru in the netcdf file
+  integer(i4b), allocatable              :: downIdx(:)                    ! index of the downslope HRU (0 = GRU outlet), set on the first time step
+  integer(i4b), allocatable              :: hruOrder(:)                   ! HRU indices upslope before downslope, set on the first time step
  endtype gru2hru_map
 
  ! the mapping from the HRUs to the GRUs
