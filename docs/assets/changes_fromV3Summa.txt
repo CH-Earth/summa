@@ -321,4 +321,4 @@ AFTER tag of v4.0.0-exp-Sundials
      Solver failures recoverable in calibration; --home and --persistent-output options; Fir build and SLURM scripts in utils/hpc/fir, commit 88cc8242 Oct 23, 2026
  88) Noah-MP parameters, snow/ice enthalpy tables and elapsedSec days kept per HRU, so HRUs can run concurrently, commit 2cb8db21 Nov 2, 2026
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit c9cdcc34 Nov 2, 2026
--90) soil_utils.f90 total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, liquid head its inverse, commit 88ccd923 Nov 2, 2026
+-90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit 88ccd923 Nov 2, 2026
