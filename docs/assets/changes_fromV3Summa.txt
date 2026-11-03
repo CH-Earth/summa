@@ -307,6 +307,7 @@ AFTER tag of v4.0.0-exp-Sundials
      -2) when transpiration latent flux is toward the leaves (condensation) derivative should add to canopy evaporation derivative, commit 788eacb8 Oct 5, 2026
      -3) soil water super-diagonal no longer overwrites the baseflow derivatives of the layer above, commit d4c44fa7 Oct 21, 2026
      -4) scalar soil water solve zeroes the derivative of the flux from above, which it holds fixed, commit 9b0deb0e Oct 21, 2026
+     -5) frozen-soil liquid head derivative w.r.t. total head uses the ratio of retention slopes, finite near saturation, commit ca4c3ad6 Nov 3, 2026
 -79) Change scalarRootZoneTemp to be the depth-weighed (last root layer truncated at rootingDepth) arithmatic mean, instead of non depth-weighed arithmatic mean. The variable is diagnostic only, not used in model calculations, commit ac1b2fc3 and 219221fe Oct 21, 2026
 -80) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit a56ed482 Oct 21, 2026
  81) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit 11752915 Oct 21, 2026
