@@ -322,3 +322,4 @@ AFTER tag of v4.0.0-exp-Sundials
  88) Noah-MP parameters, snow/ice enthalpy tables and elapsedSec days kept per HRU, so HRUs can run concurrently, commit 2cb8db21 Nov 2, 2026
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit c9cdcc34 Nov 2, 2026
  90) derivforce.f90 Oudin potential evaporation function with parameters oudinPETScaleK1 and oudinPETTempThrK2, commit 99485bb0 Nov 3, 2026
+ 91) network_routing.f90 coupled mizuRoute lakes with mizuRoute.is_lake_sim, taking precipitation and Oudin evaporation of water-class HRUs averaged per GRU and the SUMMA date; not with OpenWQ, commit eeed8bd9 Nov 3, 2026
