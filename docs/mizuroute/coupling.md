@@ -185,6 +185,60 @@ could in principle instead supply runoff from individual SUMMA HRUs and rely on
 mizuRoute for the subsequent spatial aggregation and unresolved-network
 routing, but this configuration is not currently implemented.
 
+## Lakes
+
+SUMMA does not simulate open water: HRUs of the water land-cover class are
+skipped and their fluxes are zero. When `is_lake_sim = true` in the
+`[mizuRoute]` TOML section, lakes are instead represented by mizuRoute lake
+segments, routed with the mizuRoute lake model in place of the river routing
+method.
+
+Each time step SUMMA supplies, for each water-class HRU and alongside the routed
+runoff:
+
+- **precipitation** (`pptrate`, the HRU's own forcing) [m s-1]; and
+- **evaporation** from the Oudin et al. (2005) formula, using the HRU's own
+  `SWRadAtm` and `airtemp` and the parameters `oudinPETScaleK1` and
+  `oudinPETTempThrK2` (defaults 100 and 5) [m s-1, positive upward].
+
+On the mizuRoute side the values of the water-class HRUs in a GRU are
+area-averaged to one value per GRU, then remapped to the river-network HRUs in
+the same way as runoff. A lake
+segment then receives runoff plus precipitation minus evaporation over the area
+of the HRUs that drain to it (mizuRoute `LakeInputOption = 2`, fixed in the
+coupled model). River segments ignore precipitation and evaporation.
+
+Requirements and limitations:
+
+- All four mizuRoute lake models are available: endorheic (`LakeModelType = 0`),
+  Döll (1), Hanasaki (2) and HYPE (3). SUMMA passes its time stamp for the step
+  (Gregorian calendar) as the date used by the Hanasaki and HYPE models.
+  Water-management inputs (abstraction, target volumes) are not supported, so
+  Hanasaki demand comes from its monthly demand parameters.
+- The hydrofabric must contain `islake` and `LakeModelType`, plus the
+  parameters of each lake model in use (e.g. `D03_MaxStorage`,
+  `D03_Coefficient`, `D03_Power` and `D03_S0` for Döll), all on the segment
+  dimension and with the mizuRoute default names. Endorheic lakes take their
+  initial storage from `D03_S0`, which is only read when at least one Döll lake
+  is present.
+- Each lake needs a segment with `islake = 1` and its own HRU, whose `hruToSegId`
+  points to that segment. This HRU should cover the lake only, with an `area`
+  equal to the SUMMA water-class HRU area, because precipitation and evaporation
+  are applied over the whole area of every HRU that drains to a lake segment.
+  Land draining to the lake needs a separate HRU, attached to a river segment
+  whose `downSegId` is the lake, so that its runoff enters as inflow from upstream.
+- A SUMMA water-class HRU is not linked to a particular lake. All lakes on a GRU
+  receive that GRU's averaged rates, each applied over the lake's own area, so
+  differences in forcing between water-class HRUs in a GRU are not retained. A
+  GRU without a water-class HRU supplies zero precipitation and evaporation.
+- OpenWQ cannot be used with `is_lake_sim = true`, because its reach water budget
+  has no lake precipitation or evaporation; the run stops at setup.
+- With `is_lake_sim = true` the timestep output also holds `lake_precip` and
+  `lake_evap` on the `gru` dimension, and the storage of each reach or lake,
+  `V_reach`.
+- Coupled runs always start cold: lake storage starts at the model's default
+  (e.g. `D03_MaxStorage` for Döll).
+
 ## Build-system separation
 
 The software boundary described above is also reflected in the CMake build

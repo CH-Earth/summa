@@ -40,6 +40,7 @@ USE globalData,only:yearLength       ! number of days in the current year
 USE globalData,only:upland           ! horizontal domain type for upland areas
 ! check if mizuroute is active
 USE build_options, only: mizuroute_active
+USE summa_lakeCoupling, only: set_lake_coupling
 #ifdef MIZUROUTE_ACTIVE
 USE mizuroute_coupling, only: route_mizuroute_from_summa
 #endif
@@ -330,7 +331,12 @@ contains
    do iGRU = 1,summa1_struc%nGRU_local
      summa1_struc%coupling(iGRU)%qsim = summa1_struc%bvarStruct%gru(iGRU)%var(iLookBVAR%averageRoutedRunoff)%dat(1)
    enddo
-   call route_mizuroute_from_summa(modelTimeStep, summa1_struc, err, cmessage)
+   call set_lake_coupling(summa1_struc)
+   associate(time => summa1_struc%timeStruct%var)
+   call route_mizuroute_from_summa(modelTimeStep,                                                                    &
+                                   [time(iLookTIME%iyyy), time(iLookTIME%im), time(iLookTIME%id), time(iLookTIME%ih), time(iLookTIME%imin)], &
+                                   summa1_struc, err, cmessage)
+   end associate
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   endif  ! (if mizuRoute is selected)

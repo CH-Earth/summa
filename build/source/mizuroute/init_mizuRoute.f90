@@ -83,6 +83,7 @@ CONTAINS
   use public_var, only: ancil_dir
   use public_var, only: idSegOut
   use public_var, only: ntopAugmentMode
+  use public_var, only: is_lake_sim
   use globalData, only: onRoute
   use globaldata, only: nRoutes
   use globaldata, only: routeMethods
@@ -94,6 +95,7 @@ CONTAINS
   use read_param_module,   only: read_param           ! read the routing parameters
   use process_ntopo,       only: put_data_struct      ! copy data to the new structures 
   use read_remap,          only: get_remap_data       ! read remap data
+  use read_streamSeg,      only: mod_meta_varFile     ! flag lake variables to be read from the hydrofabric
   use nr_utils,            only: match_index
   implicit none
 
@@ -162,6 +164,12 @@ CONTAINS
   ! Enable all mizuRoute routing formulations during network initialization so that
   ! the complete set of routing-specific network data structures is available.
   onRoute(:) = .true.
+
+  ! read the lake flags and lake-model parameters from the hydrofabric
+  if (is_lake_sim) then
+    call mod_meta_varFile(ierr, cmessage)
+    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
+  endif
 
   ! Read the hydrofabric and compute the derived network attributes.
 
@@ -326,6 +334,10 @@ CONTAINS
   ! Routing options
   use public_var, only: idSegOut
   use public_var, only: ntopAugmentMode
+  ! lake options
+  use public_var, only: is_lake_sim
+  use public_var, only: LakeInputOption
+  use public_var, only: calendar
   use globaldata, only: routeMethods
   use globaldata, only: nRoutes
   use globalData, only: nMolecule
@@ -423,6 +435,13 @@ CONTAINS
   ! network topology
   idSegOut = info%ntopo%idSegOut
 
+  ! lakes take runoff plus precipitation minus evaporation: host runoff is remapped onto lake HRUs too
+  is_lake_sim     = info%mrout%is_lake_sim
+  LakeInputOption = 2
+
+  ! SUMMA dates are Gregorian
+  calendar = 'standard'
+
   ! time step
   dt_route = info%mrout%dt
 
@@ -478,6 +497,9 @@ CONTAINS
      if(ierr/=0)then; message=trim(message)//'unable to allocate basin hru id'; return; endif
      allocate(river_network%core%runoff%sim(nSpace(1)), stat=ierr)
      if(ierr/=0)then; message=trim(message)//'unable to allocate basin runoff input'; return; endif
+     allocate(river_network%driver%host_precip(nSpace(1)), &
+              river_network%driver%host_evapo(nSpace(1)), source=0._dp, stat=ierr)
+     if(ierr/=0)then; message=trim(message)//'unable to allocate lake precipitation/evaporation input'; return; endif
 
    ! 2-D gridded runoff
    else
@@ -488,6 +510,11 @@ CONTAINS
    ! allocate space for HRU variables
    allocate(river_network%core%runoff%basinRunoff(n_hru), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'unable to allocate hru runoff input'; return; endif
+
+   ! lake precipitation and evaporation on river-network HRUs (m/s)
+   allocate(river_network%core%runoff%basinPrecip(n_hru), &
+            river_network%core%runoff%basinEvapo(n_hru), source=0._dp, stat=ierr)
+   if(ierr/=0)then; message=trim(message)//'unable to allocate hru lake precipitation/evaporation'; return; endif
    
    ! ---- initialize network states and fluxes ----
    
@@ -545,6 +572,8 @@ CONTAINS
        river_network%core%flux(iSeg)%BASIN_QR(:)   = 0._dp
        river_network%core%flux(iSeg)%REACH_WM_FLUX = 0._dp
        river_network%core%flux(iSeg)%REACH_WM_VOL  = 0._dp
+       river_network%core%flux(iSeg)%basinPrecip   = 0._dp
+       river_network%core%flux(iSeg)%basinEvapo    = 0._dp
 
        ! method-specific routing fluxes
        river_network%core%flux(iSeg)%ROUTE(idxRoute)%REACH_VOL   = 0._dp
@@ -562,6 +591,11 @@ CONTAINS
     message=trim(message)//'unable to allocate basin runoff output'
     return
   endif
+  if (info%mrout%is_lake_sim) then
+    allocate(river_network%driver%lake_precip(nSpace(1),n_write), &
+             river_network%driver%lake_evap(nSpace(1),n_write), source=0._dp, stat=ierr)
+    if(ierr/=0)then; message=trim(message)//'unable to allocate lake precipitation/evaporation output'; return; endif
+  endif
   if (nRoutes /= 1) then
     message = trim(message)//'implementation requires exactly one active mizuRoute routing method'
     ierr = 20; return
@@ -574,6 +608,12 @@ CONTAINS
   
   ! * loop through ACTIVE routing methods
   do idxRoute=1,nRoutes
+
+    ! reach storage for each host-model output step
+    if (info%mrout%is_lake_sim) then
+      allocate(river_network%driver%method(idxRoute)%volume(n_seg, n_write), source=0._dp, stat=ierr)
+      if(ierr/=0)then; message=trim(message)//'unable to allocate reach storage output'; return; endif
+    endif
 
     ! reach streamflow river-network stream segments for each host-model output step  
     allocate(river_network%driver%method(idxRoute)%streamflow(n_seg, n_write), source=0._dp, stat=ierr)

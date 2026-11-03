@@ -41,6 +41,8 @@ module globalData
  
   USE base_route, ONLY: routeContainer ! a container of instantiated routing methods
 
+  USE datetime_data, ONLY: datetime    ! date-time data type
+
   implicit none
   private
   save
@@ -50,6 +52,11 @@ module globalData
   logical(lgt),                    public :: masterproc
   integer(i4b),                    public :: maxtdh=0                    ! maximum unit-hydrograph future time steps
   type(cMolecule),                 public :: nMolecule                   ! number of computational molecule (used for KW, MC, DW)
+
+  ! ---------- time (used by lake routing) ---------------------------------------------------------
+  integer(i4b),                    public :: iTime=0                     ! host-model time step index (1 = first step)
+  logical(lgt),                    public :: isColdStart=.true.          ! coupled mizuRoute always starts cold
+  type(datetime),                  public :: simDatetime(0:2)            ! only simDatetime(1), the host time stamp, is set
 
   ! time delay histogram (hillslope routing)
   real(dp),           allocatable, public :: FRAC_FUTURE(:)         ! fraction of runoff in future time steps

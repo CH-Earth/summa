@@ -121,6 +121,11 @@ The `dt` option specifies the mizuRoute routing time step in seconds. In the
 example above, `dt = 3600` specifies an hourly routing time step. The routing 
 time step must be less than or equal to the SUMMA model time step.
 
+The optional `is_lake_sim = true` routes the lake segments of the hydrofabric
+with the mizuRoute lake model; see
+[Coupling architecture](coupling.md#lakes) for the variables the hydrofabric
+must then contain.
+
 ### Coupled output
 
 mizuRoute output is written directly into the SUMMA NetCDF output files. The
