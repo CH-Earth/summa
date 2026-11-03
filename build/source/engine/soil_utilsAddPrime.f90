@@ -44,6 +44,7 @@ USE soil_utils_module,only:d2SmoothHead_dPsi2
 USE soil_utils_module,only:unsmoothHead
 USE soil_utils_module,only:dUnsmoothHead_dPsi
 USE soil_utils_module,only:psiSmooth
+USE soil_utils_module,only:dPsiLiqFrozen_dPsi0
 
 ! privacy
 implicit none
@@ -68,7 +69,6 @@ subroutine liquidHeadPrime(&
                       volFracLiq                               ,& ! intent(in)    : volumetric fraction of liquid water (-)
                       volFracIce                               ,& ! intent(in)    : volumetric fraction of ice (-)
                       vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m,& ! intent(in)    : soil parameters
-                      dVolTot_dPsi0                            ,& ! intent(in)    : derivative in total volumetric water content w.r.t. matric head (m-1)
                       dTheta_dT                                ,& ! intent(in)    : derivative in volumetric liquid water w.r.t. temperature (K-1)
                       volFracLiqPrime                          ,& ! intent(in)    : volumetric fraction of liquid water time derivative (-)
                       volFracIcePrime                          ,& ! intent(in)    : volumetric fraction of ice time derivative (-)
@@ -86,7 +86,6 @@ subroutine liquidHeadPrime(&
   real(rkind),intent(in)      :: volFracLiq                                ! volumetric fraction of liquid water (-)
   real(rkind),intent(in)      :: volFracIce                                ! volumetric fraction of ice (-)
   real(rkind),intent(in)      :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
-  real(rkind),intent(in)      :: dVolTot_dPsi0                             ! derivative in total volumetric water content w.r.t. matric head (m-1)
   real(rkind),intent(in)      :: dTheta_dT                                 ! derivative in volumetric liquid water w.r.t. temperature (K-1)
   real(rkind),intent(in)      :: volFracLiqPrime                           ! volumetric fraction of liquid water time derivative ()
   real(rkind),intent(in)      :: volFracIcePrime                           ! volumetric fraction of ice time derivative ()
@@ -106,6 +105,7 @@ subroutine liquidHeadPrime(&
   real(rkind)                 :: effSatPrime                               ! effective saturation time derivative (-)
   real(rkind)                 :: xDef                                      ! saturation deficit of the total water, theta_sat - volFracLiq - volFracIce (-)
   real(rkind)                 :: satTerm                                   ! effSat**(-1/m) - 1 (-)
+  real(rkind)                 :: psiSL                                     ! smoothed liquid head on the van Genuchten curve (m)
   ! ------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='liquidHeadPrime/'
@@ -134,8 +134,9 @@ subroutine liquidHeadPrime(&
       matricHeadLiq   = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
       dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
     endif
-    dPsiLiq_dEffSat = dPsiLiq_dEffSat*dUnsmoothHead_dPsi(matricHeadLiq)
-    matricHeadLiq   = unsmoothHead(matricHeadLiq) + max(matricHeadTotal - psiSmooth, 0._rkind) ! retention curve at smoothHead(matricHeadLiq); the total head above psiSmooth
+    psiSL           = matricHeadLiq
+    dPsiLiq_dEffSat = dPsiLiq_dEffSat*dUnsmoothHead_dPsi(psiSL)
+    matricHeadLiq   = unsmoothHead(psiSL) + max(matricHeadTotal - psiSmooth, 0._rkind) ! retention curve at smoothHead(matricHeadLiq); the total head above psiSmooth
     if (satTerm > 0._rkind .and. volFracLiqPrime.ne.realMissing .and. volFracIcePrime.ne.realMissing)then
       effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2_i4b
       matricHeadLiqPrime = dPsiLiq_dEffSat*effSatPrime
@@ -144,7 +145,7 @@ subroutine liquidHeadPrime(&
     endif
 
     ! derivative in the liquid water matric potential w.r.t. the total water matric potential
-    dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
+    dPsiLiq_dPsi0 = dPsiLiqFrozen_dPsi0(smoothHead(matricHeadTotal),psiSL,xNum,xDen,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     if(matricHeadTotal > psiSmooth)then
       dPsiLiq_dPsi0 = dPsiLiq_dPsi0 + 1._rkind
       if(matricHeadLiqPrime/=realMissing) matricHeadLiqPrime = matricHeadLiqPrime + matricHeadTotalPrime

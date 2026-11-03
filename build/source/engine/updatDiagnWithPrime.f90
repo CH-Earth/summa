@@ -860,7 +860,6 @@ subroutine updatDiagnWithPrime(&
                           mLayerVolFracLiqTrial(iLayer)             ,& ! intent(in):  volumetric fraction of liquid water (-)
                           mLayerVolFracIceTrial(iLayer)             ,& ! intent(in):  volumetric fraction of ice (-)
                           vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex) ,& ! intent(in): soil parameters
-                          dVolTot_dPsi0(ixControlIndex)             ,& ! intent(in):  derivative in total volumetric water content w.r.t. matric head (m-1)
                           mLayerdTheta_dTk(iLayer)                  ,& ! intent(in):  derivative in volumetric liquid water w.r.t. temperature (K-1)
                           mLayerVolFracLiqPrime(iLayer)             ,& ! intent(in):  volumetric fraction of liquid water time derivative (-)
                           mLayerVolFracIcePrime(iLayer)             ,& ! intent(in):  volumetric fraction of ice time derivative (-)
