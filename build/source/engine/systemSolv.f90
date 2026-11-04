@@ -152,7 +152,7 @@ subroutine systemSolv(&
                       err,message)         ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
-  USE allocspace_module,only:allocLocal                     ! allocate local data structures
+  USE allocspace_module,only:allocCached,ixCache_systemSolvInit,ixCache_systemSolvSum ! cached local data structures
   ! state vector and solver
   USE getVectorz_module,only:getScaling                     ! get the scaling vectors and state multipliers
   USE convertEnthalpyTemp_module,only:T2enthalpy_snLaGlWat  ! convert temperature to liq+ice enthalpy for a snow/lake/glce layer
@@ -230,7 +230,7 @@ subroutine systemSolv(&
   ! ------------------------------------------------------------------------------------------------------
   logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
   integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
-  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
+  type(var_dlength),pointer       :: flux_init                     ! model fluxes at the start of the time step
   real(rkind),allocatable         :: dBaseflow_dWat(:,:)           ! derivative in baseflow w.r.t. soil water characteristic
   real(rkind),allocatable         :: dBaseflow_dTk(:,:)            ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
   real(rkind)                     :: stateVecNew(nState)           ! new state vector (mixed units)
@@ -244,7 +244,7 @@ subroutine systemSolv(&
   ! ida variables
   real(rkind)                     :: atol(nState)                  ! absolute tolerance ida
   real(rkind)                     :: rtol(nState)                  ! relative tolerance ida
-  type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_cur
+  type(var_dlength),pointer       :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_cur
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   ! ida solver variables outputted if use eval8summaWithPrime (not used here, just inside ida solver)
   logical(lgt)                    :: firstSplitOper0               ! flag to indicate if we are processing the first flux call in a splitting operation, changed inside eval8summaWithPrime
@@ -365,7 +365,7 @@ contains
    ixGroundwater     => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
    &)
    ! allocate space for the model fluxes at the start of the time step
-   call allocLocal(flux_meta(:),flux_init,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+   call allocCached(ixCache_systemSolvInit,flux_meta(:),flux_init,nSnow,nLake,nSoil,nGlce,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for mLayerCmpress_sum at the start of the time step
@@ -694,7 +694,7 @@ contains
    nGlce => indx_data%var(iLookINDEX%nGlce)%dat(1) & ! intent(in): [i4b] number of glacier ice layers
    )
    ! allocate space for the temporary flux_sum structure
-   call allocLocal(flux_meta(:),flux_sum,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+   call allocCached(ixCache_systemSolvSum,flux_meta(:),flux_sum,nSnow,nLake,nSoil,nGlce,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! initialize flux_sum

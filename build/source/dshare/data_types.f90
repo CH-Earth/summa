@@ -1283,7 +1283,7 @@ contains
  subroutine initialize_in_vegNrgFlux(in_vegNrgFlux,firstSubStep,firstFluxCall,computeVegFlux,checkLWBalance,&
                                      scalarCanairTempTrial,scalarCanopyTempTrial,mLayerTempTrial,scalarCanopyIceTrial,&
                                      scalarCanopyLiqTrial,forc_data,deriv_data)
-  class(in_type_vegNrgFlux),intent(out) :: in_vegNrgFlux               ! class object for intent(in) vegNrgFlux arguments
+  class(in_type_vegNrgFlux),intent(inout) :: in_vegNrgFlux               ! class object for intent(in) vegNrgFlux arguments
   logical(lgt),intent(in)               :: firstSubStep                ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(in)               :: firstFluxCall               ! flag to indicate if we are processing the first flux call
   logical(lgt),intent(in)               :: computeVegFlux              ! flag to indicate if computing fluxes over vegetation
@@ -1402,7 +1402,7 @@ contains
 
  ! **** snowLakeSoilGlceNrgFlux ****
  subroutine initialize_in_snowLakeSoilGlceNrgFlux(in_snowLakeSoilGlceNrgFlux,scalarSolution,firstFluxCall,mLayerTempTrial,flux_data,deriv_data)
-  class(in_type_snowLakeSoilGlceNrgFlux),intent(out) :: in_snowLakeSoilGlceNrgFlux  ! class object for intent(in) snowLakeSoilGlceNrgFlux arguments
+  class(in_type_snowLakeSoilGlceNrgFlux),intent(inout) :: in_snowLakeSoilGlceNrgFlux  ! class object for intent(in) snowLakeSoilGlceNrgFlux arguments
   logical(lgt),intent(in)               :: scalarSolution              ! flag to denote if implementing the scalar solution
   logical(lgt),intent(in)               :: firstFluxCall               ! flag to indicate if we are processing the first flux call
   real(rkind),intent(in)                :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
@@ -1434,7 +1434,7 @@ contains
  end subroutine initialize_in_snowLakeSoilGlceNrgFlux
 
  subroutine initialize_io_snowLakeSoilGlceNrgFlux(io_snowLakeSoilGlceNrgFlux,deriv_data)
-  class(io_type_snowLakeSoilGlceNrgFlux),intent(out) :: io_snowLakeSoilGlceNrgFlux  ! class object for intent(inout) snowLakeSoilGlceNrgFlux arguments
+  class(io_type_snowLakeSoilGlceNrgFlux),intent(inout) :: io_snowLakeSoilGlceNrgFlux  ! class object for intent(inout) snowLakeSoilGlceNrgFlux arguments
   type(var_dlength),intent(in)          :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
    dGroundNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dGroundTemp)%dat(1) ) ! intent(out): [dp] derivative in net ground flux w.r.t. ground temperature
@@ -1479,7 +1479,7 @@ contains
  
  ! **** vegLiqFlux ****
  subroutine initialize_in_vegLiqFlux(in_vegLiqFlux,computeVegFlux,scalarCanopyLiqTrial,flux_data)
-  class(in_type_vegLiqFlux),intent(out)   :: in_vegLiqFlux               ! class object for intent(in) vegLiqFlux arguments
+  class(in_type_vegLiqFlux),intent(inout)   :: in_vegLiqFlux               ! class object for intent(in) vegLiqFlux arguments
   logical(lgt),intent(in)                 :: computeVegFlux              ! flag to indicate if computing fluxes over vegetation
   real(rkind),intent(in)                  :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   type(var_dlength),intent(in)            :: flux_data                   ! model fluxes for a local HRU
@@ -1515,7 +1515,7 @@ contains
 
  ! **** snowLakeGlceLiqFlux ****
  subroutine initialize_in_snowLakeGlceLiqFlux(in_snowLakeGlceLiqFlux,nLayers,nStart,is_glac,do_snow,surface_flux,bottom_flux,firstFluxCall,scalarSolution,whole_step,mLayerVolFracLiqTrial)
-  class(in_type_snowLakeGlceLiqFlux),intent(out)   :: in_snowLakeGlceLiqFlux  ! class object for intent(in) snowLakeGlceLiqFlux arguments            
+  class(in_type_snowLakeGlceLiqFlux),intent(inout)   :: in_snowLakeGlceLiqFlux  ! class object for intent(in) snowLakeGlceLiqFlux arguments            
   integer(i4b),intent(in)                 :: nLayers                     ! number of layers
   integer(i4b),intent(in)                 :: nStart                      ! starting index for layers
   logical(lgt),intent(in)                 :: is_glac                     ! flag to denote if processing a glacier domain
@@ -1540,7 +1540,7 @@ contains
  end subroutine initialize_in_snowLakeGlceLiqFlux 
 
  subroutine initialize_io_snowLakeGlceLiqFlux(io_snowLakeGlceLiqFlux,flux_data,deriv_data)
-  class(io_type_snowLakeGlceLiqFlux),intent(out)   :: io_snowLakeGlceLiqFlux  ! class object for intent(inout) snowLakeGlceLiqFlux arguments
+  class(io_type_snowLakeGlceLiqFlux),intent(inout)   :: io_snowLakeGlceLiqFlux  ! class object for intent(inout) snowLakeGlceLiqFlux arguments
   type(var_dlength),intent(in)            :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(in)            :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
@@ -1578,7 +1578,7 @@ contains
  subroutine initialize_in_soilLiqFlux(in_soilLiqFlux,nSnow,nLake,nSoil,firstSplitOper,scalarSolution,firstFluxCall,scalarAquiferStorageTrial,&
                                      mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
                                      flux_data,deriv_data)
-  class(in_type_soilLiqFlux),intent(out) :: in_soilLiqFlux              ! class object for intent(in) soilLiqFlux arguments
+  class(in_type_soilLiqFlux),intent(inout) :: in_soilLiqFlux              ! class object for intent(in) soilLiqFlux arguments
   integer(i4b),intent(in)                :: nSnow                       ! number of snow layers
   integer(i4b),intent(in)                :: nLake                       ! number of lake layers
   integer(i4b),intent(in)                :: nSoil                       ! number of soil layers
@@ -1643,7 +1643,7 @@ contains
  end subroutine initialize_in_soilLiqFlux
 
  subroutine initialize_io_soilLiqFlux(io_soilLiqFlux,nSoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
-  class(io_type_soilLiqFlux),intent(out) :: io_soilLiqFlux              ! class object for intent(inout) soilLiqFlux arguments
+  class(io_type_soilLiqFlux),intent(inout) :: io_soilLiqFlux              ! class object for intent(inout) soilLiqFlux arguments
   integer(i4b),intent(in)                :: nSoil                       ! number of soil layers
   real(rkind),intent(in)                 :: dHydCond_dMatric(nSoil)     ! derivative in hydraulic conductivity w.r.t matric head (s-1)
   type(var_dlength),intent(in)           :: flux_data                   ! model fluxes for a local HRU
@@ -1802,7 +1802,7 @@ contains
 
  ! **** groundwatr ****
  subroutine initialize_in_groundwatr(in_groundwatr,nSnow,nLake,nSoil,nGlce,firstFluxCall,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
-  class(in_type_groundwatr),intent(out) :: in_groundwatr                    ! class object for intent(in) groundwatr arguments
+  class(in_type_groundwatr),intent(inout) :: in_groundwatr                    ! class object for intent(in) groundwatr arguments
   integer(i4b),intent(in)               :: nSnow                            ! number of snow layers
   integer(i4b),intent(in)               :: nLake                            ! number of lake layers
   integer(i4b),intent(in)               :: nSoil                            ! number of soil layers
@@ -1840,7 +1840,7 @@ contains
  end subroutine initialize_in_groundwatr
 
  subroutine initialize_io_groundwatr(io_groundwatr,ixSaturation)
-  class(io_type_groundwatr),intent(out) :: io_groundwatr ! class object for intent(inout) groundwatr arguments
+  class(io_type_groundwatr),intent(inout) :: io_groundwatr ! class object for intent(inout) groundwatr arguments
   integer(i4b),intent(in)               :: ixSaturation  ! index of lowest saturated layer (NOTE: only computed on the first iteration)
   ! intent(inout) arguments
   io_groundwatr % ixSaturation = ixSaturation ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
@@ -1876,7 +1876,7 @@ contains
 
  ! **** bigAquifer ****
  subroutine initialize_in_bigAquifer(in_bigAquifer,scalarAquiferStorageTrial,flux_data,deriv_data)
-  class(in_type_bigAquifer),intent(out) :: in_bigAquifer             ! class object for intent(in) bigAquifer arguments
+  class(in_type_bigAquifer),intent(inout) :: in_bigAquifer             ! class object for intent(in) bigAquifer arguments
   real(rkind),intent(in)                :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
   type(var_dlength),intent(in)          :: flux_data                 ! model fluxes for a local HRU
   type(var_dlength),intent(in)          :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
@@ -1899,7 +1899,7 @@ contains
  end subroutine initialize_in_bigAquifer
  
  subroutine initialize_io_bigAquifer(io_bigAquifer,deriv_data)
-  class(io_type_bigAquifer),intent(out) :: io_bigAquifer  ! class object for intent(inout) bigAquifer arguments
+  class(io_type_bigAquifer),intent(inout) :: io_bigAquifer  ! class object for intent(inout) bigAquifer arguments
   type(var_dlength),intent(in)          :: deriv_data     ! derivatives in model fluxes w.r.t. relevant state variables
   associate(&
    dAquiferTrans_dTCanair       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanair)%dat(1), & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
@@ -2516,7 +2516,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
  ! **** varSubstep ****
  subroutine initialize_in_varSubstep(in_varSubstep,dt,dtInit,dt_min,whole_step,nSubset,&
                                      doAdjustTemp,firstSubStep,computeVegFlux,ixSolution,scalar,iStateSplit,fluxMask)
-  class(in_type_varSubstep),intent(out) :: in_varSubstep  ! class object for intent(in) varSubstep arguments
+  class(in_type_varSubstep),intent(inout) :: in_varSubstep ! class object for intent(in) varSubstep arguments
   real(rkind),intent(in)                :: dt             ! time step (s)
   real(rkind),intent(in)                :: dtInit         ! initial time step (s)
   real(rkind),intent(in)                :: dt_min         ! minimum time step (s) 
@@ -2541,32 +2541,81 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
   in_varSubstep % computeVegFlux = computeVegFlux         ! intent(in): flag to denote if computing energy flux over vegetation
   in_varSubstep % scalarSolution = (ixSolution==scalar)   ! intent(in): flag to denote computing the scalar solution
   in_varSubstep % iStateSplit    = iStateSplit            ! intent(in): index of the layer in the splitting operation
-  in_varSubstep % fluxMask       = fluxMask               ! intent(in): mask for the fluxes used in this given state subset
+  call copy_flagVec(in_varSubstep % fluxMask, fluxMask)   ! intent(in): mask for the fluxes used in this given state subset
  end subroutine initialize_in_varSubstep
 
  subroutine initialize_io_varSubstep(io_varSubstep,firstFluxCall,fluxCount,ixSaturation)
-  class(io_type_varSubstep),intent(out) :: io_varSubstep  ! class object for intent(inout) varSubstep arguments
+  class(io_type_varSubstep),intent(inout) :: io_varSubstep ! class object for intent(inout) varSubstep arguments
   logical(lgt),intent(in)               :: firstFluxCall  ! flag to indicate if we are processing the first flux call
   type(var_ilength),intent(in)          :: fluxCount      ! number of times fluxes are updated (should equal nsubstep)
   integer(i4b),intent(in)               :: ixSaturation   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
 
   ! intent(inout) arguments
   io_varSubstep % firstFluxCall = firstFluxCall           ! intent(inout): flag to indicate if we are processing the first flux call
-  io_varSubstep % fluxCount     = fluxCount               ! intent(inout): number of times fluxes are updated (should equal nsubstep)
+  call copy_ilength(io_varSubstep % fluxCount, fluxCount) ! intent(inout): number of times fluxes are updated (should equal nsubstep)
   io_varSubstep % ixSaturation  = ixSaturation            ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
  end subroutine initialize_io_varSubstep
 
  subroutine finalize_io_varSubstep(io_varSubstep,firstFluxCall,fluxCount,ixSaturation)
   class(io_type_varSubstep),intent(in)  :: io_varSubstep  ! class object for intent(inout) varSubstep arguments
   logical(lgt),intent(out)              :: firstFluxCall  ! flag to indicate if we are processing the first flux call
-  type(var_ilength),intent(out)         :: fluxCount      ! number of times fluxes are updated (should equal nsubstep)
+  type(var_ilength),intent(inout)       :: fluxCount      ! number of times fluxes are updated (should equal nsubstep)
   integer(i4b),intent(out)              :: ixSaturation   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
 
   ! intent(inout) arguments
   firstFluxCall = io_varSubstep % firstFluxCall           ! intent(inout): flag to indicate if we are processing the first flux call
-  fluxCount     = io_varSubstep % fluxCount               ! intent(inout): number of times fluxes are updated (should equal nsubstep)
+  call copy_ilength(fluxCount, io_varSubstep % fluxCount) ! intent(inout): number of times fluxes are updated (should equal nsubstep)
   ixSaturation  = io_varSubstep % ixSaturation            ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
  end subroutine finalize_io_varSubstep
+
+ ! **** copies that reuse the destination's storage when its shape matches the source ****
+ subroutine copy_flagVec(dst,src)
+  type(var_flagVec),intent(inout) :: dst            ! destination
+  type(var_flagVec),intent(in)    :: src            ! source
+  integer(i4b)                    :: iVar           ! index of variable
+  if(.not.sameShape_flagVec(dst,src))then; dst = src; return; end if
+  do iVar=1,size(src%var)
+   if(allocated(src%var(iVar)%dat)) dst%var(iVar)%dat(:) = src%var(iVar)%dat(:)
+  end do
+ end subroutine copy_flagVec
+
+ logical(lgt) function sameShape_flagVec(dst,src)
+  type(var_flagVec),intent(in)    :: dst,src        ! structures compared
+  integer(i4b)                    :: iVar           ! index of variable
+  sameShape_flagVec = .false.
+  if(.not.allocated(dst%var))return
+  if(size(dst%var)/=size(src%var))return
+  do iVar=1,size(src%var)
+   if(allocated(dst%var(iVar)%dat).neqv.allocated(src%var(iVar)%dat))return
+   if(.not.allocated(src%var(iVar)%dat))cycle
+   if(size(dst%var(iVar)%dat)/=size(src%var(iVar)%dat))return
+  end do
+  sameShape_flagVec = .true.
+ end function sameShape_flagVec
+
+ subroutine copy_ilength(dst,src)
+  type(var_ilength),intent(inout) :: dst            ! destination
+  type(var_ilength),intent(in)    :: src            ! source
+  integer(i4b)                    :: iVar           ! index of variable
+  if(.not.sameShape_ilength(dst,src))then; dst = src; return; end if
+  do iVar=1,size(src%var)
+   if(allocated(src%var(iVar)%dat)) dst%var(iVar)%dat(:) = src%var(iVar)%dat(:)
+  end do
+ end subroutine copy_ilength
+
+ logical(lgt) function sameShape_ilength(dst,src)
+  type(var_ilength),intent(in)    :: dst,src        ! structures compared
+  integer(i4b)                    :: iVar           ! index of variable
+  sameShape_ilength = .false.
+  if(.not.allocated(dst%var))return
+  if(size(dst%var)/=size(src%var))return
+  do iVar=1,size(src%var)
+   if(allocated(dst%var(iVar)%dat).neqv.allocated(src%var(iVar)%dat))return
+   if(.not.allocated(src%var(iVar)%dat))cycle
+   if(size(dst%var(iVar)%dat)/=size(src%var(iVar)%dat))return
+  end do
+  sameShape_ilength = .true.
+ end function sameShape_ilength
 
  subroutine finalize_out_varSubstep(out_varSubstep,dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
   class(out_type_varSubstep),intent(in) :: out_varSubstep    ! class object for intent(out) varSubstep arguments

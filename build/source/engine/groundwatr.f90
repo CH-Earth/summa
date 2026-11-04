@@ -106,15 +106,18 @@ subroutine groundwatr(&
   ! input-output: baseflow
   type(io_type_groundwatr),intent(inout) :: io_groundwatr     ! index of lowest saturated layer (NOTE: only computed on the first iteration)
   ! output: baseflow and error control
-  type(out_type_groundwatr),intent(out)  :: out_groundwatr    ! baseflow and error control
+  type(out_type_groundwatr),intent(inout):: out_groundwatr    ! baseflow and error control
   ! general local variables
   integer(i4b)                           :: iLayer            ! index of soil layer
   real(rkind)                            :: fieldCapacity_use(in_groundwatr%nSoil) ! water content below which a layer does not drain laterally (-)
   character(len=256)                     :: cmessage          ! error message
   ! ***************************************************************************************
   ! associate variables in data structures
-  allocate(out_groundwatr % mLayerBaseflow(in_groundwatr%nSoil),out_groundwatr % dBaseflow_dWat(in_groundwatr%nSoil,in_groundwatr%nSoil),&
-           out_groundwatr % dBaseflow_dTk(in_groundwatr%nSoil,in_groundwatr%nSoil)) ! allocate intent(out) data structure components
+  if(allocated(out_groundwatr % mLayerBaseflow))then ! reuse the components unless the number of soil layers changed
+    if(size(out_groundwatr % mLayerBaseflow)/=in_groundwatr%nSoil) deallocate(out_groundwatr % mLayerBaseflow,out_groundwatr % dBaseflow_dWat,out_groundwatr % dBaseflow_dTk)
+  end if
+  if(.not.allocated(out_groundwatr % mLayerBaseflow)) allocate(out_groundwatr % mLayerBaseflow(in_groundwatr%nSoil),&
+           out_groundwatr % dBaseflow_dWat(in_groundwatr%nSoil,in_groundwatr%nSoil),out_groundwatr % dBaseflow_dTk(in_groundwatr%nSoil,in_groundwatr%nSoil))
   associate(&
     ! input: model control
     nSnow               => in_groundwatr % nSnow,                              & ! intent(in):    [i4b] number of snow layers

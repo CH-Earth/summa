@@ -120,6 +120,21 @@ integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, s
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
 integer(i4b),parameter  :: nDomains=6                 ! number of domains (vegetation, snow, lake, soil, glce, and aquifer), but no more than 4 exist in one domain
 
+! local structures of opSplittin, kept per thread for reuse: one set per combination of snow, lake, soil and glacier ice layers
+integer(i4b),parameter  :: nWork=32                   ! number of sets kept per thread
+type :: opSplit_work
+  integer(i4b)             :: nLayers(4)=-1               ! snow, lake, soil and glacier ice layers the set was allocated for
+  integer(i4b)             :: lastUse=0                   ! call count at the last use of the set
+  type(var_dlength)        :: prog_temp,diag_temp,flux_temp,flux_mean,flux_mntemp,deriv_data
+  type(var_ilength)        :: fluxCount
+  type(var_flagVec)        :: fluxMask
+  type(in_type_varSubstep) :: in_varSubstep
+  type(io_type_varSubstep) :: io_varSubstep
+end type opSplit_work
+type(opSplit_work),target :: work(nWork)               ! cached sets
+integer(i4b)              :: nWorkCall=0              ! calls to opSplittin on this thread
+!$omp threadprivate(work, nWorkCall)
+
 ! class definitions
 
 type, public :: split_select_type  ! class for selecting operator splitting methods
@@ -272,12 +287,12 @@ subroutine opSplittin(&
   logical(lgt)                    :: firstFluxCall                  ! flag to define the first flux call
   logical(lgt)                    :: reduceCoupledStep              ! flag to define the need to reduce the length of the coupled step
   logical(lgt)                    :: return_flag                    ! flag to indicate the execution of a return statement
-  type(var_dlength)               :: prog_temp                      ! temporary model prognostic variables
-  type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
-  type(var_dlength)               :: flux_temp                      ! temporary model fluxes
-  type(var_dlength)               :: flux_mean                      ! mean model fluxes
-  type(var_dlength)               :: flux_mntemp                    ! temporary mean model fluxes
-  type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
+  type(var_dlength),pointer       :: prog_temp                      ! temporary model prognostic variables
+  type(var_dlength),pointer       :: diag_temp                      ! temporary model diagnostic variables
+  type(var_dlength),pointer       :: flux_temp                      ! temporary model fluxes
+  type(var_dlength),pointer       :: flux_mean                      ! mean model fluxes
+  type(var_dlength),pointer       :: flux_mntemp                    ! temporary mean model fluxes
+  type(var_dlength),pointer       :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
   ! ------------------------------------------------------------------------------------------------------
   ! * operator splitting
   ! ------------------------------------------------------------------------------------------------------
@@ -304,8 +319,8 @@ subroutine opSplittin(&
   ! flux masks
   logical(lgt)                    :: neededFlux(nFlux)              ! .true. if flux is needed at all
   logical(lgt)                    :: desiredFlux                    ! .true. if flux is desired for a given split
-  type(var_ilength)               :: fluxCount                      ! number of times each flux is updated (should equal nSubsteps)
-  type(var_flagVec)               :: fluxMask                       ! mask defining model fluxes
+  type(var_ilength),pointer       :: fluxCount                      ! number of times each flux is updated (should equal nSubsteps)
+  type(var_flagVec),pointer       :: fluxMask                       ! mask defining model fluxes
   ! state masks
   integer(i4b),dimension(nState)  :: stateCheck                     ! number of times each state variable is updated (should equal 1)
   logical(lgt),dimension(nState)  :: stateMask                      ! mask defining desired state variables
@@ -326,9 +341,10 @@ subroutine opSplittin(&
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
-  type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
+  type(in_type_varSubstep),pointer :: in_varSubstep; type(io_type_varSubstep),pointer :: io_varSubstep; type(out_type_varSubstep) :: out_varSubstep ! varSubstep arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
+  integer(i4b)            :: iWork,jWork        ! index of the set of local structures
   ! -------------------------------------------------------------------------------------------------------------------------
   ! set up split_select object and prepare for split_select_loop
   call initialize_opSplittin; if (return_flag) return
@@ -681,6 +697,36 @@ subroutine opSplittin(&
    ! *** allocate memory for local structures ***
    return_flag=.false. ! initialize flag
 
+   ! use the set allocated for these layer counts, else rebuild the least recently used set
+   nWorkCall = nWorkCall + 1
+   iWork = 0
+   do jWork=1,nWork
+    if(work(jWork)%nLayers(1)==nSnow .and. work(jWork)%nLayers(2)==nLake .and. work(jWork)%nLayers(3)==nSoil .and. work(jWork)%nLayers(4)==nGlce)then
+     iWork = jWork; exit
+    end if
+   end do
+   if(iWork==0)then
+    iWork = 1
+    do jWork=2,nWork
+     if(work(jWork)%lastUse < work(iWork)%lastUse) iWork = jWork
+    end do
+    work(iWork)%nLayers = -1
+   end if
+   work(iWork)%lastUse = nWorkCall
+   prog_temp => work(iWork)%prog_temp; diag_temp => work(iWork)%diag_temp; flux_temp => work(iWork)%flux_temp
+   flux_mean => work(iWork)%flux_mean; flux_mntemp => work(iWork)%flux_mntemp; deriv_data => work(iWork)%deriv_data
+   fluxCount => work(iWork)%fluxCount; fluxMask => work(iWork)%fluxMask
+   in_varSubstep => work(iWork)%in_varSubstep; io_varSubstep => work(iWork)%io_varSubstep
+   if(work(iWork)%nLayers(1)/=-1) return
+   if(allocated(fluxMask%var))    deallocate(fluxMask%var)
+   if(allocated(fluxCount%var))   deallocate(fluxCount%var)
+   if(allocated(prog_temp%var))   deallocate(prog_temp%var)
+   if(allocated(diag_temp%var))   deallocate(diag_temp%var)
+   if(allocated(flux_temp%var))   deallocate(flux_temp%var)
+   if(allocated(flux_mean%var))   deallocate(flux_mean%var)
+   if(allocated(flux_mntemp%var)) deallocate(flux_mntemp%var)
+   if(allocated(deriv_data%var))  deallocate(deriv_data%var)
+
    ! allocate space for the flux mask (used to define when fluxes are updated)
    call allocLocal(flux_meta(:),fluxMask,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
@@ -712,6 +758,7 @@ subroutine opSplittin(&
    ! allocate space for the derivative structure
    call allocLocal(deriv_meta(:),deriv_data,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+   work(iWork)%nLayers = [nSnow,nLake,nSoil,nGlce]
   end subroutine allocate_memory
 
   subroutine finalize_coupling
@@ -1099,15 +1146,22 @@ subroutine opSplittin(&
      select case(failure)
        case(.false.)
          flux_temp%var(iVar)%dat(:)   = flux_data%var(iVar)%dat(:)
-         flux_mntemp%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:)
+         call copy_dat(flux_mntemp%var(iVar)%dat, flux_mean%var(iVar)%dat)
          addFirstFlux = .false.
        case(.true.)
          flux_data%var(iVar)%dat(:)   = flux_temp%var(iVar)%dat(:)
-         flux_mean%var(iVar)%dat(:)   = flux_mntemp%var(iVar)%dat(:)
+         call copy_dat(flux_mean%var(iVar)%dat, flux_mntemp%var(iVar)%dat)
          if (addFirstFlux) addFirstFlux = .true.
      end select
    end do
   end subroutine save_recover
+
+  subroutine copy_dat(dst,src)
+   ! copy between two cached structures without the temporary added for possibly aliased pointers
+   real(rkind),intent(inout) :: dst(:) ! destination
+   real(rkind),intent(in)    :: src(:) ! source
+   dst = src
+  end subroutine copy_dat
 
   subroutine get_split_indices
    ! *** Get indices for a given split ***
