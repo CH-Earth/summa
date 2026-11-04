@@ -325,3 +325,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit 88ccd923 Nov 2, 2026
  91) USE_OPENMP (default off) runs each trial's GRUs on OpenMP threads, bit-identical at any thread count; Fir scripts run k threads per rank, commit f265a5b8 Nov 4, 2026
  92) multi_case.nodes_per_case lets one case's groups span nodes (default 1), each node reading its own spinup restart, commit eea3d052 Nov 4, 2026
+ 93) calibration.nsga2.seed_file and seed_fraction seed NSGA-II's first generation from an earlier calibration file's final population, the rest random, commit b2cfc8e8 Nov 4, 2026
