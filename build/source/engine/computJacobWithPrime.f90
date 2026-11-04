@@ -444,7 +444,11 @@ subroutine computJacobWithPrime(&
       endif
       
       if(ixVegNrg/=integerMissing)then
-        if(ixVegHyd/=integerMissing) aJac(watRows,ixVegHyd) = aJac(watRows,ixVegHyd) + aJac(nrgRows,ixVegNrg) * dCanopyTemp_dCanWat
+        if(ixVegHyd/=integerMissing)then
+          do jLayer=1,size(watRows)
+            aJac(watRows(jLayer),ixVegHyd) = aJac(watRows(jLayer),ixVegHyd) + aJac(nrgRows(jLayer),ixVegNrg) * dCanopyTemp_dCanWat
+          end do
+        endif
         aJac(:,ixVegNrg) = aJac(:,ixVegNrg) * dCanopyTemp_dEnthalpy
         aJac(ixInd(full,ixVegNrg,ixVegNrg),ixVegNrg) = aJac(ixInd(full,ixVegNrg,ixVegNrg),ixVegNrg) + 1._rkind * cj
       endif
@@ -456,9 +460,13 @@ subroutine computJacobWithPrime(&
           watState = ixSnLaSoGlHyd(iLayer)
           if(watState/=integerMissing)then 
             if(iLayer<=nSnow+nLake .or. iLayer>nSnow+nLake+nSoil)then
-              aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dTheta(iLayer)
+              do jLayer=1,size(watRows)
+                aJac(watRows(jLayer),watState) = aJac(watRows(jLayer),watState) + aJac(nrgRows(jLayer),nrgState) * dTemp_dTheta(iLayer)
+              end do
             else
-              aJac(watRows,watState) = aJac(watRows,watState) + aJac(nrgRows,nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake)
+              do jLayer=1,size(watRows)
+                aJac(watRows(jLayer),watState) = aJac(watRows(jLayer),watState) + aJac(nrgRows(jLayer),nrgState) * dTemp_dPsi0(iLayer-nSnow-nLake)
+              end do
             endif
           endif
           aJac(:,nrgState) = aJac(:,nrgState) * dTemp_dEnthalpy(iLayer)

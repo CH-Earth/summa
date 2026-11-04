@@ -105,7 +105,6 @@ subroutine snowLakeSoilGlceNrgFlux(&
   ! local variables
   integer(i4b)                        :: nLayers                    ! number of model layers
   integer(i4b)                        :: iLayer                     ! index of model layers
-  integer(i4b)                        :: ixLayerDesired(1)          ! layer desired (scalar solution)
   integer(i4b)                        :: ixTop                      ! top layer in subroutine call
   integer(i4b)                        :: ixBot                      ! bottom layer in subroutine call
   real(rkind)                         :: qFlux                      ! liquid flux at layer interfaces (m s-1)
@@ -182,9 +181,8 @@ subroutine snowLakeSoilGlceNrgFlux(&
 
     ! get the indices for the layers
     if (scalarSolution) then
-      ixLayerDesired = pack(ixLayerState, ixSnLaSoGlNrg/=integerMissing)
-      ixTop = ixLayerDesired(1)
-      ixBot = ixLayerDesired(1)
+      ixTop = ixLayerState(findloc(ixSnLaSoGlNrg/=integerMissing, .true., 1)) ! first layer with an energy state in the subset
+      ixBot = ixTop
     else
       ixTop = 1
       ixBot = nLayers

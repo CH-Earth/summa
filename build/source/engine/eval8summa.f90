@@ -218,7 +218,6 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial         ! trial vector of temperature component of enthalpy for layers (J m-3)
   ! other local variables
   logical(lgt)                    :: checkLWBalance              ! flag to check longwave balance
-  integer(i4b)                    :: ixLayerDesired(1)           ! layer desired (scalar solution)
   integer(i4b)                    :: ixTop,ixBot                 ! top and bottom defining desired layers
   real(rkind),dimension(nState)   :: rVecScaled                  ! scaled residual vector
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
@@ -587,9 +586,8 @@ subroutine eval8summa(&
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
     if(nSoil>0)then
       if(scalarSolution)then
-        ixLayerDesired = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
-        ixTop  = ixLayerDesired(1)
-        ixBot  = ixLayerDesired(1)
+        ixTop  = ixControlVolume(findloc(ixMapFull2Subset/=integerMissing, .true., 1)) ! layer of the first state in the subset
+        ixBot  = ixTop
       else
         ixTop  = 1
         ixBot  = nSoil
