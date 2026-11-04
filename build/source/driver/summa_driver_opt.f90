@@ -50,7 +50,7 @@ program summa_driver_opt
   USE dynamic_case_dispatch, only: finalize_case_counter
 
   ! MPI
-  USE mpi, only: MPI_Init,MPI_Finalize
+  USE mpi, only: MPI_Finalize
   USE mpi, only: MPI_Bcast
   USE mpi, only: MPI_Comm_split_type
   USE mpi, only: MPI_Comm_split
@@ -72,6 +72,7 @@ program summa_driver_opt
 
   type(config_info) :: config                              ! SUMMA configuration information
   type(parallel_context_type) :: world_parallel            ! all MPI ranks
+  type(parallel_context_type) :: case_node_parallel        ! this case's MPI ranks on this physical node
   type(parallel_context_type) :: node_parallel             ! all MPI ranks on the same physical node
   type(parallel_context_type) :: leader_parallel           ! one leader rank from each physical node
   type(parallel_context_type) :: instance_parallel         ! ranks assigned to one calibration case
@@ -187,8 +188,8 @@ program summa_driver_opt
                            leader_parallel%size,  &
                            mpi_err,mpi_message)
       if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
-      node_index=leader_parallel%rank
-      nNodes=leader_parallel%size
+      node_index=leader_parallel%rank/config%nodes_per_case
+      nNodes=(leader_parallel%size-1)/config%nodes_per_case+1
     endif
 
     ! distribute node information to all ranks on the physical node
@@ -196,6 +197,14 @@ program summa_driver_opt
     call check_mpi(world_parallel%rank,mpi_err, 'unable to broadcast node index')
     call MPI_Bcast(nNodes,1,MPI_INTEGER,0,node_parallel%comm,mpi_err)
     call check_mpi(world_parallel%rank,mpi_err, 'unable to broadcast number of nodes')
+
+    ! each block of nodes_per_case nodes is partitioned below as one node would be
+    if(config%nodes_per_case > 1)then
+      call MPI_Comm_split(world_parallel%comm, node_index, world_parallel%rank, node_parallel%comm, mpi_err)
+      call check_mpi(world_parallel%rank,mpi_err, 'unable to create node-block communicator')
+      call set_mpi_context(node_parallel%comm, node_parallel%rank, node_parallel%size, mpi_err,mpi_message)
+      if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
+    endif
 
     ! -------------------------------------------------------------------------
     ! Partition ranks on each node among independent cases
@@ -265,6 +274,13 @@ program summa_driver_opt
     call abort_mpi(world_parallel%rank, &
                    'parallel parameter evaluation requires at least two MPI ranks per case')
   endif
+
+  ! the ranks of this case on this physical node, who share its local disk
+  call MPI_Comm_split_type(instance_parallel%comm, MPI_COMM_TYPE_SHARED, instance_parallel%rank, &
+                           MPI_INFO_NULL, case_node_parallel%comm, mpi_err)
+  call check_mpi(world_parallel%rank,mpi_err, 'unable to create case-node communicator')
+  call set_mpi_context(case_node_parallel%comm, case_node_parallel%rank, case_node_parallel%size, mpi_err,mpi_message)
+  if(mpi_err/=MPI_SUCCESS) call abort_mpi(world_parallel%rank,trim(mpi_message))
 
   ! ---------------------------------------------------------------------------------------
   ! Define the domain-parallel communicator
@@ -528,6 +544,7 @@ contains
     call spinup_from_cold(config,               & ! SUMMA configuration structure
                           domain_parallel,      & ! MPI context for domain parallelism
                           instance_parallel,    & ! MPI context for model-instance parallelism
+                          case_node_parallel%rank==0, & ! write the common restart state for this node
                           mpar_init, bpar_init, & ! initialized HRU/basin parameters
                           err,message)            ! error code and message
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
@@ -538,8 +555,8 @@ contains
     if(single_domain) single_domain = (size(mpar_init%gru(1)%hru)==1)
     if(single_domain) single_domain = (size(mpar_init%gru(1)%hru(1)%dom)==1)
 
-    ! broadcast the rank-0 restart filename to all model instances
-    call MPI_Bcast(restart_filename,len(restart_filename),MPI_CHARACTER,0, instance_parallel%comm,mpi_err)
+    ! broadcast the node's restart filename to its model instances
+    call MPI_Bcast(restart_filename,len(restart_filename),MPI_CHARACTER,0, case_node_parallel%comm,mpi_err)
     call check_mpi(instance_parallel%rank,mpi_err, 'unable to broadcast restart filename')
 
     ! use the common cold-start restart state as the initial conditions

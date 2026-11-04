@@ -16,6 +16,9 @@ template_file = "summa_config_template.toml"
 
 cases_per_node = 4
 
+# nodes taken as one when placing cases, so a large basin's workers can span them (default 1)
+# nodes_per_case = 1
+
 # Simulation cases
 # ----------------
 

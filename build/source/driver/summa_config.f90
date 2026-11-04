@@ -740,6 +740,7 @@ contains
   
         ! ---- multi-case configuration ----
         case ("multi_case.cases_per_node"   ); call get_value(subtable,trim(keys(i)%key),config%cases_per_node    , stat=istat)
+        case ("multi_case.nodes_per_case"   ); call get_value(subtable,trim(keys(i)%key),config%nodes_per_case    , stat=istat)
         case ("multi_case.n_runs"           ); call get_value(subtable,trim(keys(i)%key),config%n_runs            , stat=istat)
 
         ! ----- path/name of toml template (template_path is optional: default is the manifest directory) -----
@@ -800,6 +801,11 @@ contains
 
     if(config%cases_per_node < 1)then
       message=trim(message)//'cases_per_node must be greater than zero'
+      err=20; return
+    endif
+
+    if(config%nodes_per_case < 1)then
+      message=trim(message)//'nodes_per_case must be greater than zero'
       err=20; return
     endif
 

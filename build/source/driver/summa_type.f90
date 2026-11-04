@@ -101,6 +101,7 @@ type, public :: config_info
   ! Multi-case configuration
   logical(lgt)                   :: is_case_root = .true.   ! .true. for rank 0 within a model case
   integer(i4b)                   :: cases_per_node = 1      ! Number of concurrent cases per node
+  integer(i4b)                   :: nodes_per_case = 1      ! Nodes taken as one for cases_per_node, so a case can span them
   character(len=:),  allocatable :: manifest_file           ! Path and name of the multi-case manifest
   character(len=64), allocatable :: case_names(:)           ! Names of cases defined in the manifest
   character(len=:),  allocatable :: manifest_casename       ! Case name selected from the run manifest
