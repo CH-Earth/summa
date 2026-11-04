@@ -114,7 +114,7 @@ subroutine varSubstep(&
                       out_varSubstep)      ! intent(out)   : model control
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
-  USE allocspace_module,only:allocLocal                 ! allocate local data structures
+  USE allocspace_module,only:allocCached,ixCache_varSubstepFlux ! cached local data structures
   ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:popStateVec                ! populate the state vector
   USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
@@ -175,7 +175,7 @@ subroutine varSubstep(&
   real(rkind)                        :: stateVecInit(in_varSubstep % nSubset)  ! initial state vector (mixed units)
   real(rkind)                        :: stateVecTrial(in_varSubstep % nSubset) ! trial state vector (mixed units)
   real(rkind)                        :: stateVecPrime(in_varSubstep % nSubset) ! trial state vector (mixed units)
-  type(var_dlength)                  :: flux_temp                              ! temporary model fluxes
+  type(var_dlength),pointer          :: flux_temp                              ! temporary model fluxes
   ! flags
   logical(lgt)                       :: firstSplitOper                         ! flag to indicate if we are processing the first flux call in a splitting operation
   logical(lgt)                       :: waterBalanceError                      ! flag to denote that there is a water balance error
@@ -261,7 +261,7 @@ subroutine varSubstep(&
       nGlce => indx_data%var(iLookINDEX%nGlce)%dat(1)  & ! intent(in): [i4b] number of glacier ice layers
     &)
       ! allocate space for the temporary model flux structure
-      call allocLocal(flux_meta(:),flux_temp,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+      call allocCached(ixCache_varSubstepFlux,flux_meta(:),flux_temp,nSnow,nLake,nSoil,nGlce,err,cmessage)
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
       ! initialize the model fluxes (some model fluxes are not computed in the iterations)

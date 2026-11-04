@@ -86,7 +86,24 @@ private
 public::alloc_driver_work
 public::allocGlobal
 public::allocLocal
+public::allocCached
 public::resizeData
+
+! named slots of the per-thread cache of local var_dlength structures (one structure per slot is live at a time)
+integer(i4b),parameter,public :: ixCache_varSubstepFlux=1  ! varSubstep flux_temp
+integer(i4b),parameter,public :: ixCache_systemSolvInit=2  ! systemSolv flux_init
+integer(i4b),parameter,public :: ixCache_systemSolvSum=3   ! systemSolv flux_sum
+integer(i4b),parameter,public :: ixCache_idaFluxPrev=4     ! summaSolv4ida flux_prev
+integer(i4b),parameter        :: nCacheSlot=4              ! number of slots
+integer(i4b),parameter        :: nCacheSet=32              ! structures kept per slot, one per combination of layer counts
+type :: cached_dlength
+  integer(i4b)      :: nLayers(4)=-1                       ! snow, lake, soil and glacier ice layers the structure was allocated for
+  integer(i4b)      :: lastUse=0                           ! call count at the last use of the structure
+  type(var_dlength) :: struc                               ! the structure
+end type cached_dlength
+type(cached_dlength),target :: dCache(nCacheSet,nCacheSlot) ! cached structures
+integer(i4b)                :: nCacheCall=0                ! calls to allocCached on this thread
+!$omp threadprivate(dCache, nCacheCall)
 contains
 
 ! ************************************************************************************************
@@ -373,6 +390,44 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end subroutine allocLocal
+
+ ! ************************************************************************************************
+ ! public subroutine allocCached: point to a per-thread cached local structure allocated by allocLocal for these layer counts;
+ ! a structure for other layer counts in the least recently used place of the slot is rebuilt; values are not initialized
+ ! ************************************************************************************************
+ subroutine allocCached(ixSlot,metaStruct,dataStruct,nSnow,nLake,nSoil,nGlce,err,message)
+ implicit none
+ integer(i4b),intent(in)          :: ixSlot         ! slot in the cache (ixCache_*)
+ type(var_info),intent(in)        :: metaStruct(:)  ! metadata structure
+ type(var_dlength),pointer        :: dataStruct     ! data structure
+ integer(i4b),intent(in)          :: nSnow,nLake,nSoil,nGlce ! number of snow, lake, soil and glacier ice layers
+ integer(i4b),intent(out)         :: err            ! error code
+ character(*),intent(out)         :: message        ! error message
+ integer(i4b)                     :: iSet,jSet      ! index of the cached structure
+ character(len=256)               :: cmessage       ! error message of the downwind routine
+ err=0; message='allocCached/'
+ nCacheCall = nCacheCall + 1
+ iSet = 0
+ do jSet=1,nCacheSet
+  if(dCache(jSet,ixSlot)%nLayers(1)==nSnow .and. dCache(jSet,ixSlot)%nLayers(2)==nLake .and. &
+     dCache(jSet,ixSlot)%nLayers(3)==nSoil .and. dCache(jSet,ixSlot)%nLayers(4)==nGlce)then
+   iSet = jSet; exit
+  end if
+ end do
+ if(iSet==0)then
+  iSet = 1
+  do jSet=2,nCacheSet
+   if(dCache(jSet,ixSlot)%lastUse < dCache(iSet,ixSlot)%lastUse) iSet = jSet
+  end do
+  if(allocated(dCache(iSet,ixSlot)%struc%var)) deallocate(dCache(iSet,ixSlot)%struc%var)
+  dCache(iSet,ixSlot)%nLayers = -1
+  call allocLocal(metaStruct,dCache(iSet,ixSlot)%struc,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  dCache(iSet,ixSlot)%nLayers = [nSnow,nLake,nSoil,nGlce]
+ end if
+ dCache(iSet,ixSlot)%lastUse = nCacheCall
+ dataStruct => dCache(iSet,ixSlot)%struc
+ end subroutine allocCached
 
  ! ************************************************************************************************
  ! public subroutine alloc_driver_work: allocate driver work structures

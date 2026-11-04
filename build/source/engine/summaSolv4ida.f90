@@ -146,7 +146,7 @@ subroutine summaSolv4ida(&
   USE fsunlinsol_dense_mod                                    ! Fortran interface to dense SUNLinearSolver
   USE fsunlinsol_band_mod                                     ! Fortran interface to banded SUNLinearSolver
   USE fsunnonlinsol_newton_mod                                ! Fortran interface to Newton SUNNonlinearSolver
-  USE allocspace_module,only:allocLocal                       ! allocate local data structures
+  USE allocspace_module,only:allocCached,ixCache_idaFluxPrev  ! cached local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
   USE eval8summaWithPrime_module,only:eval8summa4ida          ! DAE/ODE functions
   USE computJacobWithPrime_module,only:computJacob4ida        ! system Jacobian
@@ -233,7 +233,7 @@ subroutine summaSolv4ida(&
   integer(i4b),allocatable          :: rootdir(:)                   ! forced crossing direction of discontinuities
   logical(lgt)                      :: tinystep                     ! if step goes below small size
   real(rkind)                       :: small                        ! value to see if canopy water is just a bit negative, depends on the absolute tolerance for canopy water
-  type(var_dlength)                 :: flux_prev                    ! previous model fluxes for a local HRU
+  type(var_dlength),pointer         :: flux_prev                    ! previous model fluxes for a local HRU
   character(LEN=256)                :: cmessage                     ! error message of downwind routine
   real(rkind)                       :: dt_mult                      ! multiplier for time step average values
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
@@ -321,7 +321,7 @@ subroutine summaSolv4ida(&
     allocate( eqns_data%dMat(int(nState,i4b)) ); eqns_data%dMat = dMat
     
     ! allocate space for the to save previous fluxes
-    call allocLocal(flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+    call allocCached(ixCache_idaFluxPrev,flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
     ! allocate space for other variables

@@ -297,7 +297,7 @@ contains
     aJacScaledTemp = aJacScaled
    
     ! compute the newton step: use the lapack routines to solve the linear system A.X=B
-    call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
+    call lapackSolv(ixMatrix,nState,aJacScaledTemp,rVecScaled,newtStepScaled,err,cmessage)
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
  
     ! debug statement for Newton step
@@ -1168,6 +1168,7 @@ contains
   logical(lgt)                 :: energyConv                  ! flag for energy convergence
   logical(lgt)                 :: aquiferConv                 ! flag for aquifer water balance convergence
   integer(i4b),dimension(mSoil):: ixSoilMat                   ! soil layer carrying each matric head state
+  integer(i4b)                 :: iMat                        ! index of matric head state in the subset
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
@@ -1231,7 +1232,9 @@ contains
     liquidConv = .true.
    end if
 
-   ixSoilMat = ixControlVolume( ixMapSubset2Full(ixMatOnly) ) ! soil layer of each matric head state in the subset
+   do iMat=1,size(ixMatOnly) ! soil layer of each matric head state in the subset
+    ixSoilMat(iMat) = ixControlVolume( ixMapSubset2Full(ixMatOnly(iMat)) )
+   end do
 
    ! check convergence based on the iteration increment for matric head
    if (size(ixMatOnly)>0) then
@@ -1248,7 +1251,10 @@ contains
 
    ! check convergence based on the soil water balance error (m)
    if (size(ixMatOnly)>0) then
-    soilWatBalErr = sum( real(rVec(ixMatOnly), rkind)*mLayerDepth(nSnow+nLake+ixSoilMat) )
+    soilWatBalErr = 0._rkind
+    do iMat=1,size(ixMatOnly)
+     soilWatBalErr = soilWatBalErr + real(rVec(ixMatOnly(iMat)), rkind)*mLayerDepth(nSnow+nLake+ixSoilMat(iMat))
+    end do
     ! (tighter convergence for the scalar solution)
     if (scalarSolution) then
       watbalConv = (abs(soilWatBalErr) < absConvTol_liquid*scalarTighten)  ! absolute error in total soil water balance (m)

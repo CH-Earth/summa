@@ -105,16 +105,20 @@ subroutine snowLakeSoilGlceNrgFlux(&
   ! local variables
   integer(i4b)                        :: nLayers                    ! number of model layers
   integer(i4b)                        :: iLayer                     ! index of model layers
-  integer(i4b)                        :: ixLayerDesired(1)          ! layer desired (scalar solution)
   integer(i4b)                        :: ixTop                      ! top layer in subroutine call
   integer(i4b)                        :: ixBot                      ! bottom layer in subroutine call
   real(rkind)                         :: qFlux                      ! liquid flux at layer interfaces (m s-1)
   real(rkind)                         :: dz                         ! height difference (m)
   logical(lgt)                        :: zeroFlux_noThetaBdry       ! flag to denote if zero flux at noThetaChange boundary
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
-  ! allocate intent(out) data structure components
+  ! allocate intent(out) data structure components, reused unless the number of layers changed
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
-  allocate(&
+  if(allocated(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux))then
+    if(ubound(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux,1)/=nLayers) &
+      deallocate(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow, &
+                 out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow)
+  end if
+  if(.not.allocated(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux)) allocate(&
     out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux(0:nLayers),                          & ! energy flux at the layer interfaces (W m-2)
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
     out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow(0:nLayers),                    & ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
@@ -182,9 +186,8 @@ subroutine snowLakeSoilGlceNrgFlux(&
 
     ! get the indices for the layers
     if (scalarSolution) then
-      ixLayerDesired = pack(ixLayerState, ixSnLaSoGlNrg/=integerMissing)
-      ixTop = ixLayerDesired(1)
-      ixBot = ixLayerDesired(1)
+      ixTop = ixLayerState(findloc(ixSnLaSoGlNrg/=integerMissing, .true., 1)) ! first layer with an energy state in the subset
+      ixBot = ixTop
     else
       ixTop = 1
       ixBot = nLayers
