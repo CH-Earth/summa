@@ -114,10 +114,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
   ! allocate intent(out) data structure components, reused unless the number of layers changed
   nLayers=indx_data%var(iLookINDEX%nLayers)%dat(1)
   if(allocated(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux))then
-    if(ubound(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux,1)/=nLayers .or. size(out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux)/=indx_data%var(iLookINDEX%nLake)%dat(1)) &
+    if(ubound(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux,1)/=nLayers) &
       deallocate(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempAbove, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dTempBelow, &
-                 out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow, out_snowLakeSoilGlceNrgFlux % mLayerLakeAdvNrgFlux, &
-                 out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dTemp, out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dLiq, out_snowLakeSoilGlceNrgFlux % dLakeAdvNrgFlux_dDepth)
+                 out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatAbove, out_snowLakeSoilGlceNrgFlux % dNrgFlux_dWatBelow)
   end if
   if(.not.allocated(out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux)) allocate(&
     out_snowLakeSoilGlceNrgFlux % iLayerNrgFlux(0:nLayers),                          & ! energy flux at the layer interfaces (W m-2)
