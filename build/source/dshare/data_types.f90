@@ -2037,7 +2037,7 @@ subroutine initialize_in_diagv_node(in_diagv_node,iSoil,in_soilLiqFlux,diag_data
  subroutine initialize_in_surfaceFlux(in_surfaceFlux,nRoots,ixIce,nSoil,nGlce,ibeg,iend,in_soilLiqFlux,io_soilLiqFlux,&
                                      &model_decisions,prog_data,mpar_data,flux_data,diag_data,&
                                      &iLayerHeight,dHydCond_dTemp,iceImpedeFac)
-  class(in_type_surfaceFlux),intent(out) :: in_surfaceFlux ! input object for surfaceFlux
+  class(in_type_surfaceFlux),intent(inout) :: in_surfaceFlux ! input object for surfaceFlux
   integer(i4b),intent(in)                :: nRoots         ! number of soil layers with roots
   integer(i4b),intent(in)                :: ixIce          ! index of the lowest soil layer that contains ice
   integer(i4b),intent(in)                :: nSoil          ! number of soil layers

@@ -401,6 +401,8 @@ contains
   type(in_type_surfaceFlux)  ::  in_surfaceFlux
   type(io_type_surfaceFlux)  ::  io_surfaceFlux
   type(out_type_surfaceFlux) :: out_surfaceFlux
+  save :: in_surfaceFlux, out_surfaceFlux ! one copy per thread, so arrays are reallocated only when nSoil changes
+  !$omp threadprivate(in_surfaceFlux, out_surfaceFlux)
 
   call initialize_compute_surface_infiltration(in_surfaceFlux,io_surfaceFlux)
 
@@ -412,7 +414,7 @@ contains
 
  subroutine initialize_compute_surface_infiltration(in_surfaceFlux,io_surfaceFlux)
   ! **** Initialize operations for compute_surface_infiltration ****
-  type(in_type_surfaceFlux),intent(out) :: in_surfaceFlux
+  type(in_type_surfaceFlux),intent(inout) :: in_surfaceFlux
   type(io_type_surfaceFlux),intent(out) :: io_surfaceFlux
   ! set derivative w.r.t. state above to zero (does not exist)
   associate(&
@@ -435,7 +437,7 @@ contains
   ! **** Update operations for compute_surface_infiltration ****
   type(in_type_surfaceFlux) ,intent(in)    :: in_surfaceFlux
   type(io_type_surfaceFlux) ,intent(inout) :: io_surfaceFlux
-  type(out_type_surfaceFlux),intent(out)   :: out_surfaceFlux
+  type(out_type_surfaceFlux),intent(inout) :: out_surfaceFlux
   call surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceFlux)
  end subroutine update_compute_surface_infiltration
 
@@ -799,7 +801,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   ! input-output: hydraulic conductivity and diffusivity, and infiltration parameters
   type(io_type_surfaceFlux) ,intent(inout) :: io_surfaceFlux          ! input object for surfaceFlux
   ! output: runoff, infiltration, derivatives, and error control
-  type(out_type_surfaceFlux),intent(out)   :: out_surfaceFlux         ! output object for surfaceFlux
+  type(out_type_surfaceFlux),intent(inout) :: out_surfaceFlux         ! output object for surfaceFlux
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! local variables
   ! general
