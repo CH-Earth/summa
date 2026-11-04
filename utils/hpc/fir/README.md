@@ -35,8 +35,7 @@ and `--persistent-output` copies each finished basin's calibration file to
 `$SCRATCH/calibration/<job id>`.
 
 Scaling is set by the node count and the manifest's `cases_per_node`; each case group gets
-`192 / cases_per_node` ranks, one coordinating and the rest evaluating parameter sets. For
-112 basins at 1000 evaluations each, 4 cases per node took 5.2 h on one node and 0.84 h on eight.
+`192 / cases_per_node` ranks, one coordinating and the rest evaluating parameter sets.
 
 ## Large domains
 
@@ -48,8 +47,7 @@ sbatch --nodes=4 --ntasks=152 --ntasks-per-node=38 --cpus-per-task=5 summa_calib
 ```
 
 Threads only help a generation if the workers still cover the population, since a generation takes
-`ceil(population / workers)` trial times. Otherwise fewer threads and more trials at once is faster, so
-one case of population 120 on one node is best at `k = 1`.
+`ceil(population / workers)` trial times. Otherwise fewer threads and more trials at once is faster.
 
 Threads work across GRUs, not within one, so a trial cannot go faster than its largest GRU: the speedup is
 at most about the domain's HRUs divided by the largest GRU's HRUs. Results are bit-identical at any thread count.
