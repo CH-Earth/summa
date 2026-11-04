@@ -112,6 +112,7 @@ type, public :: config_info
   character(len=:),  allocatable :: manifest_casename       ! Case name selected from the run manifest
   character(len=:),  allocatable :: template_path           ! Path to the SUMMA configuration template
   character(len=:),  allocatable :: template_file           ! SUMMA configuration template filename
+  character(len=:),  allocatable :: experiment              ! Experiment identifier, e.g., exp01
   integer(i4b)                   :: n_runs = 1              ! Number of independent optimization runs (different seed)
   integer(i4b)                   :: run_index = 1           ! Index of indepndent optimization run
   ! SUMMA configuration options from the CLI (-g and -h)

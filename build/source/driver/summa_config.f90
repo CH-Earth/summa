@@ -602,6 +602,7 @@ contains
         ! ---- multi-case configuration ----
         case ("multi_case.cases_per_node"   ); call get_value(subtable,trim(keys(i)%key),config%cases_per_node    , stat=istat)
         case ("multi_case.n_runs"           ); call get_value(subtable,trim(keys(i)%key),config%n_runs            , stat=istat)
+        case ("multi_case.experiment"       ); call get_value(subtable,trim(keys(i)%key),config%experiment        , stat=istat)
 
         ! ----- path/name of toml template (template_path is optional: default is the manifest directory) -----
         case ("multi_case.template_path"    ); call get_value(subtable,trim(keys(i)%key),config%template_path     , stat=istat)
@@ -770,6 +771,33 @@ contains
     call expand_config_string(config%forcing_list,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    ! ---- Common SUMMA configuration files ----
+    call expand_config_string(config%decisions,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call expand_config_string(config%output_control,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! ---- Common SUMMA parameter files ----
+    call expand_config_string(config%local_parameters,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call expand_config_string(config%basin_parameters,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! ---- Common SUMMA parameter tables ----
+    call expand_config_string(config%vegetation_table,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call expand_config_string(config%soil_table,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call expand_config_string(config%general_table,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call expand_config_string(config%noahmp_table,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
 #ifdef MIZUROUTE_ACTIVE
     ! ---- mizuRoute paths ----
     call expand_config_string(config%mizu_info%mrout%namelist_path,config,err,cmessage)
@@ -807,23 +835,25 @@ contains
     ! temporary diagnostic output
     if(isPrint)then
       write(*,'(A)') 'Expanded SUMMA configuration:'
-      write(*,'(A)') '  case_name     = '//trim(config%case_name)
-      write(*,'(A)') '  basin_dir     = '//trim(config%basin_dir)
-      write(*,'(A)') '  settings_path = '//trim(config%settings_path)
-      write(*,'(A)') '  forcing_path  = '//trim(config%forcing_path)
-      write(*,'(A)') '  output_path   = '//trim(config%output_path)
-      write(*,'(A)') '  state_path    = '//trim(config%state_path)
+      write(*,'(A)') '  case_name      = '//trim(config%case_name)
+      write(*,'(A)') '  basin_dir      = '//trim(config%basin_dir)
+      write(*,'(A)') '  settings_path  = '//trim(config%settings_path)
+      write(*,'(A)') '  forcing_path   = '//trim(config%forcing_path)
+      write(*,'(A)') '  output_path    = '//trim(config%output_path)
+      write(*,'(A)') '  state_path     = '//trim(config%state_path)
       write(*,'(A)') '  init_condition = '//trim(config%init_condition)
       write(*,'(A)') '  attributes     = '//trim(config%attributes)
       write(*,'(A)') '  trial_params   = '//trim(config%trial_params)
       write(*,'(A)') '  forcing_list   = '//trim(config%forcing_list)
+      write(*,'(A)') '  decisions      = '//trim(config%decisions)
+      write(*,'(A)') '  local_params   = '//trim(config%local_parameters)
 #ifdef MIZUROUTE_ACTIVE
-      write(*,'(A)') '  namelist_path = '//trim(config%mizu_info%mrout%namelist_path)
-      write(*,'(A)') '  hfabric_path  = '//trim(config%mizu_info%ntopo%hfabric_path)
-      write(*,'(A)') '  remap_path    = '//trim(config%mizu_info%remap%remap_path)
+      write(*,'(A)') '  namelist_path  = '//trim(config%mizu_info%mrout%namelist_path)
+      write(*,'(A)') '  hfabric_path   = '//trim(config%mizu_info%ntopo%hfabric_path)
+      write(*,'(A)') '  remap_path     = '//trim(config%mizu_info%remap%remap_path)
 #endif
-      write(*,'(A)') '  obs_path      = '//trim(config%obs%obs_path)
-      write(*,'(A)') '  obs_file      = '//trim(config%obs%obs_file)
+      write(*,'(A)') '  obs_path       = '//trim(config%obs%obs_path)
+      write(*,'(A)') '  obs_file       = '//trim(config%obs%obs_file)
       write(*,*)
     endif
 
@@ -960,7 +990,17 @@ contains
       call replace_string(value,'{work_path}',trim(config%work_path),err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
-  
+ 
+    ! expand the experiment identifier.
+    if(index(value,'{experiment}')>0)then
+      if(.not.allocated(config%experiment))then
+        message=trim(message)//"placeholder '{experiment}' used but experiment is not defined"
+        err=20; return
+      endif
+      call replace_string(value,'{experiment}',trim(config%experiment),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
   end subroutine expand_config_string
 
   ! **************************************************************************************************
