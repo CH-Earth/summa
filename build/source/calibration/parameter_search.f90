@@ -128,6 +128,7 @@ module parameter_search
   type :: ordered_search_info
     integer(i4b), allocatable :: param_index(:)
     real(rkind)               :: gap
+    logical(lgt)              :: field_based = .false. ! Requires physical parameter fields
   end type ordered_search_info
 
   ! **************************************************************************************************
@@ -440,6 +441,26 @@ contains
       enddo
 
       ! ---------------------------------------------------------------------------------------------
+      ! Identify constraints that require spatially distributed physical parameter fields.
+      !
+      ! Scalar constraint handling is valid only when every parameter is represented
+      ! by a uniform physical value. Other parameterizations are evaluated after
+      ! constructing the effective physical fields.
+      ! ---------------------------------------------------------------------------------------------
+      search%ordered(iConstraint)%field_based=.false.
+
+      do i=1,nOrdered
+        ixParam=search%ordered(iConstraint)%param_index(i)
+
+        if(spec%params(ixParam)%param_type/=param_physical)then
+          search%ordered(iConstraint)%field_based=.true.
+          exit
+        endif
+      enddo
+
+      if(search%ordered(iConstraint)%field_based) cycle
+
+      ! ---------------------------------------------------------------------------------------------
       ! Compute absolute minimum gap in physical parameter space.
       ! ---------------------------------------------------------------------------------------------
 
@@ -513,6 +534,10 @@ contains
       changed=.false.
 
       do iConstraint=1,size(search%ordered)
+
+        ! Spatial constraints are handled using effective physical parameter fields.
+        if(search%ordered(iConstraint)%field_based) cycle
+
         do j=2,size(search%ordered(iConstraint)%param_index)
           iPrev=search%ordered(iConstraint)%param_index(j-1)
           ixParam=search%ordered(iConstraint)%param_index(j)
@@ -1039,6 +1064,7 @@ contains
 
     check_ordered_constraints = .true.
     do iConstraint=1,size(search%ordered)
+      if(search%ordered(iConstraint)%field_based) cycle
       do i=1,size(search%ordered(iConstraint)%param_index)
         ixParam  = search%ordered(iConstraint)%param_index(i)
         ixSearch = search%search_index(ixParam)

@@ -1,6 +1,6 @@
 module summa_parameter_fields
 
-  USE nr_type,    only: i4b,rkind
+  USE nr_type,    only: i4b,rkind,lgt
   USE data_types, only: gru_hru_dom_doubleVec,gru_double
   USE globalData, only: gru_struc
 
@@ -8,6 +8,7 @@ module summa_parameter_fields
   USE parameter_fields,  only: parameter_field
   USE parameter_search,  only: param_physical
   USE parameter_fields,  only: construct_effective_parameter_fields => apply_parameter_sample
+  USE parameter_fields,  only: validate_effective_ordered_constraints
 
   USE model_calibration, only: model_calibration_context
 
@@ -166,6 +167,9 @@ contains
     integer(i4b) :: iMember       ! Parameter position within an ordered constraint
     integer(i4b) :: ix            ! Parameter registry index
     real(rkind)  :: tolerance     ! Tolerance for comparing initialized scalar values
+    integer(i4b) :: ixFirst       ! First parameter in an ordered constraint
+    logical(lgt) :: field_based   ! Whether a constraint requires physical-field validation
+    character(len=256) :: detail  ! Details of incompatible parameter fields
 
     err=0
     message='initialize_summa_parameter_fields/'
@@ -210,36 +214,97 @@ contains
       endif
 
     enddo
-
+    
     ! -----------------------------------------------------------------------------------------------
-    ! Support ordered constraints involving uniform physical parameters.
+    ! Validate spatial alignment for ordered constraints.
     !
-    ! The generic parameter search already enforces these constraints using
-    ! scalar physical values. This is valid only when non-sampled parameters
-    ! have initialized fields consistent with their scalar trial values.
-    !
-    ! Constraints involving spatial multipliers, parameter ratios, or
-    ! spatially varying fixed parameters require field-based handling.
+    ! Scalar constraints involving uniform physical parameters are handled
+    ! by the generic parameter search. Constraints involving spatial
+    ! multipliers or ratios are checked after constructing effective fields.
     ! -----------------------------------------------------------------------------------------------
     if(allocated(spec%ordered))then
 
       do iConstraint=1,size(spec%ordered)
 
+        ixFirst=spec%ordered(iConstraint)%param_index(1)
+        field_based=.false.
+
+        ! Determine whether the ordered constraint requires spatial fields.
+        ! Constraints containing only physical parameters are scalar constraints.
         do iMember=1,size(spec%ordered(iConstraint)%param_index)
 
           ix=spec%ordered(iConstraint)%param_index(iMember)
 
-          ! Only uniform physical parameterizations can use scalar constraints.
-          if(spec%params(ix)%param_type/=param_physical)then
-            message=trim(message)//'field-based ordered constraints are not yet implemented for '// &
-                    trim(spec%params(ix)%name)
+          if(spec%params(ix)%param_type/=param_physical) field_based=.true.
+
+        enddo
+
+        ! Check parameter compatibility for this ordered constraint.
+        do iMember=1,size(spec%ordered(iConstraint)%param_index)
+
+          ix=spec%ordered(iConstraint)%param_index(iMember)
+
+          ! Ordered constraints cannot mix basin and model parameters.
+          if((param_map(ix)%ixB>0) .neqv. (param_map(ixFirst)%ixB>0))then
+            message=trim(message)//'ordered constraint mixes basin and model parameters'
             err=20; return
           endif
 
-          ! Sampled physical parameters are assigned uniformly during each trial.
+          ! Spatial alignment is only required for field-based constraints.
+          ! Uniform physical parameters are compared as scalar values.
+          if(.not.field_based) cycle
+
+          ! Field-based constraints require corresponding spatial elements.
+          if(size(field(ix)%initial)/=size(field(ixFirst)%initial))then
+
+            write(detail,'(A,A,I0,A,A,A,I0,A)') &
+              trim(spec%params(ixFirst)%name),' (',size(field(ixFirst)%initial),'), ', &
+              trim(spec%params(ix)%name),' (',size(field(ix)%initial),')'
+
+            message=trim(message)//'ordered parameter fields have different lengths: '//trim(detail)
+            err=20; return
+
+          endif
+          
+          ! Basin fields have one value per GRU.
+          if(param_map(ix)%ixB>0) cycle
+
+          ! Model parameter fields must select the same set of domains.
+          if(param_map(ix)%domain_type/=param_map(ixFirst)%domain_type)then
+            message=trim(message)//'ordered parameter fields have different domain qualifiers'
+            err=20; return
+          endif
+
+          ! Verify alignment within every selected GRU, HRU, and domain.
+          do g=1,size(mpar_init%gru)
+            do h=1,size(mpar_init%gru(g)%hru)
+              do d=1,size(mpar_init%gru(g)%hru(h)%dom)
+
+                if(param_map(ix)%domain_type/=0 .and. &
+                   param_map(ix)%domain_type/=gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type) cycle
+
+                if(size(mpar_init%gru(g)%hru(h)%dom(d)%var(param_map(ix)%ixM)%dat)/= &
+                   size(mpar_init%gru(g)%hru(h)%dom(d)%var(param_map(ixFirst)%ixM)%dat))then
+                  message=trim(message)//'ordered fields are not spatially aligned'
+                  err=20; return
+                endif
+
+              enddo
+            enddo
+          enddo
+
+        enddo
+
+        ! Spatial constraints are validated using effective fields during each trial.
+        if(field_based) cycle
+
+        ! Preserve existing scalar handling for unsampled physical parameters.
+        do iMember=1,size(spec%ordered(iConstraint)%param_index)
+
+          ix=spec%ordered(iConstraint)%param_index(iMember)
+
           if(spec%params(ix)%sampled) cycle
 
-          ! Fixed parameters must match the scalar values used by the search.
           tolerance=1000._rkind*epsilon(1._rkind)* &
                     max(1._rkind,abs(spec%params(ix)%trial_value))
 
@@ -254,7 +319,7 @@ contains
       enddo
 
     endif
-    
+
     ! -----------------------------------------------------------------------------------------------
     ! Verify the spatial alignment of every parameter ratio.
     ! -----------------------------------------------------------------------------------------------
@@ -498,6 +563,16 @@ contains
 
     ! Construct the effective physical fields using the generic parameterization routines.
     call construct_effective_parameter_fields(spec,search,sampled_values,field,err,cmessage)
+
+    if(err/=0)then
+      message=trim(message)//trim(cmessage)
+      return
+    endif
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Check field-based ordered constraints before modifying SUMMA parameters.
+    ! -----------------------------------------------------------------------------------------------
+    call validate_effective_ordered_constraints(spec,field,err,cmessage)
 
     if(err/=0)then
       message=trim(message)//trim(cmessage)

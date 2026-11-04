@@ -152,7 +152,6 @@ write_aligned = false
 
 [calibration.parameters]
 
-k_soil              = { transformation = "log" }
 theta_sat           = {}
 aquiferBaseflowExp  = {}
 aquiferBaseflowRate = { transformation = "log" }
@@ -167,6 +166,9 @@ windReductionParam  = {}
 vGn_n               = {}
 routingGammaScale   = {}
 routingGammaShape   = {}
+
+[calibration.spatial_multipliers]
+k_soil = { lower = 0.5, upper = 2.0, transformation = "log" }
 
 [[parameter_dependencies.ordered]]
 

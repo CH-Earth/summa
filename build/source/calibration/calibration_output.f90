@@ -575,20 +575,32 @@ contains
     character(len=:), allocatable :: exe,serial_exe,init_state,source_rev,launch_dir
     character(len=32)   :: val
     character(len=4096) :: line
+    character(len=4) :: runString  ! Independent calibration run identifier
     integer(i4b) :: unit,iParam,ix,ios
     logical(lgt) :: rerunnable
 
     err=0
     message='write_failed_trial/'
     
-    ! one directory per trial
+    ! unique string
     write(val,'(i6.6)') sample_id
     if(trim(config%calib%algorithm) == 'nsga2')then
       write(line,'(a,i0,a)') 'nsga2_g',(sample_id-1)/config%calib%nsga2%population_size+1,'_s'//trim(val)
     else
       line=trim(config%calib%algorithm)//'_s'//trim(val)
     endif
-    dir=trim(OUTPUT_PATH)//'failed_trials/'//trim(line)//'/'
+
+    ! directory name: avoid collisions across multiple basins
+    if(allocated(config%manifest_file))then
+      write(runString,'(I4.4)') config%run_index
+      dir=trim(OUTPUT_PATH)//'failed_trials/'// &
+          trim(config%case_name)//'/run'//runString//'/'// &
+          trim(line)//'/'
+    else
+      dir=trim(OUTPUT_PATH)//'failed_trials/'//trim(line)//'/'
+    endif
+   
+    ! create the case- and run-specific failed-trial directory.
     call execute_command_line('mkdir -p "'//dir//'"')
 
     ! the executable that ran the trial, and its serial driver (_opt dropped)
