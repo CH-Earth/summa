@@ -749,20 +749,20 @@ end function gser_complex
 
 
 ! ******************************************************************************************************************************
-! public function LogSumExp: LSE (or RealSoftMax) function used for smooth approximations of max or min functions
+! public function LogSumExp: LSE (or RealSoftMax) of two values, a smooth approximation of max(x1,x2) or min(x1,x2)
 ! ******************************************************************************************************************************
-function LogSumExp(alpha,x,err) result(LSE)
+function LogSumExp(alpha,x1,x2,err) result(LSE)
   use, intrinsic :: ieee_arithmetic,only:ieee_value,ieee_is_normal,ieee_quiet_nan
   use, intrinsic :: iso_fortran_env,only:real128
   implicit none
   ! input
   real(rkind),intent(in) :: alpha ! smoothness parameter (LSE --> max as alpha --> +Inf, LSE --> min as alpha --> -Inf)
-  real(rkind),intent(in) :: x(:)  ! vector of input values
+  real(rkind),intent(in) :: x1,x2 ! input values
   ! output
   real(rkind)              :: LSE ! LogSumExp value 
   integer(i4b),intent(out) :: err ! error code
   ! local variables
-  real(real128),allocatable :: x_qp(:) ! quadruple precision x vector
+  real(real128) :: x1_qp,x2_qp ! quadruple precision input values
   real(real128) :: x_star   ! quadruple precision shift value for numerical stability
   real(real128) :: alpha_qp ! quadruple precision alpha
   real(real128) :: LSE_qp   ! quadruple precision LSE value 
@@ -778,13 +778,13 @@ function LogSumExp(alpha,x,err) result(LSE)
 
   ! use quadruple precision variables to prevent over/underflow
   alpha_qp = real(alpha,real128)
-  allocate(x_qp(size(x)))
-  x_qp     = real(x,real128)
+  x1_qp    = real(x1,real128)
+  x2_qp    = real(x2,real128)
 
   ! shift value to improve numerical stability
-  x_star = maxval(abs(x_qp))
+  x_star = max(abs(x1_qp),abs(x2_qp))
 
-  LSE_qp= x_star + log(sum(exp(alpha_qp*(x_qp-x_star))))/alpha_qp
+  LSE_qp= x_star + log(exp(alpha_qp*(x1_qp-x_star)) + exp(alpha_qp*(x2_qp-x_star)))/alpha_qp
   LSE=real(LSE_qp,rkind)
   
   ! check if value is normal (not NaN, -Infinity, or +Infinity)
@@ -793,9 +793,9 @@ function LogSumExp(alpha,x,err) result(LSE)
     return
   else                          ! revert to analytic max/min function as a failsafe (accurate but not smoothed)
     if (alpha < 0._rkind) then  ! min
-      LSE = minval(x)
+      LSE = min(x1,x2)
     else                        ! max (alpha cannot be zero)
-      LSE = maxval(x)
+      LSE = max(x1,x2)
     end if
   end if
 
@@ -803,47 +803,43 @@ end function LogSumExp
 
 
 ! ******************************************************************************************************************************
-! public function SoftArgMax: SoftArgMax (aliases: softmax, normalized exponential) function for smooth approximations to argument max or min
+! public function SoftArgMax: SoftArgMax (aliases: softmax, normalized exponential) weight on x1 of two values, a smooth argument max or min
 ! ******************************************************************************************************************************
 ! Note: Can be used to evaluate the derivatives of LogSumExp
-! dLogSumExp(alpha,x)_dx(i) = SoftArgMax(alpha,x)
-function SoftArgMax(alpha,x) result(SAM)
+! dLogSumExp(alpha,x1,x2)_dx1 = SoftArgMax(alpha,x1,x2)
+function SoftArgMax(alpha,x1,x2) result(SAM)
   use, intrinsic :: ieee_arithmetic,only:ieee_is_normal
   use, intrinsic :: iso_fortran_env,only:real128
   implicit none
   ! input
   real(rkind),intent(in) :: alpha ! smoothness parameter (SAM --> arg max as alpha --> +Inf, SAM --> arg min as alpha --> -Inf)
-  real(rkind),intent(in) :: x(:) ! vector of input values
+  real(rkind),intent(in) :: x1,x2 ! input values
   ! output
-  real(rkind),allocatable  :: SAM(:) ! SoftArgMax value 
+  real(rkind)            :: SAM   ! SoftArgMax weight on x1
   ! local variables
   real(real128) :: alpha_qp ! quadruple precision alpha
   real(real128) :: x_star   ! quadruple precision shift value for numerical stability
-  real(real128),allocatable :: x_qp(:)   ! quadruple precision x vector
-  real(real128),allocatable :: SAM_qp(:) ! quadruple precision SAM value 
+  real(real128) :: e1,e2    ! quadruple precision shifted exponentials of x1 and x2
 
   ! use quadruple precision variables to prevent over/underflow
   alpha_qp = real(alpha,real128)
-  allocate(x_qp(size(x)))
-  x_qp     = real(x,real128)
 
   ! shift value to improve numerical stability
-  x_star = maxval(abs(x_qp))
+  x_star = max(abs(real(x1,real128)),abs(real(x2,real128)))
 
-  allocate(SAM_qp(size(x)))
-  SAM_qp = exp(alpha_qp*(x_qp-x_star)) / sum(exp(alpha_qp*(x_qp-x_star)))
-  SAM = real(SAM_qp,rkind)
+  e1 = exp(alpha_qp*(real(x1,real128)-x_star))
+  e2 = exp(alpha_qp*(real(x2,real128)-x_star))
+  SAM = real(e1/(e1+e2),rkind)
 
-  ! check if all values are normal (not NaN, -Infinity, or +Infinity)
+  ! check if both weights are normal (not NaN, -Infinity, or +Infinity)
   ! note: mainly to account for overflow/underflow that may occur in extreme cases
-  if (all(ieee_is_normal(SAM))) then ! return if value is not NaN or infinity
+  if (ieee_is_normal(SAM) .and. ieee_is_normal(real(e2/(e1+e2),rkind))) then ! return if values are not NaN or infinity
     return
   else                          ! revert to analytic arg max/min function in one-hot representation as a failsafe (accurate but not smoothed)
-    SAM(:) = 0._rkind
-    if (alpha < 0._rkind) then  ! arg min
-      SAM(minloc(x)) = 1._rkind
-    else                        ! arg max
-      SAM(maxloc(x)) = 1._rkind 
+    if (alpha < 0._rkind) then  ! arg min (first on a tie)
+      SAM = merge(1._rkind, 0._rkind, x1 <= x2)
+    else                        ! arg max (first on a tie)
+      SAM = merge(1._rkind, 0._rkind, x1 >= x2)
     end if
   end if
 end function SoftArgMax
