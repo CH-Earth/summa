@@ -663,6 +663,8 @@ subroutine T2enthTemp_soil(&
   ! downwind routines
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
   USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
+  USE soil_utils_module,only:volFracTot     ! compute volumetric fraction of total water
+  USE soil_utils_module,only:smoothHead     ! smoothed total head at which the freezing curve meets total water
   USE spline_int_module,only:splint         ! use for cubic spline interpolation
   implicit none
   ! delare dummy variables
@@ -715,7 +717,7 @@ subroutine T2enthTemp_soil(&
   if(present(volFracWat0))then
     volFracWat = volFracWat0
   else
-    volFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    volFracWat = volFracTot(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
   endif
   diffT      = mLayerTemp - Tfreeze
   diff0      = Tcrit - Tfreeze
@@ -763,7 +765,7 @@ subroutine T2enthTemp_soil(&
         if(integral_frz_low0>=0)then ! = realMissing if non-compute
           integral_frz_low = integral_frz_low0
         else
-          arg              = (vGn_alpha * mLayerMatricHead)**vGn_n
+          arg              = (vGn_alpha * smoothHead(mLayerMatricHead))**vGn_n
           gauss_hg_T       = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
           integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
         endif
@@ -1214,6 +1216,10 @@ subroutine enthalpy2T_soil(&
   USE soil_utils_module,only:crit_soilT           ! compute critical temperature below which ice exists
   USE soil_utils_module,only:volFracLiq           ! compute volumetric fraction of liquid water
   USE soil_utils_module,only:dTheta_dPsi          ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
+  USE soil_utils_module,only:volFracTot           ! compute volumetric fraction of total water
+  USE soil_utils_module,only:dVolFracTot_dPsi     ! derivative of total water w.r.t. total matric head (m-1)
+  USE soil_utils_module,only:dCritSoilT_dPsi      ! derivative of the critical temperature w.r.t. total matric head (K m-1)
+  USE soil_utils_module,only:smoothHead           ! smoothed total head at which the freezing curve meets total water
 
   implicit none
   ! delare dummy variables
@@ -1286,9 +1292,9 @@ subroutine enthalpy2T_soil(&
 
   Tcrit             = crit_soilT(mLayerMatricHead)
   diff0             = Tcrit - Tfreeze
-  volFracWat        = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  dTcrit_dPsi0      = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead<=0._rkind)
-  dvolFracWat_dPsi0 = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) 
+  volFracWat        = volFracTot(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+  dTcrit_dPsi0      = dCritSoilT_dPsi(mLayerMatricHead)
+  dvolFracWat_dPsi0 = dVolFracTot_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
   entCrit           = ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) &
                        + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) * diff0
 
@@ -1328,7 +1334,7 @@ subroutine enthalpy2T_soil(&
         end associate lookVars
 
       else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
-        arg              = (vGn_alpha * mLayerMatricHead)**vGn_n
+        arg              = (vGn_alpha * smoothHead(mLayerMatricHead))**vGn_n
         gauss_hg_T       = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
         integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
         if(computeJac) dintegral_frz_low_dWat = volFracWat * dTcrit_dPsi0
@@ -1808,6 +1814,7 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
   !----------------------------------------------------------------------
   function diff_H_soil ( mLayerTemp, vec, use_lookup, lookup_data, ixControlIndex)
     USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
+    USE soil_utils_module,only:volFracTot     ! compute volumetric fraction of total water based on total matric head
     implicit none
     real(rkind) :: diff_H_soil
     real(rkind) , intent(in) :: mLayerTemp, vec(10) 

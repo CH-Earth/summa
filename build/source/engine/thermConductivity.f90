@@ -331,7 +331,6 @@ subroutine thermConductivity(&
   character(LEN=256)                   :: cmessage                 ! error message of downwind routine
   logical(lgt)                         :: doVegNrgFlux             ! flag to compute the energy flux over vegetation
   integer(i4b)                         :: iLayer                   ! index of model layers
-  integer(i4b)                         :: ixLayerDesired(1)        ! layer desired (scalar solution)
   integer(i4b)                         :: ixTop                    ! top layer in subroutine call
   integer(i4b)                         :: ixBot                    ! bottom layer in subroutine call
   integer(i4b)                         :: iSoil                    ! index of soil layer
@@ -411,9 +410,8 @@ subroutine thermConductivity(&
     doVegNrgFlux = (ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing)
     if (nSnLaSoGlNrg>0) then
       if (scalarSolution) then
-        ixLayerDesired = pack(ixLayerState, ixSnLaSoGlNrg/=integerMissing)
-        ixTop = ixLayerDesired(1)
-        ixBot = ixLayerDesired(1)
+        ixTop = ixLayerState(findloc(ixSnLaSoGlNrg/=integerMissing, .true., 1)) ! first layer with an energy state in the subset
+        ixBot = ixTop
       else
         ixTop = 1
         ixBot = nLayers

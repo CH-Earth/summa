@@ -218,10 +218,20 @@ subroutine computFlux(&
   type(in_type_vegNrgFlux) :: in_vegNrgFlux;                                            type(out_type_vegNrgFlux) :: out_vegNrgFlux ! vegNrgFlux arguments
   type(in_type_snowLakeSoilGlceNrgFlux) :: in_snowLakeSoilGlceNrgFlux; type(io_type_snowLakeSoilGlceNrgFlux) :: io_snowLakeSoilGlceNrgFlux; type(out_type_snowLakeSoilGlceNrgFlux) :: out_snowLakeSoilGlceNrgFlux ! snowLakeSoilGlceNrgFlux arguments
   type(in_type_vegLiqFlux) :: in_vegLiqFlux;                                            type(out_type_vegLiqFlux) :: out_vegLiqFlux ! vegLiqFlux arguments
-  type(in_type_snowLakeGlceLiqFlux) :: in_snowLakeGlceLiqFlux; type(io_type_snowLakeGlceLiqFlux) :: io_snowLakeGlceLiqFlux; type(out_type_snowLakeGlceLiqFlux) :: out_snowLakeGlceLiqFlux ! snowLakeGlceLiqFlux arguments
+  type(in_type_snowLakeGlceLiqFlux),pointer :: in_snowLakeGlceLiqFlux; type(io_type_snowLakeGlceLiqFlux),pointer :: io_snowLakeGlceLiqFlux; type(out_type_snowLakeGlceLiqFlux) :: out_snowLakeGlceLiqFlux ! snowLakeGlceLiqFlux arguments
+  type(in_type_snowLakeGlceLiqFlux),target :: in_liqDomain(4); type(io_type_snowLakeGlceLiqFlux),target :: io_liqDomain(4) ! one per domain (glacier ice, lake ice, lake, snow), each sized to its layers
   type(in_type_soilLiqFlux) :: in_soilLiqFlux; type(io_type_soilLiqFlux) :: io_soilLiqFlux; type(out_type_soilLiqFlux) :: out_soilLiqFlux ! soilLiqFlux arguments
   type(in_type_groundwatr) :: in_groundwatr; type(io_type_groundwatr) :: io_groundwatr; type(out_type_groundwatr) :: out_groundwatr ! groundwatr arguments
   type(in_type_bigAquifer) :: in_bigAquifer; type(io_type_bigAquifer) :: io_bigAquifer; type(out_type_bigAquifer) :: out_bigAquifer ! bigAquifer arguments
+  ! kept between calls (one copy per thread) so their components are reallocated only when the layer counts change
+  save :: in_vegNrgFlux, out_vegNrgFlux, in_snowLakeSoilGlceNrgFlux, io_snowLakeSoilGlceNrgFlux, out_snowLakeSoilGlceNrgFlux, &
+       & in_vegLiqFlux, out_vegLiqFlux, in_liqDomain, io_liqDomain, out_snowLakeGlceLiqFlux, &
+       & in_soilLiqFlux, io_soilLiqFlux, out_soilLiqFlux, in_groundwatr, io_groundwatr, out_groundwatr, &
+       & in_bigAquifer, io_bigAquifer, out_bigAquifer
+  !$omp threadprivate(in_vegNrgFlux, out_vegNrgFlux, in_snowLakeSoilGlceNrgFlux, io_snowLakeSoilGlceNrgFlux, out_snowLakeSoilGlceNrgFlux, &
+  !$omp & in_vegLiqFlux, out_vegLiqFlux, in_liqDomain, io_liqDomain, out_snowLakeGlceLiqFlux, &
+  !$omp & in_soilLiqFlux, io_soilLiqFlux, out_soilLiqFlux, in_groundwatr, io_groundwatr, out_groundwatr, &
+  !$omp & in_bigAquifer, io_bigAquifer, out_bigAquifer)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
@@ -690,6 +700,7 @@ contains
 
   ! **** glceLiqFlux ****
  subroutine initialize_glceLiqFlux
+  in_snowLakeGlceLiqFlux => in_liqDomain(1); io_snowLakeGlceLiqFlux => io_liqDomain(1)
   associate(&
    noThetaChange        => indx_data%var(iLookINDEX%noThetaChange)%dat(1)      ) ! intent(in): [int] number of layers with no change in total water content (bottom layers)
    surface_flux = 0._rkind ! no surface flux for glacier ice layers since impermeable
@@ -744,7 +755,8 @@ contains
 
  ! **** frozen lakeLiqFlux ****
  subroutine initialize_frzlakeLiqFlux
-   associate(&
+  in_snowLakeGlceLiqFlux => in_liqDomain(2); io_snowLakeGlceLiqFlux => io_liqDomain(2)
+  associate(&
    noThetaChange               => indx_data%var(iLookINDEX%noThetaChange)%dat(1),    & ! intent(in): [int] number of layers with no change in total water content (bottom layers)
    scalarGlceMelt              => flux_data%var(iLookFLUX%scalarGlceMelt)%dat(1)     ) ! intent(in): [dp]  glacier ice melt (m s-1)
    surface_flux = 0._rkind ! no surface flux for glacier ice layers since impermeable
@@ -791,6 +803,7 @@ contains
 
  ! **** unfrozen lakeLiqFlux ****
  subroutine initialize_lakeLiqFlux
+  in_snowLakeGlceLiqFlux => in_liqDomain(3); io_snowLakeGlceLiqFlux => io_liqDomain(3)
   associate(&
    noThetaChange               => indx_data%var(iLookINDEX%noThetaChange)%dat(1),   & ! intent(in): [int] number of layers with no change in total water content (bottom layers)
    scalarSnowfall              => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),   & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
@@ -848,6 +861,7 @@ contains
 
  ! **** snowLiqFlux ****
  subroutine initialize_snowLiqFlux
+  in_snowLakeGlceLiqFlux => in_liqDomain(4); io_snowLakeGlceLiqFlux => io_liqDomain(4)
   associate(&
    scalarThroughfallRain       => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),   & ! intent(in): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
    scalarCanopyLiqDrainage     => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1), & ! intent(in): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)

@@ -92,6 +92,8 @@ subroutine updatSoil(&
   ! utility routines
   USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
   USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric liquid water content
+  USE soil_utils_module,only:volFracTot     ! compute volumetric fraction of total water based on total matric head
+  USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
   implicit none
   ! input variables
   real(rkind),intent(in)        :: mLayerTemp                ! estimate of temperature (K)
@@ -115,12 +117,12 @@ subroutine updatSoil(&
   err=0; message="updatSoil/"
 
   ! compute fractional **volume** of total water (liquid plus ice)
-  mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+  mLayerVolFracWat = volFracTot(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
   if(mLayerVolFracWat > (theta_sat + epsilon(1._rkind)))then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; end if
 
   ! compute the critical soil temperature where all water is unfrozen (K)
   ! (eq 17 in Dall'Amico 2011)
-  TcSoil = Tfreeze + min(mLayerMatricHead,0._rkind)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
+  TcSoil = crit_soilT(mLayerMatricHead)
 
   ! *** compute volumetric fraction of liquid water and ice for partially frozen soil
   if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)

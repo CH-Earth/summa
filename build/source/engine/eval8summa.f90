@@ -218,7 +218,6 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial         ! trial vector of temperature component of enthalpy for layers (J m-3)
   ! other local variables
   logical(lgt)                    :: checkLWBalance              ! flag to check longwave balance
-  integer(i4b)                    :: ixLayerDesired(1)           ! layer desired (scalar solution)
   integer(i4b)                    :: ixTop,ixBot                 ! top and bottom defining desired layers
   real(rkind),dimension(nState)   :: rVecScaled                  ! scaled residual vector
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
@@ -587,9 +586,8 @@ subroutine eval8summa(&
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
     if(nSoil>0)then
       if(scalarSolution)then
-        ixLayerDesired = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
-        ixTop  = ixLayerDesired(1)
-        ixBot  = ixLayerDesired(1)
+        ixTop  = ixControlVolume(findloc(ixMapFull2Subset/=integerMissing, .true., 1)) ! layer of the first state in the subset
+        ixBot  = ixTop
       else
         ixTop  = 1
         ixBot  = nSoil
@@ -786,6 +784,9 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   USE soil_utils_module,only:crit_soilT     ! compute the critical temperature below which ice exists
   USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
   USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
+  USE soil_utils_module,only:volFracTot     ! compute volumetric fraction of total water based on total matric head
+  USE soil_utils_module,only:matricHeadTot  ! compute the total matric head based on total water content
+  USE soil_utils_module,only:psiSmooth      ! width of the smooth min(psi,0) (m)
 
   implicit none
   
@@ -1023,11 +1024,12 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if(ixLiq/=integerMissing)then
             select case( ixStateType_subset(ixLiq) )     
               case(iname_lmpLayer)
-                effSat = volFracLiq(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),0._rkind,1._rkind,vGn_n(iLayer),vGn_m(iLayer))  ! effective saturation
+                effSat = volFracTot(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),0._rkind,1._rkind,vGn_n(iLayer),vGn_m(iLayer))  ! effective saturation
                 avPore = theta_sat(iLayer) - mLayerVolFracIce(iLayer+nSnow+nLake) - theta_res(iLayer)  ! available pore space
                 scalarLiq = effSat*avPore + theta_res(iLayer)
-                xPsi00 = matricHead(scalarLiq + mLayerVolFracIce(iLayer+nSnow+nLake),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-                if(stateVecPrev(ixLiq) + xInc(ixLiq) > 0._rkind) xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! saturated: total and liquid heads are the same pressure
+                xPsi00 = matricHeadTot(scalarLiq + mLayerVolFracIce(iLayer+nSnow+nLake),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+                if(mLayerVolFracIce(iLayer+nSnow+nLake) <= epsilon(1._rkind) .or. stateVecPrev(ixLiq) + xInc(ixLiq) >= psiSmooth) &
+                  xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! no ice or saturated: total and liquid heads are the same
               case(iname_matLayer); xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! only true if using iname_matLayer, otherwise may want to fix this
               case(iname_watLayer); xPsi00 = matricHead(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
               case(iname_liqLayer) 
