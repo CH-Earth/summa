@@ -202,6 +202,7 @@ n_samples = 400          # population_size x generations
 population_size = 20     # members kept each generation (default 100)
 # crossover_probability = 0.9, crossover_eta = 20, mutation_eta = 20
 # mutation_probability defaults to 1 / (number of calibrated parameters)
+# seed_file = "{home}/earlier_run0001_calibration.nc", seed_fraction = 0.5
 ```
 
 The first generation is random. Each later one breeds `population_size` offspring from the one before
@@ -211,6 +212,13 @@ offspring together. The operators work in the transformed search space, so a `lo
 recombined on a log scale, and a child that breaks an ordered constraint is bred again. `n_samples` has
 to be a whole number of generations, at least two. Target weights play no part; each target is
 oriented by its metric. Both searches evaluate trials on the same worker pool.
+
+`seed_file` starts the search from an earlier NSGA-II trials file. The best `seed_fraction` (default 1) of
+the first generation comes from the final population of its last finished generation, lowest front then
+largest crowding distance, leaving out failed trials; the rest is random, as is anything the file cannot
+fill. Every calibrated parameter has to be in the file, by name, and inside this run's bounds and ordered
+constraints, or the run stops. Parameters only the file has are ignored, and seeded trials are
+evaluated again, so changed targets or settings apply to them. `test_calibration_seed.sh` tests it.
 
 An NSGA-II trials file carries, beside every trial's parameters and objectives:
 

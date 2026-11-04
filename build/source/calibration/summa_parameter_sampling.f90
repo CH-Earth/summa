@@ -472,8 +472,9 @@ contains
   ! **************************************************************************************************
   ! NSGA-II over the calibration targets (rank 0 only).
   !
-  ! The first generation is a random population; each later one breeds as many offspring, evaluates
-  ! them, and keeps the best population_size of parents and offspring together. Objectives are
+  ! The first generation is a random population, optionally seeded from an earlier calibration; each
+  ! later one breeds as many offspring, evaluates them, and keeps the best population_size of parents
+  ! and offspring together. Objectives are
   ! oriented so smaller is better; weights play no part. Writes each generation's population and,
   ! at the end, which of all the trials are non-dominated.
   ! **************************************************************************************************
@@ -503,7 +504,7 @@ contains
     real(rkind),  allocatable :: distance(:)     ! their crowding distances
     integer(i4b), allocatable :: combined(:)     ! parents then offspring
     integer(i4b), allocatable :: keep(:)         ! survivors' positions in combined
-    integer(i4b) :: nPop,nGen,iGen,first,last,i
+    integer(i4b) :: nPop,nGen,iGen,first,last,i,nSeed
     real(rkind)  :: pm
     character(len=256) :: cmessage
 
@@ -521,13 +522,20 @@ contains
       return
     endif
 
+    nSeed=0
+    if(allocated(settings%seed_file))then
+      call seed_population(settings%seed_file,settings%seed_fraction,param_spec,search, &
+                           ledger%value(:,1:nPop),ledger%override(:,1:nPop),nSeed,err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
+
     do iGen=1,nGen
       first=(iGen-1)*nPop+1
       last=iGen*nPop
 
-      ! propose the generation: a random population, then offspring of the one before
+      ! propose the generation: a random population past any seeds, then offspring of the one before
       if(iGen == 1)then
-        do i=first,last
+        do i=first+nSeed,last
           call generate_parameter_sample('random',param_spec,search,search_state,1,nSamples, &
                                          ledger%value(:,i),ledger%override(:,i),err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -576,6 +584,54 @@ contains
     end associate
 
   end subroutine run_nsga2
+
+  ! **************************************************************************************************
+  ! Fill the start of the first generation with the best of an earlier calibration's final population:
+  ! seed_fraction of the population, or as many members as the file has if fewer. Returns how many.
+  ! **************************************************************************************************
+  subroutine seed_population(seed_file,seed_fraction,param_spec,search,value,override,nSeed,err,message)
+    USE parameter_search,          only: seed_search_vector
+    USE summa_parameter_spec,      only: build_summa_parameter_overrides
+    USE calibration_output_module, only: read_final_population
+    implicit none
+    character(*),                intent(in)  :: seed_file
+    real(rkind),                 intent(in)  :: seed_fraction
+    type(parameter_spec),        intent(in)  :: param_spec
+    type(parameter_search_info), intent(in)  :: search
+    real(rkind),                 intent(out) :: value(:,:)     ! search vectors (nParam,nPop)
+    real(rkind),                 intent(out) :: override(:,:)  ! override vectors (nOverride,nPop)
+    integer(i4b),                intent(out) :: nSeed
+    integer(i4b),                intent(out) :: err
+    character(*),                intent(out) :: message
+    real(rkind),  allocatable :: seeds(:,:)
+    integer(i4b), allocatable :: stream(:)
+    integer(i4b) :: nPop,i,nStream
+    character(len=256) :: cmessage
+
+    err=0
+    message='seed_population/'
+    nSeed=0
+    nPop=size(value,2)
+    call read_final_population(seed_file,search%param_names,seeds,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    ! the random stream depends on the seeds, or this run would repeat the draws of the run it continues
+    call random_seed(size=nStream)
+    allocate(stream(nStream))
+    call random_seed(get=stream)
+    stream=ieor(stream,int(mod(sum(fraction(seeds))*1.e6_rkind,1.e9_rkind),i4b))
+    call random_seed(put=stream)
+
+    nSeed=min(max(nint(seed_fraction*nPop),1),size(seeds,2))
+    do i=1,nSeed
+      call seed_search_vector(param_spec,search,seeds(:,i),value(:,i),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call build_summa_parameter_overrides(param_spec,search%param_names,value(:,i),override(:,i),err,cmessage)
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    enddo
+    write(output_unit,'(A,I0,A,I0,A)') 'NSGA-II seeded ',nSeed,' of ',nPop,' members from '//trim(seed_file)
+
+  end subroutine seed_population
 
   ! **************************************************************************************************
   ! One line per generation: the size of the non-dominated front and each target's best in it.
@@ -644,6 +700,14 @@ contains
         endif
         if(nsga2%crossover_eta < 0._rkind .or. nsga2%mutation_eta < 0._rkind)then
           message=trim(message)//'calibration.nsga2 distribution indices must not be negative'
+          err=20; return
+        endif
+        if(nsga2%seed_fraction <= 0._rkind .or. nsga2%seed_fraction > 1._rkind)then
+          message=trim(message)//'calibration.nsga2.seed_fraction must be above 0 and at most 1'
+          err=20; return
+        endif
+        if(nsga2%seed_fraction < 1._rkind .and. .not.allocated(nsga2%seed_file))then
+          message=trim(message)//'calibration.nsga2.seed_fraction needs seed_file'
           err=20; return
         endif
         end associate

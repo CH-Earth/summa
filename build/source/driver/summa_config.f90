@@ -936,6 +936,9 @@ contains
     call expand_config_string(config%obs%obs_file,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+    call expand_config_string(config%calib%nsga2%seed_file,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
     ! ---- per-target observation paths and filenames ----
     ! A target names its own observation file, so it needs the same placeholder expansion the
     ! [observations] section gets; a multi-case run relies on it to reach each case's own data.
@@ -1426,6 +1429,8 @@ contains
         case('crossover_eta');         call get_value(nsga2_table, trim(keys(i)%key), nsga2%crossover_eta,         stat=istat)
         case('mutation_probability');  call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_probability,  stat=istat)
         case('mutation_eta');          call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_eta,          stat=istat)
+        case('seed_file');             call get_value(nsga2_table, trim(keys(i)%key), nsga2%seed_file,             stat=istat)
+        case('seed_fraction');         call get_value(nsga2_table, trim(keys(i)%key), nsga2%seed_fraction,         stat=istat)
         case default
           message=trim(message)//'unexpected entry: calibration.nsga2.'//trim(keys(i)%key)
           ierr=20; return

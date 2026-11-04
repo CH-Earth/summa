@@ -32,6 +32,7 @@ module calibration_output_module
   public :: write_calibration_output
   public :: write_generation_output
   public :: write_pareto_front
+  public :: read_final_population
   public :: write_failed_trial
   public :: close_calibration_output
 
@@ -527,6 +528,113 @@ contains
     ierr=0
 
   end subroutine write_pareto_front
+
+  ! **************************************************************************************************
+  ! Read the population of the last finished generation in an NSGA-II calibration file.
+  !
+  ! Returns the named parameters' values (nParam,nMember) in model units, best first: lowest front,
+  ! then largest crowding distance. Members whose trial failed are left out.
+  ! **************************************************************************************************
+  subroutine read_final_population(filename,param_names,values,ierr,message)
+    implicit none
+    character(*),             intent(in)  :: filename
+    character(*),             intent(in)  :: param_names(:)
+    real(rkind), allocatable, intent(out) :: values(:,:)
+    integer(i4b),             intent(out) :: ierr
+    character(*),             intent(out) :: message
+    integer(i4b), allocatable :: population(:,:),front(:,:),failed(:),order(:)
+    real(rkind),  allocatable :: crowding(:,:),trial_value(:)
+    character(len=128) :: item
+    integer(i4b) :: ncid,varid,dimids(2),nMember,nGen,nSample,iGen,iMember,iParam,nKeep,j,status
+
+    ierr=0
+    message='read_final_population/'
+    item='file'
+    netcdf_block: block
+      ierr=nf90_open(trim(filename),NF90_NOWRITE,ncid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      read_block: block
+        item='population'
+        ierr=nf90_inq_varid(ncid,'population',varid)
+        if(ierr/=nf90_noerr) exit read_block
+        ierr=nf90_inquire_variable(ncid,varid,dimids=dimids)
+        if(ierr/=nf90_noerr) exit read_block
+        ierr=nf90_inquire_dimension(ncid,dimids(1),len=nMember)
+        if(ierr/=nf90_noerr) exit read_block
+        ierr=nf90_inquire_dimension(ncid,dimids(2),len=nGen)
+        if(ierr/=nf90_noerr) exit read_block
+        allocate(population(nMember,nGen),front(nMember,nGen),crowding(nMember,nGen))
+        ierr=nf90_get_var(ncid,varid,population)
+        if(ierr/=nf90_noerr) exit read_block
+
+        item='population_rank'
+        ierr=nf90_inq_varid(ncid,'population_rank',varid)
+        if(ierr==nf90_noerr) ierr=nf90_get_var(ncid,varid,front)
+        if(ierr/=nf90_noerr) exit read_block
+
+        item='population_crowding'
+        ierr=nf90_inq_varid(ncid,'population_crowding',varid)
+        if(ierr==nf90_noerr) ierr=nf90_get_var(ncid,varid,crowding)
+        if(ierr/=nf90_noerr) exit read_block
+
+        item='sample'
+        ierr=nf90_inq_dimid(ncid,'sample',dimids(1))
+        if(ierr==nf90_noerr) ierr=nf90_inquire_dimension(ncid,dimids(1),len=nSample)
+        if(ierr/=nf90_noerr) exit read_block
+        allocate(failed(nSample),trial_value(nSample),order(nMember))
+
+        item='trial_failed'
+        ierr=nf90_inq_varid(ncid,'trial_failed',varid)
+        if(ierr==nf90_noerr) ierr=nf90_get_var(ncid,varid,failed)
+        if(ierr/=nf90_noerr) exit read_block
+
+        ! an interrupted run leaves its later generations at the fill value
+        do iGen=nGen,1,-1
+          if(all(population(:,iGen) >= 1)) exit
+        enddo
+        if(iGen < 1)then
+          message=trim(message)//'no finished generation in '//trim(filename)
+          ierr=nf90_close(ncid); ierr=20; return
+        endif
+
+        nKeep=0
+        do iMember=1,nMember
+          if(failed(population(iMember,iGen)) == 1) cycle
+          j=nKeep
+          do while(j > 0)
+            if(front(order(j),iGen) < front(iMember,iGen)) exit
+            if(front(order(j),iGen) == front(iMember,iGen) .and. crowding(order(j),iGen) >= crowding(iMember,iGen)) exit
+            order(j+1)=order(j)
+            j=j-1
+          enddo
+          order(j+1)=iMember
+          nKeep=nKeep+1
+        enddo
+        if(nKeep == 0)then
+          message=trim(message)//'every member of the final population failed in '//trim(filename)
+          ierr=nf90_close(ncid); ierr=20; return
+        endif
+
+        allocate(values(size(param_names),nKeep))
+        do iParam=1,size(param_names)
+          item='parameter '//trim(param_names(iParam))
+          ierr=nf90_inq_varid(ncid,trim(param_names(iParam)),varid)
+          if(ierr==nf90_noerr) ierr=nf90_get_var(ncid,varid,trial_value)
+          if(ierr/=nf90_noerr) exit read_block
+          values(iParam,:)=trial_value(population(order(1:nKeep),iGen))
+        enddo
+      end block read_block
+
+      status=nf90_close(ncid)
+    end block netcdf_block
+    if(ierr/=nf90_noerr)then
+      message=trim(message)//trim(item)//': '//trim(nf90_strerror(ierr))//' in '//trim(filename)
+      return
+    endif
+    ierr=0
+
+  end subroutine read_final_population
 
   ! **************************************************************************************************
   ! Save a failed trial as a standalone repro case, in <output_path>/failed_trials/<algorithm>_g<generation>_s<sample>/

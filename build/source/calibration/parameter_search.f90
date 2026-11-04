@@ -106,6 +106,7 @@ module parameter_search
   public :: inverse_transform_parameter
   public :: check_ordered_constraints
   public :: decode_gap_chains
+  public :: seed_search_vector
 
 contains
 
@@ -621,6 +622,66 @@ contains
     enddo
 
   end subroutine decode_gap_chains
+
+  ! **************************************************************************************************
+  ! Turn sampled parameters' model values into a search vector, the inverse of decode_gap_chains for
+  ! a chain searched by its gaps. Values outside this search's bounds or constraints are an error.
+  !
+  ! seed_values and param_values are both indexed like search%param_names.
+  ! **************************************************************************************************
+  subroutine seed_search_vector(spec,search,seed_values,param_values,err,message)
+    implicit none
+    type(parameter_spec),        intent(in)  :: spec
+    type(parameter_search_info), intent(in)  :: search
+    real(rkind),                 intent(in)  :: seed_values(:)
+    real(rkind),                 intent(out) :: param_values(:)
+    integer(i4b),                intent(out) :: err
+    character(*),                intent(out) :: message
+    real(rkind), parameter   :: tolerance=1.e-10_rkind       ! share of the range allowed for round-off
+    real(rkind), allocatable :: full(:)
+    real(rkind), allocatable :: upper_room(:)
+    real(rkind)  :: gap,low,slack
+    integer(i4b) :: iConstraint,i,ix,n
+
+    err=0
+    message='seed_search_vector/'
+    full=spec%params(:)%trial_value
+    do i=1,size(full)
+      if(search%search_index(i) > 0) full(i)=seed_values(search%search_index(i))
+    enddo
+
+    ! later members first, as each one's room depends on the value of the one before
+    if(allocated(spec%ordered))then
+      do iConstraint=1,size(spec%ordered)
+        if(.not.spec%ordered(iConstraint)%sample_gaps) cycle
+        associate(chain => spec%ordered(iConstraint)%param_index)
+        n=size(chain)
+        gap=spec%ordered(iConstraint)%gap_fraction*(spec%params(chain(n))%upper - spec%params(chain(1))%lower)
+        call chain_uppers(spec,iConstraint,upper_room)
+        do i=n,2,-1
+          low=max(spec%params(chain(i))%lower, full(chain(i-1))+gap)
+          full(chain(i))=(full(chain(i))-low)/max(upper_room(i)-low,tiny(1._rkind))
+        enddo
+        end associate
+      enddo
+    endif
+
+    do i=1,size(full)
+      ix=search%search_index(i)
+      if(ix == 0) cycle
+      slack=tolerance*(search%upper(ix)-search%lower(ix))
+      if(full(i) < search%lower(ix)-slack .or. full(i) > search%upper(ix)+slack)then
+        message=trim(message)//'seed value of '//trim(spec%params(i)%name)//' breaks its bounds or ordering'
+        err=20; return
+      endif
+      param_values(ix)=min(max(full(i),search%lower(ix)),search%upper(ix))
+    enddo
+    if(.not.check_ordered_constraints(search,param_values))then
+      message=trim(message)//'seed values break an ordered constraint'
+      err=20; return
+    endif
+
+  end subroutine seed_search_vector
 
   ! **************************************************************************************************
   ! Generate the next parameter sample for the selected search method.
