@@ -51,6 +51,5 @@ Threads only help a generation if the workers still cover the population, since 
 `ceil(population / workers)` trial times. Otherwise fewer threads and more trials at once is faster, so
 one case of population 120 on one node is best at `k = 1`.
 
-A trial cannot go faster than its largest GRU: the 3396-HRU Sagehen grid has 722 HRUs in GRU 1, which
-bounds it at 4.7x. Measured there on an 8-core laptop: 1.5x at 2 threads, 2.0x at 3, 2.8x at 5, 3.0x at 9.
-Results are bit-identical at any thread count.
+Threads work across GRUs, not within one, so a trial cannot go faster than its largest GRU: the speedup is
+at most about the domain's HRUs divided by the largest GRU's HRUs. Results are bit-identical at any thread count.
