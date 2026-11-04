@@ -33,6 +33,7 @@ option(USE_NGEN_OUTPUT "Use framework-managed output when USE_NEXTGEN=ON" ON)
 option(USE_OPENWQ "Use OpenWQ Framework" OFF)
 option(USE_MPI "Use MPI parallelization" OFF)
 option(USE_TOML "Build the TOML configuration reader (needed for -c)" OFF)
+option(USE_OPENMP "Run each model instance's GRUs on OpenMP threads (OMP_NUM_THREADS)" OFF)
 
 # The TOML reader is only wanted by things that actually read TOML: the mizuRoute
 # configuration, and the calibration driver's run manifest (built with MPI). A plain run
@@ -95,6 +96,12 @@ if (USE_OPENWQ)
     add_compile_definitions(OPENWQ_ACTIVE)
 endif()
 
+# OpenMP
+if (USE_OPENMP)
+    message("ENABLING OPENMP")
+    find_package(OpenMP REQUIRED COMPONENTS Fortran)
+endif()
+
 # MPI
 if (USE_MPI)
     message("ENABLING MPI")
@@ -110,6 +117,9 @@ if (USE_MPI)
         SUMMA_NRTYPE
         MPI::MPI_Fortran
     )
+    if (USE_OPENMP)
+        target_link_libraries(PARALLEL_UTILS PUBLIC OpenMP::OpenMP_Fortran)
+    endif()
 endif()
 
 # TOML parser
@@ -225,6 +235,13 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     list(APPEND FLAGS_ALL -ffpe-summary=none)
 endif()
 
+# mizuRoute runs outside the GRU loop on one thread, so its own OpenMP directives stay off
+set(FLAGS_MIZU ${FLAGS_ALL})
+if (USE_OPENMP)
+    list(APPEND FLAGS_NOAH ${OpenMP_Fortran_FLAGS})
+    list(APPEND FLAGS_ALL ${OpenMP_Fortran_FLAGS})
+endif()
+
 #=========================================================================================
 # COMPILE PART 1: Define directory paths
 #=========================================================================================
@@ -298,7 +315,7 @@ if (USE_MIZUROUTE)
 
     # mizuRoute type and interface definitions
     add_library(MIZUROUTE_TYPES STATIC ${MIZU_TYPE})
-    target_compile_options(MIZUROUTE_TYPES PRIVATE ${FLAGS_ALL})
+    target_compile_options(MIZUROUTE_TYPES PRIVATE ${FLAGS_MIZU})
     target_link_libraries(MIZUROUTE_TYPES PUBLIC SUMMA_NRTYPE)
     set_target_properties(MIZUROUTE_TYPES PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_types_mod)
     target_include_directories(MIZUROUTE_TYPES PUBLIC ${CMAKE_BINARY_DIR}/mizuroute_types_mod)
@@ -306,13 +323,13 @@ if (USE_MIZUROUTE)
     # Core mizuRoute implementation
     add_library(MIZUROUTE STATIC ${MIZU_BASE} ${MIZU_SHIM} ${MIZU_TOPO}
       ${MIZU_INIT} ${MIZU_RMAP} ${MIZU_ROUTE} ${MIZU_OUTPUT})
-    target_compile_options(MIZUROUTE PRIVATE ${FLAGS_ALL})
+    target_compile_options(MIZUROUTE PRIVATE ${FLAGS_MIZU})
     target_link_libraries(MIZUROUTE PUBLIC MIZUROUTE_TYPES NetCDF::NetCDF)
     set_target_properties(MIZUROUTE PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_mod)
 
     # SUMMA-facing mizuRoute coupling layer
     add_library(MIZUROUTE_COUPLING STATIC ${MIZU_COUPLING})
-    target_compile_options(MIZUROUTE_COUPLING PRIVATE ${FLAGS_ALL})
+    target_compile_options(MIZUROUTE_COUPLING PRIVATE ${FLAGS_MIZU})
     target_link_libraries(MIZUROUTE_COUPLING PUBLIC MIZUROUTE)
     add_dependencies(MIZUROUTE_COUPLING SUMMA_TYPES toml-f-lib)
     set_target_properties(MIZUROUTE_COUPLING PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_coupling_mod)
@@ -404,6 +421,9 @@ if(USE_NEXTGEN)
 	endif()
 	target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
 	target_link_libraries(summabmi PUBLIC SUMMA_TYPES ${EXT_TARGETS} iso_c_bmi SUMMA_NOAHMP SUMMA_COMM)
+	if (USE_OPENMP)
+		target_link_libraries(summabmi PUBLIC OpenMP::OpenMP_Fortran)
+	endif()
 
 	set_target_properties(summabmi PROPERTIES VERSION ${PROJECT_VERSION})
 	include(GNUInstallDirs)
@@ -421,6 +441,10 @@ else()
   add_library(summa SHARED ${SUMMA_ALL})
   target_compile_options(summa PRIVATE ${FLAGS_ALL})
   target_link_libraries(summa PUBLIC SUMMA_TYPES ${EXT_TARGETS} SUMMA_NOAHMP SUMMA_COMM ${LIBRARY_LINKS})
+  if (USE_OPENMP)
+    target_link_libraries(summa PUBLIC OpenMP::OpenMP_Fortran)
+  endif()
+
   if (USE_TOML)
     target_link_libraries(summa PRIVATE toml-f-lib)
     target_include_directories(summa PRIVATE ${CMAKE_BINARY_DIR}/toml-f/include)

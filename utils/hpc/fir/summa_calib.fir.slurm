@@ -12,6 +12,8 @@
 
 # Multi-case calibration of the Century basins on Fir.
 #   sbatch [--nodes=N --ntasks=192*N] summa_calib.fir.slurm [manifest]
+# Large domains run k GRU threads per rank, with --ntasks-per-node=192/k:
+#   sbatch --ntasks=64 --ntasks-per-node=64 --cpus-per-task=3 summa_calib.fir.slurm [manifest]
 # The manifest's cases_per_node sets how many basins share a node. PR 649 scaling runs:
 #   --nodes=1,2,4,8 with cases_per_node=4, and --nodes=2 with cases_per_node=1,2,4,8
 
@@ -36,7 +38,8 @@ cd "$SLURM_TMPDIR/models/summa"
 
 srun --mpi=pmix \
   -n "$SLURM_NTASKS" \
-  --ntasks-per-node=192 \
+  --ntasks-per-node="$SLURM_NTASKS_PER_NODE" \
+  --cpus-per-task="$SLURM_CPUS_PER_TASK" \
   "$SLURM_TMPDIR/models/summa/bin/summa_sundials_mizuroute_opt.exe" \
   --manifest "$MANIFEST" \
   --home "$SLURM_TMPDIR" \

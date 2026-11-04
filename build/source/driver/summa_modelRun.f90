@@ -91,7 +91,7 @@ contains
  real(rkind)                           :: notUsed_exposedVAI    ! NOT USED: exposed vegetation area index (m2 m-2)
  ! local variables: parallelize the model run
  integer(i4b), allocatable             :: ixExpense(:)          ! ranked index GRU w.r.t. computational expense
- integer(i4b), allocatable             :: totalFluxCalls(:)     ! total number of flux calls for each GRU
+ real(rkind),  allocatable             :: totalFluxCalls(:)     ! total number of flux calls for each GRU
  ! local variables: timing information
  integer*8                             :: openMPstart,openMPend ! time for the start of the parallelization section
  integer*8, allocatable                :: timeGRUstart(:)       ! time GRUs start
@@ -190,7 +190,7 @@ contains
  ! allocate space for GRU timing
  allocate(totalFluxCalls(nGRU_local), timeGRU(nGRU_local), timeGRUstart(nGRU_local), timeGRUcompleted(nGRU_local), ixExpense(nGRU_local), stat=err)
  if(err/=0)then; message=trim(message)//'unable to allocate space for GRU timing'; return; endif
- timeGRU(:) = realMissing ! initialize because used for ranking
+ timeGRU(:) = realMissing
 
  ! allocate space for GRU errors
  allocate(errGRU(nGRU_local), msgGRU(nGRU_local), stat=err)
@@ -208,7 +208,7 @@ contains
  end do
 
  ! get the indices that can rank the computational expense
- call indexx(timeGRU, ixExpense) ! ranking of each GRU w.r.t. computational expense
+ call indexx(totalFluxCalls, ixExpense) ! ranking of each GRU w.r.t. computational expense
  ixExpense=ixExpense(nGRU_local:1:-1)  ! reverse ranking: now largest to smallest
 
  ! initialize the GRU count

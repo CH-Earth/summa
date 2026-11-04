@@ -29,8 +29,8 @@ program summa_driver_mpi
   USE mpi, only : MPI_COMM_WORLD, MPI_COMM_SELF, MPI_SUCCESS  ! MPI constants
 
   ! subroutines and functions: MPI
-  USE mpi, only : MPI_Init, MPI_Finalize                      ! MPI subroutine interfaces
-  USE mpi_context, only : set_mpi_context                     ! define MPI communication context
+  USE mpi, only : MPI_Finalize                                ! MPI subroutine interfaces
+  USE mpi_context, only : set_mpi_context, init_mpi           ! define MPI communication context, start MPI
   USE error_utils, only : check_mpi, abort_mpi                ! check MPI errors
 
   ! subroutines and functions: SUMMA
@@ -58,8 +58,8 @@ program summa_driver_mpi
   ! ---------------------------------------------------------------------------------------
   ! Initialize MPI
   ! ---------------------------------------------------------------------------------------
-  call MPI_Init(mpi_err)
-  call check_mpi(-1,mpi_err,'MPI_Init failed')
+  call init_mpi(mpi_err)
+  call check_mpi(-1,mpi_err,'MPI_Init_thread failed')
 
   ! distribute the model domain across MPI processes
   domain_parallel%comm=MPI_COMM_WORLD

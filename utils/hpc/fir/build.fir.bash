@@ -32,6 +32,7 @@ cmake -B ../cmake_build -S ../. \
   -DUSE_MPI=ON \
   -DUSE_SUNDIALS=ON \
   -DUSE_MIZUROUTE=ON \
+  -DUSE_OPENMP=ON \
   -DSPECIFY_LAPACK_LINKS=OFF \
   -DCMAKE_BUILD_TYPE=Release
 
