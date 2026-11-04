@@ -283,6 +283,7 @@ AFTER tag of v4.0.0-exp-Sundials
      A target over an HRU, GRU or the domain weights each HRU's domains by their area, without zero-area domains, commit 8ffcff1e Oct 16, 2026
      [calibration.parameter_bounds] sets a parameter's search range, so name@domainType ones get their own, commit 57e61415 Oct 20, 2026
      NSGA-II can seed its first generation from an earlier calibration's final population (seed_file, seed_fraction), the rest random, commit b2cfc8e8 Nov 4, 2026
+     multi_case.nodes_per_case lets one case's groups span nodes (default 1), each node reading its own spinup restart, commit eea3d052 Nov 4, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers), multi-calib commits d632b36a to de2ae997 Sep 21, 2026, not in this branch
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
       1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
@@ -324,5 +325,4 @@ AFTER tag of v4.0.0-exp-Sundials
  88) Noah-MP parameters, snow/ice enthalpy tables and elapsedSec days kept per HRU, so HRUs can run concurrently, commit 2cb8db21 Nov 2, 2026
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit c9cdcc34 Nov 2, 2026
 -90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit 88ccd923 Nov 2, 2026
- 91) USE_OPENMP (default off) runs each trial's GRUs on OpenMP threads, bit-identical at any thread count; Fir scripts run k threads per rank, commit f265a5b8 Nov 4, 2026
- 92) multi_case.nodes_per_case lets one case's groups span nodes (default 1), each node reading its own spinup restart, commit eea3d052 Nov 4, 2026
+ 91) USE_OPENMP (default off) runs each model instance's GRUs on OpenMP threads, bit-identical at any thread count; Fir scripts run k threads per rank, commit f265a5b8 Nov 4, 2026
