@@ -740,6 +740,7 @@ contains
   
         ! ---- multi-case configuration ----
         case ("multi_case.cases_per_node"   ); call get_value(subtable,trim(keys(i)%key),config%cases_per_node    , stat=istat)
+        case ("multi_case.nodes_per_case"   ); call get_value(subtable,trim(keys(i)%key),config%nodes_per_case    , stat=istat)
         case ("multi_case.n_runs"           ); call get_value(subtable,trim(keys(i)%key),config%n_runs            , stat=istat)
 
         ! ----- path/name of toml template (template_path is optional: default is the manifest directory) -----
@@ -800,6 +801,11 @@ contains
 
     if(config%cases_per_node < 1)then
       message=trim(message)//'cases_per_node must be greater than zero'
+      err=20; return
+    endif
+
+    if(config%nodes_per_case < 1)then
+      message=trim(message)//'nodes_per_case must be greater than zero'
       err=20; return
     endif
 
@@ -928,6 +934,9 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     call expand_config_string(config%obs%obs_file,config,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    call expand_config_string(config%calib%nsga2%seed_file,config,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! ---- per-target observation paths and filenames ----
@@ -1420,6 +1429,8 @@ contains
         case('crossover_eta');         call get_value(nsga2_table, trim(keys(i)%key), nsga2%crossover_eta,         stat=istat)
         case('mutation_probability');  call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_probability,  stat=istat)
         case('mutation_eta');          call get_value(nsga2_table, trim(keys(i)%key), nsga2%mutation_eta,          stat=istat)
+        case('seed_file');             call get_value(nsga2_table, trim(keys(i)%key), nsga2%seed_file,             stat=istat)
+        case('seed_fraction');         call get_value(nsga2_table, trim(keys(i)%key), nsga2%seed_fraction,         stat=istat)
         case default
           message=trim(message)//'unexpected entry: calibration.nsga2.'//trim(keys(i)%key)
           ierr=20; return

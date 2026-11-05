@@ -132,13 +132,15 @@ MODULE data_types
 
  ! -----------------------------------------------------------------------------------------------------------
  ! NSGA-II settings (Deb et al., 2002).  The sample budget is population_size times the number of
- ! generations, the first of which is the random initial population.
+ ! generations, the first of which is the initial population, random unless seeded from seed_file.
  type,public  :: nsga2_info
   integer(i4b)                   :: population_size = 100          ! members kept each generation
   real(rkind)                    :: crossover_probability = 0.9_rkind ! chance a pair of parents is crossed
   real(rkind)                    :: crossover_eta = 20._rkind      ! SBX distribution index
   real(rkind)                    :: mutation_probability = -1._rkind ! chance each variable mutates; negative is 1/nParam
   real(rkind)                    :: mutation_eta = 20._rkind       ! polynomial-mutation distribution index
+  character(len=:), allocatable  :: seed_file                      ! earlier calibration file whose final population seeds the first generation
+  real(rkind)                    :: seed_fraction = 1._rkind       ! share of the first generation seeded; the rest is random
  end type nsga2_info
 
  ! -----------------------------------------------------------------------------------------------------------

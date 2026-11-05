@@ -8,8 +8,8 @@ repository; to exercise the same code path locally, use
 
 | File | Use |
 | --- | --- |
-| `build.fir.bash` | load modules and build SUMMA with MPI, SUNDIALS and mizuRoute |
-| `env_summa.fir.bash` | runtime modules, and one compute thread per MPI rank |
+| `build.fir.bash` | load modules and build SUMMA with MPI, SUNDIALS, mizuRoute and OpenMP |
+| `env_summa.fir.bash` | runtime modules, and one GRU thread per core given to each MPI rank |
 | `setup_summa.century.fir.bash` | stage `bin/`, the Century data and observations to node-local `$SLURM_TMPDIR` |
 | `summa_calib.fir.slurm` | stage once per node, then run the calibration from a manifest |
 
@@ -36,3 +36,18 @@ and `--persistent-output` copies each finished basin's calibration file to
 
 Scaling is set by the node count and the manifest's `cases_per_node`; each case group gets
 `192 / cases_per_node` ranks, one coordinating and the rest evaluating parameter sets.
+
+## Large domains
+
+A trial's GRUs can run on `k` threads, and a case can span nodes with `nodes_per_case` in the manifest:
+
+```bash
+# 5 threads per trial, one case over 4 nodes: nodes_per_case = 4, cases_per_node = 1
+sbatch --nodes=4 --ntasks=152 --ntasks-per-node=38 --cpus-per-task=5 summa_calib.fir.slurm <manifest>
+```
+
+Threads only help a generation if the workers still cover the population, since a generation takes
+`ceil(population / workers)` trial times. Otherwise fewer threads and more trials at once is faster.
+
+Threads work across GRUs, not within one, so a trial cannot go faster than its largest GRU: the speedup is
+at most about the domain's HRUs divided by the largest GRU's HRUs. Results are bit-identical at any thread count.

@@ -77,7 +77,9 @@ subroutine summa_defineGlobalData(err, message)
   USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
   USE childStruc_module,only:childStruc                       ! module to create a child data structure
   ! miscellaneous global data
+  !$ USE omp_lib,only:omp_get_max_threads                     ! threads a parallel region would get
   USE globalData,only:dNaN                                    ! double precision NaN
+  USE globalData,only:nThreads                                ! number of threads
   USE globalData,only:structInfo                              ! information on the data structures
   ! named variables that describe elements of child  model structures
   USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
@@ -106,6 +108,9 @@ subroutine summa_defineGlobalData(err, message)
 
   ! define double precision NaNs (shared in globalData)
   dNaN = ieee_value(1._rkind, ieee_quiet_nan)
+
+  ! number of threads each GRU loop runs on
+  !$ nThreads = omp_get_max_threads()
 
   ! populate metadata for all model variables
   call popMetadat(err,cmessage)

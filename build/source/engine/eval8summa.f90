@@ -697,6 +697,7 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
   real(rkind)                 :: fNew        ! function values, not needed here
   integer(i4b)                :: err         ! error in imposeConstraints
   character(len=256)          :: message     ! error message of downwind routine
+  integer(i4b)                :: iState      ! index of state
   !======= Internals ============
 
   ! get equations data from user-defined data
@@ -765,7 +766,9 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
   
   ! save residual and return success
-  eqns_data%resVec = rVec
+  do iState=1,eqns_data%nState
+    eqns_data%resVec(iState) = rVec(iState)
+  end do
   ierr = 0
   return
 
