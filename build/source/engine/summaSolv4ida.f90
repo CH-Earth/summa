@@ -320,7 +320,7 @@ subroutine summaSolv4ida(&
     allocate( eqns_data%sMul(int(nState,i4b)) ); eqns_data%sMul = sMul
     allocate( eqns_data%dMat(int(nState,i4b)) ); eqns_data%dMat = dMat
     
-    ! allocate space for the to save previous fluxes
+    ! allocate space for previous fluxes
     call allocCached(ixCache_idaFluxPrev,flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
