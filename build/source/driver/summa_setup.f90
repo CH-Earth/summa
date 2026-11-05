@@ -30,8 +30,6 @@ USE globalData, only: iulog             ! I/O unit for logging messages
 USE build_options,only:ngen_forcing_active ! flag for forcing supplied by the NextGen framework
 
 ! access constants
-USE globalData,only:nLakeIceLayers_poss ! number of ice layers in a lake that can accumulate 
-USE globalData,only:nMeltingIceLayers   ! number of glacier ice layers that can have a change in total water content
 USE globalData,only:data_step           ! length of the data step (s) in forcing data
 
 ! named variables
@@ -312,13 +310,11 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE convertEnthalpyTemp_module,only:T2H_lookup_snWat        ! look-up table for the snow temperature-enthalpy conversion
+ USE convertEnthalpyTemp_module,only:T2H_lookup_reset        ! free the snow/ice look-up tables built from previous parameter values
  USE convertEnthalpyTemp_module,only:T2L_lookup_soil         ! look-up table for the soil temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! fraction of runoff in future time steps (time delay histogram)
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:model_decisions                         ! model decision structure
- USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
- USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
- USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
  implicit none
  ! dummy variables
  type(summa1_type_dec),intent(inout)   :: summa1_struc       ! master summa data structure
@@ -329,7 +325,6 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
  integer(i4b)                          :: jHRU,kHRU          ! HRU indices
  integer(i4b)                          :: iGRU,iHRU,iDOM     ! looping variables
  logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
- logical(lgt)                          :: needLookup_ice     ! logical to decide if computing enthalpy lookup tables for ice
  ! ---------------------------------------------------------------------------------------
  summaVars: associate(&
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
@@ -344,6 +339,9 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  err=0; message='summa_paramUpdate/'
+
+ ! free the snow/ice look-up tables built from previous parameter values (every HRU is re-pointed below)
+ call T2H_lookup_reset()
 
  ! *****************************************************************************
  ! *** compute derived model variables for the basin as a whole
@@ -384,13 +382,12 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
     call paramCheck(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
+    ! calculate a look-up table for the temperature-enthalpy conversion of snow (and glacier/lake ice) for future layer merging
     ! NOTE: H is the mixture enthalpy of snow liquid and ice
-    !  do the same for glacier ice if necessary (more than one melting ice layer)
-    needLookup_ice = .false.
-    if(nMeltingIceLayers > 1 .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nGlce > 0) needLookup_ice = .true.
-    if(nLakeIceLayers_poss > 1 .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%nLake > 0 ) needLookup_ice = .true. 
-    call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),needLookup_ice,err,cmessage)
+    !       the tables are shared by every HRU with the same snowfrz_scale
+    call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),     &   ! intent(in):    model parameters
+                          lookupStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),   &   ! intent(inout): lookup table data structure
+                          err,cmessage)                                     ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! calculate a lookup table for the temperature-enthalpy conversion of soil 
@@ -405,20 +402,6 @@ subroutine summa_paramUpdate(summa1_struc, err, message)
                            lookupStruct%gru(iGRU)%hru(iHRU)%dom(iDOM),        &   ! intent(inout): lookup table data structure
                            err,cmessage)                                          ! intent(out):   error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
-    endif
-
-    ! vegetation parameters for upland domain
-    ! NOTE: HVT, HVB, SAIM and LAIM are process-global tables by vegetation class; run_oneHRU rewrites them per HRU
-    if (gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type==upland)then
-      ! overwrite the vegetation height
-      HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%heightCanopyTop)%dat(1)
-      HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%heightCanopyBottom)%dat(1)
-
-      ! overwrite the tables for LAI and SAI
-      if(model_decisions(iLookDECISIONS%LAI_method)%iDecision == specified)then
-       SAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%winterSAI)%dat(1)
-       LAIM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),:) = mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(iLookPARAM%summerLAI)%dat(1)*greenVegFrac_monthly
-      endif
     endif
    enddo ! looping through domains
 

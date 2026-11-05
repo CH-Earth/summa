@@ -56,52 +56,40 @@ module noahmp_globals
   REAL(rkind), PARAMETER :: DENICE = 917.      !density of ice (kg/m3)
 
 !------------------------------------------------------------------------------------------!
-! From the VEGPARM.TBL tables, as functions of vegetation category.
+! Parameters for a single HRU, set by REDPRM and then adjusted with the HRU's own parameters
 !------------------------------------------------------------------------------------------!
-  INTEGER :: NROOT        !rooting depth [as the number of layers] ( Assigned in REDPRM )
-  REAL(rkind)    :: RGL          !parameter used in radiation stress function ( Assigned in REDPRM )
-  REAL(rkind)    :: RSMIN        !minimum Canopy Resistance [s/m] ( Assigned in REDPRM )
-  REAL(rkind)    :: HS           !parameter used in vapor pressure deficit function ( Assigned in REDPRM )
-  REAL(rkind)    :: RSMAX        !maximum stomatal resistance ( Assigned in REDPRM )
-  REAL(rkind)    :: TOPT         !optimum transpiration air temperature.
-
-  ! MPC change: make variables private for a given thread
-  !$omp threadprivate(NROOT, RGL, RSMIN, HS, RSMAX, TOPT)
-
-!------------------------------------------------------------------------------------------!
-! From the SOILPARM.TBL tables, as functions of soil category.
-!------------------------------------------------------------------------------------------!
-  REAL(rkind)    :: BEXP         !B parameter ( Assigned in REDPRM )
-  REAL(rkind)    :: SMCDRY       !dry soil moisture threshold where direct evap from top
-                          !layer ends (volumetric) ( Assigned in REDPRM )
-  REAL(rkind)    :: F1           !soil thermal diffusivity/conductivity coef ( Assigned in REDPRM )
-  REAL(rkind)    :: SMCMAX       !porosity, saturated value of soil moisture (volumetric)
-  REAL(rkind)    :: SMCREF       !reference soil moisture (field capacity) (volumetric) ( Assigned in REDPRM )
-  REAL(rkind)    :: PSISAT       !saturated soil matric potential ( Assigned in REDPRM )
-  REAL(rkind)    :: DKSAT        !saturated soil hydraulic conductivity ( Assigned in REDPRM )
-  REAL(rkind)    :: DWSAT        !saturated soil hydraulic diffusivity ( Assigned in REDPRM )
-  REAL(rkind)    :: SMCWLT       !wilting point soil moisture (volumetric) ( Assigned in REDPRM )
-  REAL(rkind)    :: QUARTZ       !soil quartz content ( Assigned in REDPRM )
-
-  ! MPC change: make variables private for a given thread
-  !$omp threadprivate(BEXP, SMCDRY, F1, SMCMAX, SMCREF, PSISAT, DKSAT, DWSAT, SMCWLT, QUARTZ)
-
-!------------------------------------------------------------------------------------------!
-! From the GENPARM.TBL file
-!------------------------------------------------------------------------------------------!
-  REAL(rkind)    :: SLOPE       !slope index (0 - 1) ( Assigned in REDPRM )
-  REAL(rkind)    :: CSOIL       !vol. soil heat capacity [j/m3/K] ( Assigned in REDPRM )
-  REAL(rkind)    :: ZBOT        !Depth (m) of lower boundary soil temperature ( Assigned in REDPRM )
-  REAL(rkind)    :: CZIL        !Calculate roughness length of heat ( Assigned in REDPRM )
-
-  ! MPC note: FRZK_DATA, REFDK_DATA, and REFKDT_DATA are used in REDPRM to compute KDT and FRZX
-  !           (FRZK, REFDK, and REFKDT are local variables within REDPRM and do not need to be thread private)
-
-  REAL(rkind)    :: KDT         !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
-  REAL(rkind)    :: FRZX        !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
-
-  ! MPC change: make variables private for a given thread
-  !$omp threadprivate(SLOPE, CSOIL, ZBOT, CZIL, KDT, FRZX)
+  type, public :: noahmp_context
+    ! From the VEGPARM.TBL tables, as functions of vegetation category.
+    INTEGER        :: NROOT        !rooting depth [as the number of layers] ( Assigned in REDPRM )
+    REAL(rkind)    :: RGL          !parameter used in radiation stress function ( Assigned in REDPRM )
+    REAL(rkind)    :: RSMIN        !minimum Canopy Resistance [s/m] ( Assigned in REDPRM )
+    REAL(rkind)    :: HS           !parameter used in vapor pressure deficit function ( Assigned in REDPRM )
+    REAL(rkind)    :: RSMAX        !maximum stomatal resistance ( Assigned in REDPRM )
+    REAL(rkind)    :: TOPT         !optimum transpiration air temperature.
+    REAL(rkind)    :: HVT          !top of canopy (m) ( Assigned in REDPRM )
+    REAL(rkind)    :: HVB          !bottom of canopy (m) ( Assigned in REDPRM )
+    REAL(rkind)    :: SAIM(12)     !monthly stem area index, one-sided ( Assigned in REDPRM )
+    REAL(rkind)    :: LAIM(12)     !monthly leaf area index, one-sided ( Assigned in REDPRM )
+    ! From the SOILPARM.TBL tables, as functions of soil category.
+    REAL(rkind)    :: BEXP         !B parameter ( Assigned in REDPRM )
+    REAL(rkind)    :: SMCDRY       !dry soil moisture threshold where direct evap from top
+                                   !layer ends (volumetric) ( Assigned in REDPRM )
+    REAL(rkind)    :: F1           !soil thermal diffusivity/conductivity coef ( Assigned in REDPRM )
+    REAL(rkind)    :: SMCMAX       !porosity, saturated value of soil moisture (volumetric)
+    REAL(rkind)    :: SMCREF       !reference soil moisture (field capacity) (volumetric) ( Assigned in REDPRM )
+    REAL(rkind)    :: PSISAT       !saturated soil matric potential ( Assigned in REDPRM )
+    REAL(rkind)    :: DKSAT        !saturated soil hydraulic conductivity ( Assigned in REDPRM )
+    REAL(rkind)    :: DWSAT        !saturated soil hydraulic diffusivity ( Assigned in REDPRM )
+    REAL(rkind)    :: SMCWLT       !wilting point soil moisture (volumetric) ( Assigned in REDPRM )
+    REAL(rkind)    :: QUARTZ       !soil quartz content ( Assigned in REDPRM )
+    ! From the GENPARM.TBL file
+    REAL(rkind)    :: SLOPE        !slope index (0 - 1) ( Assigned in REDPRM )
+    REAL(rkind)    :: CSOIL        !vol. soil heat capacity [j/m3/K] ( Assigned in REDPRM )
+    REAL(rkind)    :: ZBOT         !Depth (m) of lower boundary soil temperature ( Assigned in REDPRM )
+    REAL(rkind)    :: CZIL         !Calculate roughness length of heat ( Assigned in REDPRM )
+    REAL(rkind)    :: KDT          !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
+    REAL(rkind)    :: FRZX         !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
+  end type noahmp_context
 
 
 ! LSM GENERAL PARAMETERS
@@ -506,6 +494,7 @@ contains
 ! ==================================================================================================
 ! --------------------------------------------------------------------------------------------------
   SUBROUTINE PHENOLOGY (VEGTYP , ISURBAN, SNOWH  , TV     , LAT   , YEARLEN , JULIAN , & !in
+                        CONTEXT,                                                       & !in
                         LAI    , SAI    , HTOP   , ELAI   , ESAI  , IGS)                 !out
 
 ! --------------------------------------------------------------------------------------------------
@@ -523,6 +512,7 @@ contains
   REAL(rkind)            , INTENT(IN   ) :: LAT    !latitude (radians)
   INTEGER                , INTENT(IN   ) :: YEARLEN!Number of days in the particular year
   REAL(rkind)            , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
+  type(noahmp_context)   , INTENT(IN   ) :: CONTEXT!parameters for this HRU (HVT, HVB, SAIM, LAIM)
   REAL(rkind)            , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
   REAL(rkind)            , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
 
@@ -562,8 +552,8 @@ contains
      IF (IT1 .LT.  1) IT1 = 12
      IF (IT2 .GT. 12) IT2 = 1
 
-     LAI = WT1*LAIM(VEGTYP,IT1) + WT2*LAIM(VEGTYP,IT2)
-     SAI = WT1*SAIM(VEGTYP,IT1) + WT2*SAIM(VEGTYP,IT2)
+     LAI = WT1*CONTEXT%LAIM(IT1) + WT2*CONTEXT%LAIM(IT2)
+     SAI = WT1*CONTEXT%SAIM(IT1) + WT2*CONTEXT%SAIM(IT2)
   ENDIF
   
   ! Realism check: no leaves without stems
@@ -582,11 +572,11 @@ contains
 
 !buried by snow
 
-     DB = MIN( MAX(SNOWH - HVB(VEGTYP),0.), HVT(VEGTYP)-HVB(VEGTYP) )
-     FB = DB / MAX(1.E-06,HVT(VEGTYP)-HVB(VEGTYP))
+     DB = MIN( MAX(SNOWH - CONTEXT%HVB,0.), CONTEXT%HVT-CONTEXT%HVB )
+     FB = DB / MAX(1.E-06,CONTEXT%HVT-CONTEXT%HVB)
 
-     IF(HVT(VEGTYP)> 0. .AND. HVT(VEGTYP) <= 0.5) THEN
-       SNOWHC = HVT(VEGTYP)*EXP(-SNOWH/0.1)
+     IF(CONTEXT%HVT> 0. .AND. CONTEXT%HVT <= 0.5) THEN
+       SNOWHC = CONTEXT%HVT*EXP(-SNOWH/0.1)
        IF (SNOWH>SNOWHC) THEN
         FB = 1.
        ELSE
@@ -603,7 +593,7 @@ contains
          IGS = 0.
      ENDIF
 
-     HTOP = HVT(VEGTYP)
+     HTOP = CONTEXT%HVT
 
   END SUBROUTINE PHENOLOGY
 ! ==================================================================================================
@@ -612,7 +602,7 @@ contains
   SUBROUTINE RADIATION (VEGTYP  ,IST     ,ISC     ,NSOIL   ,SNEQVO  , & !in
                         SNEQV   ,DT      ,COSZ    ,TG      ,TV      , & !in
                         FSNO    ,QSNOW   ,FWET    ,ELAI    ,ESAI    , & !in
-                        SMC     ,SOLAD   ,SOLAI   ,FVEG             , & !in
+                        SMC     ,SOLAD   ,SOLAI   ,FVEG    ,CONTEXT , & !in
                         ALBOLD  ,TAUSS                              , & !inout
                         FSUN    ,LAISUN  ,LAISHA  ,PARSUN  ,PARSHA  , & !out
                         SAV     ,SAG     ,FSR     ,FSA     ,FSRV    , & !out
@@ -641,6 +631,7 @@ contains
   REAL(rkind), DIMENSION(1:2)    , INTENT(IN) :: SOLAI  !incoming diffuse solar radiation (w/m2)
   REAL(rkind), INTENT(IN)                     :: FSNO   !snow cover fraction (-)
   REAL(rkind), INTENT(IN)                     :: FVEG   !green vegetation fraction [0.0-1.0]
+  type(noahmp_context), INTENT(IN)            :: CONTEXT!parameters for this HRU (HVT, HVB)
 
 ! inout
   REAL(rkind),                  INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
@@ -695,7 +686,7 @@ contains
    CALL ALBEDO (VEGTYP ,IST    ,ISC    ,NSOIL  ,DT     , & !in
                 COSZ   ,FAGE   ,ELAI   ,ESAI   ,TG     , & !in
                 TV     ,FSNO   ,FWET   ,SMC    ,SNEQVO , & !in
-                SNEQV  ,QSNOW  ,FVEG                   , & !in
+                SNEQV  ,QSNOW  ,FVEG   ,CONTEXT        , & !in
                 ALBOLD ,TAUSS                          , & !inout
                 ALBGRD ,ALBGRI ,ALBD   ,ALBI   ,FABD   , & !out
                 FABI   ,FTDD   ,FTID   ,FTII   ,FSUN   , & !out
@@ -729,7 +720,7 @@ contains
   SUBROUTINE ALBEDO (VEGTYP ,IST    ,ISC    ,NSOIL  ,DT     , & !in
                      COSZ   ,FAGE   ,ELAI   ,ESAI   ,TG     , & !in
                      TV     ,FSNO   ,FWET   ,SMC    ,SNEQVO , & !in
-                     SNEQV  ,QSNOW  ,FVEG                   , & !in
+                     SNEQV  ,QSNOW  ,FVEG   ,CONTEXT        , & !in
                      ALBOLD ,TAUSS                          , & !inout
                      ALBGRD ,ALBGRI ,ALBD   ,ALBI   ,FABD   , & !out
                      FABI   ,FTDD   ,FTID   ,FTII   ,FSUN   , & !out
@@ -763,6 +754,7 @@ contains
   REAL(rkind),                     INTENT(IN)  :: SNEQVO !snow mass at last time step(mm)
   REAL(rkind),                     INTENT(IN)  :: SNEQV  !snow mass (mm)
   REAL(rkind),                     INTENT(IN)  :: FVEG   !green vegetation fraction [0.0-1.0]
+  type(noahmp_context),            INTENT(IN)  :: CONTEXT!parameters for this HRU (HVT, HVB)
   REAL(rkind), DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water (m3/m3)
 
 ! inout
@@ -873,14 +865,14 @@ contains
       IC = 0      ! direct
       CALL TWOSTREAM (IB     ,IC      ,VEGTYP  ,COSZ    ,VAI    , & !in
                       FWET   ,TV      ,ALBGRD  ,ALBGRI  ,RHO    , & !in
-                      TAU    ,FVEG                              , & !in
+                      TAU    ,FVEG    ,CONTEXT                  , & !in
                       FABD   ,ALBD    ,FTDD    ,FTID    ,GDIR   , & !out
                       FREVD  ,FREGD   ,BGAP    ,WGAP)
 
       IC = 1      ! diffuse
       CALL TWOSTREAM (IB     ,IC      ,VEGTYP  ,COSZ    ,VAI    , & !in
                       FWET   ,TV      ,ALBGRD  ,ALBGRI  ,RHO    , & !in
-                      TAU    ,FVEG                              , & !in
+                      TAU    ,FVEG    ,CONTEXT                  , & !in
                       FABI   ,ALBI    ,FTDI    ,FTII    ,GDIR   , & !out
                       FREVI  ,FREGI   ,BGAP    ,WGAP)
 
@@ -1234,7 +1226,7 @@ contains
 ! --------------------------------------------------------------------------------------------------
   SUBROUTINE TWOSTREAM (IB     ,IC      ,VEGTYP  ,COSZ    ,VAI    , & !in
                         FWET   ,T       ,ALBGRD  ,ALBGRI  ,RHO    , & !in
-                        TAU    ,FVEG                              , & !in
+                        TAU    ,FVEG    ,CONTEXT                  , & !in
                         FAB    ,FRE     ,FTD     ,FTI     ,GDIR   , & !out
                         FREV   ,FREG    ,BGAP    ,WGAP)
 
@@ -1266,6 +1258,7 @@ contains
    REAL(rkind), DIMENSION(1:2), INTENT(IN)  :: RHO     !leaf+stem reflectance
    REAL(rkind), DIMENSION(1:2), INTENT(IN)  :: TAU     !leaf+stem transmittance
    REAL(rkind),                 INTENT(IN)  :: FVEG    !green vegetation fraction [0.0-1.0]
+   type(noahmp_context),        INTENT(IN)  :: CONTEXT !parameters for this HRU (HVT, HVB)
 
 ! output
 
@@ -1327,12 +1320,12 @@ contains
      ELSE
          IF(OPT_RAD == 1) THEN
            DENFVEG = -LOG(MAX(1.0-FVEG,0.01))/(PAI*RC(VEGTYP)**2)
-           HD      = HVT(VEGTYP) - HVB(VEGTYP)
+           HD      = CONTEXT%HVT - CONTEXT%HVB
            BB      = 0.5 * HD
            THETAP  = ATAN(BB/RC(VEGTYP) * TAN(ACOS(MAX(0.01,COSZ))) )
            ! BGAP    = EXP(-DEN(VEGTYP) * PAI * RC(VEGTYP)**2/COS(THETAP) )
            BGAP    = EXP(-DENFVEG * PAI * RC(VEGTYP)**2/COS(THETAP) )
-           FA      = VAI/(1.33 * PAI * RC(VEGTYP)**3.0 *(BB/RC(VEGTYP))*DENFVEG)
+           FA      = VAI/(1.33 * PAI * RC(VEGTYP)**3 *(BB/RC(VEGTYP))*DENFVEG)
            NEWVAI  = HD*FA
            WGAP    = (1.0-BGAP) * EXP(-0.5*NEWVAI/COSZ)
            GAP     = MIN(1.0-FVEG, BGAP+WGAP)
@@ -1619,6 +1612,7 @@ contains
   END SUBROUTINE STOMATA
 ! ==================================================================================================
   SUBROUTINE CANRES (PAR   ,SFCTMP,RCSOIL ,EAH   ,SFCPRS , & !in
+                     CONTEXT                              , & !in
                      RC    ,PSN)                             !out
 
 ! --------------------------------------------------------------------------------------------------
@@ -1642,6 +1636,7 @@ contains
     REAL(rkind),                     INTENT(IN)  :: SFCPRS !surface pressure (pa)
     REAL(rkind),                     INTENT(IN)  :: EAH    !water vapor pressure (pa)
     REAL(rkind),                     INTENT(IN)  :: RCSOIL !soil moisture stress factor
+    type(noahmp_context),            INTENT(IN)  :: CONTEXT!parameters for this HRU (RGL, RSMIN, RSMAX, TOPT, HS)
 
 !outputs
 
@@ -1676,23 +1671,23 @@ contains
 
 ! contribution due to incoming solar radiation
 
-    FF  = 2.0 * PAR / RGL
-    RCS = (FF + RSMIN / RSMAX) / (1.0+ FF)
+    FF  = 2.0 * PAR / CONTEXT%RGL
+    RCS = (FF + CONTEXT%RSMIN / CONTEXT%RSMAX) / (1.0+ FF)
     RCS = MAX (RCS,0.0001)
 
 ! contribution due to air temperature
 
-    RCT = 1.0- 0.0016* ( (TOPT - SFCTMP)**2.0)
+    RCT = 1.0- 0.0016* ( (CONTEXT%TOPT - SFCTMP)**2)
     RCT = MAX (RCT,0.0001)
 
 ! contribution due to vapor pressure deficit
 
-    RCQ = 1.0/ (1.0+ HS * MAX(0.,Q2SAT-Q2))
+    RCQ = 1.0/ (1.0+ CONTEXT%HS * MAX(0.,Q2SAT-Q2))
     RCQ = MAX (RCQ,0.01)
 
 ! determine canopy resistance due to all factors
 
-    RC  = RSMIN / (RCS * RCT * RCQ * RCSOIL)
+    RC  = CONTEXT%RSMIN / (RCS * RCT * RCQ * RCSOIL)
     PSN = -999.99       ! PSN not applied for dynamic carbon
 
   END SUBROUTINE CANRES
@@ -1721,9 +1716,10 @@ contains
 ! ==================================================================================================
 ! ********************************* end of carbon subroutines *****************************
 ! ==================================================================================================
-  SUBROUTINE REDPRM (VEGTYP,SOILTYP,SLOPETYP,NSOIL,ISURBAN)
+  SUBROUTINE REDPRM (VEGTYP,SOILTYP,SLOPETYP,NSOIL,ISURBAN,CONTEXT)
 
 !niu  use module_sf_noahlsm_param_init
+    USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB,SAIM,LAIM
 
     IMPLICIT NONE
 ! ----------------------------------------------------------------------
@@ -1773,6 +1769,8 @@ contains
     INTEGER, INTENT(IN)    :: SLOPETYP
 ! General parameters
     INTEGER, INTENT(IN)    :: NSOIL
+! Output: parameters for this HRU
+    type(noahmp_context), INTENT(OUT) :: CONTEXT
 
 ! Locals
     REAL(rkind)    :: REFDK
@@ -1782,6 +1780,15 @@ contains
     CHARACTER(len=256)     :: message
 ! ----------------------------------------------------------------------
 !
+    associate(NROOT  => CONTEXT%NROOT,  RGL    => CONTEXT%RGL,    RSMIN  => CONTEXT%RSMIN,  &
+              HS     => CONTEXT%HS,     RSMAX  => CONTEXT%RSMAX,  TOPT   => CONTEXT%TOPT,   &
+              BEXP   => CONTEXT%BEXP,   SMCDRY => CONTEXT%SMCDRY, F1     => CONTEXT%F1,     &
+              SMCMAX => CONTEXT%SMCMAX, SMCREF => CONTEXT%SMCREF, PSISAT => CONTEXT%PSISAT, &
+              DKSAT  => CONTEXT%DKSAT,  DWSAT  => CONTEXT%DWSAT,  SMCWLT => CONTEXT%SMCWLT, &
+              QUARTZ => CONTEXT%QUARTZ, SLOPE  => CONTEXT%SLOPE,  CSOIL  => CONTEXT%CSOIL,  &
+              ZBOT   => CONTEXT%ZBOT,   CZIL   => CONTEXT%CZIL,   KDT    => CONTEXT%KDT,    &
+              FRZX   => CONTEXT%FRZX)
+
     IF (SOILTYP .gt. SLCATS) THEN
        call wrf_message('SOILTYP must be less than SLCATS:')
        write(message, '("SOILTYP = ", I6, ";    SLCATS = ", I6)') SOILTYP, SLCATS
@@ -1863,7 +1870,15 @@ contains
        call wrf_error_fatal("STOP in Noah-MP")
     END IF
 
+    end associate
+
 ! ----------------------------------------------------------------------
+! COPY THIS VEGETATION TYPE'S ENTRIES FROM THE VEGETATION TABLES
+! ----------------------------------------------------------------------
+    CONTEXT%HVT     = HVT(VEGTYP)
+    CONTEXT%HVB     = HVB(VEGTYP)
+    CONTEXT%SAIM(:) = SAIM(VEGTYP,:)
+    CONTEXT%LAIM(:) = LAIM(VEGTYP,:)
 
   END  SUBROUTINE REDPRM
 ! ==================================================================================================

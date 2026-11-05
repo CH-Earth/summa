@@ -31,12 +31,12 @@ type data4ida
   logical(lgt)                    :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
   logical(lgt)                    :: scalarSolution                  ! flag to denote if implementing the scalar solution
   type(model_options),allocatable :: model_decisions(:)              ! model decisions
-  type(zLookup)                   :: lookup_data                     ! lookup tables
-  type(var_i)                     :: type_data                       ! type of vegetation and soil
-   type(var_dlength)              :: mpar_data                       ! model parameters
-  type(var_d)                     :: forc_data                       ! model forcing data
-  type(var_dlength)               :: bvar_data                       ! model variables for the local basin
-  type(var_dlength)               :: prog_data                       ! prognostic variables for a local HRU
+  type(zLookup),pointer           :: lookup_data => null()           ! lookup tables, the caller's
+  type(var_i),pointer             :: type_data => null()             ! type of vegetation and soil, the caller's
+  type(var_dlength),pointer       :: mpar_data => null()             ! model parameters, the caller's
+  type(var_d),pointer             :: forc_data => null()             ! model forcing data, the caller's
+  type(var_dlength),pointer       :: bvar_data => null()             ! model variables for the local basin, the caller's
+  type(var_dlength),pointer       :: prog_data => null()             ! prognostic variables for a local HRU, the caller's
   type(var_ilength)               :: indx_data                       ! indices defining model states and layers
   type(var_dlength)               :: diag_data                       ! diagnostic variables for a local HRU
   type(var_dlength)               :: flux_data                       ! model fluxes for a local HRU

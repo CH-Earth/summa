@@ -146,7 +146,7 @@ subroutine summaSolv4ida(&
   USE fsunlinsol_dense_mod                                    ! Fortran interface to dense SUNLinearSolver
   USE fsunlinsol_band_mod                                     ! Fortran interface to banded SUNLinearSolver
   USE fsunnonlinsol_newton_mod                                ! Fortran interface to Newton SUNNonlinearSolver
-  USE allocspace_module,only:allocLocal                       ! allocate local data structures
+  USE allocspace_module,only:allocCached,ixCache_idaFluxPrev  ! cached local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
   USE eval8summaWithPrime_module,only:eval8summa4ida          ! DAE/ODE functions
   USE computJacobWithPrime_module,only:computJacob4ida        ! system Jacobian
@@ -181,12 +181,12 @@ subroutine summaSolv4ida(&
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
-  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
-  type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
-  type(var_d),        intent(in)  :: forc_data              ! model forcing data
-  type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
-  type(var_dlength),  intent(in)  :: prog_data              ! prognostic variables for a local HRU
+  type(zLookup),      intent(in),target :: lookup_data       ! lookup tables
+  type(var_i),        intent(in),target :: type_data         ! type of vegetation and soil
+  type(var_dlength),  intent(in),target :: mpar_data         ! model parameters
+  type(var_d),        intent(in),target :: forc_data         ! model forcing data
+  type(var_dlength),  intent(in),target :: bvar_data         ! model variables for the local basin
+  type(var_dlength),  intent(in),target :: prog_data         ! prognostic variables for a local HRU
    ! input-output: data structures
   type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
@@ -233,7 +233,7 @@ subroutine summaSolv4ida(&
   integer(i4b),allocatable          :: rootdir(:)                   ! forced crossing direction of discontinuities
   logical(lgt)                      :: tinystep                     ! if step goes below small size
   real(rkind)                       :: small                        ! value to see if canopy water is just a bit negative, depends on the absolute tolerance for canopy water
-  type(var_dlength)                 :: flux_prev                    ! previous model fluxes for a local HRU
+  type(var_dlength),pointer         :: flux_prev                    ! previous model fluxes for a local HRU
   character(LEN=256)                :: cmessage                     ! error message of downwind routine
   real(rkind)                       :: dt_mult                      ! multiplier for time step average values
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
@@ -302,12 +302,12 @@ subroutine summaSolv4ida(&
     eqns_data%computeVegFlux = computeVegFlux
     eqns_data%scalarSolution = scalarSolution
     eqns_data%deriv_data     = deriv_data
-    eqns_data%lookup_data    = lookup_data
-    eqns_data%type_data      = type_data
-    eqns_data%mpar_data      = mpar_data
-    eqns_data%forc_data      = forc_data
-    eqns_data%bvar_data      = bvar_data
-    eqns_data%prog_data      = prog_data
+    eqns_data%lookup_data    => lookup_data
+    eqns_data%type_data      => type_data
+    eqns_data%mpar_data      => mpar_data
+    eqns_data%forc_data      => forc_data
+    eqns_data%bvar_data      => bvar_data
+    eqns_data%prog_data      => prog_data
     eqns_data%indx_data      = indx_data
     eqns_data%diag_data      = diag_data
     eqns_data%flux_data      = flux_data
@@ -321,7 +321,7 @@ subroutine summaSolv4ida(&
     allocate( eqns_data%dMat(int(nState,i4b)) ); eqns_data%dMat = dMat
     
     ! allocate space for the to save previous fluxes
-    call allocLocal(flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+    call allocCached(ixCache_idaFluxPrev,flux_meta(:),flux_prev,nSnow,nLake,nSoil,nGlce,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     
     ! allocate space for other variables
@@ -615,8 +615,10 @@ subroutine summaSolv4ida(&
       dCompress_dPsiPrev(:)                  = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
       tretPrev                               = tret(1)
       resVecPrev(:)                          = eqns_data%resVec(:)
-      flux_prev                              = eqns_data%flux_data
-    
+      do iVar=1,size(flux_meta) ! copy in place, a whole-type assignment reallocates every flux array each step
+        flux_prev%var(iVar)%dat(:) = eqns_data%flux_data%var(iVar)%dat(:)
+      end do
+
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
         if (retvalr .eq. IDA_ROOT_RETURN) then ! IDASolve succeeded and found one or more roots at tret(1)
@@ -641,9 +643,15 @@ subroutine summaSolv4ida(&
     
     if(idaSucceeds)then
       ! copy to output data
-      diag_data     = eqns_data%diag_data
-      flux_data     = eqns_data%flux_data
-      deriv_data    = eqns_data%deriv_data
+      do iVar=1,size(diag_data%var) ! copy in place, a whole-type assignment reallocates every array
+        diag_data%var(iVar)%dat(:) = eqns_data%diag_data%var(iVar)%dat(:)
+      end do
+      do iVar=1,size(flux_data%var)
+        flux_data%var(iVar)%dat(:) = eqns_data%flux_data%var(iVar)%dat(:)
+      end do
+      do iVar=1,size(deriv_data%var)
+        deriv_data%var(iVar)%dat(:) = eqns_data%deriv_data%var(iVar)%dat(:)
+      end do
       ixSaturation  = eqns_data%ixSaturation
       indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of flux calculations changes in indx_data
       err           = eqns_data%err

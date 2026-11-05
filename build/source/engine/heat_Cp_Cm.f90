@@ -451,6 +451,7 @@ subroutine heatAdvectWat(&
   USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
   USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists (soil)
+  USE soil_utils_module,only:dCritSoilT_dPsi ! derivative of the critical temperature w.r.t. total matric head (soil)
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: state variables
   real(rkind),intent(in)               :: scalarCanopyTemp       ! value of canopy temperature (K)
@@ -588,7 +589,7 @@ subroutine heatAdvectWat(&
               mLayerCm(iLayer) = -iden_air * Cp_air * diffT + iden_ice * Cp_ice * (mLayerTemp(iLayer)-Tcrit) &
                                      + iden_water * Cp_water * diff0
               ! derivatives
-              dTcrit_dPsi0 = merge(gravity*Tfreeze/LH_fus,0._rkind,mLayerMatricHead(ixControlIndex)<=0._rkind)
+              dTcrit_dPsi0 = dCritSoilT_dPsi(mLayerMatricHead(ixControlIndex))
               dCm_dTk(iLayer) = -iden_air * Cp_air + iden_ice * Cp_ice
               dCm_dPsi0(ixControlIndex) = (-iden_ice * Cp_ice + iden_water * Cp_water) * dTcrit_dPsi0
             endif

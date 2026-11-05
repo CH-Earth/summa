@@ -1753,7 +1753,7 @@ subroutine debrisResplit(use_lookup,debrisThick,iTop,nSoil,mpar_data,lookup_data
   USE data_types,only:zLookup                                 ! x%z(:)%var(:)%lookup(:)
   USE var_lookup,only:iLookPARAM,iLookDIAG                    ! named variables for structure elements
   USE multiconst,only:LH_fus                                  ! latent heat of fusion (J kg-1)
-  USE soil_utils_module,only:matricHead                       ! matric suction from total water (m)
+  USE soil_utils_module,only:matricHeadTot                    ! total matric head from total water (m)
   USE updatState_module,only:updatSoil                        ! phase partitioning
   USE convertEnthalpyTemp_module,only:T2enthTemp_soil         ! temperature component of enthalpy, soil
   implicit none
@@ -1825,7 +1825,7 @@ subroutine debrisResplit(use_lookup,debrisThick,iTop,nSoil,mpar_data,lookup_data
        saturated = saturated .and. psiOld(jLayer) >= 0._rkind
      enddo
      vGn_m = 1._rkind - 1._rkind/vGn_n(iLayer)
-     if(.not.saturated) psi = matricHead(min(wat,theta_sat(iLayer)), vGn_alpha(iLayer), theta_res(iLayer), theta_sat(iLayer), vGn_n(iLayer), vGn_m)
+     if(.not.saturated) psi = matricHeadTot(min(wat,theta_sat(iLayer)), vGn_alpha(iLayer), theta_res(iLayer), theta_sat(iLayer), vGn_n(iLayer), vGn_m)
 
      ! temperature where the layer's total enthalpy, sensible less the latent heat of its ice, matches the remapped one
      tLow = minval(tempOld) - 10._rkind; tHigh = maxval(tempOld) + 10._rkind

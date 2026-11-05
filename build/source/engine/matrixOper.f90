@@ -148,15 +148,15 @@ contains
 
 
  ! *********************************************************************************************************
- ! public subroutine lapackSolv: use the lapack routines to solve the linear system A.X=B
+ ! public subroutine lapackSolv: use the lapack routines to solve the linear system A.X=-r for the newton step X
  ! *********************************************************************************************************
  subroutine lapackSolv(ixMatrix,nState,aJac,rVec,xInc,err,message)
  implicit none
  ! dummy
  integer(i4b),intent(in)        :: ixMatrix      ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)        :: nState        ! number of state variables
- real(rkind),intent(inout)      :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
- real(rkind),intent(in)         :: rVec(:)       ! the residual vector B
+ real(rkind),intent(inout),contiguous :: aJac(:,:) ! input = the Jacobian matrix A; output = decomposed matrix
+ real(rkind),intent(in)         :: rVec(:)       ! the residual vector r
  real(rkind),intent(out)        :: xInc(:)       ! the solution vector X
  integer(i4b),intent(out)       :: err           ! error code
  character(*),intent(out)       :: message       ! error message
@@ -174,7 +174,7 @@ contains
 
  ! form the rhs matrix
  ! NOTE: copy the vector here to ensure that the residual vector is not overwritten
- rhs(:,1) = rVec(:)
+ rhs(:,1) = -rVec(:)
 
  ! identify option to solve the linear system A.X=B
  select case(ixMatrix)

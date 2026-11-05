@@ -424,6 +424,7 @@ subroutine checkFeas(&
   real(rkind)                     :: xMin,xMax                 ! minimum and maximum values for water content
   real(rkind),parameter           :: canopyTempMax=500._rkind  ! expected maximum value for the canopy temperature (K)
   logical(lgt),parameter          :: printFlag=.false.         ! flag to denote if we print infeasibilities
+  logical(lgt)                    :: tooWarm                   ! flag to denote a snow or ice temperature above freezing
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&
@@ -487,7 +488,11 @@ subroutine checkFeas(&
 
     ! check snow and glacier ice temperature is below freezing
     if(count(ixSnowOnlyNrg/=integerMissing)>0)then
-      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze) .and. .not.enthalpyStateVec)then
+      tooWarm = .false.
+      do iLayer=1,size(ixSnowOnlyNrg)
+        if(ixSnowOnlyNrg(iLayer)/=integerMissing)then; if(stateVec(ixSnowOnlyNrg(iLayer)) > Tfreeze) tooWarm = .true.; end if
+      end do
+      if(tooWarm .and. .not.enthalpyStateVec)then
         feasible=.false.
         message=trim(message)//'snow temp high/'
         if(printFlag)then 
@@ -498,7 +503,11 @@ subroutine checkFeas(&
       endif
     endif
     if(count(ixGlceOnlyNrg/=integerMissing)>0)then
-      if(any(stateVec( pack(ixGlceOnlyNrg,ixGlceOnlyNrg/=integerMissing) ) > Tfreeze) .and. .not.enthalpyStateVec)then
+      tooWarm = .false.
+      do iLayer=1,size(ixGlceOnlyNrg)
+        if(ixGlceOnlyNrg(iLayer)/=integerMissing)then; if(stateVec(ixGlceOnlyNrg(iLayer)) > Tfreeze) tooWarm = .true.; end if
+      end do
+      if(tooWarm .and. .not.enthalpyStateVec)then
         feasible=.false.
         message=trim(message)//'glacier ice temp high/'
         if(printFlag)then 

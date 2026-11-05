@@ -103,6 +103,18 @@ USE mDecisions_module,only:       &
 implicit none
 private
 public::coupled_em
+
+! temporary structures of coupled_em, kept per thread for reuse: one set per combination of snow, lake, soil and glacier ice layers at the start of the step
+integer(i4b),parameter  :: nWork=32                   ! number of sets kept per thread
+type :: coupled_em_work
+  integer(i4b)      :: nLayers(4)=-1                   ! snow, lake, soil and glacier ice layers the set was allocated for
+  integer(i4b)      :: lastUse=0                       ! call count at the last use of the set
+  type(var_ilength) :: indx_temp,indx_temp0
+  type(var_dlength) :: prog_temp,diag_temp,flux_mean,flux_inner
+end type coupled_em_work
+type(coupled_em_work),target :: work(nWork)           ! cached sets
+integer(i4b)                 :: nWorkCall=0           ! calls to coupled_em on this thread
+!$omp threadprivate(work, nWorkCall)
 contains
 
 
@@ -228,10 +240,10 @@ subroutine coupled_em(&
   logical(lgt)                         :: doLayerMerge             ! flag to denote the need to merge snow layers
   logical(lgt),parameter               :: backwardsCompatibility=.false.  ! flag to denote a desire to ensure backwards compatibility with previous branches
   logical(lgt)                         :: checkMassBalance_ds      ! flag to check the mass balance over the data step
-  type(var_ilength)                    :: indx_temp                ! temporary model index variables saved only on outer loop
-  type(var_ilength)                    :: indx_temp0               ! temporary model index variables saved every time
-  type(var_dlength)                    :: prog_temp                ! temporary model prognostic variables
-  type(var_dlength)                    :: diag_temp                ! temporary model diagnostic variables
+  type(var_ilength),pointer            :: indx_temp                ! temporary model index variables saved only on outer loop
+  type(var_ilength),pointer            :: indx_temp0               ! temporary model index variables saved every time
+  type(var_dlength),pointer            :: prog_temp                ! temporary model prognostic variables
+  type(var_dlength),pointer            :: diag_temp                ! temporary model diagnostic variables
   real(rkind),allocatable              :: mLayerVolFracIceInit(:)  ! initial vector for volumetric fraction of ice (-)
   logical(lgt)                         :: noVeg                    ! flag to denote that there is no vegetation (lake or glacier)
   real(rkind)                          :: frz_scale_use            ! scaling parameter for the snow or glce freezing curve (K-1)
@@ -246,8 +258,9 @@ subroutine coupled_em(&
   real(rkind)                          :: massBalance              ! mass balance error (kg m-2)
   ! energy fluxes
   integer(i4b)                         :: iSoil                    ! index of soil layers
-  type(var_dlength)                    :: flux_mean                ! timestep-average model fluxes for a local HRU
-  type(var_dlength)                    :: flux_inner               ! inner step average model fluxes for a local HRU
+  type(var_dlength),pointer            :: flux_mean                ! timestep-average model fluxes for a local HRU
+  type(var_dlength),pointer            :: flux_inner               ! inner step average model fluxes for a local HRU
+  integer(i4b)                         :: iWork,jWork              ! index of the set of temporary structures
   real(rkind),allocatable              :: meanSoilCompress(:)      ! timestep-average soil compression by layer
   real(rkind),allocatable              :: innerSoilCompress(:)     ! inner step average soil compression by layer
   ! sublimation sums over substep and means over data_step
@@ -353,6 +366,27 @@ subroutine coupled_em(&
     firstInnerStep = .true.
     lastInnerStep = .false.
 
+    ! use the set of temporary structures for these layer counts, else rebuild the least recently used set
+    nWorkCall = nWorkCall + 1
+    iWork = 0
+    do jWork=1,nWork
+      if(work(jWork)%nLayers(1)==nSnow .and. work(jWork)%nLayers(2)==nLake .and. work(jWork)%nLayers(3)==nSoil .and. work(jWork)%nLayers(4)==nGlce)then
+        iWork = jWork; exit
+      end if
+    end do
+    if(iWork==0)then
+      iWork = 1
+      do jWork=2,nWork
+        if(work(jWork)%lastUse < work(iWork)%lastUse) iWork = jWork
+      end do
+      if(allocated(work(iWork)%flux_mean%var))  deallocate(work(iWork)%flux_mean%var)
+      if(allocated(work(iWork)%flux_inner%var)) deallocate(work(iWork)%flux_inner%var)
+      work(iWork)%nLayers = -1
+    end if
+    work(iWork)%lastUse = nWorkCall
+    indx_temp => work(iWork)%indx_temp; indx_temp0 => work(iWork)%indx_temp0; prog_temp => work(iWork)%prog_temp
+    diag_temp => work(iWork)%diag_temp; flux_mean => work(iWork)%flux_mean; flux_inner => work(iWork)%flux_inner
+
     ! create temporary data structures for prognostic variables
     call resizeData(prog_meta(:),prog_data,prog_temp,err=err,message=cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -366,11 +400,14 @@ subroutine coupled_em(&
     call resizeData(indx_meta(:),indx_data,indx_temp0,err=err,message=cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-    ! allocate space for the local fluxes
-    call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-    call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+    ! allocate space for the local fluxes unless the set already holds them
+    if(work(iWork)%nLayers(1)==-1)then
+      call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+      call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+      work(iWork)%nLayers = [nSnow,nLake,nSoil,nGlce]
+    end if
 
     ! initialize fluxes to average over data_step (averaged over substep in varSubstep)
     do iVar=1,size(averageFlux_meta)
@@ -615,6 +652,7 @@ subroutine coupled_em(&
                     nLayers,                      & ! intent(in):    total number of layers
                     computeVegFlux,               & ! intent(in):    logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                     type_data,                    & ! intent(in):    type of vegetation and soil
+                    mpar_data,                    & ! intent(in):    model parameters
                     prog_data,                    & ! intent(inout): model prognostic variables for a local HRU
                     diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
                     flux_data,                    & ! intent(inout): model flux variables
@@ -795,6 +833,7 @@ subroutine coupled_em(&
                         doLayerMerge,               & ! intent(in):    flag to force merge of snow layers
                         model_decisions,            & ! intent(in):    model decisions
                         mpar_data,                  & ! intent(in):    model parameters
+                        lookup_data,                & ! intent(in):    lookup tables
                         indx_data,                  & ! intent(inout): type of each layer
                         prog_data,                  & ! intent(inout): model prognostic variables for a local HRU
                         diag_data,                  & ! intent(inout): model diagnostic variables for a local HRU
@@ -1395,7 +1434,7 @@ subroutine coupled_em(&
 
         dt_wght = whole_step/data_step ! define weight applied to each sub-step
         do iVar=1,size(averageFlux_meta)
-          flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_inner%var(iVar)%dat(:)*dt_wght
+          call add_weighted(flux_mean%var(iVar)%dat, flux_inner%var(iVar)%dat, dt_wght)
         end do
         meanCanopySublimation = meanCanopySublimation + sumCanopySublimation/data_step
         meanLatHeatCanopyEvap = meanLatHeatCanopyEvap + sumLatHeatCanopyEvap/data_step
@@ -2103,6 +2142,16 @@ contains
  end subroutine initialize_coupled_em
 
 end subroutine coupled_em
+
+! **************************************************************************************************************
+! private subroutine add_weighted: dst = dst + src*wght, without the temporary added for possibly aliased pointers
+! **************************************************************************************************************
+subroutine add_weighted(dst,src,wght)
+  real(rkind),intent(inout) :: dst(:)  ! accumulated values
+  real(rkind),intent(in)    :: src(:)  ! values added
+  real(rkind),intent(in)    :: wght    ! weight applied to src
+  dst = dst + src*wght
+end subroutine add_weighted
 
 
 ! *********************************************************************************************************

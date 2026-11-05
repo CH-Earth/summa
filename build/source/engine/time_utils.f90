@@ -407,8 +407,12 @@ contains
  integer(i4b)                   :: elapsedDay                         ! elapsed full days
  integer(i4b)                   :: yy                                 ! index of year
  ! number of days of each month
- integer(i4b)                   :: days1(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
- integer(i4b)                   :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ ! NOTE: assigned at run time, since initializing in the declaration would make them SAVE
+ integer(i4b),parameter         :: daysInMonth(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+ integer(i4b)                   :: days1(12),days2(12)
+
+ days1 = daysInMonth
+ days2 = daysInMonth
 
  ! calculate the elapsed time smaller than a day
  elapsedSec = (endTime(8)-startTime(8))*.001_rkind + (endTime(7)-startTime(7)) + (endTime(6)-startTime(6))*secprmin + (endTime(5)-startTime(5))*secprhour

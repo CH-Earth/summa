@@ -35,5 +35,4 @@ and `--persistent-output` copies each finished basin's calibration file to
 `$SCRATCH/calibration/<job id>`.
 
 Scaling is set by the node count and the manifest's `cases_per_node`; each case group gets
-`192 / cases_per_node` ranks, one coordinating and the rest evaluating parameter sets. For
-112 basins at 1000 evaluations each, 4 cases per node took 5.2 h on one node and 0.84 h on eight.
+`192 / cases_per_node` ranks, one coordinating and the rest evaluating parameter sets.
