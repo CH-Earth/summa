@@ -24,7 +24,7 @@ module calibration_output_module
 
   USE data_types,       only: target_info
   USE parameter_search, only: parameter_spec
-  USE parameter_search, only: param_physical
+  USE parameter_search, only: param_physical,param_spatial_multiplier,param_ratio
 
   implicit none
   private
@@ -78,6 +78,7 @@ contains
     character(len=len(targets(1)%name))  :: target_name
     character(len=:), allocatable :: constraint_names
     character(len=64) :: attribute_name
+    character(len=32) :: param_type_name
     integer(i4b) :: iParam
     integer(i4b) :: iConstraint
     integer(i4b) :: iOrdered
@@ -130,7 +131,15 @@ contains
         
         ! Only sampled calibration variables have one value per trial.
         if(.not.spec%params(iParam)%sampled) cycle
-      
+     
+        ! descriptive metadata for the sampled calibration variable.
+        select case(spec%params(iParam)%param_type)
+          case (param_physical);           param_type_name = 'physical'
+          case (param_spatial_multiplier); param_type_name = 'spatial_multiplier'
+          case (param_ratio);              param_type_name = 'parameter_ratio'
+          case default;                    param_type_name = 'unknown'
+        end select
+
         ! parameters
         ierr=nf90_def_var(ncid,trim(spec%params(iParam)%name),NF90_DOUBLE, (/dim_sample/),varid_param)
         if(ierr/=nf90_noerr) exit netcdf_block
@@ -145,7 +154,7 @@ contains
         endif
         if(ierr/=nf90_noerr) exit netcdf_block
 
-        ! native physical parameter bounds
+        ! parameter bounds
         ierr=nf90_put_att(ncid,varid_param,'lower_bound',spec%params(iParam)%lower)
         if(ierr/=nf90_noerr) exit netcdf_block
         ierr=nf90_put_att(ncid,varid_param,'upper_bound',spec%params(iParam)%upper)
@@ -156,7 +165,7 @@ contains
         if(ierr/=nf90_noerr) exit netcdf_block
 
         ! metadata describing how the calibration variable constructs physical fields.
-        ierr=nf90_put_att(ncid,varid_param,'param_type',spec%params(iParam)%param_type)
+        ierr=nf90_put_att(ncid,varid_param,'param_type',trim(param_type_name))
         if(ierr/=nf90_noerr) exit netcdf_block
         
         if(len_trim(spec%params(iParam)%reference_name)>0)then

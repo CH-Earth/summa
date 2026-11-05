@@ -1108,9 +1108,6 @@ subroutine read_output_file(err,message)
             write(iulog,*)'WARNING: timestep only variable '//trim(varName)// &
                                  ': outputting at timestep level since it cannot be aggregated'
           endif
-        else
-          write(iulog,*)'WARNING: temporally constant variable '//trim(varName)// &
-                                ': outputting parameter in timestep file with no time dimension'
         endif
         iFreq = iLookFREQ%timestep
         freqName = 'timestep'
