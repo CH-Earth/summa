@@ -89,12 +89,13 @@ set(PRELIM
     ${ENGINE_DIR}/childStruc.f90
     ${ENGINE_DIR}/convert_funcs.f90
     ${ENGINE_DIR}/ffile_info.f90
-    ${ENGINE_DIR}/read_pinit.f90
+    ${ENGINE_DIR}/read_parameter_defaults.f90
     ${ENGINE_DIR}/read_attrb.f90
     ${ENGINE_DIR}/paramCheck.f90
-    ${ENGINE_DIR}/pOverwrite.f90
+    ${ENGINE_DIR}/set_parameter_table_defaults.f90
     ${ENGINE_DIR}/sunGeomtry.f90
-    ${ENGINE_DIR}/param_override.f90
+    ${ENGINE_DIR}/read_trial_parameters.f90
+    ${ENGINE_DIR}/apply_parameter_overrides.f90
     CACHE INTERNAL "PRELIM")
 
 # Model run support modules

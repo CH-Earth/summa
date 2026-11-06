@@ -38,7 +38,7 @@ contains
   subroutine get_summa_parameter_spec(config,spec,param_map,mpar_init,bpar_init,err,message)
     USE summa_parameter_fields, only: summa_parameter_map
     USE get_ixname_module, only: get_ixParam,get_ixBpar
-    USE param_override_module, only: split_domain_target
+    USE parameter_overrides_module, only: split_domain_target
     implicit none
     ! dummy
     type(config_info)                     , intent(in)  :: config
@@ -545,7 +545,7 @@ contains
     USE globalData, only: localParFallback,basinParFallback
     USE globalData, only: mpar_meta,bpar_meta
     USE globalData, only: integerMissing
-    USE param_override_module, only: split_domain_target
+    USE parameter_overrides_module, only: split_domain_target
     implicit none
     ! dummy
     character(*)               , intent(in)  :: param_name

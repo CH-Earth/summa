@@ -18,18 +18,18 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module pOverwrite_module
+module parameter_table_defaults_module
 USE nr_type
 implicit none
 private
-public::pOverwrite
+public::set_parameter_table_defaults
 contains
 
 
  ! ************************************************************************************************
- ! public subroutine pOverwrite: use Noah tables to overwrite default model parameters
+ ! public subroutine set_parameter_table_defaults: use Noah tables to overwrite default model parameters
  ! ************************************************************************************************
- subroutine pOverwrite(ixVeg,ixSoil,soilCatTbl, defaultParam,err,message)
+ subroutine set_parameter_table_defaults(ixVeg,ixSoil,soilCatTbl, defaultParam,err,message)
  ! SUMMA dictionary
  USE var_lookup,only:iLookPARAM             ! named variables for elements of the data structures
  ! Noah table dimensions
@@ -63,7 +63,7 @@ contains
  ! local variables
  real(rkind)                          :: p               ! temporary variable for van Genuchten parameter calculation
  ! Start procedure here
- err=0; message="pOverwrite/"
+ err=0; message="set_parameter_table_defaults/"
 
  ! define vegetation class
  if(ixVeg < 1)then; err=20; message=trim(message)//'index for vegetation type must be > 0'; return; end if
@@ -111,7 +111,7 @@ contains
  defaultParam(iLookPARAM%critSoilTranspire) = REFSMC(ixSoil)          ! Noah-MP: reference volumetric soil moisture content (-)
  defaultParam(iLookPARAM%critSoilWilting)   = WLTSMC(ixSoil)          ! Noah-MP: volumetric soil moisture content when plants are wilting (-)
 
- end subroutine pOverwrite
+ end subroutine set_parameter_table_defaults
 
 
-end module pOverwrite_module
+end module parameter_table_defaults_module

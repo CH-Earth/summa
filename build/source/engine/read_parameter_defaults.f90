@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module read_pinit_module
+module read_parameter_defaults_module
 USE nr_type
 ! check for when model decisions are undefined
 USE mDecisions_module,only: unDefined
@@ -31,15 +31,15 @@ USE var_lookup,only:iLookDECISIONS,iLookPARAM,iLookBPAR
 implicit none
 
 private
-public::read_pinit
+public::read_parameter_defaults
 
 contains
 
  ! ************************************************************************************************
- ! public subroutine read_pinit: read default model parameter values and constraints
+ ! public subroutine read_parameter_defaults: read default model parameter values and constraints
  ! ************************************************************************************************
- subroutine read_pinit(filenm,isLocal,absEnergyFac,mpar_meta,parFallback,err,message)
- ! used to read metadata on the forcing data file
+ subroutine read_parameter_defaults(filenm,isLocal,absEnergyFac,mpar_meta,parFallback,err,message)
+ ! Read default parameter values and constraints from the specified text file.
  USE summaFileManager,only:SETTINGS_PATH   ! path for input parameter and other configuration files
  USE ascii_util_module,only:file_open      ! open ascii file
  USE ascii_util_module,only:split_line     ! extract the list of variable names from the character string
@@ -73,7 +73,7 @@ contains
  character(LEN=2)                       :: dLim           ! column delimiter
  integer(i4b)                           :: iVar           ! index of model variable
  ! Start procedure here
- err=0; message="read_pinit/"
+ err=0; message="read_parameter_defaults/"
  ! **********************************************************************************************
  ! (1) open files, etc.
  ! **********************************************************************************************
@@ -176,7 +176,7 @@ contains
  
  ! close file unit
  close(unt)
- end subroutine read_pinit
+ end subroutine read_parameter_defaults
 
  ! ************************************************************************************************
  ! Subroutine to separate the default settings of the IDA solver from the rest of the model parameters
@@ -437,4 +437,4 @@ contains
 
  end subroutine set_FUSE_defaults
 
-end module read_pinit_module
+end module read_parameter_defaults_module
