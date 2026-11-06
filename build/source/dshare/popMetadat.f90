@@ -336,6 +336,9 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%zmaxLayer4_upper)               = var_info('zmaxLayer4_upper'               , 'maximum layer depth for the 4th layer when > 4 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! lower boundary condition for thermodynamics
   mpar_meta(iLookPARAM%lowerBoundNrgFlux)              = var_info('lowerBoundNrgFlux'              , 'energy flux at the lower boundary, the geothermal heat flux'      , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! Oudin et al. (2005) potential evaporation parameters
+  mpar_meta(iLookPARAM%oudinPETScaleK1)                = var_info('oudinPETScaleK1'                , 'Oudin PET formula scaling factor'                                 , 'deg C'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%oudinPETTempThrK2)              = var_info('oudinPETTempThrK2'              , 'Oudin PET formula temperature threshold'                          , 'deg C'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
   ! -------------------------

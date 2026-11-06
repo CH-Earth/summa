@@ -189,6 +189,7 @@ set(DRIVER
     ${DRIVER_DIR}/summa_work_balance.f90
     ${DRIVER_DIR}/summa_init.f90
     ${DRIVER_DIR}/summa_forcing.f90
+    ${DRIVER_DIR}/summa_lakeCoupling.f90
     ${DRIVER_DIR}/summa_modelRun.f90
     ${DRIVER_DIR}/summa_writeOutput.f90
     ${DRIVER_DIR}/summa_simulation.f90

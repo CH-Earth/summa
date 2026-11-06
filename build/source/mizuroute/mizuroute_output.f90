@@ -29,6 +29,7 @@ contains
     integer(i4b) :: dim_time, dim_hru, dim_seg, dim_method
     integer(i4b) :: varid_hru, varid_seg, varid_method
     integer(i4b) :: varid_uparea, varid_qbasin, varid_Qreach
+    integer(i4b) :: dim_gru, varid_lake
     integer(i4b), dimension(2) :: dimids_basin
     integer(i4b), dimension(3) :: dimids_reach
     integer(i4b) :: iRoute
@@ -75,6 +76,23 @@ contains
         ierr = nf90_put_att(ncid, varid_Qreach, 'long_name', &
                             'streamflow at the downstream end of each river reach');    if(ierr/=nf90_noerr) exit netcdf_block
         ierr = nf90_put_att(ncid, varid_Qreach, 'units', 'm3 s-1');                     if(ierr/=nf90_noerr) exit netcdf_block
+      endif
+
+      ! lake precipitation and evaporation on the host runoff elements, and reach storage
+      if (info%mrout%is_lake_sim) then
+        ierr = nf90_inq_dimid(ncid, 'gru', dim_gru);                                    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_def_var(ncid, 'lake_precip', NF90_DOUBLE, (/dim_gru,dim_time/), varid_lake); if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_lake, 'long_name', &
+                            'precipitation supplied to mizuRoute lakes');               if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_lake, 'units', 'm s-1');                        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_def_var(ncid, 'lake_evap', NF90_DOUBLE, (/dim_gru,dim_time/), varid_lake); if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_lake, 'long_name', &
+                            'evaporation supplied to mizuRoute lakes, positive upward'); if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_lake, 'units', 'm s-1');                        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_def_var(ncid, 'V_reach', NF90_DOUBLE, dimids_reach, varid_lake);    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_lake, 'long_name', &
+                            'storage of each river reach or lake at the end of the time step'); if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_att(ncid, varid_lake, 'units', 'm3');                           if(ierr/=nf90_noerr) exit netcdf_block
       endif
 
       ! coordinate variables: mizu_hru
@@ -132,7 +150,7 @@ contains
     type(mizuroute_domain),  intent(in)  :: domain
     integer(i4b),            intent(out) :: ierr
     character(*),            intent(out) :: message
-    integer(i4b) :: varid_qbasin, varid_Qreach
+    integer(i4b) :: varid_qbasin, varid_Qreach, varid_lake
     integer(i4b) :: iRoute
     integer(i4b), dimension(2) :: start2_basin, count2_basin
     integer(i4b), dimension(3) :: start3_reach, count3_reach
@@ -162,6 +180,26 @@ contains
           count3_reach = (/     1, info%n_seg, numtim/)
           ierr = nf90_put_var(ncid, varid_Qreach, &
                               domain%river_network%driver%method(iRoute)%streamflow(:,1:numtim), &
+                              start=start3_reach, count=count3_reach)
+          if(ierr/=nf90_noerr) exit netcdf_block
+        enddo
+      endif
+
+      ! lake precipitation and evaporation on the host runoff elements, and reach storage
+      if (info%mrout%is_lake_sim) then
+        start2_basin = (/1, istart/)
+        count2_basin = (/size(domain%river_network%driver%host_precip), numtim/)
+        ierr = nf90_inq_varid(ncid, 'lake_precip', varid_lake);                         if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_var(ncid, varid_lake, domain%river_network%driver%lake_precip(:,1:numtim), &
+                            start=start2_basin, count=count2_basin);                    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_inq_varid(ncid, 'lake_evap', varid_lake);                           if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_put_var(ncid, varid_lake, domain%river_network%driver%lake_evap(:,1:numtim), &
+                            start=start2_basin, count=count2_basin);                    if(ierr/=nf90_noerr) exit netcdf_block
+        ierr = nf90_inq_varid(ncid, 'V_reach', varid_lake);                             if(ierr/=nf90_noerr) exit netcdf_block
+        do iRoute = 1,size(domain%river_network%driver%method)
+          start3_reach = (/iRoute,          1, istart/)
+          count3_reach = (/     1, info%n_seg, numtim/)
+          ierr = nf90_put_var(ncid, varid_lake, domain%river_network%driver%method(iRoute)%volume(:,1:numtim), &
                               start=start3_reach, count=count3_reach)
           if(ierr/=nf90_noerr) exit netcdf_block
         enddo

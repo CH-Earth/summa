@@ -454,6 +454,9 @@ contains
   case('zmaxLayer4_upper'         ); get_ixParam = iLookPARAM%zmaxLayer4_upper       ! maximum layer depth for the 4th layer when > 4 layers (m)                              
   ! lower boundary condition for thermodynamics
   case('lowerBoundNrgFlux'        ); get_ixParam = iLookPARAM%lowerBoundNrgFlux      ! energy flux at the lower boundary, the geothermal heat flux (W m-2)
+  ! Oudin et al. (2005) potential evaporation parameters
+  case('oudinPETScaleK1'          ); get_ixParam = iLookPARAM%oudinPETScaleK1        ! Oudin PET formula scaling factor (deg C)
+  case('oudinPETTempThrK2'        ); get_ixParam = iLookPARAM%oudinPETTempThrK2      ! Oudin PET formula temperature threshold (deg C)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
