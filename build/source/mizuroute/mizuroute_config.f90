@@ -35,6 +35,7 @@ contains
     ! ---- mizuRoute: runtime ----
     case ("mizuRoute.dt"                 ); call get_value(subtable, trim(key), info%mrout%dt               , stat=istat)
     case ("mizuRoute.methods"            ); call get_value(subtable, trim(key), info%mrout%methods          , stat=istat)
+    case ("mizuRoute.is_lake_sim"        ); call get_value(subtable, trim(key), info%mrout%is_lake_sim      , stat=istat)
 
     ! ---- mizuRoute: flags to write information ----
     case ("mizuRoute.write_qbasin"       ); call get_value(subtable, trim(key), info%mrout%write_qbasin     , stat=istat)

@@ -1,7 +1,7 @@
 # SUMMA-mizuRoute coupling tests
 
 Tests for the built-in SUMMA-mizuRoute coupling (`-DUSE_MIZUROUTE=ON`, see
-[docs/index.md](../../../docs/index.md)). There are three, unrelated except
+[docs/index.md](../../../docs/index.md)). There are four, unrelated except
 for all exercising the same coupling code -- pick the one that matches what
 you're checking:
 
@@ -10,6 +10,7 @@ you're checking:
 | **toy problem** | Bundled Provo domain + a made-up, single-chain river network. No real-world meaning; exists purely to exercise the coupling machinery. | `./test_mizuroute_bundled.sh` | `toy_prob/` (generated, gitignored) |
 | **Provo, real network** | Same bundled Provo domain, but routed through its *real* hydrofabric network, so it can be compared against the same domain routed with t-route/ngen. | `./test_mizuroute_provo_real_network.sh`, then `compare_to_troute.py` | `provo_real_network/` (generated, gitignored) |
 | **Bow real data** | A real, independent SUMMA-mizuRoute case study (Bow River at Banff): real forcing, real network + remapping, observed streamflow, KGE evaluation. Not a pass/fail check against anything above. | see [`bow_real_data/README.md`](bow_real_data/README.md), then `check_objective_func.R` | `bow_real_data/work/` (generated, gitignored) |
+| **lakes** | Bundled Provo domain with water-class HRUs and Doll and HYPE lakes, checked against independent values and against standalone mizuRoute. | `./test_mizuroute_lakes.sh` | `lake_test/` (generated, gitignored) |
 
 Only the toy problem is expected to run unmodified right after a fresh
 checkout -- it needs nothing beyond a mizuRoute-enabled build. `bow_real_data`
@@ -48,6 +49,34 @@ slopes, and drainage areas instead of a single synthetic chain.
 catchment areas agree with SUMMA's `attributes.nc` HRU areas (they're linked
 only through each `cat-*.input` file's `attrib_file_HRU_order`, so this is a
 real check, not a tautology).
+
+## `test_mizuroute_lakes.sh` -- lakes, coupled and standalone
+
+```
+./test_mizuroute_lakes.sh [work_dir]
+```
+
+`mizuroute_lake_test.py` changes a copy of the bundled domain so that two GRUs
+hold water-class HRUs, one of them two, draining to Doll and HYPE lakes. The
+test checks the lake precipitation and Oudin evaporation against values computed
+separately from the forcing file, and the water balance of each lake. It then
+routes what the coupled run sent through standalone mizuRoute, which must give
+the same streamflow and storage. That step needs `bin/route_runoff` from
+`make_mizuRoute.sh` and is reported as skipped without it.
+
+`make_mizuRoute.sh` assumes Homebrew and PnetCDF. With conda serial NetCDF and
+GCC 16 and no PnetCDF, build in a copy of `external/mizuRoute` with ParallelIO
+(`pio2_6_6`) at `libraries/parallelio`, leaving `PNETCDF_PATH` unset. Export
+`CC=mpicc`, `CFLAGS=-std=gnu17` and `CMAKE_POLICY_VERSION_MINIMUM=3.5`, add
+`-DCMAKE_RANLIB=/usr/bin/ranlib` to `CMAKE_OPTS` in `route/build/lib/Makefile`,
+and run `make` without `-j` from `route/build`:
+
+```
+make FC=gnu FC_EXE=mpif90 F_MASTER=<copy>/route/ NCDF_PATH=<conda env> MODE=fast EXE=route_runoff
+```
+
+The comparison tolerance is 1e-5 of each reach's largest value, as the standalone
+history file is single precision.
 
 ## Comparing against t-route: `compare_to_troute.py`
 
@@ -157,7 +186,8 @@ for other platforms) and copies it to `bin/route_runoff`.
   scripts, described above.
 - `make_mizuRoute.sh` -- builds the standalone `route_runoff` executable
   needed by `compare_mizuroute.R`, `compare_coupled_sequential_mizuroute.R`,
-  and `../test_regression/test_mizuroute_coupling.sh`.
+  `test_mizuroute_lakes.sh` and `../test_regression/test_mizuroute_coupling.sh`.
+- `test_mizuroute_lakes.sh`, `mizuroute_lake_test.py` -- the lake test.
 
 ## Requirements
 
