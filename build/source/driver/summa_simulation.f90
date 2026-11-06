@@ -345,6 +345,9 @@ contains
     if(present(mpar_out)) mpar_out = summa_struct%mparStruct
     if(present(bpar_out)) bpar_out = summa_struct%bparStruct
 
+    ! retain the trial-parameter names in the passed config structure
+    config%trial_param_names = summa_struct%config%trial_param_names
+
   end subroutine initialize_summa
 
   ! **************************************************************************************************

@@ -17,6 +17,7 @@ endif()
 set(CALIBR_SUMMA
     ${CALIBR_DIR}/summa_parameter_fields.f90
     ${CALIBR_DIR}/summa_parameter_spec.f90
+    ${CALIBR_DIR}/summa_parameter_export.f90
     ${CALIBR_DIR}/calibration_output.f90
 )
 

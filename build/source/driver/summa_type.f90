@@ -121,6 +121,8 @@ type, public :: config_info
   ! Parameter overrides
   character(len=64), allocatable :: param_name(:)           ! Names of parameters to override
   real(rkind),       allocatable :: param_value(:)          ! Values of parameter overrides
+  ! Parameters explicitly present in the trial parameter file
+  character(len=64), allocatable :: trial_param_names(:)    ! Names of trial parameters
   ! Simulation
   character(len=:), allocatable  :: home_path               ! Root path for user-specific files
   character(len=:), allocatable  :: basin_dir               ! Directory containing basin-specific input data

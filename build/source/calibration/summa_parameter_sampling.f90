@@ -173,29 +173,32 @@ contains
   ! DDS over the whole budget at once, or NSGA-II one generation at a time. Both hand their trials to
   ! the same asynchronous dispatcher, so the worker pool persists throughout.
   ! **************************************************************************************************
-  subroutine dispatch_parameter_samples(config,                    &
-                                        domain_parallel,           &
-                                        instance_parallel,         &
-                                        param_spec,search,adapter, &
-                                        param_name,ncid_calib,     &
-                                        search_state,sample_best,  &
+  subroutine dispatch_parameter_samples(config,                       &
+                                        domain_parallel,              &
+                                        instance_parallel,            &
+                                        param_spec,search,adapter,    &
+                                        param_name,ncid_calib,        &
+                                        search_state,sample_best,     &
+                                        selected_ids,selected_values, &
                                         nSamples,err,message)
     USE summa_simulation, only: n_calibration_targets
     implicit none
     ! dummy
-    type(config_info)                     , intent(inout) :: config             ! SUMMA configuration structure
-    type(parallel_context_type)           , intent(in)    :: domain_parallel    ! MPI context for domain parallelism
-    type(parallel_context_type)           , intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
-    type(parameter_spec)                  , intent(in)    :: param_spec         ! complete SUMMA parameter specification
-    type(parameter_search_info)           , intent(in)    :: search             ! parameter-search configuration and metadata
-    type(summa_calibration_adapter)       , intent(inout) :: adapter            ! worker calibration context
-    character(len=64)                     , intent(in)    :: param_name(:)      ! complete SUMMA parameter-name vector
-    integer(i4b)                          , intent(in)    :: ncid_calib         ! calibration output NetCDF file ID
-    type(search_state_type)               , intent(inout) :: search_state       ! information from previously evaluated parameter sets
-    integer(i4b)                          , intent(inout) :: sample_best        ! sample index associated with elite fitness
-    integer(i4b)                          , intent(in)    :: nSamples           ! total number of parameter trials
-    integer(i4b)                          , intent(out)   :: err                ! error code
-    character(*)                          , intent(out)   :: message            ! error message
+    type(config_info)                     , intent(inout) :: config               ! SUMMA configuration structure
+    type(parallel_context_type)           , intent(in)    :: domain_parallel      ! MPI context for domain parallelism
+    type(parallel_context_type)           , intent(in)    :: instance_parallel    ! MPI context for model-instance parallelism
+    type(parameter_spec)                  , intent(in)    :: param_spec           ! complete SUMMA parameter specification
+    type(parameter_search_info)           , intent(in)    :: search               ! parameter-search configuration and metadata
+    type(summa_calibration_adapter)       , intent(inout) :: adapter              ! worker calibration context
+    character(len=64)                     , intent(in)    :: param_name(:)        ! complete SUMMA parameter-name vector
+    integer(i4b)                          , intent(in)    :: ncid_calib           ! calibration output NetCDF file ID
+    type(search_state_type)               , intent(inout) :: search_state         ! information from previously evaluated parameter sets
+    integer(i4b)                          , intent(inout) :: sample_best          ! sample index associated with elite fitness
+    integer(i4b), allocatable             , intent(out)   :: selected_ids(:)      ! best DDS or Pareto sample indices
+    real(rkind),  allocatable             , intent(out)   :: selected_values(:,:) ! selected native calibration values
+    integer(i4b)                          , intent(in)    :: nSamples             ! total number of parameter trials
+    integer(i4b)                          , intent(out)   :: err                  ! error code
+    character(*)                          , intent(out)   :: message              ! error message
     ! local
     type(trial_ledger)  :: ledger         ! every trial, kept by rank 0
     integer(i4b)        :: nTarget        ! objectives per trial
@@ -229,13 +232,16 @@ contains
       case('dds')
         call dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
                              1,nSamples,nSamples,ledger,search_state,sample_best,err,cmessage)
+        if(err==0) selected_ids=pack([sample_best],[sample_best>0])
       case('nsga2')
         call run_nsga2(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
-                       nSamples,ledger,search_state,sample_best,err,cmessage)
+                       nSamples,ledger,search_state,sample_best,selected_ids,err,cmessage)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     call release_workers(instance_parallel)
+
+    selected_values=ledger%value(:,selected_ids)
 
   end subroutine dispatch_parameter_samples
 
@@ -511,7 +517,7 @@ contains
   ! at the end, which of all the trials are non-dominated.
   ! **************************************************************************************************
   subroutine run_nsga2(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
-                       nSamples,ledger,search_state,sample_best,err,message)
+                       nSamples,ledger,search_state,sample_best,selected_ids,err,message)
     USE nsga2,                     only: nondominated_sort,nondominated_set
     USE nsga2,                     only: crowding_distance,select_survivors,make_offspring
     USE summa_simulation,          only: oriented_objectives
@@ -527,6 +533,7 @@ contains
     type(trial_ledger),          intent(inout) :: ledger
     type(search_state_type),     intent(inout) :: search_state
     integer(i4b),                intent(inout) :: sample_best
+    integer(i4b), allocatable,   intent(out)   :: selected_ids(:)
     integer(i4b),                intent(out)   :: err
     character(*),                intent(out)   :: message
     real(rkind),  allocatable :: f(:,:)          ! oriented objectives of every trial
@@ -535,6 +542,7 @@ contains
     real(rkind),  allocatable :: distance(:)     ! their crowding distances
     integer(i4b), allocatable :: combined(:)     ! parents then offspring
     integer(i4b), allocatable :: keep(:)         ! survivors' positions in combined
+    logical(lgt) :: front(nSamples)              ! Pareto membership
     integer(i4b) :: nPop,nGen,iGen,first,last,i
     real(rkind)  :: pm
     character(len=256) :: cmessage
@@ -598,8 +606,13 @@ contains
       call report_generation(config,iGen,nGen,ledger%objective(:,member),rank)
     enddo
 
-    call write_pareto_front(ncid_calib,nondominated_set(f),err,cmessage)
+    front=nondominated_set(f) .and. (.not.ledger%failed)
+
+    call write_pareto_front(ncid_calib,front,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+    selected_ids=pack([(i,i=1,nSamples)],front)
+    
     end associate
 
   end subroutine run_nsga2

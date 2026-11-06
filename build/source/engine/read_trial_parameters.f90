@@ -50,7 +50,9 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_trial_parameters: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_trial_parameters(nGRU_local,nHRU_local,maxDOM,idStruct,mparStruct,bparStruct,err,message)
+ subroutine read_trial_parameters(nGRU_local,nHRU_local,maxDOM,  &
+                                  idStruct,mparStruct,bparStruct,&
+                                  trial_param_names,err,message)
  ! used to read trial model parameter values
  USE summaFileManager,only:SETTINGS_PATH             ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
@@ -59,53 +61,55 @@ contains
  USE var_lookup,only:iLookPARAM,iLookTYPE,iLookID    ! named variables to index elements of the data vectors
  implicit none
  ! define input
- integer(i4b),        intent(in)           :: nGRU_local       ! number of GRUs assigned to this rank
- integer(i4b),        intent(in)           :: nHRU_local       ! number of HRUs assigned to this rank
- integer(i4b),        intent(in)           :: maxDOM           ! maximum number of domains in any HRU
- type(gru_hru_int8),  intent(in)           :: idStruct         ! local labels for hru and gru IDs
+ integer(i4b)                  , intent(in)    :: nGRU_local           ! number of GRUs assigned to this rank
+ integer(i4b)                  , intent(in)    :: nHRU_local           ! number of HRUs assigned to this rank
+ integer(i4b)                  , intent(in)    :: maxDOM               ! maximum number of domains in any HRU
+ type(gru_hru_int8)            , intent(in)    :: idStruct             ! local labels for hru and gru IDs
  ! define output
- type(gru_hru_dom_doubleVec),intent(inout) :: mparStruct       ! model parameters
- type(gru_double),    intent(inout)        :: bparStruct       ! basin parameters
- integer(i4b),        intent(out)          :: err              ! error code
- character(*),        intent(out)          :: message          ! error message
+ type(gru_hru_dom_doubleVec)   , intent(inout) :: mparStruct           ! model parameters
+ type(gru_double)              , intent(inout) :: bparStruct           ! basin parameters
+ character(len=64), allocatable, intent(out)   :: trial_param_names(:) ! list of trial parameter names
+ integer(i4b)                  , intent(out)   :: err                  ! error code
+ character(*)                  , intent(out)   :: message              ! error message
  ! define local variables
- character(len=1024)                       :: cmessage         ! error message for downwind routine
- character(LEN=1024)                       :: infile           ! input filename
- integer(i4b)                              :: iHRU             ! index of HRU within data vector
- integer(i4b)                              :: iDOM             ! index of domain within data vector
- integer(i4b)                              :: localHRU_ix,iGRU ! index of HRU and GRU within data structure
- integer(i4b)                              :: ixParam          ! index of the model parameter in the data structure
- integer(i4b)                              :: nSoil            ! number of soil layers in the domain
+ character(len=1024)                           :: cmessage             ! error message for downwind routine
+ character(LEN=1024)                           :: infile               ! input filename
+ integer(i4b)                                  :: iHRU                 ! index of HRU within data vector
+ integer(i4b)                                  :: iDOM                 ! index of domain within data vector
+ integer(i4b)                                  :: localHRU_ix,iGRU     ! index of HRU and GRU within data structure
+ integer(i4b)                                  :: ixParam              ! index of the model parameter in the data structure
+ integer(i4b)                                  :: nSoil                ! number of soil layers in the domain
  ! indices/metadata in the NetCDF file
- integer(i4b)                              :: ncid             ! netcdf id
- integer(i4b)                              :: nDims            ! number of dimensions
- integer(i4b)                              :: nVars            ! number of variables
- integer(i4b)                              :: iDimId           ! dimension index
- integer(i4b)                              :: iVarId           ! variable index
- character(LEN=64)                         :: dimName          ! dimension name
- character(LEN=64)                         :: parName          ! parameter name
- integer(i4b)                              :: dimLength        ! dimension length
- integer(i4b)                              :: nDOM_file        ! number of domains in the param file
- integer(i4b)                              :: nDOM             ! number of domains in the model for the HRU
- integer(i4b)                              :: nHRU_file        ! number of HRUs in the param file
- integer(i4b)                              :: nGRU_file        ! number of GRUs in the param file
- integer(i4b)                              :: nSoil_file       ! number of soil layers in the file (maximum in all domains)
- integer(i4b)                              :: idim_list(3)     ! list of dimension ids
+ integer(i4b)                                  :: ncid                 ! netcdf id
+ integer(i4b)                                  :: nDims                ! number of dimensions
+ integer(i4b)                                  :: nVars                ! number of variables
+ integer(i4b)                                  :: iDimId               ! dimension index
+ integer(i4b)                                  :: iVarId               ! variable index
+ character(LEN=64)                             :: dimName              ! dimension name
+ character(LEN=64)                             :: parName              ! parameter name
+ integer(i4b)                                  :: dimLength            ! dimension length
+ integer(i4b)                                  :: nDOM_file            ! number of domains in the param file
+ integer(i4b)                                  :: nDOM                 ! number of domains in the model for the HRU
+ integer(i4b)                                  :: nHRU_file            ! number of HRUs in the param file
+ integer(i4b)                                  :: nGRU_file            ! number of GRUs in the param file
+ integer(i4b)                                  :: nSoil_file           ! number of soil layers in the file (maximum in all domains)
+ integer(i4b)                                  :: idim_list(3)         ! list of dimension ids
  ! data in the netcdf file
- integer(i4b)                              :: parLength        ! length of the parameter data
- integer(i8b),allocatable                  :: hruId(:)         ! HRU identifier in the file
- real(rkind),allocatable                   :: parVector(:)     ! model parameter vector
- logical                                   :: fexist           ! inquire whether the paramTrial file exists
- integer(i4b)                              :: fHRU             ! index of HRU in input file
+ integer(i4b)                                  :: parLength            ! length of the parameter data
+ integer(i8b),allocatable                      :: hruId(:)             ! HRU identifier in the file
+ real(rkind),allocatable                       :: parVector(:)         ! model parameter vector
+ logical                                       :: fexist               ! inquire whether the paramTrial file exists
+ integer(i4b)                                  :: fHRU                 ! index of HRU in input file
  ! mapping from the local domain to the parameter file
- integer(i4b),allocatable                  :: index_to_hrunc(:)! local HRU -> parameter-file HRU index
- integer(i4b),allocatable                  :: index_to_grunc(:)! local GRU -> parameter-file GRU index
- integer(i8b),allocatable                  :: gruId(:)         ! GRU identifiers in the parameter file
- logical(lgt)                              :: has_gru_id       ! .true. if gruId exists in the parameter file
- logical(lgt)                              :: found_hru_id     ! .true. if hruId/hruIndex exists in the parameter file
+ integer(i4b),allocatable                      :: index_to_hrunc(:)    ! local HRU -> parameter-file HRU index
+ integer(i4b),allocatable                      :: index_to_grunc(:)    ! local GRU -> parameter-file GRU index
+ integer(i8b),allocatable                      :: gruId(:)             ! GRU identifiers in the parameter file
+ logical(lgt)                                  :: has_gru_id           ! .true. if gruId exists in the parameter file
+ logical(lgt)                                  :: found_hru_id         ! .true. if hruId/hruIndex exists in the parameter file
 
  ! Start procedure here
  err=0; message="read_trial_parameters/"
+ allocate(trial_param_names(0))
 
  ! **********************************************************************************************
  ! * open files, etc.
@@ -237,6 +241,11 @@ contains
   ! get the parameter name
   err=nf90_inquire_variable(ncid, iVarId, name=parName)
   call netcdf_err(err,message); if (err/=nf90_noerr) then; err=20; return; end if
+
+  ! retain the names of parameters read from the trial parameter file.
+  if(get_ixParam(trim(parName))/=integerMissing .or. &
+     get_ixBpar(trim(parName))/=integerMissing) &
+   trial_param_names=[trial_param_names,parName]
 
   ! get the local parameters
   ixParam = get_ixParam( trim(parName) )

@@ -130,7 +130,10 @@ subroutine summa_paramSetup(summa1_struc,param_name,param_value,calibration,err,
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! read trial model parameter values for each HRU, and populate initial data structures
- call read_trial_parameters(nGRU_local,nHRU_local,nDOM,idStruct,mparStruct,bparStruct,err,cmessage)
+ call read_trial_parameters(nGRU_local,nHRU_local,nDOM,idStruct,   &
+                            mparStruct,bparStruct,                 &
+                            summa1_struc%config%trial_param_names, &
+                            err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! overwrite parameters with user-specified parameter values

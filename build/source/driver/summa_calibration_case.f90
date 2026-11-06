@@ -13,10 +13,12 @@ module summa_calibration_case
   USE summa_parameter_sampling, only: check_search_settings
   USE summa_parameter_sampling, only: initialize_parameter_evaluation
   USE summa_parameter_sampling, only: dispatch_parameter_samples
-  USE summa_parameter_fields, only: summa_parameter_map
-  USE summa_parameter_fields, only: summa_calibration_adapter
-  USE summa_parameter_fields, only: initialize_summa_calibration_adapter
-  USE summa_simulation, only: n_calibration_targets
+  USE summa_parameter_fields,   only: summa_parameter_map
+  USE summa_parameter_fields,   only: summa_calibration_adapter
+  USE summa_parameter_fields,   only: initialize_summa_calibration_adapter
+  USE summa_parameter_fields,   only: apply_summa_calibration_adapter
+  USE summa_parameter_export,   only: write_physical_trial_parameters
+  USE summa_simulation,         only: n_calibration_targets
 
   implicit none
   private
@@ -164,6 +166,15 @@ contains
     ! Calibration output
     integer(i4b)                           :: ncid_calib    ! NetCDF identifier for calibration output
     character(len=256)                     :: calib_file    ! calibration output file path
+
+    ! Reconstructed parameter fields
+    type(gru_hru_dom_doublevec)            :: mpar_trial    ! Physical HRU parameters for export
+    type(gru_double)                       :: bpar_trial    ! Physical basin parameters for export
+    integer(i4b), allocatable              :: selected_ids(:)      ! Selected sample indices
+    real(rkind), allocatable               :: selected_values(:,:) ! Native calibration values
+    integer(i4b)                           :: iSelected     ! Selected sample index
+    character(len=20)                      :: sampleString  ! Sample identifier for filename
+    character(len=1024)                    :: trial_file    ! Trial parameter output file
 
     ! MPI
     type(parallel_context_type)            :: domain_parallel  ! MPI context for SUMMA domain parallelism
@@ -320,14 +331,16 @@ contains
     ! ---------------------------------------------------------------------------------------
     ! Evaluate parameter samples
     ! ---------------------------------------------------------------------------------------
-    call dispatch_parameter_samples(config,                     & ! SUMMA configuration structure
-                                    domain_parallel,            & ! MPI context for domain parallelism
-                                    instance_parallel,          & ! MPI context for model-instance parallelism
-                                    param_spec,search,adapter,  & ! parameter specification and search information
-                                    param_name,ncid_calib,      & ! parameter names and calibration output
-                                    search_state,               & ! information from previously evaluated parameter sets
-                                    sample_best,nSamples,       & ! sample index, total number of parameter samples
-                                    err,message)                  ! error code and message
+    call dispatch_parameter_samples(config,                       & ! SUMMA configuration structure
+                                    domain_parallel,              & ! MPI context for domain parallelism
+                                    instance_parallel,            & ! MPI context for model-instance parallelism
+                                    param_spec,search,adapter,    & ! parameter specification and search information
+                                    param_name,ncid_calib,        & ! parameter names and calibration output
+                                    search_state,                 & ! information from previously evaluated parameter sets
+                                    sample_best,                  & ! sample index
+                                    selected_ids,selected_values, & ! ids and values for selected samples
+                                    nSamples,                     & ! total number of parameter samples
+                                    err,message)                    ! error code and message
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
     ! ---------------------------------------------------------------------------------------
@@ -337,6 +350,47 @@ contains
       call close_calibration_output(ncid_calib,err,message)
       if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     endif
+
+    ! ---------------------------------------------------------------------------------------
+    ! Export the best DDS sample or the NSGA-II Pareto samples.
+    ! ---------------------------------------------------------------------------------------
+
+    if(instance_parallel%rank==0)then
+      if(size(selected_ids)>0)then
+   
+        call initialize_summa_calibration_adapter(param_spec,search,param_map, &
+                                                  mpar_init,bpar_init,adapter,err,message)
+        if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+  
+        do iSelected=1,size(selected_ids)
+       
+          adapter%calibration%values=selected_values(:,iSelected)
+       
+          mpar_trial=mpar_init
+          bpar_trial=bpar_init
+       
+          ! Apply spatial multipliers and parameter ratios.
+          call apply_summa_calibration_adapter(adapter,mpar_trial,bpar_trial,err,message)
+          if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+       
+          ! define the new parameter trial file
+          write(sampleString,'(I0)') selected_ids(iSelected)
+          trial_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString// &
+                     '_sample'//trim(sampleString)//'_trialParams.nc'
+       
+          ! Write the resulting physical parameter fields.
+          call write_physical_trial_parameters(trial_file,config%trial_param_names,param_spec,param_map, &
+                                               mpar_trial,bpar_trial,selected_ids(iSelected),err,message)
+          if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+       
+        enddo
+   
+      endif
+    endif
+
+    ! ---------------------------------------------------------------------------------------
+    ! Finalize 
+    ! ---------------------------------------------------------------------------------------
 
     ! close the rank-specific logging file
     ! NOTE: close the unit that was opened, not whatever iulog currently holds. A callee
@@ -349,43 +403,36 @@ contains
     call check_mpi(instance_parallel%rank,mpi_err,'unable to synchronize case cleanup')
 
     ! ---------------------------------------------------------------------------------------
-    ! Copy completed case output to persistent storage and remove temporary logs
+    ! Persist calibration results and remove temporary logs.
     ! ---------------------------------------------------------------------------------------
-    if(instance_parallel%rank == 0)then
-
-      ! copy completed calibration output when persistent storage is requested
+    if(instance_parallel%rank==0)then
+    
       if(allocated(config%persistent_output))then
+   
+        ! Copy calibration output to persistent storage 
+        call execute_command_line('mkdir -p "'//trim(config%persistent_output)//'"',exitstat=istat)
+        if(istat/=0) call abort_mpi(instance_parallel%rank,'unable to create persistent output directory')
+        
+        call execute_command_line('cp "'//trim(calib_file)//'" "'//trim(config%persistent_output)//'/"',exitstat=istat)
+        if(istat/=0) call abort_mpi(instance_parallel%rank,'unable to persist calibration output')
 
-        ! create persistent output directory
-        call execute_command_line('mkdir -p "'//trim(config%persistent_output)//'"', &
-                                  exitstat=istat)
-
-        if(istat/=0)then
-          call abort_mpi(instance_parallel%rank, &
-                         'unable to create calibration output directory: '//trim(config%persistent_output))
-        endif
-
-        ! copy completed calibration file to persistent scratch
-        call execute_command_line('cp "'//trim(calib_file)//'" "'//trim(config%persistent_output)//'/"', &
-                                  exitstat=istat)
-
-        if(istat/=0)then
-          call abort_mpi(instance_parallel%rank, &
-                         'unable to copy calibration output for case '//trim(config%case_name))
-        endif
-
-      endif ! (if creating persistent output)
-
-      ! remove temporary rank-specific log files
-      call execute_command_line( &
-        'rm -f "'//trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)//'_run'//runString//'_rank"*.log', &
-        exitstat=istat)
-
-      if(istat/=0)then
-        call abort_mpi(instance_parallel%rank, &
-                       'unable to remove calibration logs for case '//trim(config%case_name))
+        ! Copy selected physical parameter files to persistent storage
+        do iSelected=1,size(selected_ids)
+          write(sampleString,'(I0)') selected_ids(iSelected)
+          trial_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString// &
+                     '_sample'//trim(sampleString)//'_trialParams.nc'
+    
+          call execute_command_line('cp "'//trim(trial_file)//'" "'//trim(config%persistent_output)//'/"',exitstat=istat)
+          if(istat/=0) call abort_mpi(instance_parallel%rank,'unable to persist trial parameters')
+        enddo
+    
       endif
-
+   
+      ! remove log files 
+      call execute_command_line('rm -f "'//trim(OUTPUT_PATH)//'/logs/'//trim(config%case_name)// &
+                                '_run'//runString//'_rank"*.log',exitstat=istat)
+      if(istat/=0) call abort_mpi(instance_parallel%rank,'unable to remove calibration logs')
+    
     endif
 
   end subroutine run_case
