@@ -314,6 +314,21 @@ contains
     endif
 
     ! ---------------------------------------------------------------------------------------
+    ! Export the initial physical parameter fields before calibration.
+    ! ---------------------------------------------------------------------------------------
+    if(instance_parallel%rank==0)then
+    
+      trial_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString// &
+                 '_sample0_trialParams.nc'
+    
+      call write_physical_trial_parameters(trial_file,config%trial_param_names, &
+                                           param_spec,param_map,mpar_init,bpar_init, &
+                                           0,err,message)
+      if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+    
+    endif
+
+    ! ---------------------------------------------------------------------------------------
     ! Create calibration output file
     ! ---------------------------------------------------------------------------------------
     if(instance_parallel%rank == 0)then
