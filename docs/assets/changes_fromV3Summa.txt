@@ -265,6 +265,8 @@ AFTER tag of v4.0.0-exp-Sundials
      Builds a second executable (summa[_sundials]_mpi.exe); each rank reads/writes only its own GRUs.
  65) Optional coupling to mizuRoute for river-network routing, PR #632 -DUSE_MIZUROUTE=ON
      Configured via a new TOML file (-c). Adds Q_reach, q_basin, upArea outputs (off by default). Requires the full domain on one process -- incompatible with -g and MPI domain parallelism.
+     Coupled mizuRoute lakes with mizuRoute.is_lake_sim, taking precipitation and Oudin evaporation of water-class HRUs averaged per GRU and the SUMMA date; not with OpenWQ and not calibratable or restartable, commit eeed8bd9 Nov 3, 2026
+      Oudin potential evaporation function with parameters oudinPETScaleK1 and oudinPETTempThrK2, commit 99485bb0 Nov 3, 2026
  66) Objective-function evaluation and command-line parameter overrides, PR #637
      New build/source/objfunc/ computes streamflow metrics (kge, kgep, nse, mae, rmse) against observations. Parameters can be overridden via --param <name> <value>. 
      Simulation lifecycle refactored into summa_simulation (reusable in-process); executable names now record build options so variant builds can share bin/.
@@ -323,6 +325,3 @@ AFTER tag of v4.0.0-exp-Sundials
  88) Noah-MP parameters, snow/ice enthalpy tables and elapsedSec days kept per HRU, so HRUs can run concurrently, commit 2cb8db21 Nov 2, 2026
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit c9cdcc34 Nov 2, 2026
 -90) Total water and critical temperature use a quadratic smooth min(psi,0) of width 1e-2 m, effectively only changes saturated soils that freeze (glacier debris), commit 88ccd923 Nov 2, 2026
- 91) derivforce.f90 Oudin potential evaporation function with parameters oudinPETScaleK1 and oudinPETTempThrK2, commit 99485bb0 Nov 3, 2026
- 92) network_routing.f90 coupled mizuRoute lakes with mizuRoute.is_lake_sim, taking precipitation and Oudin evaporation of water-class HRUs averaged per GRU and the SUMMA date; not with OpenWQ, commit eeed8bd9 Nov 3, 2026
- 93) test_mizuroute_lakes.sh tests coupled mizuRoute lakes and compares streamflow and storage with standalone mizuRoute, commit 00716a17 Nov 3, 2026
