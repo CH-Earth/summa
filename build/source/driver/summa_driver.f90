@@ -68,7 +68,7 @@ program summa_driver
                            sample_id,               & ! sample ID
                            param_name,param_value,  & ! parameter names and values
                            objective,               & ! objective function value
-                           err, message)              ! error code and message
+                           err=err, message=message)  ! error code and message
   call handle_err(err,message)
   call stop_program(0,'finished simulation successfully.')
 

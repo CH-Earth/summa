@@ -77,23 +77,26 @@ contains
 ! parameter file and apply any user-supplied overrides, then update everything that depends on the
 ! resulting parameter values.
 ! ------------------------------------------------------------------------------------------------
-subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
- USE nr_type                                                 ! variable types, etc.
- USE summa_type, only:summa1_type_dec                        ! master summa data type
- USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
- USE param_override_module,only:read_param                   ! read trial model parameter sets
- USE param_override_module,only:apply_overrides              ! apply user-specified trial parameters
- USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
- USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
+subroutine summa_paramSetup(summa1_struc,param_name,param_value,calibration,err,message)
+ USE nr_type                                                        ! variable types, etc.
+ USE summa_type, only:summa1_type_dec                               ! master summa data type
+ USE time_utils_module,only:elapsedSec                              ! calculate the elapsed time
+ USE param_override_module,only:read_param                          ! read trial model parameter sets
+ USE param_override_module,only:apply_overrides                     ! apply user-specified trial parameters
+ USE summa_parameter_fields,only:summa_calibration_adapter          ! SUMMA-specific calibration adapter type
+ USE summa_parameter_fields,only:apply_summa_calibration_adapter    ! apply calibrated physical parameter fields
+ USE globalData,only:startSetup,endSetup                            ! date/time for the start and end of the parameter setup
+ USE globalData,only:elapsedSetup                                   ! elapsed time for the parameter setup
  implicit none
  ! dummy variables
- type(summa1_type_dec)  , intent(inout)    :: summa1_struc       ! master summa data structure
- character(*)           , intent(in)       :: param_name(:)      ! parameter names supplied by the caller
- real(rkind)            , intent(in)       :: param_value(:)     ! parameter values supplied by the caller
- integer(i4b)           , intent(out)      :: err                ! error code
- character(*)           , intent(out)      :: message            ! error message
+ type(summa1_type_dec)                    , intent(inout) :: summa1_struc       ! master summa data structure
+ character(*)                             , intent(in)    :: param_name(:)      ! parameter names supplied by the caller
+ real(rkind)                              , intent(in)    :: param_value(:)     ! parameter values supplied by the caller
+ type(summa_calibration_adapter), optional, intent(inout) :: calibration        ! field-based calibration adapter
+ integer(i4b)                             , intent(out)   :: err                ! error code
+ character(*)                             , intent(out)   :: message            ! error message
  ! local variables
- character(len=256)                        :: cmessage           ! error message of downwind routine
+ character(len=256)                                       :: cmessage           ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------
  summaVars: associate(&
   idStruct           => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)            -- GRU/HRU identifiers for the local domain
@@ -140,7 +143,14 @@ subroutine summa_paramSetup(summa1_struc, param_name, param_value, err, message)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  endif
 
- ! update parameter-dependent model quantities
+ ! Apply calibrated physical parameter fields after reading the trial parameter file
+ ! and applying any user-specified overrides, but before updating dependent quantities.
+ if(present(calibration))then
+   call apply_summa_calibration_adapter(calibration,mparStruct,bparStruct,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
+
+ ! Validate the final parameter fields and update parameter-dependent model quantities.
  call summa_paramUpdate(summa1_struc, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

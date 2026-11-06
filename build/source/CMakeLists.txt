@@ -13,9 +13,11 @@ set(NOAHMP
 
 set(NRTYPE
     ${NUMREC_DIR}/nr_type.f90
+    ${PARALLEL_DIR}/parallel_context.f90
     CACHE INTERNAL "NRTYPE")
 
 set(SUMMA_DATA_TYPES
+    ${CALIBR_DIR}/calibration_types.f90
     ${DSHARE_DIR}/var_lookup.f90
     ${DSHARE_DIR}/data_types.f90
     CACHE INTERNAL "SUMMA_DATA_TYPES")
@@ -164,20 +166,6 @@ set(OBJFNC
     ${OBJFNC_DIR}/write_evaluation.f90
     CACHE INTERNAL "OBJFNC")
 
-# Model calibration
-set(CALIBR
-    ${CALIBR_DIR}/parameter_search.f90
-    ${CALIBR_DIR}/nsga2.f90
-    ${CALIBR_DIR}/summa_parameter_spec.f90
-    ${CALIBR_DIR}/calibration_output.f90
-    CACHE INTERNAL "CALIBR")
-
-# MPI-dependent calibration
-set(CALIBR_MPI
-    ${CALIBR_DIR}/dynamic_case_dispatch.f90
-    ${CALIBR_DIR}/summa_parameter_sampling.f90
-    CACHE INTERNAL "CALIBR_MPI")
-
 # Driver support modules
 set(DRIVER
     ${DRIVER_DIR}/summa_setup.f90
@@ -195,11 +183,12 @@ set(DRIVER
     ${DRIVER_DIR}/summa_simulation.f90
     ${DRIVER_DIR}/summa_spinup.f90
     CACHE INTERNAL "DRIVER")
+set(DRIVER_OPT
+    ${DRIVER_DIR}/summa_calibration_case.f90
+    CACHE INTERNAL "DRIVER_OPT")
 set(DRIVER_TOML
     ${DRIVER_DIR}/summa_config.f90
     CACHE INTERNAL "DRIVER_TOML")
 set(DRIVER_BMI
     ${DRIVER_DIR}/summa_bmi.f90
     CACHE INTERNAL "DRIVER_BMI")
-# TOML configuration reader: only built with mizuRoute, which is its only consumer
-

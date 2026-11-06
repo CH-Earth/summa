@@ -51,6 +51,10 @@ module summa_parameter_sampling
   USE parameter_search, only: parameter_spec
   USE parameter_search, only: parameter_search_info
   USE parameter_search, only: search_state_type
+  USE parameter_search, only: generate_search_sample
+  USE parameter_search, only: param_physical
+  USE summa_parameter_fields, only: summa_parameter_map
+  USE summa_parameter_fields, only: summa_calibration_adapter
 
   implicit none
   private
@@ -67,7 +71,6 @@ module summa_parameter_sampling
   ! every trial of a calibration, kept by rank 0
   type :: trial_ledger
     real(rkind),  allocatable :: value(:,:)       ! sampled decision vector (nSampled,nSamples)
-    real(rkind),  allocatable :: override(:,:)    ! complete SUMMA override vector (nParam,nSamples)
     real(rkind),  allocatable :: objective(:,:)   ! one value per calibration target (nTarget,nSamples)
     logical(lgt), allocatable :: failed(:)        ! the model refused or failed on the trial (nSamples)
     integer(i4b), allocatable :: start_time(:,:)  ! dispatch time (8,nSamples)
@@ -93,32 +96,35 @@ contains
   ! Initializes parameter information shared across evaluations and establishes the dispatcher-owned
   ! state used by the parameter-search algorithm.
   ! **************************************************************************************************
-  subroutine initialize_parameter_evaluation(config,instance_parallel,param_spec,search,param_name, &
-                                             search_state,sample_best,err,message,mpar_init,bpar_init)
+  subroutine initialize_parameter_evaluation(config,instance_parallel,param_spec,param_map,search,param_name, &
+                                             search_state,sample_best,mpar_init,bpar_init,err,message)
     USE parameter_search, only: initialize_parameter_search
     USE summa_parameter_spec, only: get_summa_parameter_spec
     implicit none
-    type(config_info),           intent(in)  :: config             ! SUMMA configuration information
-    type(parallel_context_type), intent(in)  :: instance_parallel  ! MPI context for model-instance parallelism
-    type(var_dlength), optional, intent(in)  :: mpar_init          ! initialized HRU parameters, single-domain runs only
-    type(var_d),       optional, intent(in)  :: bpar_init          ! initialized basin parameters, single-domain runs only
-    type(parameter_spec),        intent(out) :: param_spec         ! complete SUMMA parameter specification
-    type(parameter_search_info), intent(out) :: search             ! sampled parameter search information
-    character(len=64), allocatable, intent(out) :: param_name(:)   ! complete SUMMA parameter names
-    type(search_state_type),     intent(out) :: search_state       ! information from previously evaluated parameter sets
-    integer(i4b),             intent(out) :: sample_best           ! sample index associated with best objective
-    integer(i4b), intent(out) :: err                               ! error code
-    character(*), intent(out) :: message                           ! error message
-    integer(i4b)              :: i                                 ! parameter index
-    integer(i4b)              :: nseed                             ! random-number seed vector size
-    integer(i4b), allocatable :: seed(:)                           ! random-number seed vector
-    character(len=256) :: cmessage                                 ! message returned by called routines
+    ! dummy
+    type(config_info)                     , intent(in)  :: config            ! SUMMA configuration information
+    type(parallel_context_type)           , intent(in)  :: instance_parallel ! MPI context for model-instance parallelism
+    type(parameter_spec)                  , intent(out) :: param_spec        ! complete SUMMA parameter specification
+    type(summa_parameter_map), allocatable, intent(out) :: param_map(:)      ! mapping from calibration parameters to SUMMA parameter locations
+    type(parameter_search_info)           , intent(out) :: search            ! sampled parameter search information
+    character(len=64), allocatable        , intent(out) :: param_name(:)     ! complete SUMMA parameter names
+    type(search_state_type)               , intent(out) :: search_state      ! information from previously evaluated parameter sets
+    integer(i4b)                          , intent(out) :: sample_best       ! sample index associated with best objective
+    type(var_dlength), optional           , intent(in)  :: mpar_init         ! initialized HRU parameters, single-domain runs only
+    type(var_d),       optional           , intent(in)  :: bpar_init         ! initialized basin parameters, single-domain runs only
+    integer(i4b)                          , intent(out) :: err               ! error code
+    character(*)                          , intent(out) :: message           ! error message
+    ! local
+    integer(i4b)                           :: i                      ! parameter index
+    integer(i4b)                           :: nseed                  ! random-number seed vector size
+    integer(i4b), allocatable              :: seed(:)                ! random-number seed vector
+    character(len=256) :: cmessage                                   ! message returned by called routines
 
     err=0
     message='initialize_parameter_evaluation/'
 
     ! build the SUMMA parameter specification from the calibration configuration
-    call get_summa_parameter_spec(config, param_spec, err, cmessage, mpar_init, bpar_init)
+    call get_summa_parameter_spec(config, param_spec, param_map, mpar_init, bpar_init, err, cmessage)
     if(err/=0)then
       message=trim(message)//trim(cmessage)
       return
@@ -170,26 +176,29 @@ contains
   subroutine dispatch_parameter_samples(config,                    &
                                         domain_parallel,           &
                                         instance_parallel,         &
-                                        param_spec,search,         &
+                                        param_spec,search,adapter, &
                                         param_name,ncid_calib,     &
                                         search_state,sample_best,  &
                                         nSamples,err,message)
     USE summa_simulation, only: n_calibration_targets
     implicit none
-    type(config_info),              intent(inout) :: config             ! SUMMA configuration structure
-    type(parallel_context_type),    intent(in)    :: domain_parallel    ! MPI context for domain parallelism
-    type(parallel_context_type),    intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
-    type(parameter_spec),           intent(in)    :: param_spec         ! complete SUMMA parameter specification
-    type(parameter_search_info),    intent(in)    :: search             ! parameter-search configuration and metadata
-    character(len=64),              intent(in)    :: param_name(:)      ! complete SUMMA parameter-name vector
-    integer(i4b),                   intent(in)    :: ncid_calib         ! calibration output NetCDF file ID
-    type(search_state_type),        intent(inout) :: search_state       ! information from previously evaluated parameter sets
-    integer(i4b),                   intent(inout) :: sample_best        ! sample index associated with elite fitness
-    integer(i4b),                   intent(in)    :: nSamples           ! total number of parameter trials
-    integer(i4b),                   intent(out)   :: err                ! error code
-    character(*),                   intent(out)   :: message            ! error message
-    type(trial_ledger)  :: ledger                                       ! every trial, kept by rank 0
-    integer(i4b)        :: nTarget                                      ! objectives per trial
+    ! dummy
+    type(config_info)                     , intent(inout) :: config             ! SUMMA configuration structure
+    type(parallel_context_type)           , intent(in)    :: domain_parallel    ! MPI context for domain parallelism
+    type(parallel_context_type)           , intent(in)    :: instance_parallel  ! MPI context for model-instance parallelism
+    type(parameter_spec)                  , intent(in)    :: param_spec         ! complete SUMMA parameter specification
+    type(parameter_search_info)           , intent(in)    :: search             ! parameter-search configuration and metadata
+    type(summa_calibration_adapter)       , intent(inout) :: adapter            ! worker calibration context
+    character(len=64)                     , intent(in)    :: param_name(:)      ! complete SUMMA parameter-name vector
+    integer(i4b)                          , intent(in)    :: ncid_calib         ! calibration output NetCDF file ID
+    type(search_state_type)               , intent(inout) :: search_state       ! information from previously evaluated parameter sets
+    integer(i4b)                          , intent(inout) :: sample_best        ! sample index associated with elite fitness
+    integer(i4b)                          , intent(in)    :: nSamples           ! total number of parameter trials
+    integer(i4b)                          , intent(out)   :: err                ! error code
+    character(*)                          , intent(out)   :: message            ! error message
+    ! local
+    type(trial_ledger)  :: ledger         ! every trial, kept by rank 0
+    integer(i4b)        :: nTarget        ! objectives per trial
     character(len=256)  :: cmessage
 
     err=0
@@ -199,14 +208,13 @@ contains
     nTarget=max(n_calibration_targets(config),1)
 
     if(instance_parallel%rank /= 0)then
-      call serve_trials(config,domain_parallel,instance_parallel,param_name, &
-                        size(param_spec%params),nTarget,err,cmessage)
+      call serve_trials(config,domain_parallel,instance_parallel,&
+                        adapter,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       return
     endif
 
-    allocate(ledger%value(size(search%param_names),nSamples),  &
-             ledger%override(size(param_spec%params),nSamples), &
+    allocate(ledger%value(size(search%param_names),nSamples),    &
              ledger%objective(nTarget,nSamples),                 &
              ledger%failed(nSamples),                            &
              ledger%start_time(8,nSamples),                      &
@@ -295,8 +303,8 @@ contains
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       call write_calibration_output(ncid_calib,                    &
                                     sample_id,worker,              &
-                                    param_name,                    &
-                                    ledger%override(:,sample_id),  &
+                                    search%param_names,            &
+                                    ledger%value(:,sample_id),     &
                                     ledger%objective(:,sample_id), &
                                     ledger%failed(sample_id),      &
                                     ledger%start_time(:,sample_id),&
@@ -322,7 +330,7 @@ contains
       call propose_trial(config,param_spec,search,i,nSamples,search_state,ledger,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       call date_and_time(values=ledger%start_time(:,i))
-      call send_sample(worker,i,ledger%override(:,i),instance_parallel%comm,mpi_err)
+      call send_sample(worker,i,ledger%value(:,i),instance_parallel%comm,mpi_err)
       call check_mpi(instance_parallel%rank,mpi_err,'unable to send parameter sample')
       worker_sample(worker)=i
       nActive=nActive+1
@@ -353,8 +361,9 @@ contains
     if(trim(config%calib%algorithm) /= 'dds') return
 
     ! NOTE: before any trial returns, nComplete=1 so that p = 1 - log(1) / log(nSamples) = 1
-    call generate_parameter_sample(sampling_method,param_spec,search,search_state,max(ledger%nComplete,1),nSamples, &
-                                   ledger%value(:,i),ledger%override(:,i),err,cmessage)
+    call generate_search_sample(sampling_method,search,search_state, &
+                            max(ledger%nComplete,1),nSamples,        &
+                            ledger%value(:,i),err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   end subroutine propose_trial
@@ -401,54 +410,78 @@ contains
   ! A trial the model refuses or fails on is saved as a repro case and reported to rank 0 as failed,
   ! and the worker goes on to the next; any other error ends the calibration.
   ! **************************************************************************************************
-  subroutine serve_trials(config,domain_parallel,instance_parallel,param_name,nParam,nTarget,err,message)
+
+  ! **************************************************************************************************
+  ! Evaluate parameter samples received from the MPI dispatcher.
+  !
+  ! The dispatcher sends scalar calibration variables. The calibration adapter
+  ! constructs and applies the corresponding physical parameter fields.
+  ! **************************************************************************************************
+  subroutine serve_trials(config,domain_parallel,instance_parallel,adapter,err,message)
     USE globalData,                only: iulog
     USE summa_simulation,          only: evaluate_objectives
     USE calibration_output_module, only: write_failed_trial
     implicit none
-    type(config_info),           intent(inout) :: config
-    type(parallel_context_type), intent(in)    :: domain_parallel
-    type(parallel_context_type), intent(in)    :: instance_parallel
-    character(len=64),           intent(in)    :: param_name(:)
-    integer(i4b),                intent(in)    :: nParam            ! length of the override vector
-    integer(i4b),                intent(in)    :: nTarget           ! objectives per trial
-    integer(i4b),                intent(out)   :: err
-    character(*),                intent(out)   :: message
-    real(rkind), allocatable :: objective(:)
-    real(rkind)  :: param_override(nParam)
-    integer(i4b) :: sample_id
-    integer(i4b) :: mpi_err
-    logical(lgt) :: stop_worker
-    logical(lgt) :: failed
+    ! dummy
+    type(config_info)               , intent(inout) :: config             ! SUMMA configuration
+    type(parallel_context_type)     , intent(in)    :: domain_parallel    ! Domain-parallel MPI context
+    type(parallel_context_type)     , intent(in)    :: instance_parallel  ! Instance-parallel MPI context
+    type(summa_calibration_adapter) , intent(inout) :: adapter            ! Calibration context and SUMMA parameter mapping
+    integer(i4b)                    , intent(out)   :: err                ! Error code
+    character(*)                    , intent(out)   :: message            ! Error message
+    ! local
+    character(len=64)             :: empty_names(0)   ! No legacy scalar overrides
+    real(rkind)                   :: empty_values(0)  ! No legacy scalar overrides
+    real(rkind), allocatable      :: objective(:)
+    integer(i4b)                  :: sample_id,mpi_err
+    logical(lgt)                  :: stop_worker,failed
     character(len=:), allocatable :: dir
-    character(len=1024) :: cmessage
+    character(len=1024)           :: cmessage
+    integer(i4b)        :: write_err      ! Error saving failed-trial diagnostics
+    character(len=1024) :: write_message  ! Error message from failed-trial output
 
     err=0
     message='serve_trials/'
+
     do
-      call receive_sample(sample_id,param_override,stop_worker, &
+
+      ! Receive the scalar calibration variables.
+      call receive_sample(sample_id,adapter%calibration%values,stop_worker, &
                           instance_parallel%comm,instance_parallel%rank,mpi_err)
       call check_mpi(instance_parallel%rank,mpi_err,'unable to receive parameter sample')
+
       if(stop_worker) exit
 
-      call evaluate_objectives(config,                              & ! SUMMA configuration structure
-                               domain_parallel,instance_parallel,   & ! MPI context for model domain and model-instance parallelism
-                               sample_id,param_name,param_override, & ! complete parameter overrides
-                               objective,err,cmessage,failed)         ! objective value per target and error control
+      ! Evaluate the sample using the field-based calibration adapter.
+      call evaluate_objectives(config,domain_parallel,instance_parallel, &
+                               sample_id,empty_names,empty_values,       &
+                               objective,failed,calibration=adapter,      &
+                               err=err,message=cmessage)
+
       if(err/=0 .and. .not.failed)then
         message=trim(message)//trim(cmessage)
         call abort_mpi(instance_parallel%rank,trim(message))
       endif
 
       if(failed)then
-        call write_failed_trial(config,sample_id,instance_parallel%rank,param_name,param_override,cmessage,dir)
+        call write_failed_trial(config,sample_id,instance_parallel%rank, &
+                                adapter%calibration%search%param_names,  &
+                                adapter%calibration%values,cmessage,dir, &
+                                allow_serial_rerun=.false.,              &
+                                err=write_err,message=write_message)
+        if(write_err/=0)then
+          message=trim(message)//trim(write_message)
+          call abort_mpi(instance_parallel%rank,trim(message))
+        endif
         write(output_unit,'(A,I0,A)') 'trial ',sample_id,' failed; saved in '//dir//': '//trim(cmessage)
         write(iulog,'(A,I0,A)') 'trial ',sample_id,' failed; saved in '//dir//': '//trim(cmessage)
         err=0
       endif
 
+      ! Return the objective values to the dispatcher.
       call send_objective(objective,failed,instance_parallel%comm,mpi_err)
       call check_mpi(instance_parallel%rank,mpi_err,'unable to send objective value')
+
     enddo
 
   end subroutine serve_trials
@@ -482,7 +515,6 @@ contains
     USE nsga2,                     only: nondominated_sort,nondominated_set
     USE nsga2,                     only: crowding_distance,select_survivors,make_offspring
     USE summa_simulation,          only: oriented_objectives
-    USE summa_parameter_spec,      only: build_summa_parameter_overrides
     USE calibration_output_module, only: write_generation_output,write_pareto_front
     implicit none
     type(config_info),           intent(in)    :: config
@@ -528,8 +560,8 @@ contains
       ! propose the generation: a random population, then offspring of the one before
       if(iGen == 1)then
         do i=first,last
-          call generate_parameter_sample('random',param_spec,search,search_state,1,nSamples, &
-                                         ledger%value(:,i),ledger%override(:,i),err,cmessage)
+          call generate_search_sample('random',search,search_state,1,nSamples, &
+                                      ledger%value(:,i),err,cmessage)
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
         enddo
       else
@@ -537,11 +569,6 @@ contains
                             settings%crossover_probability,settings%crossover_eta,pm,settings%mutation_eta, &
                             ledger%value(:,first:last),err,cmessage)
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-        do i=first,last
-          call build_summa_parameter_overrides(param_spec,search%param_names,ledger%value(:,i), &
-                                               ledger%override(:,i),err,cmessage)
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-        enddo
       endif
 
       call dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
@@ -619,9 +646,20 @@ contains
 
     err=0
     message='check_search_settings/'
+
+    if(config%calib%n_samples < 1)then
+      message=trim(message)//'calibration.n_samples must be positive'
+      err=20; return
+    endif
+ 
+    if(n_calibration_targets(config) < 1)then
+      message=trim(message)//'parameter calibration requires at least one objective target'
+      err=20; return
+    endif
+
     select case(trim(config%calib%algorithm))
-      case('dds')
-      case('nsga2')
+      case ('dds')
+      case ('nsga2')
         associate(nsga2 => config%calib%nsga2, nSamples => config%calib%n_samples)
         if(n_calibration_targets(config) < 1)then
           message=trim(message)//'NSGA-II needs at least one [[calibration.target]] or an [observations] file'
@@ -653,59 +691,6 @@ contains
     end select
 
   end subroutine check_search_settings
-
-
-  ! **************************************************************************************************
-  ! Generate a SUMMA parameter sample.
-  !
-  ! Generates one feasible parameter vector using the configured parameter-search strategy and
-  ! constructs the complete SUMMA parameter override vector for model evaluation. The sampled
-  ! parameter vector contains only parameters included in the search, whereas the override vector
-  ! also includes non-sampled parameters required by calibration constraints.
-  ! **************************************************************************************************
-  subroutine generate_parameter_sample(method,param_spec,search,search_state,nComplete,nSamples, &
-                                       param_value,param_override,err,message)
-    USE parameter_search, only: parameter_spec
-    USE parameter_search, only: parameter_search_info
-    USE parameter_search, only: search_state_type
-    USE parameter_search, only: generate_search_sample
-    USE summa_parameter_spec, only: build_summa_parameter_overrides
-
-    implicit none
-
-    character(*),                intent(in)  :: method
-    type(parameter_spec),        intent(in)  :: param_spec
-    type(parameter_search_info), intent(in)  :: search
-    type(search_state_type),     intent(in)  :: search_state
-    integer(i4b),                intent(in)  :: nComplete
-    integer(i4b),                intent(in)  :: nSamples
-    real(rkind),                 intent(out) :: param_value(:)
-    real(rkind),                 intent(out) :: param_override(:)
-    integer(i4b),                intent(out) :: err
-    character(*),                intent(out) :: message
-
-    character(len=256) :: cmessage
-
-    err=0
-    message='generate_parameter_sample/'
-
-    ! generate the next sampled parameter vector
-    call generate_search_sample(method,search,search_state,nComplete, &
-                                nSamples,param_value,err,cmessage)
-    if(err/=0)then
-      message=trim(message)//trim(cmessage)
-      return
-    endif
-
-    ! construct the complete SUMMA parameter override vector
-    call build_summa_parameter_overrides(param_spec,search%param_names,param_value, &
-                                         param_override,err,cmessage)
-    if(err/=0)then
-      message=trim(message)//trim(cmessage)
-      return
-    endif
-
-  end subroutine generate_parameter_sample
 
   ! --------------------------------------------------------------------------------------------------
   ! --- PRIVATE HELPER ROUTINES ----------------------------------------------------------------------
