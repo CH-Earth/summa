@@ -298,7 +298,7 @@ if (USE_MIZUROUTE)
 
     # mizuRoute type and interface definitions
     add_library(MIZUROUTE_TYPES STATIC ${MIZU_TYPE})
-    target_compile_options(MIZUROUTE_TYPES PRIVATE ${FLAGS_ALL})
+    target_compile_options(MIZUROUTE_TYPES PRIVATE ${FLAGS_MIZU})
     target_link_libraries(MIZUROUTE_TYPES PUBLIC SUMMA_NRTYPE)
     set_target_properties(MIZUROUTE_TYPES PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_types_mod)
     target_include_directories(MIZUROUTE_TYPES PUBLIC ${CMAKE_BINARY_DIR}/mizuroute_types_mod)
@@ -306,13 +306,13 @@ if (USE_MIZUROUTE)
     # Core mizuRoute implementation
     add_library(MIZUROUTE STATIC ${MIZU_BASE} ${MIZU_SHIM} ${MIZU_TOPO}
       ${MIZU_INIT} ${MIZU_RMAP} ${MIZU_ROUTE} ${MIZU_OUTPUT})
-    target_compile_options(MIZUROUTE PRIVATE ${FLAGS_ALL})
+    target_compile_options(MIZUROUTE PRIVATE ${FLAGS_MIZU})
     target_link_libraries(MIZUROUTE PUBLIC MIZUROUTE_TYPES NetCDF::NetCDF)
     set_target_properties(MIZUROUTE PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_mod)
 
     # SUMMA-facing mizuRoute coupling layer
     add_library(MIZUROUTE_COUPLING STATIC ${MIZU_COUPLING})
-    target_compile_options(MIZUROUTE_COUPLING PRIVATE ${FLAGS_ALL})
+    target_compile_options(MIZUROUTE_COUPLING PRIVATE ${FLAGS_MIZU})
     target_link_libraries(MIZUROUTE_COUPLING PUBLIC MIZUROUTE)
     add_dependencies(MIZUROUTE_COUPLING SUMMA_TYPES toml-f-lib)
     set_target_properties(MIZUROUTE_COUPLING PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mizuroute_coupling_mod)
