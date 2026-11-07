@@ -110,6 +110,7 @@ contains
     USE error_utils, only: check_mpi,abort_mpi
     ! SUMMA globals
     USE globalData, only: restart_filename
+    USE globalData, only: output_fileSuffix
     ! SUMMA paths/filenames
     USE summaFileManager, only: OUTPUT_PATH
     USE summaFileManager, only: MODEL_INITCOND
@@ -166,6 +167,7 @@ contains
     ! Calibration output
     integer(i4b)                           :: ncid_calib    ! NetCDF identifier for calibration output
     character(len=256)                     :: calib_file    ! calibration output file path
+    character(len=1024)                    :: file_prefix   ! prefix for calib filename
 
     ! Reconstructed parameter fields
     type(gru_hru_dom_doublevec)            :: mpar_trial    ! Physical HRU parameters for export
@@ -253,7 +255,10 @@ contains
 
     ! get the run index as character string to avoid collision in filenames
     write(runString,'(I4.4)') config%run_index
-    ! configure rank-specific logging
+    ! common prefix for calibration and exported parameter files.
+    file_prefix=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString
+    if(len_trim(output_fileSuffix)>0) file_prefix=trim(file_prefix)//'_'//trim(output_fileSuffix)
+    ! rank-specific logging
     iulog=99
     log_unit=iulog
     config%iulog_summa=iulog
@@ -318,8 +323,7 @@ contains
     ! ---------------------------------------------------------------------------------------
     if(instance_parallel%rank==0)then
     
-      trial_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString// &
-                 '_sample0_trialParams.nc'
+      trial_file=trim(file_prefix)//'_sample0_trialParams.nc'
     
       call write_physical_trial_parameters(trial_file,config%trial_param_names, &
                                            param_spec,param_map,mpar_init,bpar_init, &
@@ -332,7 +336,7 @@ contains
     ! Create calibration output file
     ! ---------------------------------------------------------------------------------------
     if(instance_parallel%rank == 0)then
-      calib_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString//'_calibration.nc'
+      calib_file=trim(file_prefix)//'_calibration.nc'
       call create_calibration_output(calib_file,param_spec,nSamples,                                   &
                                      instance_parallel%size-1,node_index,global_case_group,            &
                                      config%case_name,config%calib%targets,                            &
@@ -390,8 +394,7 @@ contains
        
           ! define the new parameter trial file
           write(sampleString,'(I0)') selected_ids(iSelected)
-          trial_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString// &
-                     '_sample'//trim(sampleString)//'_trialParams.nc'
+          trial_file=trim(file_prefix)//'_sample'//trim(sampleString)//'_trialParams.nc'
        
           ! Write the resulting physical parameter fields.
           call write_physical_trial_parameters(trial_file,config%trial_param_names,param_spec,param_map, &
@@ -434,9 +437,7 @@ contains
         ! Copy selected physical parameter files to persistent storage
         do iSelected=1,size(selected_ids)
           write(sampleString,'(I0)') selected_ids(iSelected)
-          trial_file=trim(OUTPUT_PATH)//trim(config%case_name)//'_run'//runString// &
-                     '_sample'//trim(sampleString)//'_trialParams.nc'
-    
+          trial_file=trim(file_prefix)//'_sample'//trim(sampleString)//'_trialParams.nc'
           call execute_command_line('cp "'//trim(trial_file)//'" "'//trim(config%persistent_output)//'/"',exitstat=istat)
           if(istat/=0) call abort_mpi(instance_parallel%rank,'unable to persist trial parameters')
         enddo
