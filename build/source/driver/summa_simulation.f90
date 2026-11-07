@@ -289,7 +289,7 @@ contains
     ! ---- Report objective values ------------------------------------------------------------
 
     if(instance_parallel%size == 1)then
-      write(output_unit,'(ES24.16)') objective(1)
+      write(output_unit,'(*(ES24.16,:,1X))') objective(1:nTarget)
     else
       write(output_unit,'(A,A,A,I0,A,*(1X,F12.9))') &
            'case=',trim(config%case_name),', rank=',instance_parallel%rank,', objective=', &
@@ -608,9 +608,10 @@ contains
     use globalData, only: ncid
     use var_lookup, only: iLookFREQ
     use simulated_series, only: sim_series_type, find_simulated_series
-    use read_flowobs_module, only: read_observations
-    use timeseries_alignment, only: align_timeseries
-    use series_transform, only: accumulate_series, remove_baseline_mean, balance_between_extremes
+    use read_observations_module, only: read_observations
+    use timeseries_alignment, only: align_timeseries, select_aligned_window
+    use series_transform, only: accumulate_series, remove_baseline_mean, &
+                                rebase_matched_series, balance_between_extremes
     use metrics, only: compute_metric
     use write_evaluation_module, only: write_evaluation
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
@@ -626,11 +627,17 @@ contains
     character(*), intent(out) :: message
 
     integer(i4b) :: iSeries
-    real(rkind), allocatable :: timeObs(:),timeBounds(:,:),flowObs(:)
+    real(rkind), allocatable :: timeObs(:),timeBounds(:,:),valObs(:)
     real(rkind), allocatable :: timeVal(:),valSim(:),valAccum(:),valAnom(:)
-    real(rkind), allocatable :: timeAligned(:),flowSimAligned(:),flowObsAligned(:)
-    character(len=:), allocatable :: timeObsUnits,flowObsUnits
+    real(rkind), allocatable :: timeAligned(:),timeBoundsAligned(:,:)
+    real(rkind), allocatable :: valSimAligned(:),valObsAligned(:)
+    integer(i4b), allocatable :: nSimAligned(:)
+    character(len=:), allocatable :: timeObsUnits,valObsUnits
     character(len=:), allocatable :: timeValUnits,valSimUnits
+    character(len=:), allocatable :: alignStart,alignEnd
+    real(rkind)  :: simBaseline,obsBaseline
+    integer(i4b) :: nBaseline
+    logical(lgt) :: hasBaseline
     character(len=1024) :: cmessage
 
     err=0
@@ -652,12 +659,12 @@ contains
 
       ! Read observations
       call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
-                             timeObs,timeBounds,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+                             timeObs,timeBounds,valObs,timeObsUnits,valObsUnits,err,cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         return
       endif
-      if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
+      if(len_trim(calTarget%obs_units) > 0) valObsUnits=trim(calTarget%obs_units)
 
       ! Accumulate a simulated rate when requested
       if(calTarget%accumulate)then
@@ -670,8 +677,11 @@ contains
         if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
       endif
 
-      ! Remove the baseline mean from simulated and observed series
-      if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
+      hasBaseline=allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end)
+
+      ! For seasonal/annual balances, retain the existing baseline treatment.
+      ! For other targets, baseline removal happens AFTER time alignment.
+      if(hasBaseline .and. len_trim(calTarget%balance)>0)then
         call remove_baseline_mean(timeVal,valSim,timeValUnits,                     &
                                   calTarget%baseline_start,calTarget%baseline_end, &
                                   valAnom,err,cmessage)
@@ -680,14 +690,14 @@ contains
           return
         endif
         call move_alloc(valAnom,valSim)
-        call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                    &
+        call remove_baseline_mean(timeObs,valObs,timeObsUnits,                    &
                                   calTarget%baseline_start,calTarget%baseline_end, &
                                   valAnom,err,cmessage)
         if(err/=0)then
           message='calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
           return
         endif
-        call move_alloc(valAnom,flowObs)
+        call move_alloc(valAnom,valObs)
       endif
 
       ! Calculate the change between seasonal extremes
@@ -704,35 +714,80 @@ contains
         timeValUnits=timeObsUnits
       endif
 
-      ! Align simulated and observed time series
-      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,timeObs,flowObs,     &
-                            timeObsUnits,flowObsUnits,config%calib%start_date,           &
-                            config%calib%end_date,timeBounds,timeAligned,flowSimAligned, &
-                            flowObsAligned, err,cmessage)
+      ! Align over the union of the evaluation and baseline periods.
+      ! The simulated value for each observation is averaged over its
+      ! own observation time bounds, including irregular GRACE periods.
+      alignStart=config%calib%start_date
+      alignEnd=config%calib%end_date
+
+      if(hasBaseline .and. len_trim(calTarget%balance)==0)then
+        if(calTarget%baseline_start<alignStart) alignStart=calTarget%baseline_start
+        if(calTarget%baseline_end>alignEnd) alignEnd=calTarget%baseline_end
+      endif
+
+      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,timeObs,valObs, &
+                            timeObsUnits,valObsUnits,alignStart,alignEnd,timeBounds, &
+                            timeAligned,timeBoundsAligned,nSimAligned,              &
+                            valSimAligned,valObsAligned,err,cmessage)
+
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         return
+      endif
+
+      ! Rebase the aligned series using exactly the same valid observation periods
+      if(hasBaseline .and. len_trim(calTarget%balance)==0)then
+
+        call rebase_matched_series(timeAligned,valSimAligned,valObsAligned,nSimAligned, &
+                                   timeObsUnits,calTarget%baseline_start,             &
+                                   calTarget%baseline_end,simBaseline,obsBaseline,    &
+                                   nBaseline,err,cmessage)
+
+        if(err/=0)then
+          message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+
+        ! Retain only evaluation observations, excluding baseline-only periods
+        call select_aligned_window(timeAligned,timeBoundsAligned,nSimAligned, &
+                                   valSimAligned,valObsAligned,timeObsUnits,  &
+                                   config%calib%start_date,config%calib%end_date, &
+                                   err,cmessage)
+
+        if(err/=0)then
+          message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+
       endif
 
       ! Compute the calibration metric
-      call compute_metric(flowObsAligned,flowSimAligned,calTarget%metric, &
+      call compute_metric(valObsAligned,valSimAligned,calTarget%metric, &
                           calTarget%obs_transform, objective,err,cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        failed=any(ieee_is_finite(flowObsAligned)) .and. .not.any(ieee_is_finite(flowSimAligned))
+        failed=any(ieee_is_finite(valObsAligned)) .and. .not.any(ieee_is_finite(valSimAligned))
         return
       endif
 
-      ! Write evaluation time series for the first target
-      if(config%write_timeseries .and. iTarget == 1)then
-        call write_evaluation(ncid(iLookFREQ%timestep),config%calib%write_aligned,    &
-                              timeAligned,flowObsAligned,flowSimAligned,timeObsUnits, &
-                              flowObsUnits,calTarget%metric,calTarget%obs_transform,  &
+      ! Write diagnostics for every calibration target
+      if(config%write_timeseries)then
+      
+        call write_evaluation(ncid(iLookFREQ%timestep),        &
+                              calTarget%name,                 &
+                              config%calib%write_aligned,     &
+                              timeAligned,timeBoundsAligned,  &
+                              valObsAligned,valSimAligned,    &
+                              nSimAligned,timeObsUnits,       &
+                              valObsUnits,calTarget%metric,   &
+                              calTarget%obs_transform,        &
                               objective,err,cmessage)
+      
         if(err/=0)then
           message=trim(cmessage)
           return
         endif
+      
       endif
 
     end associate
