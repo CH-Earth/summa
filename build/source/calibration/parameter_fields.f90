@@ -9,6 +9,8 @@ module parameter_fields
   implicit none
   private
 
+  integer(i4b), parameter, public :: err_ordered_violation=252000
+
   ! **************************************************************************************************
   ! Physical values of one model parameter.
   !
@@ -703,13 +705,14 @@ contains
   ! Call after apply_parameter_sample and before writing fields into the model.
   ! Scalar-only ordered constraints remain the responsibility of parameter_search.
   ! **************************************************************************************************
-  subroutine validate_effective_ordered_constraints(spec,field,err,message)
+  subroutine validate_effective_ordered_constraints(spec,field,only_constraint,err,message)
     implicit none
 
-    type(parameter_spec),  intent(in)  :: spec
-    type(parameter_field), intent(in)  :: field(:)
-    integer(i4b),          intent(out) :: err
-    character(*),          intent(out) :: message
+    type(parameter_spec),   intent(in)  :: spec
+    type(parameter_field),  intent(in)  :: field(:)
+    integer(i4b), optional, intent(in)  :: only_constraint
+    integer(i4b),           intent(out) :: err
+    character(*),           intent(out) :: message
 
     integer(i4b) :: ic,j,k,a,b,nOrdered
     real(rkind)  :: first_lower,last_upper,unused,gap,tol
@@ -720,6 +723,13 @@ contains
     message='validate_effective_ordered_constraints/'
 
     if(.not.allocated(spec%ordered)) return
+
+    if(present(only_constraint))then
+      if(only_constraint<1 .or. only_constraint>size(spec%ordered))then
+        message=trim(message)//'invalid ordered constraint index'
+        err=20; return
+      endif
+    endif
 
     if(.not.allocated(spec%params))then
       message=trim(message)//'parameter specification is not allocated'
@@ -732,6 +742,10 @@ contains
     endif
 
     do ic=1,size(spec%ordered)
+
+      if(present(only_constraint))then
+        if(ic/=only_constraint) cycle
+      endif
 
       if(.not.allocated(spec%ordered(ic)%param_index))then
         message=trim(message)//'ordered constraint has no parameter indices'
@@ -756,7 +770,8 @@ contains
           err=20; return
         endif
 
-        if(spec%params(k)%param_type/=param_physical) field_based=.true.
+        if(.not.spec%params(k)%sampled .or. &
+          spec%params(k)%param_type/=param_physical) field_based=.true.
       enddo
 
       if(.not.field_based) cycle
@@ -827,12 +842,16 @@ contains
 
           if(field(b)%effective(k)-field(a)%effective(k)<gap-tol)then
 
-            write(cmessage,'(A,I0)') ' at spatial element ',k
+            write(cmessage,'(A,I0,3(A,ES12.5))') &
+                  ' at spatial element ',k, &
+                  ', lower=',field(a)%effective(k), &
+                  ', upper=',field(b)%effective(k), &
+                  ', gap=',gap
 
             message=trim(message)//'violated ordered constraint: '// &
                     trim(spec%params(a)%name)//' < '//trim(spec%params(b)%name)//trim(cmessage)
 
-            err=20; return
+            err=err_ordered_violation; return
           endif
 
         enddo

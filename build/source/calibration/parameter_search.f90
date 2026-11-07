@@ -452,7 +452,7 @@ contains
       do i=1,nOrdered
         ixParam=search%ordered(iConstraint)%param_index(i)
 
-        if(spec%params(ixParam)%param_type/=param_physical)then
+        if(.not.spec%params(ixParam)%sampled .or. spec%params(ixParam)%param_type/=param_physical)then
           search%ordered(iConstraint)%field_based=.true.
           exit
         endif

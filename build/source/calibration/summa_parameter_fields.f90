@@ -32,6 +32,7 @@ module summa_parameter_fields
 
   ! calibration adaptor 
   type, public :: summa_calibration_adapter
+    logical(lgt) :: prevalidated=.false.
     type(model_calibration_context) :: calibration
     type(summa_parameter_map), allocatable :: map(:)
   end type summa_calibration_adapter
@@ -127,8 +128,9 @@ contains
       adapter%calibration%search,                      &
       adapter%calibration%values,                      &
       adapter%map,                                     &
-      adapter%calibration%fields,                      &
-      mpar,bpar,err,message)
+      adapter%calibration%fields,mpar,bpar,            &
+      skip_ordered=adapter%prevalidated,               &
+      err=err,message=message)
 
   end subroutine apply_summa_calibration_adapter
 
@@ -169,7 +171,7 @@ contains
     real(rkind)  :: tolerance     ! Tolerance for comparing initialized scalar values
     integer(i4b) :: ixFirst       ! First parameter in an ordered constraint
     logical(lgt) :: field_based   ! Whether a constraint requires physical-field validation
-    character(len=256) :: detail  ! Details of incompatible parameter fields
+    integer(i4b) :: nCurrent, nFirst 
 
     err=0
     message='initialize_summa_parameter_fields/'
@@ -235,7 +237,8 @@ contains
 
           ix=spec%ordered(iConstraint)%param_index(iMember)
 
-          if(spec%params(ix)%param_type/=param_physical) field_based=.true.
+          if(.not.spec%params(ix)%sampled .or. &
+            spec%params(ix)%param_type/=param_physical) field_based=.true.
 
         enddo
 
@@ -254,18 +257,6 @@ contains
           ! Uniform physical parameters are compared as scalar values.
           if(.not.field_based) cycle
 
-          ! Field-based constraints require corresponding spatial elements.
-          if(size(field(ix)%initial)/=size(field(ixFirst)%initial))then
-
-            write(detail,'(A,A,I0,A,A,A,I0,A)') &
-              trim(spec%params(ixFirst)%name),' (',size(field(ixFirst)%initial),'), ', &
-              trim(spec%params(ix)%name),' (',size(field(ix)%initial),')'
-
-            message=trim(message)//'ordered parameter fields have different lengths: '//trim(detail)
-            err=20; return
-
-          endif
-          
           ! Basin fields have one value per GRU.
           if(param_map(ix)%ixB>0) cycle
 
@@ -283,9 +274,11 @@ contains
                 if(param_map(ix)%domain_type/=0 .and. &
                    param_map(ix)%domain_type/=gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type) cycle
 
-                if(size(mpar_init%gru(g)%hru(h)%dom(d)%var(param_map(ix)%ixM)%dat)/= &
-                   size(mpar_init%gru(g)%hru(h)%dom(d)%var(param_map(ixFirst)%ixM)%dat))then
-                  message=trim(message)//'ordered fields are not spatially aligned'
+                nCurrent=size(mpar_init%gru(g)%hru(h)%dom(d)%var(param_map(ix)%ixM)%dat)
+                nFirst=size(mpar_init%gru(g)%hru(h)%dom(d)%var(param_map(ixFirst)%ixM)%dat)
+                
+                if(nCurrent<1 .or. nFirst<1 .or. (nCurrent/=nFirst .and. nCurrent/=1 .and. nFirst/=1))then
+                  message=trim(message)//'ordered fields are not aligned (only local 1-to-N allowed)'
                   err=20; return
                 endif
 
@@ -516,6 +509,159 @@ contains
 
   end subroutine put_summa_parameter_vector
 
+  ! **************************************************************************************************
+  ! Align physical parameter fields for one ordered constraint.
+  !
+  ! Scalar parameters are temporarily broadcast to the local vector length
+  ! needed for comparison with soil-layer parameters.
+  !
+  ! Broadcasting is performed separately for every GRU/HRU/domain, so HRUs
+  ! with different numbers of soil layers are handled correctly.
+  !
+  ! The native parameter fields are not modified. The returned aligned
+  ! fields are used only for ordered-constraint validation.
+  ! **************************************************************************************************
+  subroutine align_ordered_constraint_fields(spec,param_map,mpar,field,ic,aligned,err,message)
+    implicit none
+
+    type(parameter_spec), intent(in) :: spec
+    type(summa_parameter_map), intent(in) :: param_map(:)
+    type(gru_hru_dom_doubleVec), intent(in) :: mpar
+    type(parameter_field), intent(in) :: field(:)
+    integer(i4b), intent(in) :: ic
+    type(parameter_field), allocatable, intent(out) :: aligned(:)
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
+
+    integer(i4b) :: i,j,ix,g,h,d,b,nBlocks,nMaxBlocks
+    integer(i4b) :: nLocal,nMax,nNative,nExpanded,src,dst,domain_type
+    integer(i4b), allocatable :: block_size(:)
+    real(rkind), allocatable :: initial(:),effective(:)
+
+    err=0
+    message='align_ordered_constraint_fields/'
+    aligned=field
+
+    ! Basin parameter constraints already have one value per GRU.
+    ix=spec%ordered(ic)%param_index(1)
+    if(param_map(ix)%ixB>0) return
+
+    domain_type=param_map(ix)%domain_type
+    nMaxBlocks=0
+    do g=1,size(mpar%gru)
+      do h=1,size(mpar%gru(g)%hru)
+        nMaxBlocks=nMaxBlocks+size(mpar%gru(g)%hru(h)%dom)
+      enddo
+    enddo
+    allocate(block_size(nMaxBlocks),stat=err)
+    if(err/=0)then
+      message=trim(message)//'unable to allocate block sizes'
+      return
+    endif
+
+    ! Determine the comparison length separately in every physical domain.
+    nBlocks=0
+    do g=1,size(mpar%gru)
+      do h=1,size(mpar%gru(g)%hru)
+        do d=1,size(mpar%gru(g)%hru(h)%dom)
+          if(domain_type/=0 .and. &
+             domain_type/=gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type) cycle
+
+          nMax=0
+          do j=1,size(spec%ordered(ic)%param_index)
+            ix=spec%ordered(ic)%param_index(j)
+            if(param_map(ix)%ixM<1 .or. param_map(ix)%domain_type/=domain_type)then
+              message=trim(message)//'ordered members have different domains'
+              err=20; return
+            endif
+            nLocal=size(mpar%gru(g)%hru(h)%dom(d)%var(param_map(ix)%ixM)%dat)
+            if(nLocal<1)then
+              message=trim(message)//'empty local ordered parameter field'
+              err=20; return
+            endif
+            nMax=max(nMax,nLocal)
+          enddo
+
+          ! Only scalar-to-vector broadcasting is permitted.
+          do j=1,size(spec%ordered(ic)%param_index)
+            ix=spec%ordered(ic)%param_index(j)
+            nLocal=size(mpar%gru(g)%hru(h)%dom(d)%var(param_map(ix)%ixM)%dat)
+            if(nLocal/=1 .and. nLocal/=nMax)then
+              message=trim(message)//'incompatible local ordered field lengths'
+              err=20; return
+            endif
+          enddo
+
+          nBlocks=nBlocks+1
+          block_size(nBlocks)=nMax
+        enddo
+      enddo
+    enddo
+    if(nBlocks==0)then
+      message=trim(message)//'ordered constraint selects no domains'
+      err=20; return
+    endif
+    nExpanded=sum(block_size(1:nBlocks))
+
+    ! Expand only members of this ordered set. All other model fields remain native.
+    do i=1,size(spec%ordered(ic)%param_index)
+      ix=spec%ordered(ic)%param_index(i)
+      if(.not.allocated(field(ix)%initial) .or. &
+         .not.allocated(field(ix)%effective))then
+        message=trim(message)//'missing physical field in ordered constraint'
+        err=20; return
+      endif
+
+      nNative=0
+      do g=1,size(mpar%gru)
+        do h=1,size(mpar%gru(g)%hru)
+          do d=1,size(mpar%gru(g)%hru(h)%dom)
+            if(domain_type/=0 .and. &
+               domain_type/=gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type) cycle
+            nNative=nNative+size(mpar%gru(g)%hru(h)%dom(d)%var(param_map(ix)%ixM)%dat)
+          enddo
+        enddo
+      enddo
+      if(size(field(ix)%initial)/=nNative .or. size(field(ix)%effective)/=nNative)then
+        message=trim(message)//'native field lengths differ from SUMMA storage'
+        err=20; return
+      endif
+      if(nNative==nExpanded) cycle
+
+      allocate(initial(nExpanded),effective(nExpanded),stat=err)
+      if(err/=0)then
+        message=trim(message)//'unable to allocate aligned fields'
+        return
+      endif
+      src=0
+      dst=0
+      b=0
+      do g=1,size(mpar%gru)
+        do h=1,size(mpar%gru(g)%hru)
+          do d=1,size(mpar%gru(g)%hru(h)%dom)
+            if(domain_type/=0 .and. &
+               domain_type/=gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type) cycle
+            b=b+1
+            nLocal=size(mpar%gru(g)%hru(h)%dom(d)%var(param_map(ix)%ixM)%dat)
+            nMax=block_size(b)
+            if(nLocal==1)then
+              initial(dst+1:dst+nMax)=field(ix)%initial(src+1)
+              effective(dst+1:dst+nMax)=field(ix)%effective(src+1)
+            else
+              initial(dst+1:dst+nMax)=field(ix)%initial(src+1:src+nLocal)
+              effective(dst+1:dst+nMax)=field(ix)%effective(src+1:src+nLocal)
+            endif
+            src=src+nLocal
+            dst=dst+nMax
+          enddo
+        enddo
+      enddo
+
+      aligned(ix)%initial=initial
+      aligned(ix)%effective=effective
+      deallocate(initial,effective)
+    enddo
+  end subroutine align_ordered_constraint_fields
   
   ! **************************************************************************************************
   ! Apply one calibration sample to the SUMMA parameter fields.
@@ -530,21 +676,31 @@ contains
   ! The destination parameter structures must have the same spatial layout
   ! as the initialized structures used to construct field(:).
   ! **************************************************************************************************
-  subroutine apply_summa_parameter_sample(spec,search,sampled_values,param_map,field,mpar,bpar,err,message)
+  subroutine apply_summa_parameter_sample(spec,search,sampled_values,param_map,field,mpar,bpar,&
+                                          validate_only,skip_ordered,only_fixed,err,message)
     USE, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
 
-    type(parameter_spec), intent(in) :: spec
-    type(parameter_search_info), intent(in) :: search
-    real(rkind), intent(in) :: sampled_values(:)
-    type(summa_parameter_map), intent(in) :: param_map(:)
-    type(parameter_field), intent(inout) :: field(:)
+    type(parameter_spec),        intent(in)    :: spec
+    type(parameter_search_info), intent(in)    :: search
+    real(rkind),                 intent(in)    :: sampled_values(:)
+    type(summa_parameter_map),   intent(in)    :: param_map(:)
+    type(parameter_field),       intent(inout) :: field(:)
     type(gru_hru_dom_doubleVec), intent(inout) :: mpar
-    type(gru_double), intent(inout) :: bpar
-    integer(i4b), intent(out) :: err
-    character(*), intent(out) :: message
+    type(gru_double),            intent(inout) :: bpar
+    logical(lgt), optional,      intent(in)    :: validate_only
+    logical(lgt), optional,      intent(in)    :: skip_ordered
+    logical(lgt), optional,      intent(in)    :: only_fixed
+    integer(i4b),                intent(out)   :: err
+    character(*),                intent(out)   :: message
 
     integer(i4b) :: i
+    integer(i4b) :: iConstraint,ix,j
+    logical(lgt) :: field_based
+    logical(lgt) :: is_fixed
+    logical(lgt) :: do_validate_only, do_skip_ordered
+    logical(lgt) :: check_fixed_only, filter_fixed
+    type(parameter_field), allocatable :: aligned(:)
     real(rkind), allocatable :: destination(:)
     character(len=1024) :: cmessage
 
@@ -561,8 +717,30 @@ contains
       err=20; return
     endif
 
-    ! Construct the effective physical fields using the generic parameterization routines.
-    call construct_effective_parameter_fields(spec,search,sampled_values,field,err,cmessage)
+    ! -----------------------------------------------------------------------------------------------
+    ! Process optional arguments.
+    ! -----------------------------------------------------------------------------------------------
+    do_validate_only=.false.
+    if(present(validate_only)) do_validate_only=validate_only
+    
+    do_skip_ordered=.false.
+    if(present(skip_ordered)) do_skip_ordered=skip_ordered
+    
+    check_fixed_only=.false.
+    filter_fixed=present(only_fixed)
+    if(present(only_fixed)) check_fixed_only=only_fixed
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Physical field construction.
+    ! -----------------------------------------------------------------------------------------------
+    if(check_fixed_only)then
+      do i=1,size(field)
+        field(i)%effective=field(i)%initial
+      enddo
+    else
+      call construct_effective_parameter_fields( &
+           spec,search,sampled_values,field,err,cmessage)
+    endif
 
     if(err/=0)then
       message=trim(message)//trim(cmessage)
@@ -572,11 +750,54 @@ contains
     ! -----------------------------------------------------------------------------------------------
     ! Check field-based ordered constraints before modifying SUMMA parameters.
     ! -----------------------------------------------------------------------------------------------
-    call validate_effective_ordered_constraints(spec,field,err,cmessage)
+    
+    ! Validate one ordered constraint at a time.
+    if(.not.do_skip_ordered .and. allocated(spec%ordered))then
+    
+      do iConstraint=1,size(spec%ordered)
+    
+        field_based=.false.
+        is_fixed=.true.
+        
+        do j=1,size(spec%ordered(iConstraint)%param_index)
+        
+          ix=spec%ordered(iConstraint)%param_index(j)
+        
+          if(spec%params(ix)%sampled) is_fixed=.false.
+        
+          if(.not.spec%params(ix)%sampled .or. &
+             spec%params(ix)%param_type/=param_physical) field_based=.true.
+        
+        enddo
+        
+        ! Scalar-only constraints are handled by parameter_search.
+        if(.not.field_based) cycle
+        
+        ! Select fixed-only or sample-dependent constraints when requested.
+        if(filter_fixed)then
+          if(is_fixed .neqv. check_fixed_only) cycle
+        endif 
 
-    if(err/=0)then
-      message=trim(message)//trim(cmessage)
-      return
+        ! Construct temporary fields with compatible spatial dimensions.
+        call align_ordered_constraint_fields( &
+             spec,param_map,mpar,field,iConstraint,aligned,err,cmessage)
+    
+        if(err/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+    
+        ! Validate the effective physical fields.
+        call validate_effective_ordered_constraints(spec,aligned,&
+             only_constraint=iConstraint,err=err,message=cmessage)
+    
+        if(err/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+    
+      enddo
+    
     endif
 
     ! -----------------------------------------------------------------------------------------------
@@ -599,6 +820,8 @@ contains
       endif
 
     enddo
+
+    if(do_validate_only) return
 
     ! -----------------------------------------------------------------------------------------------
     ! Write sampled physical parameter fields back into SUMMA.

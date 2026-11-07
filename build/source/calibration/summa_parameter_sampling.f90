@@ -31,6 +31,8 @@ module summa_parameter_sampling
   USE nr_type,    only: i4b,rkind,lgt
   USE data_types, only: var_d
   USE data_types, only: var_dlength
+  USE data_types, only: gru_hru_dom_doubleVec
+  USE data_types, only: gru_double
   USE summa_type, only: config_info
   USE summa_type, only: parallel_context_type
 
@@ -53,8 +55,10 @@ module summa_parameter_sampling
   USE parameter_search, only: search_state_type
   USE parameter_search, only: generate_search_sample
   USE parameter_search, only: param_physical
+  USE parameter_fields, only: err_ordered_violation
   USE summa_parameter_fields, only: summa_parameter_map
   USE summa_parameter_fields, only: summa_calibration_adapter
+  USE summa_parameter_fields, only: apply_summa_parameter_sample
 
   implicit none
   private
@@ -167,6 +171,32 @@ contains
   end subroutine initialize_parameter_evaluation
 
   ! **************************************************************************************************
+  ! Check physical feasibility without modifying SUMMA parameter arrays.
+  ! An ordered violation rejects the candidate; other errors remain fatal.
+  ! **************************************************************************************************
+  subroutine check_candidate(adapter,mpar,bpar,x,only_fixed,feasible,err,message)
+    implicit none
+  
+    type(summa_calibration_adapter), intent(inout) :: adapter
+    type(gru_hru_dom_doubleVec),     intent(inout) :: mpar
+    type(gru_double),                intent(inout) :: bpar
+    real(rkind),                     intent(in)    :: x(:)
+    logical(lgt),                    intent(in)    :: only_fixed
+    logical(lgt),                    intent(out)   :: feasible
+    integer(i4b),                    intent(out)   :: err
+    character(*),                    intent(out)   :: message
+  
+    call apply_summa_parameter_sample(adapter%calibration%spec,                          &
+                                      adapter%calibration%search,                        &
+                                      x,adapter%map,adapter%calibration%fields,mpar,bpar,&
+                                      validate_only=.true.,only_fixed=only_fixed,        &
+                                      err=err,message=message)
+    feasible=(err==0)
+    if(err==err_ordered_violation) err=0
+  
+  end subroutine check_candidate
+
+  ! **************************************************************************************************
   ! Evaluate the calibration's parameter samples.
   !
   ! Workers evaluate whatever trial rank 0 sends until told to stop. Rank 0 runs the configured search:
@@ -177,6 +207,7 @@ contains
                                         domain_parallel,              &
                                         instance_parallel,            &
                                         param_spec,search,adapter,    &
+                                        mpar_init,bpar_init,          &
                                         param_name,ncid_calib,        &
                                         search_state,sample_best,     &
                                         selected_ids,selected_values, &
@@ -190,6 +221,8 @@ contains
     type(parameter_spec)                  , intent(in)    :: param_spec           ! complete SUMMA parameter specification
     type(parameter_search_info)           , intent(in)    :: search               ! parameter-search configuration and metadata
     type(summa_calibration_adapter)       , intent(inout) :: adapter              ! worker calibration context
+    type(gru_hru_dom_doubleVec)           , intent(inout) :: mpar_init            ! initial HRU parameter fields
+    type(gru_double)                      , intent(inout) :: bpar_init            ! initial GRU parameter fields
     character(len=64)                     , intent(in)    :: param_name(:)        ! complete SUMMA parameter-name vector
     integer(i4b)                          , intent(in)    :: ncid_calib           ! calibration output NetCDF file ID
     type(search_state_type)               , intent(inout) :: search_state         ! information from previously evaluated parameter sets
@@ -202,7 +235,8 @@ contains
     ! local
     type(trial_ledger)  :: ledger         ! every trial, kept by rank 0
     integer(i4b)        :: nTarget        ! objectives per trial
-    character(len=256)  :: cmessage
+    logical(lgt)        :: feasible
+    character(len=1024) :: cmessage
 
     err=0
     message='dispatch_parameter_samples/'
@@ -215,6 +249,16 @@ contains
                         adapter,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       return
+    endif
+
+    ! Fixed-only constraints cannot be repaired by sampling.
+    call check_candidate(adapter,mpar_init,bpar_init,search%lower, &
+                         .true.,feasible,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    
+    if(.not.feasible)then
+      message=trim(message)//'fixed ordered constraints are infeasible: '//trim(cmessage)
+      err=20; return
     endif
 
     allocate(ledger%value(size(search%param_names),nSamples),    &
@@ -231,10 +275,12 @@ contains
     select case(trim(config%calib%algorithm))
       case('dds')
         call dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                             adapter,mpar_init,bpar_init, &
                              1,nSamples,nSamples,ledger,search_state,sample_best,err,cmessage)
         if(err==0) selected_ids=pack([sample_best],[sample_best>0])
       case('nsga2')
         call run_nsga2(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                       adapter,mpar_init,bpar_init, &
                        nSamples,ledger,search_state,sample_best,selected_ids,err,cmessage)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -253,22 +299,26 @@ contains
   ! NSGA-II has already written the whole generation into the ledger.
   ! **************************************************************************************************
   subroutine dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                             adapter,mpar_init,bpar_init, &
                              first,last,nSamples,ledger,search_state,sample_best,err,message)
     USE calibration_output_module, only: write_calibration_output
     implicit none
-    type(config_info),           intent(in)    :: config
-    type(parallel_context_type), intent(in)    :: instance_parallel
-    type(parameter_spec),        intent(in)    :: param_spec
-    type(parameter_search_info), intent(in)    :: search
-    character(len=64),           intent(in)    :: param_name(:)
-    integer(i4b),                intent(in)    :: ncid_calib
-    integer(i4b),                intent(in)    :: first,last        ! trials to evaluate
-    integer(i4b),                intent(in)    :: nSamples          ! total sample budget
-    type(trial_ledger),          intent(inout) :: ledger
-    type(search_state_type),     intent(inout) :: search_state
-    integer(i4b),                intent(inout) :: sample_best
-    integer(i4b),                intent(out)   :: err
-    character(*),                intent(out)   :: message
+    type(config_info)              , intent(in)    :: config
+    type(parallel_context_type)    , intent(in)    :: instance_parallel
+    type(parameter_spec)           , intent(in)    :: param_spec
+    type(parameter_search_info)    , intent(in)    :: search
+    character(len=64)              , intent(in)    :: param_name(:)
+    integer(i4b)                   , intent(in)    :: ncid_calib
+    type(summa_calibration_adapter), intent(inout) :: adapter
+    type(gru_hru_dom_doubleVec)    , intent(inout) :: mpar_init            ! initial HRU parameter fields
+    type(gru_double)               , intent(inout) :: bpar_init            ! initial GRU parameter fields
+    integer(i4b)                   , intent(in)    :: first,last        ! trials to evaluate
+    integer(i4b)                   , intent(in)    :: nSamples          ! total sample budget
+    type(trial_ledger)             , intent(inout) :: ledger
+    type(search_state_type)        , intent(inout) :: search_state
+    integer(i4b)                   , intent(inout) :: sample_best
+    integer(i4b)                   , intent(out)   :: err
+    character(*)                   , intent(out)   :: message
     integer(i4b) :: worker
     integer(i4b) :: worker_sample(instance_parallel%size-1)
     integer(i4b) :: sample_id
@@ -330,16 +380,58 @@ contains
 
   contains
 
-    ! propose trial i if the search has not already, and send it to a worker
+
+    ! Propose and dispatch one feasible trial.
     subroutine start_trial(worker,i)
       integer(i4b), intent(in) :: worker,i
-      call propose_trial(config,param_spec,search,i,nSamples,search_state,ledger,err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      integer(i4b) :: ntry
+      integer(i4b), parameter :: maxtry=10000
+      logical(lgt) :: feasible
+
+      ! DDS generates candidates on demand.
+      if(trim(config%calib%algorithm)=='dds')then
+
+        feasible=.false.
+
+        do ntry=1,maxtry
+
+          ! Existing DDS proposal (includes scalar constraint checks).
+          call propose_trial(config,param_spec,search,i,nSamples, &
+                             search_state,ledger,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//trim(cmessage)
+            return
+          endif
+
+          ! Check spatial constraints without modifying SUMMA.
+          call check_candidate(adapter,mpar_init,bpar_init, &
+                               ledger%value(:,i),.false.,feasible,err,cmessage)
+          if(err/=0)then
+            message=trim(message)//trim(cmessage)
+            return
+          endif
+
+          if(feasible) exit
+
+        enddo
+
+        if(.not.feasible)then
+          message=trim(message)//'unable to generate a feasible DDS candidate'
+          err=20
+          return
+        endif
+
+      endif
+
+      ! DDS: the candidate has passed validation.
+      ! NSGA-II: the candidate was validated in run_nsga2.
       call date_and_time(values=ledger%start_time(:,i))
       call send_sample(worker,i,ledger%value(:,i),instance_parallel%comm,mpi_err)
       call check_mpi(instance_parallel%rank,mpi_err,'unable to send parameter sample')
+
       worker_sample(worker)=i
       nActive=nActive+1
+
     end subroutine start_trial
 
   end subroutine dispatch_trials
@@ -517,25 +609,29 @@ contains
   ! at the end, which of all the trials are non-dominated.
   ! **************************************************************************************************
   subroutine run_nsga2(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                       adapter,mpar_init,bpar_init, &
                        nSamples,ledger,search_state,sample_best,selected_ids,err,message)
     USE nsga2,                     only: nondominated_sort,nondominated_set
     USE nsga2,                     only: crowding_distance,select_survivors,make_offspring
     USE summa_simulation,          only: oriented_objectives
     USE calibration_output_module, only: write_generation_output,write_pareto_front
     implicit none
-    type(config_info),           intent(in)    :: config
-    type(parallel_context_type), intent(in)    :: instance_parallel
-    type(parameter_spec),        intent(in)    :: param_spec
-    type(parameter_search_info), intent(in)    :: search
-    character(len=64),           intent(in)    :: param_name(:)
-    integer(i4b),                intent(in)    :: ncid_calib
-    integer(i4b),                intent(in)    :: nSamples
-    type(trial_ledger),          intent(inout) :: ledger
-    type(search_state_type),     intent(inout) :: search_state
-    integer(i4b),                intent(inout) :: sample_best
-    integer(i4b), allocatable,   intent(out)   :: selected_ids(:)
-    integer(i4b),                intent(out)   :: err
-    character(*),                intent(out)   :: message
+    type(config_info),               intent(in)    :: config
+    type(parallel_context_type),     intent(in)    :: instance_parallel
+    type(parameter_spec),            intent(in)    :: param_spec
+    type(parameter_search_info),     intent(in)    :: search
+    character(len=64),               intent(in)    :: param_name(:)
+    integer(i4b),                    intent(in)    :: ncid_calib
+    type(gru_hru_dom_doubleVec),     intent(inout) :: mpar_init            ! initial HRU parameter fields
+    type(gru_double),                intent(inout) :: bpar_init            ! initial GRU parameter fields
+    type(summa_calibration_adapter), intent(inout) :: adapter
+    integer(i4b),                    intent(in)    :: nSamples
+    type(trial_ledger),              intent(inout) :: ledger
+    type(search_state_type),         intent(inout) :: search_state
+    integer(i4b),                    intent(inout) :: sample_best
+    integer(i4b), allocatable,       intent(out)   :: selected_ids(:)
+    integer(i4b),                    intent(out)   :: err
+    character(*),                    intent(out)   :: message
     real(rkind),  allocatable :: f(:,:)          ! oriented objectives of every trial
     integer(i4b), allocatable :: member(:)       ! sample index of each member of the population
     integer(i4b), allocatable :: rank(:)         ! their fronts
@@ -545,6 +641,9 @@ contains
     logical(lgt) :: front(nSamples)              ! Pareto membership
     integer(i4b) :: nPop,nGen,iGen,first,last,i
     real(rkind)  :: pm
+    integer(i4b) :: ntry
+    integer(i4b), parameter :: maxtry=10000
+    logical(lgt) :: feasible
     character(len=256) :: cmessage
 
     err=0
@@ -565,21 +664,42 @@ contains
       first=(iGen-1)*nPop+1
       last=iGen*nPop
 
-      ! propose the generation: a random population, then offspring of the one before
-      if(iGen == 1)then
-        do i=first,last
-          call generate_search_sample('random',search,search_state,1,nSamples, &
-                                      ledger%value(:,i),err,cmessage)
+      ! Generate a feasible population, using random samples for the first
+      ! generation and offspring from the previous generation thereafter.
+      do i=first,last
+
+        feasible=.false.
+        do ntry=1,maxtry
+
+          ! generate individual in the population
+          if(iGen==1)then
+            call generate_search_sample('random',search,search_state,1,nSamples, &
+                                        ledger%value(:,i),err,cmessage)
+          else
+            call make_offspring(search,ledger%value(:,member),rank,distance, &
+                                settings%crossover_probability,settings%crossover_eta, &
+                                pm,settings%mutation_eta, &
+                                ledger%value(:,i:i),err,cmessage)
+          endif
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+          ! Check physical constraints before accepting the individual.
+          call check_candidate(adapter,mpar_init,bpar_init, &
+                               ledger%value(:,i),.false.,feasible,err,cmessage)
+          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          if(feasible) exit
+
         enddo
-      else
-        call make_offspring(search,ledger%value(:,member),rank,distance,                         &
-                            settings%crossover_probability,settings%crossover_eta,pm,settings%mutation_eta, &
-                            ledger%value(:,first:last),err,cmessage)
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      endif
+
+        if(.not.feasible)then
+          message=trim(message)//'unable to generate a feasible NSGA-II candidate'
+          err=20; return
+        endif
+
+      enddo
 
       call dispatch_trials(config,instance_parallel,param_spec,search,param_name,ncid_calib, &
+                           adapter,mpar_init,bpar_init, &
                            first,last,nSamples,ledger,search_state,sample_best,err,cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       do i=first,last

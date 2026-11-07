@@ -309,14 +309,14 @@ contains
     endif
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
-    ! Initialize the calibration adapter once per model worker.
-    ! The dispatcher only generates calibration variables and does not need fields.
-    if(instance_parallel%rank/=0)then
-      call initialize_summa_calibration_adapter(param_spec,search,param_map, &
-                                                mpar_init,bpar_init,adapter, &
-                                                err,message)
-      if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
-    endif
+    ! Rank 0 checks physical feasibility.
+    ! Workers apply proposals already accepted by rank 0.
+    call initialize_summa_calibration_adapter(param_spec,search,param_map, &
+                                              mpar_init,bpar_init,adapter, &
+                                              err,message)
+    if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+
+    if(instance_parallel%rank/=0) adapter%prevalidated=.true.
 
     ! ---------------------------------------------------------------------------------------
     ! Export the initial physical parameter fields before calibration.
@@ -354,6 +354,7 @@ contains
                                     domain_parallel,              & ! MPI context for domain parallelism
                                     instance_parallel,            & ! MPI context for model-instance parallelism
                                     param_spec,search,adapter,    & ! parameter specification and search information
+                                    mpar_init,bpar_init,          & ! initalized parameter fields
                                     param_name,ncid_calib,        & ! parameter names and calibration output
                                     search_state,                 & ! information from previously evaluated parameter sets
                                     sample_best,                  & ! sample index
