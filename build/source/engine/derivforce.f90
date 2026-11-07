@@ -225,18 +225,12 @@ contains
   err=20; return
  end if
 
- ! adjust the measurement height for the vegetation canopy
- ! NOTE: could return an error or a warning
- ! NOTE: this does not need to be done every time step -- doing here for consistency with the snow adjustment
- if(has_canopy .and. mHeight < heightCanopyTop)then
-  adjMeasHeight = heightCanopyTop+minMeasHeight  ! measurement height at least minMeasHeight above the canopy
- else
-  adjMeasHeight = mHeight
- endif
-
- ! adjust the measurement height for snow depth
- if(adjMeasHeight < scalarSnowDepth+minMeasHeight)then
-  adjMeasHeight = scalarSnowDepth+minMeasHeight  ! measurement height at least minMeasHeight above the snow surface
+ ! Ensure measurement height is above the snow surface
+ adjMeasHeight = max(mHeight, scalarSnowDepth + minMeasHeight)
+ 
+ ! Ensure measurement height is above the vegetation canopy
+ if(has_canopy)then
+   adjMeasHeight = max(adjMeasHeight, heightCanopyTop + minMeasHeight)
  endif
  
  ! Air pressure is assumed to be at the HRU mean elevation, so adjust to the domain mean elevation.
