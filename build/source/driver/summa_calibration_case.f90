@@ -166,7 +166,7 @@ contains
 
     ! Calibration output
     integer(i4b)                           :: ncid_calib    ! NetCDF identifier for calibration output
-    character(len=256)                     :: calib_file    ! calibration output file path
+    character(len=1024)                    :: calib_file    ! calibration output file path
     character(len=1024)                    :: file_prefix   ! prefix for calib filename
 
     ! Reconstructed parameter fields
