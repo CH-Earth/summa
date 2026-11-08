@@ -386,6 +386,9 @@ contains
                                      config%calib%algorithm,config%calib%nsga2%population_size,        &
                                      ncid_calib,err,message)
       if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
+      ! A few concise provenance attributes; MPI layout is already written above.
+      call write_minimal_calibration_provenance(ncid_calib,config,err,message)
+      if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
     else
       ncid_calib=-1
     endif
@@ -495,5 +498,67 @@ contains
     endif
 
   end subroutine run_case
+
+
+  ! **************************************************************************************************
+  ! A minimal, human-readable provenance record for the calibration NetCDF file.
+  ! Existing global attributes already include case_name, mpi_workers, node_index,
+  ! global_case_group and algorithm. Do not embed entire input files or checksums.
+  ! Called by the case-group leader after create_calibration_output.
+  ! **************************************************************************************************
+  subroutine write_minimal_calibration_provenance(ncid_calib,config,err,message)
+    USE mpi, only: MPI_Get_processor_name,MPI_MAX_PROCESSOR_NAME,MPI_SUCCESS
+    USE summaFileManager, only: SETTINGS_PATH,M_DECISIONS
+    USE netcdf, only: NF90_GLOBAL,NF90_NOERR,NF90_REDEF,NF90_PUT_ATT,NF90_ENDDEF,NF90_STRERROR
+    implicit none
+
+    integer(i4b),     intent(in)  :: ncid_calib
+    type(config_info), intent(in) :: config
+    integer(i4b),     intent(out) :: err
+    character(*),     intent(out) :: message
+
+    character(len=MPI_MAX_PROCESSOR_NAME) :: hostname
+    integer(i4b) :: hostname_length,mpi_err,nc_err
+
+    ! Generated at build time; this identifies the compiled executable, not
+    ! necessarily the current Git HEAD when the executable is run.
+    include 'summaversion.inc'
+
+    err=0
+    message='write_minimal_calibration_provenance/'
+
+    call MPI_Get_processor_name(hostname,hostname_length,mpi_err)
+    if(mpi_err/=MPI_SUCCESS)then
+      err=20; message=trim(message)//'MPI_Get_processor_name failed'; return
+    endif
+
+    nc_err=nf90_redef(ncid_calib)
+    if(nc_err/=NF90_NOERR) goto 900
+
+    ! Same resolved path components used to open the SUMMA decisions file.
+    nc_err=nf90_put_att(ncid_calib,NF90_GLOBAL,'model_decisions_file', &
+                       trim(SETTINGS_PATH)//trim(M_DECISIONS))
+    if(nc_err/=NF90_NOERR) goto 900
+
+    nc_err=nf90_put_att(ncid_calib,NF90_GLOBAL,'compute_hostname',hostname(:hostname_length))
+    if(nc_err/=NF90_NOERR) goto 900
+
+    nc_err=nf90_put_att(ncid_calib,NF90_GLOBAL,'git_hash',trim(gitHash))
+    if(nc_err/=NF90_NOERR) goto 900
+
+    nc_err=nf90_put_att(ncid_calib,NF90_GLOBAL,'run_index',config%run_index)
+    if(nc_err/=NF90_NOERR) goto 900
+
+    nc_err=nf90_put_att(ncid_calib,NF90_GLOBAL,'cases_per_node',config%cases_per_node)
+    if(nc_err/=NF90_NOERR) goto 900
+
+    nc_err=nf90_enddef(ncid_calib)
+    if(nc_err/=NF90_NOERR) goto 900
+    return
+
+900 continue
+    err=20
+    message=trim(message)//trim(nf90_strerror(nc_err))
+  end subroutine write_minimal_calibration_provenance
 
 end module summa_calibration_case
