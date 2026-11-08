@@ -1,12 +1,17 @@
 module metrics
 
   use nr_type, only: i4b, rkind
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_finite, ieee_value, ieee_quiet_nan
 
   implicit none
   private
 
   public :: compute_metric
   public :: metric_is_maximized
+
+  ! A mathematically undefined score is different from a configuration error (20).
+  ! Callers may retain an undefined diagnostic without failing the simulation.
+  integer(i4b), parameter, public :: metric_undefined = 21
 
 contains
 
@@ -60,12 +65,51 @@ contains
 
     err = 0
     message = 'compute_metric/'
+    objective = ieee_value(0._rkind,ieee_quiet_nan)
+
+    ! Validate the metric even when the series contain no usable observations.
+    select case(trim(metric))
+      case ('kge','kgep','nse','mae','rmse')
+      case default
+        message=trim(message)//'unknown objective-function metric "'//trim(metric)//'"'
+        err=20; return
+    end select
 
     ! remove missing values and conduct any transformations
     call prepare_series(obs,sim,obsUse,simUse,transfo,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! compute selected metric
+    ! Check denominators before evaluating efficiencies. Do not turn undefined
+    ! scores into finite penalties: those would look like valid diagnostics.
+    select case(trim(metric))
+      case ('kge','kgep','nse')
+        if(size(obsUse)<2)then
+          message=trim(message)//'efficiency requires at least two valid pairs'
+          err=metric_undefined; return
+        endif
+        if(all(obsUse==obsUse(1)) .or. sum((obsUse-sum(obsUse)/size(obsUse))**2)<=0._rkind)then
+          message=trim(message)//'observed series has zero variance'
+          err=metric_undefined; return
+        endif
+    end select
+    if(trim(metric)=='kge' .or. trim(metric)=='kgep')then
+      if(all(simUse==simUse(1)) .or. sum((simUse-sum(simUse)/size(simUse))**2)<=0._rkind)then
+        message=trim(message)//'simulated series has zero variance for KGE'
+        err=metric_undefined; return
+      endif
+      if(sum(obsUse)/size(obsUse)==0._rkind)then
+        message=trim(message)//'observed series has zero mean for KGE'
+        err=metric_undefined; return
+      endif
+      if(trim(metric)=='kgep')then
+        if(sum(simUse)/size(simUse)==0._rkind)then
+          message=trim(message)//'simulated series has zero mean for modified KGE'
+          err=metric_undefined; return
+        endif
+      endif
+    endif
+
+    ! compute selected metric (unchanged formulas for valid inputs)
     select case(trim(metric))
       case ('kge');  objective = get_kge( obsUse,simUse)
       case ('kgep'); objective = get_kgep(obsUse,simUse)
@@ -76,6 +120,12 @@ contains
         message=trim(message)//'unknown objective-function metric "'//trim(metric)//'"'
         err=20; return
     end select
+
+    if(.not.ieee_is_finite(objective))then
+      objective=ieee_value(0._rkind,ieee_quiet_nan)
+      message=trim(message)//'metric calculation produced a non-finite value'
+      err=metric_undefined
+    endif
 
   end subroutine compute_metric
 
@@ -109,19 +159,18 @@ contains
     ! identify finite observation-simulation pairs
     valid = ieee_is_finite(obs) .and. ieee_is_finite(sim)
     n = count(valid)
-    if(n==0)then
-      message=trim(message)//'no valid observation-simulation pairs'
-      err=20; return
-    endif
-
     ! retain only valid pairs
     allocate(obsUse(n),simUse(n))
     obsUse = pack(obs,valid)
     simUse = pack(sim,valid)
 
-    ! apply streamflow transformation
-    if(trim(transfo)/='none')then
-      call apply_transformation(obsUse,simUse,transfo)
+    ! Validate the transformation even for an empty series. Invalid configuration
+    ! must never be hidden by the diagnostic-only handling of undefined metrics.
+    call apply_transformation(obsUse,simUse,transfo,err,message)
+    if(err/=0) return
+    if(n==0)then
+      message='prepare_series/no valid observation-simulation pairs'
+      err=metric_undefined; return
     endif
 
   end subroutine prepare_series
@@ -134,44 +183,81 @@ contains
   !   boxcox  : Box-Cox transformation with exponent 0.25
   !   numeric : power transformation, where the character string contains the exponent
   ! **************************************************************************************************
-  subroutine apply_transformation(obs,sim,transfo)
+  subroutine apply_transformation(obs,sim,transfo,err,message)
     real(rkind), intent(inout) :: obs(:)
     real(rkind), intent(inout) :: sim(:)
     character(*), intent(in)   :: transfo
-    real(rkind) :: eps
-    real(rkind) :: transfoVal
-    integer(i4b) :: i
+    integer(i4b), intent(out)  :: err
+    character(*), intent(out) :: message
+    real(rkind) :: eps,transfoVal
+    integer(i4b) :: i,ioStat
+    logical :: integerPower
 
-    ! log transformation
+    err=0
+    message='apply_transformation/'
+    transfoVal=0._rkind
+
+    select case(trim(transfo))
+      case ('none','log','boxcox')
+      case default
+        read(transfo,*,iostat=ioStat) transfoVal
+        if(ioStat/=0)then
+          message=trim(message)//'unknown transformation "'//trim(transfo)//'"'
+          err=20; return
+        endif
+        if(.not.ieee_is_finite(transfoVal))then
+          message=trim(message)//'power exponent must be finite'
+          err=20; return
+        endif
+    end select
+    if(size(obs)==0 .or. trim(transfo)=='none') return
+
     if(trim(transfo)=='log')then
-      eps = sum(obs)/(100*size(obs))
-      do i=1,size(obs)
-        obs(i) = log(eps+obs(i))
-        sim(i) = log(eps+sim(i))
-      enddo
-
-    ! box-cox transformation
-    else if(trim(transfo)=='boxcox')then
-      do i=1,size(obs)
-        obs(i) = (obs(i)**0.25_rkind-1._rkind)/0.25_rkind
-        sim(i) = (sim(i)**0.25_rkind-1._rkind)/0.25_rkind
-      enddo
-
-    ! power transformation
-    else
-      transfoVal = char_to_float(transfo)
-      if(transfoVal<0._rkind)then
-        eps = sum(obs)/(100*size(obs))
-        do i=1,size(obs)
-          obs(i) = (eps+obs(i))**transfoVal
-          sim(i) = (eps+sim(i))**transfoVal
-        enddo
-      else
-        do i=1,size(obs)
-          obs(i) = obs(i)**transfoVal
-          sim(i) = sim(i)**transfoVal
-        enddo
+      eps=sum(obs)/(100*size(obs))
+      if(any(eps+obs<=0._rkind) .or. any(eps+sim<=0._rkind))then
+        message=trim(message)//'log transformation requires positive Q + epsilon'
+        err=metric_undefined; return
       endif
+      do i=1,size(obs)
+        obs(i)=log(eps+obs(i))
+        sim(i)=log(eps+sim(i))
+      enddo
+
+    else if(trim(transfo)=='boxcox')then
+      if(any(obs<0._rkind) .or. any(sim<0._rkind))then
+        message=trim(message)//'Box-Cox transformation requires nonnegative values'
+        err=metric_undefined; return
+      endif
+      do i=1,size(obs)
+        obs(i)=(obs(i)**0.25_rkind-1._rkind)/0.25_rkind
+        sim(i)=(sim(i)**0.25_rkind-1._rkind)/0.25_rkind
+      enddo
+
+    else
+      eps=0._rkind
+      if(transfoVal<0._rkind) eps=sum(obs)/(100*size(obs))
+      integerPower=(transfoVal==anint(transfoVal))
+      if(.not.integerPower)then
+        if(any(eps+obs<0._rkind) .or. any(eps+sim<0._rkind))then
+          message=trim(message)//'fractional power requires nonnegative arguments'
+          err=metric_undefined; return
+        endif
+      endif
+      if(transfoVal<0._rkind)then
+        if(any(eps+obs==0._rkind) .or. any(eps+sim==0._rkind))then
+          message=trim(message)//'negative power is undefined at zero'
+          err=metric_undefined; return
+        endif
+      endif
+      do i=1,size(obs)
+        obs(i)=(eps+obs(i))**transfoVal
+        sim(i)=(eps+sim(i))**transfoVal
+      enddo
+    endif
+
+    if(.not.all(ieee_is_finite(obs)) .or. .not.all(ieee_is_finite(sim)))then
+      message=trim(message)//'transformation produced a non-finite value'
+      err=metric_undefined
     endif
 
   end subroutine apply_transformation
@@ -204,7 +290,6 @@ contains
 
     ! compute KGE
     kge = 1._rkind - sqrt((r-1._rkind)**2 + (alpha-1._rkind)**2 + (beta-1._rkind)**2)
-    if(is_nan(kge)) kge = -1.e6_rkind
 
   end function get_kge
 
@@ -236,7 +321,6 @@ contains
 
     ! compute modified KGE
     kgep = 1._rkind - sqrt((r-1._rkind)**2 + (alphaP-1._rkind)**2 + (beta-1._rkind)**2)
-    if(is_nan(kgep)) kgep = -1.e6_rkind
 
   end function get_kgep
 
@@ -249,7 +333,6 @@ contains
     real(rkind) :: nse
 
     nse = 1._rkind - sum((obs-sim)**2) / sum((obs-sum(obs)/size(obs))**2)
-    if(is_nan(nse)) nse = -1.e6_rkind
 
   end function get_nse
 
@@ -262,7 +345,6 @@ contains
     real(rkind) :: mae
 
     mae = sum(abs(obs-sim))/size(obs)
-    if(is_nan(mae)) mae = 1.e6_rkind
 
   end function get_mae
 
@@ -275,25 +357,10 @@ contains
     real(rkind) :: rmse
 
     rmse = sqrt(sum((obs-sim)**2)/size(obs))
-    if(is_nan(rmse)) rmse = 1.e6_rkind
 
   end function get_rmse
 
-  ! **************************************************************************************************
-  ! Convert a character value to a floating-point value.
-  ! **************************************************************************************************
-  function char_to_float(charVal) result(floatVal)
-    character(*), intent(in) :: charVal
-    real(rkind) :: floatVal
-    integer(i4b) :: ioStat
 
-    read(charVal,*,iostat=ioStat) floatVal
-    if(ioStat/=0)then
-      print *, "Error: Unable to convert '",trim(charVal),"' to float"
-      floatVal = 1._rkind
-    endif
-
-  end function char_to_float
 
   ! **************************************************************************************************
   ! Compute the sample standard deviation.
@@ -332,15 +399,6 @@ contains
 
   end function correlation
 
-  ! **************************************************************************************************
-  ! Return true when a floating-point value is NaN.
-  ! **************************************************************************************************
-  elemental function is_nan(x) result(isNaN)
-    real(rkind), intent(in) :: x
-    logical :: isNaN
 
-    isNaN = (x/=x)
-
-  end function is_nan
 
 end module metrics

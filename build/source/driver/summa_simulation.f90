@@ -612,9 +612,8 @@ contains
     use timeseries_alignment, only: align_timeseries, select_aligned_window
     use series_transform, only: accumulate_series, remove_baseline_mean, &
                                 rebase_matched_series, balance_between_extremes
-    use metrics, only: compute_metric
+    use metrics, only: compute_metric, metric_undefined
     use write_evaluation_module, only: write_evaluation
-    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 
     type(config_info), intent(in) :: config
     integer(i4b), intent(in) :: iTarget, targetUnit
@@ -766,8 +765,18 @@ contains
                           calTarget%obs_transform, objective,err,cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        failed=any(ieee_is_finite(valObsAligned)) .and. .not.any(ieee_is_finite(valSimAligned))
-        return
+        if(err==metric_undefined .and. calTarget%weight==0._rkind)then
+          ! compute_metric returned NaN. Save it as a missing diagnostic while
+          ! retaining the valid optimization targets from this simulation.
+          write(iulog,'(A)') 'undefined diagnostic: '//trim(message)
+          err=0
+          message=''
+        else
+          ! Numerical failure of an active metric invalidates this trial.
+          ! Input/configuration errors remain fatal, even for diagnostic targets.
+          if(err==metric_undefined) failed=.true.
+          return
+        endif
       endif
 
       ! Write diagnostics for every calibration target
@@ -829,6 +838,8 @@ contains
     if(.not.allocated(config%calib%targets)) return
 
     do iTarget=1,min(size(config%calib%targets),size(objective))
+      ! Skip before reading the objective: zero times NaN is still NaN.
+      if(config%calib%targets(iTarget)%weight==0._rkind) cycle
       if(metric_is_maximized(config%calib%targets(iTarget)%metric))then
         F = F + config%calib%targets(iTarget)%weight*objective(iTarget)
       else

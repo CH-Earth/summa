@@ -663,10 +663,12 @@ contains
   ! **************************************************************************************************
   subroutine check_search_settings(config,err,message)
     USE summa_simulation, only: n_calibration_targets
+    USE, INTRINSIC :: ieee_arithmetic, only: ieee_is_finite
     implicit none
     type(config_info), intent(in)  :: config
     integer(i4b),      intent(out) :: err
     character(*),      intent(out) :: message
+    integer(i4b) :: iTarget
 
     err=0
     message='check_search_settings/'
@@ -681,9 +683,32 @@ contains
       err=20; return
     endif
 
+    ! Weights define active objectives (positive) and diagnostics (zero).
+    ! Test finiteness separately: Fortran does not guarantee short-circuit logic.
+    do iTarget=1,size(config%calib%targets)
+      if(.not.ieee_is_finite(config%calib%targets(iTarget)%weight))then
+        message=trim(message)//'target weight must be finite: '//trim(config%calib%targets(iTarget)%name)
+        err=20; return
+      endif
+      if(config%calib%targets(iTarget)%weight<0._rkind)then
+        message=trim(message)//'target weight must be nonnegative: '//trim(config%calib%targets(iTarget)%name)
+        err=20; return
+      endif
+    enddo
+    if(.not.any(config%calib%targets%weight>0._rkind))then
+      message=trim(message)//'optimization requires at least one positive-weight target'
+      err=20; return
+    endif
+
     select case(trim(config%calib%algorithm))
       case ('dds')
       case ('nsga2')
+        ! NSGA-II still uses every objective for dominance and crowding. Refuse
+        ! diagnostic targets until an active-objective subset is implemented.
+        if(any(config%calib%targets%weight==0._rkind))then
+          message=trim(message)//'zero-weight diagnostic targets are currently supported only by DDS'
+          err=20; return
+        endif
         associate(nsga2 => config%calib%nsga2, nSamples => config%calib%n_samples)
         if(n_calibration_targets(config) < 1)then
           message=trim(message)//'NSGA-II needs at least one [[calibration.target]] or an [observations] file'

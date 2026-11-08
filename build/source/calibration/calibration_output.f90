@@ -67,7 +67,7 @@ contains
     character(*),         intent(out) :: message
     integer(i4b) :: dim_sample,dim_time,dim_target,dim_name
     integer(i4b) :: varid_sample,varid_objective,varid_param
-    integer(i4b) :: varid_worker_rank,varid_target_name
+    integer(i4b) :: varid_worker_rank,varid_target_name,varid_target_weight
     integer(i4b) :: varid_start_time,varid_end_time
     integer(i4b) :: dim_member,dim_generation,varid
     integer(i4b), dimension(2) :: time_dims
@@ -224,6 +224,8 @@ contains
       objective_dims=(/dim_target,dim_sample/)
       ierr=nf90_def_var(ncid,'objective',NF90_DOUBLE,objective_dims,varid_objective)
       if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_objective,'_FillValue',NF90_FILL_DOUBLE)
+      if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'long_name','calibration objective function')
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'units','-')
@@ -239,6 +241,21 @@ contains
       ierr=nf90_put_att(ncid,varid_objective,'variable',trim(joined_field(targets,'variable')))
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'sense',trim(joined_field(targets,'sense')))
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr=nf90_put_att(ncid,varid_objective,'comment', &
+                        'An undefined diagnostic is a fill value; trial_failed distinguishes failed trials.')
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! Preserve which targets contributed to DDS selection.
+      ierr=nf90_def_var(ncid,'target_weight',NF90_DOUBLE,(/dim_target/),varid_target_weight)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_target_weight,'long_name','configured calibration target weight')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_target_weight,'units','-')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_target_weight,'comment', &
+                        'DDS: zero = diagnostic only, positive = optimization target. NSGA-II ignores positive magnitudes.')
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! a failed trial has no objectives and ranks last on every target
@@ -335,6 +352,10 @@ contains
       ierr=nf90_enddef(ncid)
       if(ierr/=nf90_noerr) exit netcdf_block
 
+      ! Target weights, written once in the same order as target_name.
+      ierr=nf90_put_var(ncid,varid_target_weight,targets%weight)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
       ! target names, written once now that the file holds them
       do iTarget=1,nTarget
         target_name=targets(iTarget)%name
@@ -398,6 +419,7 @@ contains
   ! **************************************************************************************************
   subroutine write_calibration_output(ncid,isample,worker_rank,param_names,param_values, &
                                       objective,failed,start_time,end_time,ierr,message)
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
     integer(i4b), intent(in) :: ncid
     integer(i4b), intent(in) :: isample
@@ -468,7 +490,10 @@ contains
         ierr=nf90_put_var(ncid,varid_objective,spread(NF90_FILL_DOUBLE,1,size(objective)), &
                           start=(/1,isample/),count=(/size(objective),1/))
       else
-        ierr=nf90_put_var(ncid,varid_objective,objective, &
+        ! A valid trial can contain an undefined zero-weight diagnostic.
+        ! Map only non-finite entries to the standard NetCDF missing value.
+        ierr=nf90_put_var(ncid,varid_objective, &
+                          merge(objective,NF90_FILL_DOUBLE,ieee_is_finite(objective)), &
                           start=(/1,isample/),count=(/size(objective),1/))
       endif
       if(ierr/=nf90_noerr) exit netcdf_block

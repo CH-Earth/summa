@@ -67,8 +67,8 @@ module calibration_types
   character(len=:),  allocatable :: vname_obs               ! name of the observed variable within that file
   character(len=16)              :: metric = 'kge'          ! kge, kgep, nse, mae, rmse
   character(len=16)              :: obs_transform = 'none'  ! none, log, power, box-cox
-  real(rkind)                    :: weight = 1.0_rkind      ! weight given to this target when the objectives
-                                                            !  are scalarized for a single-objective search
+  real(rkind)                    :: weight = 1.0_rkind      ! DDS weight: positive = active, zero = diagnostic
+                                                            ! NSGA-II currently requires every weight > 0
   character(len=64)              :: obs_units = ''          ! units of the observations, overriding the file's
   ! Putting the simulated and observed series on the same footing.  A satellite storage product, for
   ! instance, reports a departure in millimetres from a multi-year mean, while the model carries the
