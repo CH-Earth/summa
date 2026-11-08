@@ -2,6 +2,7 @@
 set(CALIBR_GENERIC
     ${CALIBR_DIR}/parameter_search.f90
     ${CALIBR_DIR}/parameter_fields.f90
+    ${CALIBR_DIR}/parameter_constraints.f90
     ${CALIBR_DIR}/model_calibration.f90
     ${CALIBR_DIR}/nsga2.f90
 )

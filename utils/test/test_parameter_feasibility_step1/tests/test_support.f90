@@ -44,21 +44,16 @@ contains
     if(present(second)) f%initial%hspatial(2)%dat=second
   end subroutine set_field
 
-  ! Test-only bridge to the UNMODIFIED parameter_search module. Its old ordered
-  ! bound tightening must not run while testing the pure checker. Only this copy
-  ! loses the chains; ctx%spec still contains every constraint checked below.
-  ! Step 2 replaces the production search acceptance/constraint initialization.
+  ! The production search initializer now preserves configured bounds and
+  ! delegates all ordering checks to the generic feasibility checker.
   subroutine build_search(spec,search,err,message)
     type(parameter_spec), intent(in) :: spec
     type(parameter_search_info), intent(out) :: search
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-    type(parameter_spec) :: copy
     integer :: n
-    copy=spec
-    if(allocated(copy%ordered)) deallocate(copy%ordered)
     if(count(spec%params%sampled)>0)then
-      call initialize_parameter_search(copy,search,err,message)
+      call initialize_parameter_search(spec,search,err,message)
     else
       ! The generic predicate also supports an entirely fixed specification.
       n=size(spec%params)

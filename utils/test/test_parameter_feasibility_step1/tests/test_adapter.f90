@@ -1,5 +1,6 @@
 program test_adapter
   use test_support
+  use nr_type, only: nr_integerMissing
   use parameter_search, only: param_physical,param_spatial_multiplier,param_ratio
   use data_types, only: gru_hru_dom_doubleVec,gru_double
   use globalData, only: gru_struc,mpar_meta
@@ -36,6 +37,11 @@ program test_adapter
   before=mpar
   call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
   call require(err==0,'adapter setup: '//trim(message))
+
+  ! Production lookups return a negative missing index for the unused family.
+  map%ixB=nr_integerMissing
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err==0,'HRU mapping accepts missing basin index: '//trim(message))
   call require(size(adapter%calibration%fields(1)%initial%hspatial)==4,'one spatial entry per HRU/domain')
   call require(size(adapter%calibration%fields(1)%initial%hspatial(1)%dat)==3,'first domain has three layers')
   call require(size(adapter%calibration%fields(1)%initial%hspatial(2)%dat)==1,'second domain has one layer')
@@ -103,7 +109,24 @@ program test_adapter
   map(1)%ixB=1
   call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
   call require(err/=0,'ambiguous native parameter mapping rejected')
+  ! Neither family may be missing: check both sentinel conventions and mixtures.
+  map(1)%ixM=0
   map(1)%ixB=0
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err/=0,'both zero native indices rejected')
+  map(1)%ixB=nr_integerMissing
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err/=0,'zero model and missing basin indices rejected')
+  map(1)%ixM=nr_integerMissing
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err/=0,'both missing native indices rejected')
+  map(1)%ixB=0
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err/=0,'missing model and zero basin indices rejected')
+  map(1)%ixM=1
+  map(1)%ixB=nr_integerMissing
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err==0,'valid native mapping restored')
   ! Equal-length nonscalar fields on different local axes must not compare.
   mpar_meta(2)%varType=iLookVarType%wLength
   spec%ordered(1)%param_index=[2,1]
@@ -147,6 +170,9 @@ program test_adapter
   call build_search(spec,search,err,message)
   call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
   call require(err==0,'basin-only adapter setup')
+  map%ixM=nr_integerMissing
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err==0,'basin mapping accepts missing HRU index: '//trim(message))
   call require(size(adapter%calibration%fields(1)%initial%hspatial)==2,'one spatial entry per GRU')
   call is_feasible(adapter%calibration,[1.2_rkind],feasible,err,message)
   call require(err==0.and..not.feasible,'basin constraint enforced')
