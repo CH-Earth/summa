@@ -33,7 +33,7 @@ module nsga2
   USE parameter_search, only: parameter_search_info
   USE parameter_search, only: transform_parameter
   USE parameter_search, only: inverse_transform_parameter
-  USE parameter_search, only: check_ordered_constraints
+  USE parameter_search, only: feasibility_callback
 
   implicit none
   private
@@ -183,8 +183,11 @@ contains
   ! simulated binary crossover (SBX) recombines it, and polynomial mutation perturbs each child. A
   ! child violating an ordered constraint is discarded and bred again.
   ! **************************************************************************************************
-  subroutine make_offspring(search,parents,rank,distance,pc,eta_c,pm,eta_m,children,err,message)
+  subroutine make_offspring(search,parents,rank,distance,pc,eta_c,pm,eta_m,children,is_feasible,context,err,message)
     implicit none
+    procedure(feasibility_callback) :: is_feasible
+    class(*), intent(inout) :: context
+    logical(lgt) :: feasible
     type(parameter_search_info), intent(in)  :: search          ! parameter-search information
     real(rkind),                 intent(in)  :: parents(:,:)    ! physical parameter values (nParam,nParent)
     integer(i4b),                intent(in)  :: rank(:)         ! front of each parent
@@ -204,7 +207,7 @@ contains
     integer(i4b) :: nParam,nChild,iChild,iPair,iTry,i,d,p1,p2
     integer(i4b), parameter :: maxtry=10000      ! pairs bred per child before giving up
     real(rkind)  :: s
-    character(len=256) :: cmessage
+    character(len=1024) :: cmessage
 
     err=0
     message='make_offspring/'
@@ -233,7 +236,7 @@ contains
     do while(iChild < nChild)
       iTry=iTry+1
       if(iTry > maxtry*nChild)then
-        message=trim(message)//'unable to breed offspring satisfying the ordered parameter constraints'
+        message=trim(message)//'offspring retry limit reached; last rejection: '//trim(cmessage)
         err=20; return
       endif
       p1=tournament(rank,distance)
@@ -248,7 +251,9 @@ contains
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
           x(d)=min(max(x(d),search%lower(d)),search%upper(d))
         enddo
-        if(.not.check_ordered_constraints(search,x)) cycle
+        call is_feasible(context,x,feasible,err,cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        if(.not.feasible) cycle
         iChild=iChild+1
         children(:,iChild)=x
       enddo

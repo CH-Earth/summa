@@ -316,7 +316,6 @@ contains
                                               err,message)
     if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
-    if(instance_parallel%rank/=0) adapter%prevalidated=.true.
 
     ! ---------------------------------------------------------------------------------------
     ! Export the initial physical parameter fields before calibration.
@@ -354,7 +353,6 @@ contains
                                     domain_parallel,              & ! MPI context for domain parallelism
                                     instance_parallel,            & ! MPI context for model-instance parallelism
                                     param_spec,search,adapter,    & ! parameter specification and search information
-                                    mpar_init,bpar_init,          & ! initalized parameter fields
                                     param_name,ncid_calib,        & ! parameter names and calibration output
                                     search_state,                 & ! information from previously evaluated parameter sets
                                     sample_best,                  & ! sample index
