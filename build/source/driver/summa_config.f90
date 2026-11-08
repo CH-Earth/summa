@@ -476,6 +476,7 @@ contains
     endif
     config%calib%targets(1)%metric        = trim(config%calib%metric)
     config%calib%targets(1)%obs_transform = trim(config%calib%obs_transform)
+    config%calib%targets(1)%boxcox_lambda = config%calib%boxcox_lambda
     config%calib%targets(1)%weight        = 1.0_rkind
 
   end subroutine set_default_calibration_target

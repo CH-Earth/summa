@@ -1,5 +1,6 @@
 module calibration_config
 
+  USE, INTRINSIC :: ieee_arithmetic, only: ieee_is_finite
   USE nr_type,           only: i4b,i8b,rkind,lgt
   USE parameter_search,  only: param_physical,param_spatial_multiplier,param_ratio
   USE calibration_types, only: calib_info,calib_param_info,target_info,nsga2_info
@@ -68,6 +69,15 @@ contains
 
         case('obs_transform')
           call get_value(calib_table,trim(keys(i)%key),calib%obs_transform,stat=istat)
+
+        case('boxcox_lambda')
+          call get_value(calib_table,trim(keys(i)%key),calib%boxcox_lambda,stat=istat)
+          if(istat==0)then
+            if(.not.ieee_is_finite(calib%boxcox_lambda))then
+              message=trim(message)//'calibration.boxcox_lambda must be finite'
+              ierr=20; return
+            endif
+          endif
 
         ! Calibration period
         case('start_date')
@@ -811,7 +821,7 @@ contains
           select case(trim(target_keys(j)%key))
 
             case('name','variable','obs_path','obs_file','vname_obs', &
-                 'metric','obs_transform','weight','obs_units',       &
+                 'metric','obs_transform','boxcox_lambda','weight','obs_units', &
                  'spatial_unit','spatial_id','accumulate',           &
                  'baseline_start','baseline_end','balance',         &
                  'balance_window')
@@ -918,6 +928,25 @@ contains
         calib%targets(i)%obs_transform=trim(cvalue)
       else if(allocated(calib%obs_transform))then
         calib%targets(i)%obs_transform=trim(calib%obs_transform)
+      endif
+
+      ! ---------------------------------------------------------------------------------------------
+      ! Box-Cox exponent: inherit the calibration default, then override locally.
+      ! It is not a sampled model parameter, and is ignored by other transforms.
+      ! ---------------------------------------------------------------------------------------------
+      calib%targets(i)%boxcox_lambda=calib%boxcox_lambda
+      if(target_table%has_key('boxcox_lambda'))then
+        call get_value(target_table,'boxcox_lambda',calib%targets(i)%boxcox_lambda,stat=istat)
+        if(istat/=0)then
+          message=trim(message)//'invalid boxcox_lambda for calibration target "'// &
+                  trim(calib%targets(i)%name)//'"; expected a real number'
+          ierr=20; return
+        endif
+      endif
+      if(.not.ieee_is_finite(calib%targets(i)%boxcox_lambda))then
+        message=trim(message)//'boxcox_lambda must be finite for calibration target "'// &
+                trim(calib%targets(i)%name)//'"'
+        ierr=20; return
       endif
 
       ! ---------------------------------------------------------------------------------------------

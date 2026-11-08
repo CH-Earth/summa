@@ -16,11 +16,12 @@ contains
   ! Each target has an independent time dimension. This is essential when, for example, daily
   ! streamflow is scored alongside irregularly spaced GRACE storage observations.
   ! The exact observation time bounds are retained, rather than inferred from adjacent timestamps.
+  ! Optional inputs precede err/message; callers use keyword error arguments.
   ! **************************************************************************************************
   subroutine write_evaluation(ncid,targetName,write_aligned,                    &
                               timeEval,timeBounds,valObs,valSim,nSimSteps,     &
                               timeUnits,valUnits,metric,transformation,       &
-                              objective,err,message)
+                              objective,boxcox_lambda,err,message)
     integer(i4b), intent(in)  :: ncid
     character(*), intent(in)  :: targetName
     logical, intent(in)       :: write_aligned
@@ -34,6 +35,7 @@ contains
     character(*), intent(in)  :: metric
     character(*), intent(in)  :: transformation
     real(rkind), intent(in)   :: objective
+    real(rkind), optional, intent(in) :: boxcox_lambda
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
     integer(i4b) :: groupTarget
@@ -59,9 +61,9 @@ contains
       err=20; return
     endif
 
-    call define_evaluation_target(ncid,targetName,write_aligned,size(timeEval), &
-                                  timeUnits,valUnits,metric,transformation,     &
-                                  groupTarget,err,cmessage)
+    call define_evaluation_target(ncid,targetName,write_aligned,size(timeEval),timeUnits,valUnits,metric, &
+                                  transformation,groupTarget,boxcox_lambda=boxcox_lambda,ierr=err, &
+                                  message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     call write_evaluation_values(groupTarget,write_aligned,timeEval,timeBounds, &
@@ -76,25 +78,34 @@ contains
   ! **************************************************************************************************
   subroutine define_evaluation_target(ncid,targetName,write_aligned,nEval,            &
                                       timeUnits,valUnits,metric,transformation,      &
-                                      groupTarget,ierr,message)
-    use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
+                                      groupTarget,boxcox_lambda,ierr,message)
+    use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan, ieee_is_finite
     integer(i4b), intent(in)  :: ncid,nEval
     character(*), intent(in)  :: targetName,timeUnits,valUnits,metric,transformation
     logical, intent(in)       :: write_aligned
     integer(i4b), intent(out) :: groupTarget
+    real(rkind), optional, intent(in) :: boxcox_lambda
     integer(i4b), intent(out) :: ierr
     character(*), intent(out) :: message
     integer(i4b) :: groupEval
     integer(i4b) :: dimTime,dimNv
     integer(i4b) :: varObjective,varTime,varBounds,varObs,varSim,varSteps
     integer(i4b) :: ierr_enddef
-    real(rkind) :: nanValue
+    real(rkind) :: nanValue,lambda
     logical :: in_define
 
     ierr=0
     message='define_evaluation_target/'
     in_define=.false.
     nanValue=ieee_value(0._rkind,ieee_quiet_nan)
+    lambda=0.25_rkind
+    if(present(boxcox_lambda)) lambda=boxcox_lambda
+    if(trim(transformation)=='boxcox')then
+      if(.not.ieee_is_finite(lambda))then
+        message=trim(message)//'Box-Cox exponent must be finite'
+        ierr=20; return
+      endif
+    endif
 
     netcdf_block: block
       ! SUMMA uses NetCDF4, so groups and independent time dimensions are supported.
@@ -122,6 +133,13 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(groupTarget,varObjective,'transformation',trim(transformation))
       if(ierr/=nf90_noerr) exit netcdf_block
+      if(trim(transformation)=='boxcox')then
+        ierr=nf90_put_att(groupTarget,varObjective,'boxcox_lambda',lambda)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varObjective,'boxcox_definition', &
+                          '(Q**lambda-1)/lambda; lambda=0: log(Q); no offset')
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
 
       if(write_aligned)then
         ! Target-local dimensions: different targets may have different numbers of observations.

@@ -120,16 +120,19 @@ end module
 module write_evaluation_module
  use nr_type,only:rkind,i4b
  integer :: write_count=0,write_error=0
- real(rkind) :: written_objective
+ real(rkind) :: written_objective,written_boxcox_lambda
  contains
- subroutine write_evaluation(ncid,name,aligned,t,b,o,s,ns,tu,vu,metric,transform,obj,err,message)
+ subroutine write_evaluation(ncid,name,aligned,t,b,o,s,ns,tu,vu,metric,transform,obj,boxcox_lambda,err,message)
  integer(i4b),intent(in) :: ncid,ns(:)
  character(*),intent(in) :: name,tu,vu,metric,transform
  logical,intent(in) :: aligned
  real(rkind),intent(in) :: t(:),b(:,:),o(:),s(:),obj
+ real(rkind),optional,intent(in) :: boxcox_lambda
  integer(i4b),intent(out) :: err
  character(*),intent(out) :: message
  write_count=write_count+1; written_objective=obj
+ written_boxcox_lambda=0.25_rkind
+ if(present(boxcox_lambda)) written_boxcox_lambda=boxcox_lambda
  err=write_error; message='test output error'
  end subroutine
 end module

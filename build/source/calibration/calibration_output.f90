@@ -67,7 +67,8 @@ contains
     character(*),         intent(out) :: message
     integer(i4b) :: dim_sample,dim_time,dim_target,dim_name
     integer(i4b) :: varid_sample,varid_objective,varid_param
-    integer(i4b) :: varid_worker_rank,varid_target_name,varid_target_weight
+    integer(i4b) :: varid_worker_rank,varid_target_name,varid_target_weight,varid_boxcox_lambda
+    real(rkind) :: target_lambdas(size(targets))
     integer(i4b) :: varid_start_time,varid_end_time
     integer(i4b) :: dim_member,dim_generation,varid
     integer(i4b), dimension(2) :: time_dims
@@ -258,6 +259,19 @@ contains
                         'DDS: zero = diagnostic only, positive = optimization target. NSGA-II ignores positive magnitudes.')
       if(ierr/=nf90_noerr) exit netcdf_block
 
+      ! Record the effective exponent only for Box-Cox targets; otherwise missing.
+      ierr=nf90_def_var(ncid,'target_boxcox_lambda',NF90_DOUBLE,(/dim_target/),varid_boxcox_lambda)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_boxcox_lambda,'_FillValue',NF90_FILL_DOUBLE)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_boxcox_lambda,'long_name','Box-Cox exponent for each target')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_boxcox_lambda,'units','-')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_boxcox_lambda,'comment', &
+                        'Only used for boxcox: (Q**lambda-1)/lambda; lambda=0: log(Q); no offset.')
+      if(ierr/=nf90_noerr) exit netcdf_block
+
       ! a failed trial has no objectives and ranks last on every target
       ierr=nf90_def_var(ncid,'trial_failed',NF90_INT,(/dim_sample/),varid)
       if(ierr/=nf90_noerr) exit netcdf_block
@@ -354,6 +368,13 @@ contains
 
       ! Target weights, written once in the same order as target_name.
       ierr=nf90_put_var(ncid,varid_target_weight,targets%weight)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      target_lambdas=NF90_FILL_DOUBLE
+      do iTarget=1,nTarget
+        if(trim(targets(iTarget)%obs_transform)=='boxcox') target_lambdas(iTarget)=targets(iTarget)%boxcox_lambda
+      enddo
+      ierr=nf90_put_var(ncid,varid_boxcox_lambda,target_lambdas)
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! target names, written once now that the file holds them

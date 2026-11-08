@@ -761,8 +761,8 @@ contains
       endif
 
       ! Compute the calibration metric
-      call compute_metric(valObsAligned,valSimAligned,calTarget%metric, &
-                          calTarget%obs_transform, objective,err,cmessage)
+      call compute_metric(valObsAligned,valSimAligned,calTarget%metric,calTarget%obs_transform,objective, &
+                          boxcox_lambda=calTarget%boxcox_lambda,err=err,message=cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         if(err==metric_undefined .and. calTarget%weight==0._rkind)then
@@ -782,15 +782,10 @@ contains
       ! Write diagnostics for every calibration target
       if(config%write_timeseries)then
       
-        call write_evaluation(ncid(iLookFREQ%timestep),        &
-                              calTarget%name,                 &
-                              config%calib%write_aligned,     &
-                              timeAligned,timeBoundsAligned,  &
-                              valObsAligned,valSimAligned,    &
-                              nSimAligned,timeObsUnits,       &
-                              valObsUnits,calTarget%metric,   &
-                              calTarget%obs_transform,        &
-                              objective,err,cmessage)
+        call write_evaluation(ncid(iLookFREQ%timestep),calTarget%name,config%calib%write_aligned,timeAligned, &
+                              timeBoundsAligned,valObsAligned,valSimAligned,nSimAligned,timeObsUnits, &
+                              valObsUnits,calTarget%metric,calTarget%obs_transform,objective, &
+                              boxcox_lambda=calTarget%boxcox_lambda,err=err,message=cmessage)
       
         if(err/=0)then
           message=trim(cmessage)

@@ -66,7 +66,8 @@ module calibration_types
   character(len=:),  allocatable :: obs_file                ! observation file
   character(len=:),  allocatable :: vname_obs               ! name of the observed variable within that file
   character(len=16)              :: metric = 'kge'          ! kge, kgep, nse, mae, rmse
-  character(len=16)              :: obs_transform = 'none'  ! none, log, power, box-cox
+  character(len=16)              :: obs_transform = 'none'  ! none, log, power, boxcox
+  real(rkind)                    :: boxcox_lambda = 0.25_rkind ! Box-Cox exponent (used only for boxcox)
   real(rkind)                    :: weight = 1.0_rkind      ! DDS weight: positive = active, zero = diagnostic
                                                             ! NSGA-II currently requires every weight > 0
   character(len=64)              :: obs_units = ''          ! units of the observations, overriding the file's
@@ -95,7 +96,8 @@ module calibration_types
  ! calibration configuration
  type,public  :: calib_info
   character(len=:),  allocatable :: metric             ! KGE, KGEp, NSE, RMSE, MAE
-  character(len=:),  allocatable :: obs_transform      ! none, log, power, box-cox
+  character(len=:),  allocatable :: obs_transform      ! none, log, power, boxcox
+  real(rkind)                    :: boxcox_lambda = 0.25_rkind ! Default exponent inherited by targets
   character(len=:),  allocatable :: start_date         ! start of the calibration time period
   character(len=:),  allocatable :: end_date           ! end of the calibration time period
   type(calib_param_info),      allocatable :: param_list(:)   ! Parameters included in optimization
