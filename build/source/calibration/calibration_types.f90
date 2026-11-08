@@ -29,6 +29,7 @@ module calibration_types
    character(len=16) :: transformation = 'none'      ! Search transformation
    integer(i4b)      :: param_type = 1               ! Physical=1, spatial multiplier=2, ratio=3
    character(len=64) :: reference_name = ''          ! Reference parameter for a ratio
+   character(len=16) :: reference_reduction = 'none' ! none: elementwise; min: local reference minimum
  end type calib_param_info
 
  ! -----------------------------------------------------------------------------------------------------------

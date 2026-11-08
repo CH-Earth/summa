@@ -180,8 +180,8 @@ contains
     type(parameter_field_plan), intent(in) :: parameterization
     integer(i4b), intent(in) :: i
     real(rkind), intent(out) :: lo,hi
-    integer(i4b) :: j
-    real(rkind) :: smin,smax,v(4)
+    integer(i4b) :: j,h
+    real(rkind) :: smin,smax,local_reference,v(4)
     if(.not.spec%params(i)%sampled)then
       call field_extrema(field(i)%initial,lo,hi)
     else if(spec%params(i)%param_type==param_physical)then
@@ -191,6 +191,15 @@ contains
       j=parameterization%reference(i)
       if(j==0)then
         call field_extrema(field(i)%initial,smin,smax)
+      else if(trim(spec%params(i)%reference_reduction)=='min')then
+        ! Match construction: extrema ACROSS local minima, not all reference values.
+        smin=huge(1._rkind)
+        smax=-huge(1._rkind)
+        do h=1,size(field(j)%effective%hspatial)
+          local_reference=minval(field(j)%effective%hspatial(h)%dat(:))
+          smin=min(smin,local_reference)
+          smax=max(smax,local_reference)
+        enddo
       else
         call field_extrema(field(j)%effective,smin,smax)
       endif

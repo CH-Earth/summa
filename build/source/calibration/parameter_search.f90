@@ -79,6 +79,7 @@ module parameter_search
     character(len=16)  :: transformation = 'none'
     integer(i4b)       :: param_type = param_physical   ! Physical value, spatial multiplier, or parameter ratio
     character(len=64)  :: reference_name = ''           ! Name of the reference parameter for a parameter ratio
+    character(len=16)  :: reference_reduction = 'none'  ! none: elementwise; min: local reference minimum
   end type parameter_info
 
   ! **************************************************************************************************

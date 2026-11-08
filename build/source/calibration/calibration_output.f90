@@ -172,6 +172,9 @@ contains
           ierr=nf90_put_att(ncid,varid_param,'reference_name', &
                             trim(spec%params(iParam)%reference_name))
           if(ierr/=nf90_noerr) exit netcdf_block
+          ierr=nf90_put_att(ncid,varid_param,'reference_reduction', &
+                            trim(spec%params(iParam)%reference_reduction))
+          if(ierr/=nf90_noerr) exit netcdf_block
         endif
 
         ! parameter sampling status

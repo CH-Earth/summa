@@ -201,6 +201,7 @@ contains
     do i=1,nSumma
       spec%params(i)%param_type=config%calib%param_list(i)%param_type
       spec%params(i)%reference_name=config%calib%param_list(i)%reference_name
+      spec%params(i)%reference_reduction=config%calib%param_list(i)%reference_reduction
     enddo
 
     ! -----------------------------------------------------------------------------------------------
@@ -417,14 +418,8 @@ contains
         endif
       enddo
 
-      ! The dependent parameter cannot also have an ordered constraint.
-      do j=1,nConstraint
-        if(any(spec%ordered(j)%param_index == ixDependent))then
-          message=trim(message)//'multiplier dependent also used in ordered constraint: '// &
-                  trim(param_names(ixDependent))
-          err=20; return
-        endif
-      enddo
+      ! Ratio dependents may participate in ordered constraints. The generic
+      ! checker tests the effective physical fields after ratio construction.
 
       ! Store the parameter indices.
       spec%multiplier(i)%reference_index = ixReference
@@ -432,16 +427,8 @@ contains
 
     enddo
 
-    ! Nested multiplier dependencies are not currently supported.
-    do i=1,nMultiplier
-      do j=1,nMultiplier
-        if(spec%multiplier(i)%reference_index == &
-           spec%multiplier(j)%dependent_index)then
-          message=trim(message)//'nested multiplier dependencies are not supported'
-          err=20; return
-        endif
-      enddo
-    enddo
+    ! Chained ratios are resolved in dependency order by initialize_parameter_fields.
+    ! Its cycle check runs during adapter setup, before any trial is dispatched.
 
     ! -----------------------------------------------------------------------------------------------
     ! Log multiplier dependencies 

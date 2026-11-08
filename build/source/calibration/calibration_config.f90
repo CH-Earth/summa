@@ -210,6 +210,7 @@ contains
 
     type(calib_param_info), allocatable :: entries(:)   ! Temporary parameter registry
     character(len=:), allocatable :: transformation     ! Parsed transformation
+    character(len=:), allocatable :: reduction          ! Optional local ratio-reference reduction
 
     integer(i4b) :: iType                               ! Parameterization table index
     integer(i4b) :: i                                   ! Parameter index within table
@@ -381,6 +382,27 @@ contains
 
           entries(nParam)%transformation=trim(transformation)
 
+        endif
+
+        ! Ratios remain elementwise unless a local reduction is explicitly requested.
+        if(parameter%has_key('reference_reduction'))then
+          if(entries(nParam)%param_type/=param_ratio)then
+            message=trim(message)//'reference_reduction is only valid for parameter ratios: '//trim(keys(i)%key)
+            ierr=20; return
+          endif
+          if(allocated(reduction)) deallocate(reduction)
+          call get_value(parameter,'reference_reduction',reduction,stat=istat)
+          if(istat/=0 .or. .not.allocated(reduction))then
+            message=trim(message)//'unable to read reference_reduction for parameter: '//trim(keys(i)%key)
+            ierr=20; return
+          endif
+          select case(trim(reduction))
+          case('none','min')
+            entries(nParam)%reference_reduction=trim(reduction)
+          case default
+            message=trim(message)//'reference_reduction must be none or min: '//trim(keys(i)%key)
+            ierr=20; return
+          end select
         endif
 
       enddo

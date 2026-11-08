@@ -98,6 +98,16 @@ contains
         message=trim(message)//'non-finite initial field: '//trim(spec%params(i)%name); return
       endif
 
+      ! Reject invalid metadata even for callers that bypass the TOML parser.
+      if(trim(spec%params(i)%reference_reduction)/='none')then
+        if(.not.spec%params(i)%sampled .or. spec%params(i)%param_type/=param_ratio)then
+          message=trim(message)//'reference reduction requires a sampled ratio: '//trim(spec%params(i)%name); return
+        endif
+        if(trim(spec%params(i)%reference_reduction)/='min')then
+          message=trim(message)//'unsupported reference reduction: '//trim(spec%params(i)%name); return
+        endif
+      endif
+
       k=search%search_index(i)
       if(.not.spec%params(i)%sampled)then
         if(k/=0)then
@@ -157,10 +167,19 @@ contains
         message=trim(message)//'ratio reference has a different spatial count'; return
       endif
       do h=1,size(field(i)%initial%hspatial)
-        ! Retain existing ratio semantics: no scalar-to-vector ratio construction.
-        if(size(field(i)%initial%hspatial(h)%dat)/=size(field(j)%initial%hspatial(h)%dat))then
-          message=trim(message)//'ratio reference has different local lengths'; return
-        endif
+        select case(trim(spec%params(i)%reference_reduction))
+        case('none')
+          ! Preserve the existing elementwise contract; no implicit broadcasting.
+          if(size(field(i)%initial%hspatial(h)%dat)/=size(field(j)%initial%hspatial(h)%dat))then
+            message=trim(message)//'ratio reference has different local lengths'; return
+          endif
+        case('min')
+          ! Reduce only the local reference vector; never combine spatial locations.
+          if(size(field(i)%initial%hspatial(h)%dat)/=1)then
+            message=trim(message)//'min reference reduction requires a local scalar target: '// &
+                    trim(spec%params(i)%name); return
+          endif
+        end select
       enddo
     enddo
 
@@ -240,7 +259,13 @@ contains
         case(param_spatial_multiplier)
           field(i)%effective%hspatial(h)%dat(:)=value*field(i)%initial%hspatial(h)%dat(:)
         case(param_ratio)
-          field(i)%effective%hspatial(h)%dat(:)=value*field(j)%effective%hspatial(h)%dat(:)
+          if(trim(spec%params(i)%reference_reduction)=='min')then
+            ! The reference already includes its multiplier or upstream ratio.
+            field(i)%effective%hspatial(h)%dat(1)= &
+              value*minval(field(j)%effective%hspatial(h)%dat(:))
+          else
+            field(i)%effective%hspatial(h)%dat(:)=value*field(j)%effective%hspatial(h)%dat(:)
+          endif
         end select
       enddo
     enddo

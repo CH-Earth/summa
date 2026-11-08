@@ -92,6 +92,14 @@ contains
       if(.not.corresponding_maps(param_map(i),param_map(j)))then
         message='ratio parameters select different SUMMA domains or local axes'; return
       endif
+      if(trim(spec%params(i)%reference_reduction)=='min')then
+        if(param_map(i)%ixM>0)then
+          ! A one-layer vector is not a native scalar parameter.
+          if(mpar_meta(param_map(i)%ixM)%varType/=iLookVarType%scalarv)then
+            message='min ratio reduction requires a SUMMA scalarv target'; return
+          endif
+        endif
+      endif
     enddo
     if(allocated(spec%ordered))then
       do c=1,size(spec%ordered)
