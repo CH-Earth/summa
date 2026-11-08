@@ -36,6 +36,7 @@ program summa_driver_opt
 
   ! SUMMA-specific calibration
   USE summa_calibration_case, only: initialize_summa_calibration_config
+  USE summa_calibration_case, only: summa_case_context,execute_summa_case
   USE summa_calibration_case, only: run_case
 
   ! calibration MPI infrastructure
@@ -55,11 +56,13 @@ program summa_driver_opt
 
   implicit none
 
-  type(config_info) :: config                              ! SUMMA configuration information
+  type(config_info), target   :: config                    ! SUMMA configuration information
   type(parallel_context_type) :: world_parallel            ! all MPI ranks
   type(parallel_context_type) :: node_parallel             ! all MPI ranks on the same physical node
   type(parallel_context_type) :: leader_parallel           ! one leader rank from each physical node
   type(parallel_context_type) :: instance_parallel         ! ranks assigned to one calibration case
+    
+  type(summa_case_context)    :: dispatch_context          ! module-level callback for a calibration case
 
   integer(i4b) :: node_index                               ! Index of the physical node
   integer(i4b) :: nNodes                                   ! Number of physical nodes
@@ -133,10 +136,15 @@ program summa_driver_opt
     ! number of independent calibration cases
     nCases=size(config%case_names)*config%n_runs
 
-    ! dynamically schedule cases across independent MPI instance groups
-    call dispatch_calibration_cases(nCases,world_parallel,instance_parallel, &
-                                    execute_summa_case,err,message)
+    ! supply the module-level callback with this rank's case configuration.
+    dispatch_context%config            => config
+    dispatch_context%node_index        =  node_index
+    dispatch_context%instance_parallel =  instance_parallel
+    dispatch_context%global_case_group =  global_case_group
 
+    ! dynamically schedule cases across independent MPI instance groups.
+    call dispatch_calibration_cases(nCases,world_parallel,instance_parallel, &
+                                    execute_summa_case,dispatch_context,err,message)
     if(err/=0) call abort_mpi(world_parallel%rank,trim(message))
 
   else
@@ -159,22 +167,5 @@ program summa_driver_opt
   call check_mpi(world_parallel%rank,mpi_err,'MPI_Finalize failed')
 
   if(world_parallel%rank==0) call stop_program(0,'finished parallel parameter evaluation successfully.')
-
   
-contains
-
-  ! **************************************************************************************************
-  ! Execute a SUMMA calibration case assigned by the generic scheduler.
-  ! **************************************************************************************************
-  subroutine execute_summa_case(case_index,err,message)
-
-    integer(i4b),     intent(in)  :: case_index  ! Index of the assigned calibration case
-    integer(i4b),     intent(out) :: err         ! Error code
-    character(len=*), intent(out) :: message     ! Error message
-
-    call run_case(config,instance_parallel,node_index,global_case_group, &
-                  case_index,err,message)
-
-  end subroutine execute_summa_case
-
 end program summa_driver_opt

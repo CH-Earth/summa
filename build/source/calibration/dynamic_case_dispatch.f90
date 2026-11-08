@@ -22,11 +22,12 @@ module dynamic_case_dispatch
 
   ! Interface for executing an assigned calibration case
   abstract interface
-    subroutine execute_case_interface(case_index,err,message)
+    subroutine execute_case_interface(context,case_index,err,message)
       import :: i4b
-      integer(i4b),     intent(in)  :: case_index  ! Index of the assigned case
-      integer(i4b),     intent(out) :: err         ! Error code
-      character(len=*), intent(out) :: message     ! Error message
+      class(*),         intent(inout) :: context
+      integer(i4b),     intent(in)    :: case_index
+      integer(i4b),     intent(out)   :: err
+      character(len=*), intent(out)   :: message
     end subroutine execute_case_interface
   end interface
 
@@ -40,17 +41,19 @@ contains
   ! assignment to its workers. A model-specific callback executes each assigned case.
   ! All MPI ranks must call this routine collectively.
   ! **************************************************************************************************
-  subroutine dispatch_calibration_cases(nCases,world_parallel,instance_parallel,execute_case,err,message)
+  subroutine dispatch_calibration_cases(nCases,world_parallel,instance_parallel, &
+                                        execute_case,context,err,message)
 
     ! ---------------------------------------------------------------------------------------
     ! Dummy arguments
     ! ---------------------------------------------------------------------------------------
-    integer(i4b),                intent(in)  :: nCases             ! Total number of calibration cases
-    type(parallel_context_type), intent(in)  :: world_parallel     ! Global MPI context
-    type(parallel_context_type), intent(in)  :: instance_parallel  ! Calibration instance MPI context
-    procedure(execute_case_interface)       :: execute_case       ! Model-specific case execution
-    integer(i4b),                intent(out) :: err                ! Error code
-    character(len=*),            intent(out) :: message            ! Error message
+    integer(i4b),                intent(in)    :: nCases             ! Total number of calibration cases
+    type(parallel_context_type), intent(in)    :: world_parallel     ! Global MPI context
+    type(parallel_context_type), intent(in)    :: instance_parallel  ! Calibration instance MPI context
+    procedure(execute_case_interface)          :: execute_case       ! Model-specific case execution
+    class(*),                    intent(inout) :: context            ! Calibration context
+    integer(i4b),                intent(out)   :: err                ! Error code
+    character(len=*),            intent(out)   :: message            ! Error message
 
     ! ---------------------------------------------------------------------------------------
     ! Local variables
@@ -86,7 +89,7 @@ contains
       if(case_index==0) exit
 
       ! execute the assigned case using the model-specific callback
-      call execute_case(case_index,err,message)
+      call execute_case(context,case_index,err,message)
       if(err/=0) call abort_mpi(instance_parallel%rank,trim(message))
 
     enddo

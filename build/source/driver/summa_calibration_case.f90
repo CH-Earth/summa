@@ -26,8 +26,52 @@ module summa_calibration_case
   public :: initialize_summa_calibration_config
   public :: run_case
 
+  public :: execute_summa_case
+
+  ! State passed explicitly to the generic case dispatcher.
+  type, public :: summa_case_context
+    type(config_info), pointer  :: config => null()
+    type(parallel_context_type) :: instance_parallel
+    integer(i4b)                :: node_index = 0
+    integer(i4b)                :: global_case_group = 0
+  end type summa_case_context
+
 contains
-  
+
+  ! **************************************************************************************************
+  ! Execute a SUMMA calibration case assigned by the generic scheduler.
+  !
+  ! The context contains the configuration and MPI information required to
+  ! execute one case. This module procedure does not capture host variables.
+  ! **************************************************************************************************
+  subroutine execute_summa_case(context,case_index,err,message)
+
+    class(*),         intent(inout) :: context
+    integer(i4b),     intent(in)    :: case_index
+    integer(i4b),     intent(out)   :: err
+    character(len=*), intent(out)   :: message
+
+    select type (context)
+
+    type is (summa_case_context)
+
+      if(.not.associated(context%config))then
+        message='execute_summa_case/configuration pointer is not associated'
+        err=20; return
+      endif
+
+      call run_case(context%config,context%instance_parallel, &
+                    context%node_index,context%global_case_group, &
+                    case_index,err,message)
+
+    class default
+      err=20; message='execute_summa_case/invalid case context type'
+
+    end select
+
+  end subroutine execute_summa_case
+
+
   ! **************************************************************************************************
   ! initialize_summa_calibration_config: Read configuration for a SUMMA calibration execution.
   !
