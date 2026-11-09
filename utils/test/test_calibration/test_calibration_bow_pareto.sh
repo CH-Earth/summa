@@ -6,6 +6,7 @@
 # targets: daily discharge (KGE) and the GRACE storage anomaly (RMSE). The same sample
 # budget is spent twice - by NSGA-II on the two objectives, and by DDS on their weighted
 # sum - and the script checks the NSGA-II front, then compares what each search found.
+# The DDS run also scores a zero-weight Box-Cox NSE diagnostic, which must not steer the search.
 #
 # The budget is tiny, so this exercises the machinery; it does not settle which search is
 # better. Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON.
@@ -148,45 +149,43 @@ start_date = "2004-01-01"
 end_date   = "2004-12-31"
 
 n_samples = ${N_SAMPLES}
-
-param_list = [
-    "k_soil",
-    "theta_sat",
-    "aquiferBaseflowExp",
-    "aquiferBaseflowRate",
-    "qSurfScale",
-    "summerLAI",
-    "frozenPrecipMultip",
-    "Fcapil",
-    "tempCritRain",
-    "heightCanopyTop",
-    "heightCanopyBottom",
-    "windReductionParam",
-    "vGn_n",
-    "routingGammaScale",
-    "routingGammaShape"
-]
-
 write_aligned = false
 
+[calibration.parameters]
 
-[calibration.parameter_transformations]
+theta_sat           = {}
+aquiferBaseflowExp  = {}
+aquiferBaseflowRate = { transformation = "log" }
+qSurfScale          = {}
+summerLAI           = {}
+frozenPrecipMultip  = {}
+Fcapil              = {}
+tempCritRain        = {}
+heightCanopyTop     = {}
+heightCanopyBottom  = {}
+windReductionParam  = {}
+vGn_n               = {}
+routingGammaScale   = {}
+routingGammaShape   = {}
 
-k_soil              = "log"
-aquiferBaseflowRate = "log"
-
+[calibration.spatial_multipliers]
+k_soil = { lower = 0.5, upper = 2.0, transformation = "log" }
 
 [[parameter_dependencies.ordered]]
 
 parameters   = ["heightCanopyBottom", "heightCanopyTop"]
 gap_fraction = 0.25
 
+
 [[parameter_dependencies.ordered]]
 
-parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "theta_sat"]
 gap_fraction = 0.025
-sample_gaps  = true
 
+[[parameter_dependencies.ordered]]
+
+parameters   = ["theta_res", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
 
 [calibration.nsga2]
 
@@ -218,6 +217,24 @@ baseline_end   = "2004-12-31"
 metric         = "rmse"
 weight         = ${GRACE_WEIGHT}
 EOF
+  # DDS also scores a zero-weight diagnostic, saved but left out of the search (NSGA-II refuses one)
+  if [ "${algorithm}" = "dds" ]; then
+    cat >> "${dir}/config.toml" <<EOF
+
+
+[[calibration.target]]
+
+name          = "discharge_boxcox"
+variable      = "streamflow"
+obs_path      = "${DATA}/observations/"
+obs_file      = "CAN_05BB001_daily_flow_2002-2017.nc"
+vname_obs     = "q_obs"
+metric        = "nse"
+obs_transform = "boxcox"
+boxcox_lambda = 0.2
+weight        = 0.0
+EOF
+  fi
 }
 
 # run_search <algorithm>
@@ -307,7 +324,9 @@ check(bool(np.array_equal(born, np.repeat(np.arange(1, ngen + 1), pop))), "birth
 population = np.asarray(d["population"][:]) - 1                 # (generation, member), 0-based samples
 rank = np.asarray(d["population_rank"][:])
 check(population.shape == (ngen, pop), f"population is {ngen} generations x {pop} members")
-check(bool(np.all(front[population[-1][rank[-1] == 1]])), "the final population's first front is non-dominated overall")
+# a front larger than the population is cut by crowding, so its first front need only be non-dominated within it
+last = population[-1]
+check(bool(np.all(nondominated(f[:, last])[rank[-1] == 1])), "the final population's first front is non-dominated within it")
 check(all(set(population[g]) <= set(population[g - 1]) | set(range(g * pop, (g + 1) * pop))
           for g in range(1, ngen)), "each generation keeps only its parents and its own offspring")
 
@@ -316,6 +335,13 @@ check(nf >= 1, f"the front holds {nf} trial(s)")
 
 # compare with DDS on the weighted sum, same budget
 dd, obj_dds, _, failed_dds = load("dds")
+check(obj_dds.shape[0] == 3, "DDS records 3 targets, the third a diagnostic")
+tn = dd["target_name"][:]
+names = [str(n).strip() for n in (nc.chartostring(tn) if tn.ndim == 2 else tn)]
+check(names[2] == "discharge_boxcox", "the diagnostic is labelled discharge_boxcox")
+check(float(dd["target_weight"][2]) == 0.0, "the diagnostic is saved with weight 0")
+check(float(dd["target_boxcox_lambda"][2]) == 0.2, "the diagnostic is saved with Box-Cox exponent 0.2")
+check(bool(np.all(np.isfinite(obj_dds[2, ~failed_dds]))), "the diagnostic is finite on every trial that ran")
 f_dds = oriented(obj_dds, sense, failed_dds)
 ref = np.maximum(f[:, ~failed].max(axis=1), f_dds[:, ~failed_dds].max(axis=1))
 hv_n, hv_d = hypervolume(f, ref), hypervolume(f_dds, ref)

@@ -39,6 +39,7 @@ module series_transform
 
   public :: accumulate_series
   public :: remove_baseline_mean
+  public :: rebase_matched_series
   public :: balance_between_extremes
 
 contains
@@ -169,6 +170,97 @@ contains
     anomaly=values-total/real(count,rkind)
 
   end subroutine remove_baseline_mean
+
+  ! **************************************************************************************************
+  ! Rebase two already-aligned series using the SAME valid observation periods.
+  !
+  ! The input time coordinate is the observation time, not the original model time.
+  ! The baseline consists of finite observed/simulated PAIRS with at least one
+  ! contributing model step and baselineStart <= time < baselineEnd.
+  ! Each observation period has equal weight, regardless of its duration.
+  ! The input arrays are changed in place; their time coordinates and bounds are unchanged.
+  ! **************************************************************************************************
+  subroutine rebase_matched_series(time,valSim,valObs,nSimSteps,timeUnits,baselineStart,baselineEnd, &
+                                   simBaseline,obsBaseline,nBaseline,err,message)
+    real(rkind), intent(in)    :: time(:)
+    real(rkind), intent(inout) :: valSim(:),valObs(:)
+    integer(i4b), intent(in)  :: nSimSteps(:)
+    character(*), intent(in)  :: timeUnits,baselineStart,baselineEnd
+    real(rkind), intent(out)  :: simBaseline,obsBaseline
+    integer(i4b), intent(out) :: nBaseline,err
+    character(*), intent(out) :: message
+    real(rkind)  :: scale,dayStart,dayEnd,dayHere
+    integer(i4b) :: refYear,refMonth,refDay,i
+
+    err=0
+    message='rebase_matched_series/'
+    simBaseline=0._rkind
+    obsBaseline=0._rkind
+    nBaseline=0
+
+    ! Check dimensions
+    if(size(time)/=size(valSim) .or. size(time)/=size(valObs) .or. &
+       size(time)/=size(nSimSteps))then
+      message=trim(message)//'aligned series lengths differ'
+      err=20; return
+    endif
+
+    ! Convert baseline dates into the units of the observation time coordinate
+    call time_scale(timeUnits,scale,err,message)
+    if(err/=0) return
+
+    call reference_date(timeUnits,refYear,refMonth,refDay,err,message)
+    if(err/=0) return
+
+    call date_to_days(baselineStart,refYear,refMonth,refDay,dayStart,err,message)
+    if(err/=0) return
+
+    call date_to_days(baselineEnd,refYear,refMonth,refDay,dayEnd,err,message)
+    if(err/=0) return
+
+    if(dayEnd<=dayStart)then
+      message=trim(message)//'baseline_end must be later than baseline_start'
+      err=20; return
+    endif
+
+    ! Calculate baseline means using the same valid observation periods
+    do i=1,size(time)
+
+      ! Skip invalid timestamps
+      if(.not.ieee_is_finite(time(i))) cycle
+
+      ! Select observation periods within the baseline dates
+      dayHere=time(i)*scale/86400._rkind
+      if(dayHere<dayStart .or. dayHere>=dayEnd) cycle
+
+      ! Require at least one simulated value
+      if(nSimSteps(i)<=0) cycle
+
+      ! Require valid simulated AND observed values
+      if(.not.ieee_is_finite(valSim(i)) .or. &
+         .not.ieee_is_finite(valObs(i))) cycle
+
+      simBaseline=simBaseline+valSim(i)
+      obsBaseline=obsBaseline+valObs(i)
+      nBaseline=nBaseline+1
+
+    enddo
+
+    ! Check that at least one valid matched period was found
+    if(nBaseline==0)then
+      message=trim(message)//'baseline period has no finite matched observations and simulations'
+      err=20; return
+    endif
+
+    ! Calculate mean storage over the matched baseline periods
+    simBaseline=simBaseline/real(nBaseline,rkind)
+    obsBaseline=obsBaseline/real(nBaseline,rkind)
+
+    ! Express both series as departures from their respective baseline means
+    valSim=valSim-simBaseline
+    valObs=valObs-obsBaseline
+
+  end subroutine rebase_matched_series
 
   ! **************************************************************************************************
   ! The stratigraphic balance of a storage series, sampled at the times of the observed balances.

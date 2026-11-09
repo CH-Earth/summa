@@ -126,16 +126,17 @@ end_date   = "2018-07-31"
 
 n_samples = ${N_SAMPLES}
 
-param_list = [
-    "frozenPrecipMultip",
-    "tempCritRain",
-    "glacierWindFactor",
-    "glacierTempReduction",
-    "albedoMax",
-    "aquiferBaseflowExp"
-]
-
 write_aligned = false
+
+
+[calibration.parameters]
+
+frozenPrecipMultip   = {}
+tempCritRain         = {}
+glacierWindFactor    = {}
+glacierTempReduction = {}
+albedoMax            = {}
+aquiferBaseflowExp   = {}
 
 
 [calibration.nsga2]
@@ -147,7 +148,8 @@ population_size = ${POPULATION}
 
 name      = "discharge"
 variable  = "streamflow"
-reach     = 2
+spatial_unit = "reach"
+spatial_id   = 2
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_USGS_15236900_daily_flow.nc"
 vname_obs = "q_obs"
@@ -158,7 +160,8 @@ metric    = "kge"
 
 name      = "mass_balance"
 variable  = "basin__GlacierMassChange"
-gru       = 2
+spatial_unit = "gru"
+spatial_id   = 2
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_mass_balance_seasonal.nc"
 vname_obs = "mb_obs"
@@ -171,7 +174,8 @@ balance    = "seasonal"
 
 name      = "well"
 variable  = "scalarAquiferStorage"
-hru       = 5
+spatial_unit = "hru"
+spatial_id   = 5
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_well_hru5_daily.nc"
 vname_obs = "well_obs"

@@ -54,6 +54,17 @@ endif()
 set(PARENT_DIR "${F_MASTER}")
 set(EXEC_DIR "${F_MASTER}/bin" CACHE PATH "Directory for SUMMA executables")
 
+# Define directories that contains source code
+set(DRIVER_DIR ${F_MASTER}/build/source/driver)
+set(OBJFNC_DIR ${F_MASTER}/build/source/objfunc)
+set(DSHARE_DIR ${F_MASTER}/build/source/dshare)
+set(ENGINE_DIR ${F_MASTER}/build/source/engine)
+set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
+set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
+set(NOAHMP_DIR ${F_MASTER}/build/source/noah-mp)
+set(NUMREC_DIR ${F_MASTER}/build/source/numrec)
+set(PARALLEL_DIR ${F_MASTER}/build/source/parallel)
+
 # Handle optional external libraries
 
 # SUNDIALS
@@ -102,8 +113,8 @@ if (USE_MPI)
     find_package(MPI REQUIRED COMPONENTS Fortran)
 
     add_library(PARALLEL_UTILS STATIC
-        source/parallel/mpi_context.f90
-        source/parallel/error_utils.f90
+        ${PARALLEL_DIR}/mpi_context.f90
+        ${PARALLEL_DIR}/error_utils.f90
     )
 
     target_link_libraries(PARALLEL_UTILS PUBLIC
@@ -142,6 +153,11 @@ if (USE_MIZUROUTE)
 
     include(${SUMMA_MIZU_DIR}/CMakeLists.txt)
 endif()
+
+# Calibration
+message("CONFIGURING CALIBRATION")
+set(CALIBR_DIR ${F_MASTER}/build/source/calibration)
+include(${CALIBR_DIR}/CMakeLists.txt)
 
 # Executable names
 #
@@ -225,24 +241,8 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     list(APPEND FLAGS_ALL -ffpe-summary=none)
 endif()
 
-#=========================================================================================
-# COMPILE PART 1: Define directory paths
-#=========================================================================================
 
-# Define directories that contains source code
-set(DRIVER_DIR ${F_MASTER}/build/source/driver)
-set(OBJFNC_DIR ${F_MASTER}/build/source/objfunc)
-set(DSHARE_DIR ${F_MASTER}/build/source/dshare)
-set(CALIBR_DIR ${F_MASTER}/build/source/calibration)
-set(ENGINE_DIR ${F_MASTER}/build/source/engine)
-set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
-set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
-set(NOAHMP_DIR ${F_MASTER}/build/source/noah-mp)
-set(NUMREC_DIR ${F_MASTER}/build/source/numrec)
-
-#=========================================================================================
-# COMPILE PART 2: Assemble all of the SUMMA sub-routines
-#=========================================================================================
+# Assemble all of the SUMMA sub-routines
 
 # SUMMA Source Files are defined in the CMakeLists.txt file in the subdirectory
 add_subdirectory("${F_MASTER}/build/source" "${CMAKE_BINARY_DIR}/source")
@@ -251,9 +251,7 @@ add_subdirectory("${F_MASTER}/build/source" "${CMAKE_BINARY_DIR}/source")
 set_source_files_properties(${NOAHMP} PROPERTIES Fortran_FORMAT FREE)
 
 
-#=========================================================================================
-# COMPILE PART 3: Collect the subroutines into build groups depending on build type
-#=========================================================================================
+# Collect the subroutines into build groups depending on build type
 
 set(COMM_ALL ${NRPROC} ${HOOKUP} ${DATAMS} ${UTILMS})
 set(SUMMA_ALL ${NETCDF} ${PRELIM} ${MODRUN} ${SOLVER} ${OBJFNC} ${CALIBR} ${DRIVER})
@@ -357,9 +355,7 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-#=========================================================================================
-# COMPILE PART 4: Do the compilation
-#=========================================================================================
+# Do the compilation
 
 # update version information
 file(WRITE  ${VERSIONFILE} "character(len=64), parameter     :: summaVersion = '${VERSION}'\n")
@@ -448,7 +444,7 @@ else()
 
   # Parallel optimization SUMMA executable
   if (USE_MPI)
-    add_executable(${EXEC_NAME_OPT} ${CALIBR_MPI} ${MAIN_SUMMA_OPT})
+    add_executable(${EXEC_NAME_OPT} ${CALIBR_MPI} ${DRIVER_OPT} ${MAIN_SUMMA_OPT})
     target_compile_options(${EXEC_NAME_OPT} PRIVATE ${FLAGS_ALL})
     set_property(TARGET ${EXEC_NAME_OPT} PROPERTY LINKER_LANGUAGE Fortran)
     target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa PARALLEL_UTILS)

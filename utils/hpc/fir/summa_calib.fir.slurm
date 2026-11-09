@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=summa-calib
+#SBATCH --job-name=summa-scaling
 #SBATCH --account=rrg-mclark
 #SBATCH --nodes=1
 #SBATCH --ntasks=192
@@ -7,30 +7,57 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=3G
 #SBATCH --time=12:00:00
-#SBATCH --output=summa-calib-%j.out
-#SBATCH --error=summa-calib-%j.err
-
-# Multi-case calibration of the Century basins on Fir.
-#   sbatch [--nodes=N --ntasks=192*N] summa_calib.fir.slurm [manifest]
-# The manifest's cases_per_node sets how many basins share a node. PR 649 scaling runs:
-#   --nodes=1,2,4,8 with cases_per_node=4, and --nodes=2 with cases_per_node=1,2,4,8
+#SBATCH --output=logs/%x-%j.out
+#SBATCH --error=logs/%x-%j.err
 
 set -euo pipefail
 
-MANIFEST=${1:-"$HOME/data/century/MM/exp01/settings/manifest_century.toml"}
+# ----------------------------------------------------------------------
+# Command-line arguments
+# ----------------------------------------------------------------------
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: sbatch $0 <run_label>"
+  exit 1
+fi
+
+RUN_LABEL="$1"
+
+# ----------------------------------------------------------------------
+# Experiment configuration
+# ----------------------------------------------------------------------
+
+MANIFEST="$HOME/data/century/MM/$RUN_LABEL/settings/manifest_century.toml"
+
+# ----------------------------------------------------------------------
+# Runtime environment
+# ----------------------------------------------------------------------
 
 source "$HOME/models/summa/utils/hpc/fir/env_summa.fir.bash"
 
-echo "Job ID:      $SLURM_JOB_ID"
-echo "Nodes:       $SLURM_JOB_NODELIST"
-echo "Tasks:       $SLURM_NTASKS"
-echo "Manifest:    $MANIFEST"
+echo "--------------------------------------------------"
+echo "SUMMA model-instance scaling experiment"
+echo "--------------------------------------------------"
+echo "Job ID:           $SLURM_JOB_ID"
+echo "Job name:         $SLURM_JOB_NAME"
+echo "Nodes:            $SLURM_JOB_NUM_NODES"
+echo "Node list:        $SLURM_JOB_NODELIST"
+echo "Tasks:            $SLURM_NTASKS"
+echo "Manifest:         $MANIFEST"
+echo "--------------------------------------------------"
 
-# stage SUMMA and data once per node
+# ----------------------------------------------------------------------
+# Stage SUMMA and data once per node
+# ----------------------------------------------------------------------
+
 srun -N "$SLURM_JOB_NUM_NODES" \
      -n "$SLURM_JOB_NUM_NODES" \
      --ntasks-per-node=1 \
      bash -lc 'source $HOME/models/summa/utils/hpc/fir/setup_summa.century.fir.bash'
+
+# ----------------------------------------------------------------------
+# Run calibration
+# ----------------------------------------------------------------------
 
 cd "$SLURM_TMPDIR/models/summa"
 
@@ -40,4 +67,4 @@ srun --mpi=pmix \
   "$SLURM_TMPDIR/models/summa/bin/summa_sundials_mizuroute_opt.exe" \
   --manifest "$MANIFEST" \
   --home "$SLURM_TMPDIR" \
-  --persistent-output "$SCRATCH/calibration/$SLURM_JOB_ID"
+  --persistent-output "$SCRATCH/calibration/${RUN_LABEL}/${SLURM_JOB_ID}"
