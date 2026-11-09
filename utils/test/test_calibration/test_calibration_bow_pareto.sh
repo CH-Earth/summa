@@ -324,7 +324,9 @@ check(bool(np.array_equal(born, np.repeat(np.arange(1, ngen + 1), pop))), "birth
 population = np.asarray(d["population"][:]) - 1                 # (generation, member), 0-based samples
 rank = np.asarray(d["population_rank"][:])
 check(population.shape == (ngen, pop), f"population is {ngen} generations x {pop} members")
-check(bool(np.all(front[population[-1][rank[-1] == 1]])), "the final population's first front is non-dominated overall")
+# a front larger than the population is cut by crowding, so its first front need only be non-dominated within it
+last = population[-1]
+check(bool(np.all(nondominated(f[:, last])[rank[-1] == 1])), "the final population's first front is non-dominated within it")
 check(all(set(population[g]) <= set(population[g - 1]) | set(range(g * pop, (g + 1) * pop))
           for g in range(1, ngen)), "each generation keeps only its parents and its own offspring")
 

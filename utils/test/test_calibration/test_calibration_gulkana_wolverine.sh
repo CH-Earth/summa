@@ -259,7 +259,9 @@ check(bool(np.array_equal(front, nondominated(f))), "pareto_front flags exactly 
 population = np.asarray(d["population"][:]) - 1
 rank = np.asarray(d["population_rank"][:])
 check(population.shape == (ngen, pop), f"population is {ngen} generations x {pop} members")
-check(bool(np.all(front[population[-1][rank[-1] == 1]])), "the final population's first front is non-dominated overall")
+# a front larger than the population is cut by crowding, so its first front need only be non-dominated within it
+last = population[-1]
+check(bool(np.all(nondominated(f[:, last])[rank[-1] == 1])), "the final population's first front is non-dominated within it")
 
 nf = int(front.sum())
 check(nf >= 1, f"the front holds {nf} trial(s)")

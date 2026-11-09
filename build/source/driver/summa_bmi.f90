@@ -315,7 +315,7 @@ module summabmi
      !       The arrays must still be allocated, as summa_paramSetup takes their size.
      allocate(param_name(0))
      allocate(param_value(0))
-     call summa_paramSetup(this%model%summa1_struc(n), param_name, param_value, err, message)
+     call summa_paramSetup(this%model%summa1_struc(n), param_name, param_value, err=err, message=message)
      call handle_err(err, message)
      deallocate(param_name)
      deallocate(param_value)
