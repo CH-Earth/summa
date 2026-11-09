@@ -66,10 +66,27 @@ real(rkind),parameter :: maxDebrisTop=0.05_rkind     ! maximum thickness of the 
 real(rkind),parameter :: wallSearchDist=500._rkind   ! distance from a glacier margin searched for the top of its rock face (m)
 real(rkind),parameter :: wallMinSlope=40._rkind      ! slope above which ground is bare rock that sheds onto the ice, above scree's angle of repose (degrees)
 
+! nx by ny scratch arrays shared by the flow, diffusion and debris routines; allocated once per run_flowModel call
+type flowWork
+  real(rkind), allocatable, dimension(:,:) :: H, Sklp, Sklm, Skpl, Skl, Skml, Hkpl, Hkppl, Hkml, Hkmml, Hkl, Hklp, Hklpp
+  real(rkind), allocatable, dimension(:,:) :: Hklm, Hklmm, H_l_up_m, H_l_up_p, H_l_dn_m, H_l_dn_p, f_l_p, f_l_m
+  real(rkind), allocatable, dimension(:,:) :: D_l_up_m, D_l_up_p, D_l_up_min, D_l_up_max, D_l_dn_m, D_l_dn_p, D_l_dn_min, D_l_dn_max
+  real(rkind), allocatable, dimension(:,:) :: D_l_up, D_l_dn, H_k_up_m, H_k_up_p, H_k_dn_m, H_k_dn_p, f_k_p, f_k_m
+  real(rkind), allocatable, dimension(:,:) :: D_k_up_m, D_k_up_p, D_k_up_min, D_k_up_max, D_k_dn_m, D_k_dn_p, D_k_dn_min, D_k_dn_max
+  real(rkind), allocatable, dimension(:,:) :: D_k_up, D_k_dn, div_k, div_l
+  real(rkind), allocatable, dimension(:,:) :: Xkpl, Xkml, Xkplp, Xkmlp, Xkplm, Xkmlm, Xklp, Xklm, Yplp, Yplm, Ymlp, Ymlm
+  real(rkind), allocatable, dimension(:,:) :: u_l_up, u_l_dn, u_k_up, u_k_dn, outRate, influx, englacial_emerg, div_uD
+  real(rkind), allocatable, dimension(:,:) :: f_l_up, f_l_dn, f_k_up, f_k_dn
+  real(rkind), allocatable, dimension(:,:) :: drivingStress, S_stepStart, S_l_up, S_l_dn, S_k_up, S_k_dn
+  real(rkind), allocatable, dimension(:,:) :: slope_l, slope_k, slope_g, div_q, m_dot
+  integer(i4b), allocatable, dimension(:,:) :: mask
+  logical, allocatable, dimension(:,:) :: wet
+end type flowWork
+
 ! privacy
 private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_upwind,static_emergElev_latRockfall,debris_unload
 private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc,debrisLayering,debrisResplit
-private::superbee,flux,SIA,midpt,pluss,minus,refl
+private::superbee,flux,SIA,midpt,pluss,minus,refl,flowWork,allocFlowWork
 public::glacAreaChange
 public::time_updateGlacArea
 public::updateGlacDomain
@@ -606,6 +623,30 @@ subroutine argsort_desc(x, idx)
 end subroutine argsort_desc
 
 ! ************************************************************************************************
+! private subroutine allocFlowWork: allocate the nx by ny scratch arrays of the flow and debris models
+! ************************************************************************************************
+subroutine allocFlowWork(w, nx, ny)
+  implicit none
+  type(flowWork), intent(out) :: w
+  integer(i4b), intent(in) :: nx, ny
+  allocate(w%H(nx,ny), w%Sklp(nx,ny), w%Sklm(nx,ny), w%Skpl(nx,ny), w%Skl(nx,ny), w%Skml(nx,ny), w%Hkpl(nx,ny), w%Hkppl(nx,ny), &
+           w%Hkml(nx,ny), w%Hkmml(nx,ny), w%Hkl(nx,ny), w%Hklp(nx,ny), w%Hklpp(nx,ny), w%Hklm(nx,ny), w%Hklmm(nx,ny), &
+           w%H_l_up_m(nx,ny), w%H_l_up_p(nx,ny), w%H_l_dn_m(nx,ny), w%H_l_dn_p(nx,ny), w%f_l_p(nx,ny), w%f_l_m(nx,ny), &
+           w%D_l_up_m(nx,ny), w%D_l_up_p(nx,ny), w%D_l_up_min(nx,ny), w%D_l_up_max(nx,ny), w%D_l_dn_m(nx,ny), w%D_l_dn_p(nx,ny), &
+           w%D_l_dn_min(nx,ny), w%D_l_dn_max(nx,ny), w%D_l_up(nx,ny), w%D_l_dn(nx,ny))
+  allocate(w%H_k_up_m(nx,ny), w%H_k_up_p(nx,ny), w%H_k_dn_m(nx,ny), w%H_k_dn_p(nx,ny), w%f_k_p(nx,ny), w%f_k_m(nx,ny), &
+           w%D_k_up_m(nx,ny), w%D_k_up_p(nx,ny), w%D_k_up_min(nx,ny), w%D_k_up_max(nx,ny), w%D_k_dn_m(nx,ny), w%D_k_dn_p(nx,ny), &
+           w%D_k_dn_min(nx,ny), w%D_k_dn_max(nx,ny), w%D_k_up(nx,ny), w%D_k_dn(nx,ny), w%div_k(nx,ny), w%div_l(nx,ny))
+  allocate(w%Xkpl(nx,ny), w%Xkml(nx,ny), w%Xkplp(nx,ny), w%Xkmlp(nx,ny), w%Xkplm(nx,ny), w%Xkmlm(nx,ny), w%Xklp(nx,ny), &
+           w%Xklm(nx,ny), w%Yplp(nx,ny), w%Yplm(nx,ny), w%Ymlp(nx,ny), w%Ymlm(nx,ny))
+  allocate(w%u_l_up(nx,ny), w%u_l_dn(nx,ny), w%u_k_up(nx,ny), w%u_k_dn(nx,ny), w%outRate(nx,ny), w%influx(nx,ny), &
+           w%englacial_emerg(nx,ny), w%div_uD(nx,ny), w%f_l_up(nx,ny), w%f_l_dn(nx,ny), w%f_k_up(nx,ny), w%f_k_dn(nx,ny))
+  allocate(w%drivingStress(nx,ny), w%S_stepStart(nx,ny), w%S_l_up(nx,ny), w%S_l_dn(nx,ny), w%S_k_up(nx,ny), w%S_k_dn(nx,ny), &
+           w%slope_l(nx,ny), w%slope_k(nx,ny), w%slope_g(nx,ny), w%div_q(nx,ny), w%m_dot(nx,ny), w%mask(nx,ny), w%wet(nx,ny))
+end subroutine allocFlowWork
+
+
+! ************************************************************************************************
 ! private subroutine run_flowModel: set up Shallow Ice Approximation (SIA) diffusion flow model 
 !   and run for time period
 !   Follows the implementation of Jarosch et al., 2013
@@ -627,21 +668,18 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   integer(i4b), intent(out) :: err                ! error code
   character(*), intent(out) :: message            ! error message
   ! Local variables
-  real(rkind) :: dt, t, max_dt, min_dt, deltat, debris_half_dt, div_q(nx,ny), dt_cfl, meanS
-  real(rkind) :: gamma, m_dot(nx,ny), H(nx,ny), lat_rockfall(nx,ny)
+  real(rkind) :: dt, t, max_dt, min_dt, deltat, debris_half_dt, dt_cfl, meanS
+  real(rkind) :: gamma, lat_rockfall(nx,ny)
   integer(i4b) :: emergenceMask(nx,ny)
   integer(i4b),parameter :: n=3 ! Glen's flow law exponent
   real(rkind),parameter :: A=2.4e-24 ! Modern Glen parameter
   real(rkind),parameter :: cfl= 0.124 ! Courant-Friedrichs-Lewy condition
-  real(rkind) :: drivingStress(nx,ny)
-  real(rkind) :: S_stepStart(nx,ny)
-  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skl(nx,ny), Skpl(nx,ny), Skml(nx,ny)
-  real(rkind) :: S_l_up(nx,ny), S_l_dn(nx,ny), S_k_up(nx,ny), S_k_dn(nx,ny)
-  real(rkind) :: slope_l(nx,ny), slope_k(nx,ny), slope_g(nx,ny)
+  type(flowWork) :: w
   integer(i4b) :: i, j, isteps
   integer(i4b) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny), k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
 
   err=0; message='run_flowModel/'
+  call allocFlowWork(w, nx, ny)
   gamma = 2._rkind * glenAFactor * A * (iden_ice * gravity)**n / (n + 2_i4b)
   max_dt = 31._rkind * secprday ! max timestep in seconds, a month
   min_dt = 3600._rkind ! min timestep in seconds, 1 hour
@@ -680,6 +718,10 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     lat_rockfall = 0._rkind
   endif
 
+  associate(H=>w%H, m_dot=>w%m_dot, div_q=>w%div_q, S_stepStart=>w%S_stepStart, drivingStress=>w%drivingStress, &
+            Sklp=>w%Sklp, Sklm=>w%Sklm, Skl=>w%Skl, Skpl=>w%Skpl, Skml=>w%Skml, S_l_up=>w%S_l_up, S_l_dn=>w%S_l_dn, &
+            S_k_up=>w%S_k_up, S_k_dn=>w%S_k_dn, slope_l=>w%slope_l, slope_k=>w%slope_k, slope_g=>w%slope_g)
+
   ! time loop
   do while (t < t_total)
     dt = t_total - t
@@ -707,7 +749,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     S_stepStart = S
 
     ! call a step of the diffusion scheme
-    call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl,&
+    call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl, w,&
                          l, lp, lm, lpp, lmm, k, kp, km, kpp, kmm)
 
     ! update time step
@@ -720,7 +762,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     ! Strang splitting: half debris step on starting geometry if debris and ablation zone are present
     if(sum(debris)>0._rkind .and. any(m_dot<0._rkind))then
       call run_debrisModel(S_stepStart, B, debris, gamma, n, debris_half_dt, m_dot, emergenceMask, lat_rockfall,&
-               debrisConc, theta_sat, iden_soil, nx, ny, dx, dy, l, lp, lm, k, kp, km)
+               debrisConc, theta_sat, iden_soil, nx, ny, dx, dy, w, l, lp, lm, k, kp, km)
     else
       debris = 0._rkind
     endif
@@ -749,7 +791,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     ! Strang splitting: half debris step on updated geometry if debris, ablation zone, and glacier are present
     if(sum(debris)>0._rkind .and. any(m_dot<0._rkind) .and. count(S-B>thick4area)>0_i4b)then
       call run_debrisModel(S, B, debris, gamma, n, debris_half_dt, m_dot, emergenceMask, lat_rockfall,&
-               debrisConc, theta_sat, iden_soil, nx, ny, dx, dy, l, lp, lm, k, kp, km)
+               debrisConc, theta_sat, iden_soil, nx, ny, dx, dy, w, l, lp, lm, k, kp, km)
 
       ! calculate glacier ice surface slope with a finite difference, add debris back to surface for slope calculation
       Sklp  = S(k ,lp) + debris(k ,lp)
@@ -797,13 +839,15 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   ! calculate volume of glacier (includes debris)
   volume = sum(S-B) * dx * dy * 1.e-9_rkind ! km3
 
+  end associate
+
 end subroutine run_flowModel
 
 
 ! ************************************************************************************************
 ! subroutine diffusion_MUSCL: mass conserving scheme for SIA flow
 ! ************************************************************************************************
-subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl, &
+subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl, w, &
                           l, lp, lm, lpp, lmm, k, kp, km, kpp, kmm)
   implicit none
   ! Arguments
@@ -812,40 +856,32 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   integer(i4b), intent(in) :: l(ny), lp(ny), lm(ny), lpp(ny), lmm(ny)
   integer(i4b), intent(in) :: k(nx), kp(nx), km(nx), kpp(nx), kmm(nx)
   real(rkind), intent(out) :: div_q(nx,ny), dt_cfl
+  type(flowWork), intent(inout) :: w
   ! Local variables
-  real(rkind) :: H(nx,ny)
-  real(rkind) :: Sklp(nx,ny), Sklm(nx,ny), Skplp(nx,ny), Skplm(nx,ny), Skpl(nx,ny), Skl(nx,ny)
-  real(rkind) :: Skmlp(nx,ny), Skmlm(nx,ny), Skml(nx,ny)
-  real(rkind) :: Hkpl(nx,ny), Hkppl(nx,ny), Hkml(nx,ny), Hkmml(nx,ny), Hkl(nx,ny), Hklp(nx,ny)
-  real(rkind) :: Hklpp(nx,ny), Hklm(nx,ny), Hklmm(nx,ny)
-  real(rkind) :: H_l_up_m(nx,ny), H_l_up_p(nx,ny)
-  real(rkind) :: H_l_dn_m(nx,ny), H_l_dn_p(nx,ny)
-  real(rkind) :: f_l_p(nx,ny), f_l_m(nx,ny)
-  real(rkind) :: D_l_up_m(nx,ny), D_l_up_p(nx,ny), D_l_up_min(nx,ny), D_l_up_max(nx,ny)
-  real(rkind) :: D_l_dn_m(nx,ny), D_l_dn_p(nx,ny), D_l_dn_min(nx,ny), D_l_dn_max(nx,ny)
-  real(rkind) :: D_l_up(nx,ny), D_l_dn(nx,ny)
-  real(rkind) :: H_k_up_m(nx,ny), H_k_up_p(nx,ny), H_k_dn_m(nx,ny), H_k_dn_p(nx,ny)
-  real(rkind) :: f_k_p(nx,ny), f_k_m(nx,ny)
-  real(rkind) :: D_k_up_m(nx,ny), D_k_up_p(nx,ny), D_k_up_min(nx,ny), D_k_up_max(nx,ny)
-  real(rkind) :: D_k_dn_m(nx,ny), D_k_dn_p(nx,ny), D_k_dn_min(nx,ny), D_k_dn_max(nx,ny)
-  real(rkind) :: D_k_up(nx,ny), D_k_dn(nx,ny)
-  real(rkind) :: divisor, div_k(nx,ny), div_l(nx,ny)
-  real(rkind) :: Xkpl(nx,ny), Xkml(nx,ny), Xkplp(nx,ny), Xkmlp(nx,ny), Xkplm(nx,ny), Xkmlm(nx,ny)
-  real(rkind) :: Xklp(nx,ny), Xklm(nx,ny), Yplp(nx,ny), Yplm(nx,ny), Ymlp(nx,ny), Ymlm(nx,ny)
+  real(rkind) :: divisor
   integer(i4b) :: i, j
+
+  associate(H=>w%H, Sklp=>w%Sklp, Sklm=>w%Sklm, Skpl=>w%Skpl, Skl=>w%Skl, Skml=>w%Skml, &
+            Hkpl=>w%Hkpl, Hkppl=>w%Hkppl, Hkml=>w%Hkml, Hkmml=>w%Hkmml, Hkl=>w%Hkl, Hklp=>w%Hklp, Hklpp=>w%Hklpp, &
+            Hklm=>w%Hklm, Hklmm=>w%Hklmm, H_l_up_m=>w%H_l_up_m, H_l_up_p=>w%H_l_up_p, H_l_dn_m=>w%H_l_dn_m, H_l_dn_p=>w%H_l_dn_p, &
+            f_l_p=>w%f_l_p, f_l_m=>w%f_l_m, D_l_up_m=>w%D_l_up_m, D_l_up_p=>w%D_l_up_p, D_l_up_min=>w%D_l_up_min, &
+            D_l_up_max=>w%D_l_up_max, D_l_dn_m=>w%D_l_dn_m, D_l_dn_p=>w%D_l_dn_p, D_l_dn_min=>w%D_l_dn_min, D_l_dn_max=>w%D_l_dn_max, &
+            D_l_up=>w%D_l_up, D_l_dn=>w%D_l_dn, H_k_up_m=>w%H_k_up_m, H_k_up_p=>w%H_k_up_p, H_k_dn_m=>w%H_k_dn_m, H_k_dn_p=>w%H_k_dn_p, &
+            f_k_p=>w%f_k_p, f_k_m=>w%f_k_m, D_k_up_m=>w%D_k_up_m, D_k_up_p=>w%D_k_up_p, D_k_up_min=>w%D_k_up_min, &
+            D_k_up_max=>w%D_k_up_max, D_k_dn_m=>w%D_k_dn_m, D_k_dn_p=>w%D_k_dn_p, D_k_dn_min=>w%D_k_dn_min, D_k_dn_max=>w%D_k_dn_max, &
+            D_k_up=>w%D_k_up, D_k_dn=>w%D_k_dn, div_k=>w%div_k, div_l=>w%div_l, &
+            Xkpl=>w%Xkpl, Xkml=>w%Xkml, Xkplp=>w%Xkplp, Xkmlp=>w%Xkmlp, Xkplm=>w%Xkplm, Xkmlm=>w%Xkmlm, Xklp=>w%Xklp, Xklm=>w%Xklm, &
+            Yplp=>w%Yplp, Yplm=>w%Yplm, Ymlp=>w%Ymlp, Ymlm=>w%Ymlm, wet=>w%wet)
 
   ! Keep diffusion thickness nonnegative and zero outside glacier mask.
   H = merge(max(S - B, 0._rkind), 0._rkind, mask==1_i4b) ! H = ice thickness, S = surface height, B = bed topography
+  wet = H > 0._rkind
 
   ! indices
   Sklp  = S(k  ,lp )
   Sklm  = S(k  ,lm )
-  Skplp = S(kp ,lp )
-  Skplm = S(kp ,lm )
   Skpl  = S(kp ,l  )
   Skl   = S(k  ,l  )
-  Skmlp = S(km ,lp )
-  Skmlm = S(km ,lm )
   Skml  = S(km ,l  )
   !
   Hkpl  = H(kp ,l  )
@@ -859,12 +895,12 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   Hklmm = H(k  ,lmm)
 
   ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
-  call refl(S(kp,l ), S(k,l ), S(km,l ), H(kp,l )>0._rkind, H(km,l )>0._rkind, Xkpl , Xkml )
-  call refl(S(kp,lp), S(k,lp), S(km,lp), H(kp,lp)>0._rkind, H(km,lp)>0._rkind, Xkplp, Xkmlp)
-  call refl(S(kp,lm), S(k,lm), S(km,lm), H(kp,lm)>0._rkind, H(km,lm)>0._rkind, Xkplm, Xkmlm)
-  call refl(S(k ,lp), S(k,l ), S(k ,lm), H(k,lp )>0._rkind, H(k,lm )>0._rkind, Xklp , Xklm )
-  call refl(S(kp,lp), S(kp,l), S(kp,lm), H(kp,lp)>0._rkind, H(kp,lm)>0._rkind, Yplp , Yplm )
-  call refl(S(km,lp), S(km,l), S(km,lm), H(km,lp)>0._rkind, H(km,lm)>0._rkind, Ymlp , Ymlm )
+  call refl(S(kp,l ), S(k,l ), S(km,l ), wet(kp,l ), wet(km,l ), Xkpl , Xkml )
+  call refl(S(kp,lp), S(k,lp), S(km,lp), wet(kp,lp), wet(km,lp), Xkplp, Xkmlp)
+  call refl(S(kp,lm), S(k,lm), S(km,lm), wet(kp,lm), wet(km,lm), Xkplm, Xkmlm)
+  call refl(S(k ,lp), S(k,l ), S(k ,lm), wet(k,lp ), wet(k,lm ), Xklp , Xklm )
+  call refl(S(kp,lp), S(kp,l), S(kp,lm), wet(kp,lp), wet(kp,lm), Yplp , Yplm )
+  call refl(S(km,lp), S(km,l), S(km,lm), wet(km,lp), wet(km,lm), Ymlp , Ymlm )
 
   ! calculate l+1/2 index
   H_l_up_m = minus(Hklm, Hkl, Hklp)
@@ -895,8 +931,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
 
   ! equation 33 Jarosh 2013
   D_l_up = 0._rkind
-  do j = 1, nx
-    do i = 1, ny
+  do i = 1, ny
+    do j = 1, nx
       if(Sklp(j,i) <= Skl(j,i) .and. H_l_up_m(j,i) <= H_l_up_p(j,i))then
         D_l_up(j,i) = D_l_up_min(j,i)
       else if(Sklp(j,i) <= Skl(j,i) .and. H_l_up_m(j,i) > H_l_up_p(j,i))then
@@ -909,8 +945,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
     enddo
   enddo
   D_l_dn = 0._rkind
-  do j = 1, nx
-    do i = 1, ny
+  do i = 1, ny
+    do j = 1, nx
       if(Skl(j,i) <= Sklm(j,i) .and. H_l_dn_m(j,i) <= H_l_dn_p(j,i))then
         D_l_dn(j,i) = D_l_dn_min(j,i)
       else if(Skl(j,i) <= Sklm(j,i) .and. H_l_dn_m(j,i) > H_l_dn_p(j,i))then
@@ -955,8 +991,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
 
   ! equation 33 Jarosh 2013
   D_k_up = 0._rkind
-  do j = 1, nx
-    do i = 1, ny
+  do i = 1, ny
+    do j = 1, nx
       if(Skpl(j,i) <= Skl(j,i) .and. H_k_up_m(j,i) <= H_k_up_p(j,i))then
         D_k_up(j,i) = D_k_up_min(j,i)
       else if(Skpl(j,i) <= Skl(j,i) .and. H_k_up_m(j,i) > H_k_up_p(j,i))then
@@ -969,8 +1005,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
     enddo
   enddo
   D_k_dn = 0._rkind
-  do j = 1, nx
-    do i = 1, ny
+  do i = 1, ny
+    do j = 1, nx
       if(Skl(j,i) <= Skml(j,i) .and. H_k_dn_m(j,i) <= H_k_dn_p(j,i))then
         D_k_dn(j,i) = D_k_dn_min(j,i)
       else if(Skl(j,i) <= Skml(j,i) .and. H_k_dn_m(j,i) > H_k_dn_p(j,i))then
@@ -999,6 +1035,8 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   div_k = SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx) ! equation 36 Jarosh 2013
   div_q = div_k + div_l
 
+  end associate
+
 end subroutine diffusion_MUSCL
 
 
@@ -1017,8 +1055,8 @@ function massBalance(S, debris, glacierMask, slope, intercept, t_total, validEle
   integer(i4b) :: ind, dbr, i, j, k
   
   ! distribute mass balance over surface, using all points in GRU
-  do k = 1, nx
-    do j = 1, ny
+  do j = 1, ny
+    do k = 1, nx
       ! Set mass balance to zero if not on glacier
       if(glacierMask(k,j)==0_i4b)then
         massBalance(k,j) = 0._rkind
@@ -1049,7 +1087,7 @@ end function massBalance
 !   Follows the implementation of Mayer and Licciulli (2021), from Anderson and Anderson (2016).
 ! ************************************************************************************************
 subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask, lat_rockfall, &
-                           debrisConc, theta_sat, iden_soil, nx, ny, dx, dy, l, lp, lm, k, kp, km)
+                           debrisConc, theta_sat, iden_soil, nx, ny, dx, dy, w, l, lp, lm, k, kp, km)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: S(nx,ny), B(nx,ny), gamma, lat_rockfall(nx,ny)
@@ -1058,15 +1096,14 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   integer(i4b), intent(in) :: n, nx, ny, emergenceMask(nx,ny)
   integer(i4b), intent(in) :: l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
   real(rkind), intent(inout) :: debris(nx,ny)
+  type(flowWork), intent(inout) :: w
   ! Local variables
   real(rkind),parameter :: cfl= 0.5 ! Courant-Friedrichs-Lewy condition
-  real(rkind) :: H(nx,ny), Sklp(nx,ny), Skpl(nx,ny), Skl(nx,ny)
-  real(rkind) :: Xkpl(nx,ny), Xkml(nx,ny), Xkplp(nx,ny), Xkmlp(nx,ny), Xklp(nx,ny), Xklm(nx,ny)
-  real(rkind) :: Yplp(nx,ny), Yplm(nx,ny)
-  real(rkind) :: u_l_up(nx,ny), u_l_dn(nx,ny), u_k_up(nx,ny), u_k_dn(nx,ny)
-  real(rkind) :: outRate(nx,ny), influx(nx,ny), englacial_emerg(nx, ny)
-  real(rkind) :: min_dt, div_uD(nx,ny), t, max_dt, dt, dt_cfl, deltat
-  integer(i4b) :: mask(nx,ny)
+  real(rkind) :: min_dt, t, max_dt, dt, dt_cfl, deltat
+
+  associate(H=>w%H, Sklp=>w%Sklp, Skpl=>w%Skpl, Skl=>w%Skl, Xkpl=>w%Xkpl, Xkml=>w%Xkml, Xkplp=>w%Xkplp, Xkmlp=>w%Xkmlp, &
+            Xklp=>w%Xklp, Xklm=>w%Xklm, Yplp=>w%Yplp, Yplm=>w%Yplm, u_l_up=>w%u_l_up, u_l_dn=>w%u_l_dn, u_k_up=>w%u_k_up, &
+            u_k_dn=>w%u_k_dn, outRate=>w%outRate, influx=>w%influx, englacial_emerg=>w%englacial_emerg, div_uD=>w%div_uD, mask=>w%mask, wet=>w%wet)
 
   max_dt = 7._rkind * secprday ! maximum timestep in seconds, 1 week
   min_dt = 3600._rkind ! min timestep in seconds, 1 hour
@@ -1080,6 +1117,7 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
 
   mask = merge(1_i4b, 0_i4b, S>B) ! mask for glacier on subgrid
   H = merge(S - B, 0._rkind, mask==1_i4b)
+  wet = H > 0._rkind
 
   ! indices
   Sklp = S(k ,lp)
@@ -1087,10 +1125,10 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   Skl  = S(k ,l )
 
   ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
-  call refl(S(kp,l ), S(k,l ), S(km,l ), H(kp,l )>0._rkind, H(km,l )>0._rkind, Xkpl , Xkml )
-  call refl(S(kp,lp), S(k,lp), S(km,lp), H(kp,lp)>0._rkind, H(km,lp)>0._rkind, Xkplp, Xkmlp)
-  call refl(S(k ,lp), S(k,l ), S(k ,lm), H(k,lp )>0._rkind, H(k,lm )>0._rkind, Xklp , Xklm )
-  call refl(S(kp,lp), S(kp,l), S(kp,lm), H(kp,lp)>0._rkind, H(kp,lm)>0._rkind, Yplp , Yplm )
+  call refl(S(kp,l ), S(k,l ), S(km,l ), wet(kp,l ), wet(km,l ), Xkpl , Xkml )
+  call refl(S(kp,lp), S(k,lp), S(km,lp), wet(kp,lp), wet(km,lp), Xkplp, Xkmlp)
+  call refl(S(k ,lp), S(k,l ), S(k ,lm), wet(k,lp ), wet(k,lm ), Xklp , Xklm )
+  call refl(S(kp,lp), S(kp,l), S(kp,lm), wet(kp,lp), wet(kp,lm), Yplp , Yplm )
 
   ! SIA surface velocity on the up faces, down the surface slope
   u_l_up = -gamma * (n + 2_i4b)/(n + 1_i4b) * flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dx, dy, n) &
@@ -1114,7 +1152,7 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
     dt = t_total - t
 
     ! Call a step of the advection scheme
-    call advection_upwind(u_l_up, u_k_up, debris, nx, ny, dx, dy, div_uD, l, lp, lm, k, kp, km)
+    call advection_upwind(u_l_up, u_k_up, debris, nx, ny, dx, dy, div_uD, w, l, lp, lm, k, kp, km)
 
     ! update time step
     deltat = min(dt_cfl, dt, max_dt)
@@ -1125,6 +1163,8 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
     debris = debris + (div_uD + influx)* deltat
     debris = merge(debris, 0._rkind, debris > 0._rkind) ! prevent negative debris
   enddo
+
+  end associate
 
 end subroutine run_debrisModel
 
@@ -1370,14 +1410,15 @@ end subroutine debris_unload
 ! ************************************************************************************************
 ! private subroutine advection_upwind: first-order upwind advection for debris movement with ice velocity
 ! ************************************************************************************************
-subroutine advection_upwind(u_l_up, u_k_up, D, nx, ny, dx, dy, div_uD, l, lp, lm, k, kp, km)
+subroutine advection_upwind(u_l_up, u_k_up, D, nx, ny, dx, dy, div_uD, w, l, lp, lm, k, kp, km)
   implicit none
   ! Arguments
   real(rkind), intent(in) :: u_l_up(nx,ny), u_k_up(nx,ny), D(nx,ny), dx, dy
   integer(i4b), intent(in) :: nx, ny, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
   real(rkind), intent(out) :: div_uD(nx,ny)
-  ! Local variables
-  real(rkind) :: f_l_up(nx,ny), f_l_dn(nx,ny), f_k_up(nx,ny), f_k_dn(nx,ny) ! debris flux on each face (m2 s-1)
+  type(flowWork), intent(inout) :: w  ! f_l_up, f_l_dn, f_k_up, f_k_dn are the debris flux on each face (m2 s-1)
+
+  associate(f_l_up=>w%f_l_up, f_l_dn=>w%f_l_dn, f_k_up=>w%f_k_up, f_k_dn=>w%f_k_dn)
 
   ! Mayer and Licciulli (2021) eq. 3., u_l_up and u_k_up are l+1/2 and k+1/2 face velocities (m s-1), zero on closed faces
   ! flux on the up faces from the upwind cell; each down face is the up face of the cell below
@@ -1388,89 +1429,79 @@ subroutine advection_upwind(u_l_up, u_k_up, D, nx, ny, dx, dy, div_uD, l, lp, lm
 
   div_uD = (f_l_dn - f_l_up)/dy + (f_k_dn - f_k_up)/dx ! -div(uD) (m s-1)
 
+  end associate
+
 end subroutine advection_upwind
 
 ! ************************************************************************************************
 ! private functions to assist in calculations
 ! ************************************************************************************************
-function superbee(r)
+pure elemental function superbee(r)
   implicit none
-  real(rkind), intent(in) :: r(:,:)
-  real(rkind), allocatable :: superbee(:,:)
+  real(rkind), intent(in) :: r
+  real(rkind) :: superbee
 
-  allocate(superbee(size(r,1), size(r,2)))
   superbee = max(0._rkind, min(2._rkind * r, 1._rkind), min(r, 2._rkind))
 end function superbee
 
-function flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dx, dy, n)
+pure elemental function flux(Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dx, dy, n)
   implicit none
-  real(rkind), intent(in) :: Skpl(:,:), Skml(:,:), Skplp(:,:), Skmlp(:,:), Sklp(:,:), Skl(:,:), dx, dy
+  real(rkind), intent(in) :: Skpl, Skml, Skplp, Skmlp, Sklp, Skl, dx, dy
   integer(i4b), intent(in) :: n
-  real(rkind), allocatable :: flux(:,:)
+  real(rkind) :: flux
 
-  allocate(flux(size(Skpl,1), size(Skpl,2)))
   flux = ( (Skpl - Skml + Skplp - Skmlp)**2_i4b / (4._rkind * dx)**2_i4b & 
                  + (Sklp - Skl)**2_i4b / dy**2_i4b )**((n - 1.0) / 2._rkind)
 end function flux
 
-function SIA(Dup, Sup, S, Ddn, Sdn, d)
+pure elemental function SIA(Dup, Sup, S, Ddn, Sdn, d)
   implicit none
-  real(rkind), intent(in) :: Dup(:,:), Sup(:,:), S(:,:), Ddn(:,:), Sdn(:,:), d
-  real(rkind), allocatable :: SIA(:,:)
+  real(rkind), intent(in) :: Dup, Sup, S, Ddn, Sdn, d
+  real(rkind) :: SIA
 
-  allocate(SIA(size(Dup,1), size(Dup,2)))
   SIA = (Dup * (Sup - S) / d - Ddn * (S - Sdn) / d) / d
 end function SIA
 
 ! neighbours p and m of centre c for a centred difference; one without ice is the reflection of the other, both: c
-subroutine refl(p, c, m, hasP, hasM, xp, xm)
+pure elemental subroutine refl(p, c, m, hasP, hasM, xp, xm)
   implicit none
-  real(rkind), intent(in) :: p(:,:), c(:,:), m(:,:)
-  logical, intent(in) :: hasP(:,:), hasM(:,:)
-  real(rkind), intent(out) :: xp(:,:), xm(:,:)
+  real(rkind), intent(in) :: p, c, m
+  logical, intent(in) :: hasP, hasM
+  real(rkind), intent(out) :: xp, xm
   xp = merge(p, merge(2._rkind*c - m, c, hasM), hasP)
   xm = merge(m, merge(2._rkind*c - p, c, hasP), hasM)
 end subroutine refl
 
-function midpt(h1, h2)
+pure elemental function midpt(h1, h2)
   implicit none
-  real(rkind), intent(in) :: h1(:,:), h2(:,:)
-  real(rkind), allocatable :: midpt(:,:)
+  real(rkind), intent(in) :: h1, h2
+  real(rkind) :: midpt
 
-  allocate(midpt(size(h1,1), size(h1,2)))
   midpt = 0.5_rkind * (h1 + h2)
 end function midpt
 
-function pluss(Hm, H, Hp)
+pure elemental function pluss(Hm, H, Hp)
   implicit none
-  real(rkind), intent(in) :: Hm(:,:), H(:,:), Hp(:,:)
-  real(rkind), allocatable :: pluss(:,:)
-  logical, allocatable :: mask(:,:)
-  real(rkind), allocatable :: divisor(:,:), ones(:,:)
+  real(rkind), intent(in) :: Hm, H, Hp
+  real(rkind) :: pluss
+  real(rkind) :: divisor
+  logical :: mask
 
-  allocate(pluss(size(Hm,1), size(Hm,2)))
-  allocate(mask(size(Hm,1), size(Hm,2)),divisor(size(Hm,1), size(Hm,2)),ones(size(Hm,1), size(Hm,2)))
-  ones = 1.0_rkind
   mask = (Hp /= H) .and. (Hp /= Hm) .and. (H /= Hm)
-  divisor = merge(Hp - H, ones, mask)
+  divisor = merge(Hp - H, 1.0_rkind, mask)
   pluss = merge(H - 0.5_rkind * superbee(abs((H - Hm) / divisor)) * (Hp - H), H, mask)
-  deallocate(mask,divisor,ones)
 end function pluss
 
-function minus(Hm, H, Hp)
+pure elemental function minus(Hm, H, Hp)
   implicit none
-  real(rkind), intent(in) :: Hm(:,:), H(:,:), Hp(:,:)
-  real(rkind), allocatable :: minus(:,:)
-  logical, allocatable :: mask(:,:)
-  real(rkind), allocatable :: divisor(:,:), ones(:,:)
+  real(rkind), intent(in) :: Hm, H, Hp
+  real(rkind) :: minus
+  real(rkind) :: divisor
+  logical :: mask
 
-  allocate(minus(size(Hm,1), size(Hm,2)))
-  allocate(mask(size(Hm,1), size(Hm,2)),divisor(size(Hm,1), size(Hm,2)),ones(size(Hm,1), size(Hm,2)))
-  ones = 1.0_rkind
   mask = (Hp /= H) .and. (Hp /= Hm) .and. (H /= Hm)
-  divisor = merge(H - Hm, ones, mask)
+  divisor = merge(H - Hm, 1.0_rkind, mask)
   minus = merge(H + 0.5_rkind * superbee(abs((Hp - H) / divisor)) * (H - Hm), H, mask)
-  deallocate(mask,divisor,ones)
 end function minus
 
 
