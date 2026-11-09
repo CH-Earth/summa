@@ -595,7 +595,7 @@ contains
 
     ! check convergence
     ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
-    converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,resVecNew,newtStepScaled*xScale,stateVecNew,out_SS4HG)
+    converged = checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,resVecNew,newtStepScaled,stateVecNew,out_SS4HG,xScale)
     if (converged) return
 
     ! early return if not computing the line search
@@ -1131,7 +1131,7 @@ contains
  ! *********************************************************************************************************
  ! module function checkConv: check convergence based on the residual vector
  ! *********************************************************************************************************
- function checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,rVec,xInc,xVec,out_SS4HG)
+ function checkConv(nState,mSoil,in_SS4HG,mpar_data,indx_data,prog_data,deriv_data,rVec,xInc,xVec,out_SS4HG,xScale)
   implicit none
   ! result
   logical(lgt)                 :: checkConv                   ! flag to denote convergence
@@ -1144,9 +1144,10 @@ contains
   type(var_dlength),intent(in) :: prog_data                   ! prognostic variables for a local HRU
   type(var_dlength),intent(in) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(in)       :: rVec(:)                     ! residual vector (mixed units)
-  real(rkind),intent(in)       :: xInc(:)                     ! iteration increment (mixed units)
+  real(rkind),intent(in)       :: xInc(:)                     ! iteration increment (mixed units, or scaled if xScale is present)
   real(rkind),intent(in)       :: xVec(:)                     ! state vector (mixed units)
   type(out_type_summaSolv4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
+  real(rkind),intent(in),optional :: xScale(:)                ! multiplier taking xInc to mixed units
   ! locals
   real(rkind),dimension(mSoil) :: psiScale                    ! scaling factor for matric head
   real(rkind),dimension(nState):: rVecScaled                  ! scaled rVec for saturated soil
@@ -1154,6 +1155,7 @@ contains
   real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
   real(rkind),parameter        :: saturatedLoosen=1.e3_rkind  ! scaling factor for saturated glacier debris or lake soil 
   real(rkind)                  :: loosen                      ! scaling factor for loosening convergence criteria
+  real(rkind)                  :: xIncMat                     ! increment of one matric head state in mixed units
   real(rkind)                  :: thetaTol                    ! water content change below which a matric head increment is negligible (-)
   real(rkind)                  :: soilWatBalErr               ! error in the soil water balance
   real(rkind)                  :: canopy_max                  ! absolute value of the residual in canopy water (kg m-2)
@@ -1239,11 +1241,17 @@ contains
    ! check convergence based on the iteration increment for matric head
    if (size(ixMatOnly)>0) then
     psiScale   = abs( xVec(ixMatOnly) ) + xSmall ! avoid divide by zero
-    matric_max = maxval(abs( xInc(ixMatOnly)/psiScale ) )
     ! NOTE: based on iteration increment; the scalar solution waives it where the residual and water content change are below the liquid tolerance
     thetaTol   = merge(absConvTol_liquid*scalarTighten, 0._rkind, scalarSolution)
-    matricConv = all( abs(xInc(ixMatOnly)/psiScale) < absConvTol_matric .or. &
-                     (abs(rVec(ixMatOnly)) < thetaTol .and. abs(mLayerdThetadPsi(ixSoilMat)*xInc(ixMatOnly)) < thetaTol) )
+    matric_max(1) = 0._rkind
+    matricConv = .true.
+    do iMat=1,size(ixMatOnly)
+     xIncMat = xInc(ixMatOnly(iMat))
+     if (present(xScale)) xIncMat = xIncMat*xScale(ixMatOnly(iMat))
+     matric_max(1) = max(matric_max(1), abs(xIncMat/psiScale(iMat)))
+     if (.not.( abs(xIncMat/psiScale(iMat)) < absConvTol_matric .or. &
+               (abs(rVec(ixMatOnly(iMat))) < thetaTol .and. abs(mLayerdThetadPsi(ixSoilMat(iMat))*xIncMat) < thetaTol) )) matricConv = .false.
+    end do
    else
     matric_max = realMissing
     matricConv = .true.

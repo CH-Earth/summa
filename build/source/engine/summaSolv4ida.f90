@@ -76,6 +76,8 @@ USE mDecisions_module,only:       &
   numerical,                      & ! numerical solution
   analytical                        ! analytical solution
 
+USE fsundials_core_mod,only:N_Vector  ! SUNDIALS vector type for the saved vectors
+
 ! privacy
  implicit none
  private::setInitialCondition
@@ -84,6 +86,13 @@ USE mDecisions_module,only:       &
  public::layerDisCont4ida
  private::getErrMessage
  public::summaSolv4ida
+
+! SUNDIALS context and serial vectors kept per thread; the vectors are re-pointed at each call's state arrays
+type(c_ptr),save                  :: sunctxSave = c_null_ptr  ! SUNDIALS simulation context
+type(N_Vector),pointer,save       :: sunvecSave_y => null()   ! solution vector
+type(N_Vector),pointer,save       :: sunvecSave_yp => null()  ! derivative vector
+integer(c_long),save              :: nStateSave = 0           ! length of the saved vectors
+!$omp threadprivate(sunctxSave, sunvecSave_y, sunvecSave_yp, nStateSave)
 
 contains
 
@@ -359,18 +368,32 @@ subroutine summaSolv4ida(&
     resVecPrev(:)                     = 0._rkind
     balance(:)                        = 0._rkind
     
-    ! create SUNDIALS context
-    retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
-    if (retval /= 0) then; err = 20; message = trim(message)//'error in FSUNContext_Create'; return; endif
+    ! create the SUNDIALS context once per thread
+    if (.not. c_associated(sunctxSave)) then
+      retval = FSUNContext_Create(SUN_COMM_NULL, sunctxSave)
+      if (retval /= 0) then; err = 20; message = trim(message)//'error in FSUNContext_Create'; return; endif
+    endif
+    sunctx = sunctxSave
     sunlogger = c_null_ptr
     retval = FSUNContext_GetLogger(sunctx, sunlogger)
     if (retval /= 0) then; err = 20; message = trim(message)//'error in FSUNContext_GetLogger'; return; endif
     
-    ! create serial vectors
-    sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
-    if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
-    sunvec_yp => FN_VMake_Serial(nState, stateVecPrime, sunctx)
-    if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
+    ! make the serial vectors only when the number of states changes, then point them at this call's arrays
+    if (nState /= nStateSave) then
+      if (associated(sunvecSave_y)) then
+        call FN_VDestroy(sunvecSave_y); call FN_VDestroy(sunvecSave_yp)
+        sunvecSave_y => null(); sunvecSave_yp => null(); nStateSave = 0
+      endif
+      sunvecSave_y => FN_VMake_Serial(nState, stateVec, sunctx)
+      if (.not. associated(sunvecSave_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
+      sunvecSave_yp => FN_VMake_Serial(nState, stateVecPrime, sunctx)
+      if (.not. associated(sunvecSave_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
+      nStateSave = nState
+    endif
+    call FN_VSetArrayPointer(stateVec, sunvecSave_y)
+    call FN_VSetArrayPointer(stateVecPrime, sunvecSave_yp)
+    sunvec_y => sunvecSave_y
+    sunvec_yp => sunvecSave_yp
     
     ! initialize solution vectors
     call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
@@ -698,10 +721,6 @@ subroutine summaSolv4ida(&
     retval = FSUNLinSolFree(sunlinsol_LS)
     if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
     call FSUNMatDestroy(sunmat_A)
-    call FN_VDestroy(sunvec_y)
-    call FN_VDestroy(sunvec_yp)
-    retval = FSUNContext_Free(sunctx)
-    if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
 
   end associate
 
