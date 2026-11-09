@@ -177,8 +177,8 @@ metric     = "rmse"
 
 ### Low flows
 
-Without wells, groundwater can still be calibrated on the low flows the aquifer sustains, as GSFLOW
-does. `low_flow` scores only the fraction of the record with the lowest observed flows:
+Without wells, groundwater can still be calibrated on the low flows the aquifer sustains.
+`low_flow` scores only the fraction of the record with the lowest observed flows:
 
 ```toml
 [[calibration.target]]
