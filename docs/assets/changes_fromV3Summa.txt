@@ -278,7 +278,7 @@ AFTER tag of v4.0.0-exp-Sundials
      DDS (single target) or NSGA-II (multiple target) calibration, share one worker pool, commit cc30ba75 Sep 28, 2026
      Calibration ordered chains can be searched by their gaps (sample_gaps = true), always in order and in bounds, commit aee97bff Sep 29, 2026, removed by PR #671
      Calibration keeps going past a failed physics trial, ranks it last and saves it to failed_trials/ with a serial rerun.sh, commit 66fdb1ef Sep 28, 2026
-     Calibration can be against any output variable, currently tested with streamflow, well head, water storage change, and glacier mass balance. 
+     Calibration can be against any output variable, currently tested with streamflow, well head, water storage change, and glacier mass balance or low-flow targets (low_flow fraction, flow_duration).
       Glacier balance targets (balance = seasonal|annual) score change between simulated extremes, commits 45a6637f, 769464dc Sep 30, 2026
       Streamflow out of a GRU is averageRoutedRunoff times its area when mizuRoute is off; bundled gulkana demo, commit 45a6637f Sep 29, 2026
      DDS with several targets warns that it searches their weighted sum, commit eede0d9b Oct 15, 2026
