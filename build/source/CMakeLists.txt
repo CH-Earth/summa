@@ -61,6 +61,7 @@ set(DATAMS_SUNDIALS
 set(UTILMS
     ${ENGINE_DIR}/matrixOper.f90
     ${ENGINE_DIR}/mDecisions.f90
+    ${ENGINE_DIR}/scratch.f90
     ${ENGINE_DIR}/snow_utils.f90
     ${ENGINE_DIR}/soil_utils.f90
     ${ENGINE_DIR}/time_utils.f90
