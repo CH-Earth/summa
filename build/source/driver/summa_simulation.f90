@@ -611,7 +611,7 @@ contains
     use read_observations_module, only: read_observations
     use timeseries_alignment, only: align_timeseries, select_aligned_window
     use series_transform, only: accumulate_series, remove_baseline_mean, &
-                                rebase_matched_series, balance_between_extremes
+                                rebase_matched_series, balance_between_extremes, low_flow_pairs
     use metrics, only: compute_metric, metric_undefined
     use write_evaluation_module, only: write_evaluation
 
@@ -630,6 +630,7 @@ contains
     real(rkind), allocatable :: timeVal(:),valSim(:),valAccum(:),valAnom(:)
     real(rkind), allocatable :: timeAligned(:),timeBoundsAligned(:,:)
     real(rkind), allocatable :: valSimAligned(:),valObsAligned(:)
+    real(rkind), allocatable :: obsScored(:),simScored(:)
     integer(i4b), allocatable :: nSimAligned(:)
     character(len=:), allocatable :: timeObsUnits,valObsUnits
     character(len=:), allocatable :: timeValUnits,valSimUnits
@@ -760,8 +761,15 @@ contains
 
       endif
 
-      ! Compute the calibration metric
-      call compute_metric(valObsAligned,valSimAligned,calTarget%metric,calTarget%obs_transform,objective, &
+      ! Compute the calibration metric, over the low flows only when asked
+      if(calTarget%low_flow < 1._rkind .or. calTarget%flow_duration)then
+        call low_flow_pairs(valObsAligned,valSimAligned,calTarget%low_flow,calTarget%flow_duration, &
+                            obsScored,simScored)
+      else
+        obsScored=valObsAligned
+        simScored=valSimAligned
+      endif
+      call compute_metric(obsScored,simScored,calTarget%metric,calTarget%obs_transform,objective, &
                           boxcox_lambda=calTarget%boxcox_lambda,err=err,message=cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)

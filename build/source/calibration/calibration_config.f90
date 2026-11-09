@@ -824,7 +824,7 @@ contains
                  'metric','obs_transform','boxcox_lambda','weight','obs_units', &
                  'spatial_unit','spatial_id','accumulate',           &
                  'baseline_start','baseline_end','balance',         &
-                 'balance_window')
+                 'balance_window','low_flow','flow_duration')
               cycle
 
             case('gru','hru','reach')
@@ -1044,6 +1044,24 @@ contains
         call get_value(target_table,'balance_window',calib%targets(i)%balance_window,stat=istat)
         if(istat/=0)then
           message=trim(message)//'invalid balance_window for calibration target "'// &
+                  trim(calib%targets(i)%name)//'"'
+          ierr=20; return
+        endif
+      endif
+
+      ! a low-flow target: the lowest fraction of the observations, paired in time or along the flow-duration curves
+      if(target_table%has_key('low_flow'))then
+        call get_value(target_table,'low_flow',calib%targets(i)%low_flow,stat=istat)
+        if(istat/=0 .or. calib%targets(i)%low_flow <= 0._rkind .or. calib%targets(i)%low_flow > 1._rkind)then
+          message=trim(message)//'calibration target "'//trim(calib%targets(i)%name)// &
+                  '" needs a low_flow fraction in (0,1]'
+          ierr=20; return
+        endif
+      endif
+      if(target_table%has_key('flow_duration'))then
+        call get_value(target_table,'flow_duration',calib%targets(i)%flow_duration,stat=istat)
+        if(istat/=0)then
+          message=trim(message)//'invalid flow_duration for calibration target "'// &
                   trim(calib%targets(i)%name)//'"'
           ierr=20; return
         endif

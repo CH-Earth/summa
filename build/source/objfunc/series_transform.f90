@@ -41,6 +41,7 @@ module series_transform
   public :: remove_baseline_mean
   public :: rebase_matched_series
   public :: balance_between_extremes
+  public :: low_flow_pairs
 
 contains
 
@@ -369,6 +370,51 @@ contains
     end function turns
 
   end subroutine balance_between_extremes
+
+  ! **************************************************************************************************
+  ! The low end of an aligned observed and simulated series, for scoring groundwater on low flows.
+  !
+  ! Of the finite pairs, keeps the fraction with the lowest observed values, still paired in time.
+  ! With duration each series is sorted on its own first, so the two flow-duration curves are compared
+  ! and the low end of each is its own lowest fraction.  With no finite pair both come back unchanged.
+  ! **************************************************************************************************
+  subroutine low_flow_pairs(obs,sim,fraction,duration,obsLow,simLow)
+    USE nr_utils_module, only: indexx
+    real(rkind),              intent(in)  :: obs(:)      ! aligned observations
+    real(rkind),              intent(in)  :: sim(:)      ! aligned simulation
+    real(rkind),              intent(in)  :: fraction    ! fraction of the lowest observations kept, (0,1]
+    logical(lgt),             intent(in)  :: duration    ! compare the flow-duration curves
+    real(rkind), allocatable, intent(out) :: obsLow(:)   ! observations scored
+    real(rkind), allocatable, intent(out) :: simLow(:)   ! simulation scored
+    real(rkind),  allocatable :: obsUse(:),simUse(:)
+    integer(i4b), allocatable :: ixObs(:),ixSim(:)
+    logical(lgt), allocatable :: valid(:)
+    integer(i4b) :: n,nKeep
+
+    valid = ieee_is_finite(obs) .and. ieee_is_finite(sim)
+    n = count(valid)
+    if(n == 0)then
+      obsLow=obs; simLow=sim
+      return
+    endif
+    obsUse = pack(obs,valid)
+    simUse = pack(sim,valid)
+    nKeep = min(n,max(1,nint(fraction*real(n,rkind))))
+
+    allocate(ixObs(n))
+    call indexx(obsUse,ixObs)
+    if(duration)then
+      allocate(ixSim(n))
+      call indexx(simUse,ixSim)
+      obsLow = obsUse(ixObs(1:nKeep))
+      simLow = simUse(ixSim(1:nKeep))
+    else
+      valid = obsUse <= obsUse(ixObs(nKeep))
+      obsLow = pack(obsUse,valid)
+      simLow = pack(simUse,valid)
+    endif
+
+  end subroutine low_flow_pairs
 
   ! ---- PRIVATE HELPERS -----------------------------------------------------------------------------
 

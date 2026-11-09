@@ -175,6 +175,31 @@ metric     = "rmse"
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
 
+### Low flows
+
+Without wells, groundwater can still be calibrated on the low flows the aquifer sustains, as GSFLOW
+does. `low_flow` scores only the fraction of the record with the lowest observed flows:
+
+```toml
+[[calibration.target]]
+name          = "low_flow"
+variable      = "streamflow"
+spatial_unit  = "reach"
+spatial_id    = 9
+obs_file      = "USGS_10343500_daily_flow.nc"
+vname_obs     = "q_obs"
+obs_transform = "log"
+low_flow      = 0.3                        # the 30% of days with the lowest observed flow
+metric        = "kge"
+```
+
+- The lowest fraction is taken from the aligned pairs, after any other step the target asks for, so a
+  wet year contributes fewer days than a dry one.
+- `flow_duration = true` sorts each series on its own before scoring, so the flow-duration curves are
+  compared and timing drops out. With `low_flow` it scores the low end of each curve, its own lowest
+  fraction, so the simulated low flows need not fall on the observed days.
+- Score discharge as well: low flows alone say how the aquifer drains, not how much water reaches it.
+
 ## Parameters for one domain type
 
 A parameter name sets that parameter in every domain of every HRU. `name@type` sets it only in the
