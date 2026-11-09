@@ -98,11 +98,11 @@ integer(i4b),parameter        :: nCacheSlot=4              ! number of slots
 integer(i4b),parameter        :: nCacheSet=32              ! structures kept per slot, one per combination of layer counts
 type :: cached_dlength
   integer(i4b)      :: nLayers(4)=-1                       ! snow, lake, soil and glacier ice layers the structure was allocated for
-  integer(i4b)      :: lastUse=0                           ! call count at the last use of the structure
+  integer(i8b)      :: lastUse=0                           ! call count at the last use of the structure
   type(var_dlength) :: struc                               ! the structure
 end type cached_dlength
 type(cached_dlength),target :: dCache(nCacheSet,nCacheSlot) ! cached structures
-integer(i4b)                :: nCacheCall=0                ! calls to allocCached on this thread
+integer(i8b)                :: nCacheCall=0                ! calls to allocCached on this thread
 !$omp threadprivate(dCache, nCacheCall)
 contains
 
