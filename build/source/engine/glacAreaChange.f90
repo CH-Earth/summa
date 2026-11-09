@@ -68,13 +68,8 @@ real(rkind),parameter :: wallMinSlope=40._rkind      ! slope above which ground 
 
 ! nx by ny scratch arrays shared by the flow, diffusion and debris routines; allocated once per run_flowModel call
 type flowWork
-  real(rkind), allocatable, dimension(:,:) :: H, Sklp, Sklm, Skpl, Skl, Skml, Hkpl, Hkppl, Hkml, Hkmml, Hkl, Hklp, Hklpp
-  real(rkind), allocatable, dimension(:,:) :: Hklm, Hklmm, H_l_up_m, H_l_up_p, H_l_dn_m, H_l_dn_p, f_l_p, f_l_m
-  real(rkind), allocatable, dimension(:,:) :: D_l_up_m, D_l_up_p, D_l_up_min, D_l_up_max, D_l_dn_m, D_l_dn_p, D_l_dn_min, D_l_dn_max
-  real(rkind), allocatable, dimension(:,:) :: D_l_up, D_l_dn, H_k_up_m, H_k_up_p, H_k_dn_m, H_k_dn_p, f_k_p, f_k_m
-  real(rkind), allocatable, dimension(:,:) :: D_k_up_m, D_k_up_p, D_k_up_min, D_k_up_max, D_k_dn_m, D_k_dn_p, D_k_dn_min, D_k_dn_max
-  real(rkind), allocatable, dimension(:,:) :: D_k_up, D_k_dn, div_k, div_l
-  real(rkind), allocatable, dimension(:,:) :: Xkpl, Xkml, Xkplp, Xkmlp, Xkplm, Xkmlm, Xklp, Xklm, Yplp, Yplm, Ymlp, Ymlm
+  real(rkind), allocatable, dimension(:,:) :: H, Sklp, Sklm, Skpl, Skl, Skml
+  real(rkind), allocatable, dimension(:,:) :: Xkpl, Xkml, Xkplp, Xkmlp, Xklp, Xklm, Yplp, Yplm
   real(rkind), allocatable, dimension(:,:) :: u_l_up, u_l_dn, u_k_up, u_k_dn, outRate, influx, englacial_emerg, div_uD
   real(rkind), allocatable, dimension(:,:) :: f_l_up, f_l_dn, f_k_up, f_k_dn
   real(rkind), allocatable, dimension(:,:) :: drivingStress, S_l_up, S_l_dn, S_k_up, S_k_dn
@@ -86,7 +81,7 @@ end type flowWork
 ! privacy
 private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_upwind,static_emergElev_latRockfall,debris_unload
 private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc,debrisLayering,debrisResplit
-private::superbee,flux,SIA,midpt,pluss,minus,refl,flowWork,allocFlowWork
+private::superbee,flux,SIA,midpt,pluss,minus,refl,faceD,flowWork,allocFlowWork
 public::glacAreaChange
 public::time_updateGlacArea
 public::updateGlacDomain
@@ -629,16 +624,8 @@ subroutine allocFlowWork(w, nx, ny)
   implicit none
   type(flowWork), intent(out) :: w
   integer(i4b), intent(in) :: nx, ny
-  allocate(w%H(nx,ny), w%Sklp(nx,ny), w%Sklm(nx,ny), w%Skpl(nx,ny), w%Skl(nx,ny), w%Skml(nx,ny), w%Hkpl(nx,ny), w%Hkppl(nx,ny), &
-           w%Hkml(nx,ny), w%Hkmml(nx,ny), w%Hkl(nx,ny), w%Hklp(nx,ny), w%Hklpp(nx,ny), w%Hklm(nx,ny), w%Hklmm(nx,ny), &
-           w%H_l_up_m(nx,ny), w%H_l_up_p(nx,ny), w%H_l_dn_m(nx,ny), w%H_l_dn_p(nx,ny), w%f_l_p(nx,ny), w%f_l_m(nx,ny), &
-           w%D_l_up_m(nx,ny), w%D_l_up_p(nx,ny), w%D_l_up_min(nx,ny), w%D_l_up_max(nx,ny), w%D_l_dn_m(nx,ny), w%D_l_dn_p(nx,ny), &
-           w%D_l_dn_min(nx,ny), w%D_l_dn_max(nx,ny), w%D_l_up(nx,ny), w%D_l_dn(nx,ny))
-  allocate(w%H_k_up_m(nx,ny), w%H_k_up_p(nx,ny), w%H_k_dn_m(nx,ny), w%H_k_dn_p(nx,ny), w%f_k_p(nx,ny), w%f_k_m(nx,ny), &
-           w%D_k_up_m(nx,ny), w%D_k_up_p(nx,ny), w%D_k_up_min(nx,ny), w%D_k_up_max(nx,ny), w%D_k_dn_m(nx,ny), w%D_k_dn_p(nx,ny), &
-           w%D_k_dn_min(nx,ny), w%D_k_dn_max(nx,ny), w%D_k_up(nx,ny), w%D_k_dn(nx,ny), w%div_k(nx,ny), w%div_l(nx,ny))
-  allocate(w%Xkpl(nx,ny), w%Xkml(nx,ny), w%Xkplp(nx,ny), w%Xkmlp(nx,ny), w%Xkplm(nx,ny), w%Xkmlm(nx,ny), w%Xklp(nx,ny), &
-           w%Xklm(nx,ny), w%Yplp(nx,ny), w%Yplm(nx,ny), w%Ymlp(nx,ny), w%Ymlm(nx,ny))
+  allocate(w%H(nx,ny), w%Sklp(nx,ny), w%Sklm(nx,ny), w%Skpl(nx,ny), w%Skl(nx,ny), w%Skml(nx,ny))
+  allocate(w%Xkpl(nx,ny), w%Xkml(nx,ny), w%Xkplp(nx,ny), w%Xkmlp(nx,ny), w%Xklp(nx,ny), w%Xklm(nx,ny), w%Yplp(nx,ny), w%Yplm(nx,ny))
   allocate(w%u_l_up(nx,ny), w%u_l_dn(nx,ny), w%u_k_up(nx,ny), w%u_k_dn(nx,ny), w%outRate(nx,ny), w%influx(nx,ny), &
            w%englacial_emerg(nx,ny), w%div_uD(nx,ny), w%f_l_up(nx,ny), w%f_l_dn(nx,ny), w%f_k_up(nx,ny), w%f_k_dn(nx,ny))
   allocate(w%drivingStress(nx,ny), w%S_l_up(nx,ny), w%S_l_dn(nx,ny), w%S_k_up(nx,ny), w%S_k_dn(nx,ny), &
@@ -849,183 +836,80 @@ subroutine diffusion_MUSCL(S, B, mask, gamma, n, cfl, max_dt, nx, ny, dx, dy, di
   type(flowWork), intent(inout) :: w
   ! Local variables
   real(rkind) :: divisor
-  integer(i4b) :: i, j
-
-  associate(H=>w%H, Sklp=>w%Sklp, Sklm=>w%Sklm, Skpl=>w%Skpl, Skl=>w%Skl, Skml=>w%Skml, &
-            Hkpl=>w%Hkpl, Hkppl=>w%Hkppl, Hkml=>w%Hkml, Hkmml=>w%Hkmml, Hkl=>w%Hkl, Hklp=>w%Hklp, Hklpp=>w%Hklpp, &
-            Hklm=>w%Hklm, Hklmm=>w%Hklmm, H_l_up_m=>w%H_l_up_m, H_l_up_p=>w%H_l_up_p, H_l_dn_m=>w%H_l_dn_m, H_l_dn_p=>w%H_l_dn_p, &
-            f_l_p=>w%f_l_p, f_l_m=>w%f_l_m, D_l_up_m=>w%D_l_up_m, D_l_up_p=>w%D_l_up_p, D_l_up_min=>w%D_l_up_min, &
-            D_l_up_max=>w%D_l_up_max, D_l_dn_m=>w%D_l_dn_m, D_l_dn_p=>w%D_l_dn_p, D_l_dn_min=>w%D_l_dn_min, D_l_dn_max=>w%D_l_dn_max, &
-            D_l_up=>w%D_l_up, D_l_dn=>w%D_l_dn, H_k_up_m=>w%H_k_up_m, H_k_up_p=>w%H_k_up_p, H_k_dn_m=>w%H_k_dn_m, H_k_dn_p=>w%H_k_dn_p, &
-            f_k_p=>w%f_k_p, f_k_m=>w%f_k_m, D_k_up_m=>w%D_k_up_m, D_k_up_p=>w%D_k_up_p, D_k_up_min=>w%D_k_up_min, &
-            D_k_up_max=>w%D_k_up_max, D_k_dn_m=>w%D_k_dn_m, D_k_dn_p=>w%D_k_dn_p, D_k_dn_min=>w%D_k_dn_min, D_k_dn_max=>w%D_k_dn_max, &
-            D_k_up=>w%D_k_up, D_k_dn=>w%D_k_dn, div_k=>w%div_k, div_l=>w%div_l, &
-            Xkpl=>w%Xkpl, Xkml=>w%Xkml, Xkplp=>w%Xkplp, Xkmlp=>w%Xkmlp, Xkplm=>w%Xkplm, Xkmlm=>w%Xkmlm, Xklp=>w%Xklp, Xklm=>w%Xklm, &
-            Yplp=>w%Yplp, Yplm=>w%Yplm, Ymlp=>w%Ymlp, Ymlm=>w%Ymlm, wet=>w%wet)
+  real(rkind) :: Sklp, Sklm, Skpl, Skl, Skml
+  real(rkind) :: Hkpl, Hkppl, Hkml, Hkmml, Hkl, Hklp, Hklpp, Hklm, Hklmm
+  real(rkind) :: Xkpl, Xkml, Xkplp, Xkmlp, Xkplm, Xkmlm, Xklp, Xklm, Yplp, Yplm, Ymlp, Ymlm
+  real(rkind) :: H_up_m, H_up_p, H_dn_m, H_dn_p, f_p, f_m
+  real(rkind) :: D_l_up, D_l_dn, D_k_up, D_k_dn
+  integer(i4b) :: i, j, ip, im, ipp, imm, jp, jm, jpp, jmm
 
   ! Keep diffusion thickness nonnegative and zero outside glacier mask.
-  H = merge(max(S - B, 0._rkind), 0._rkind, mask==1_i4b) ! H = ice thickness, S = surface height, B = bed topography
-  wet = H > 0._rkind
+  w%H = merge(max(S - B, 0._rkind), 0._rkind, mask==1_i4b) ! H = ice thickness, S = surface height, B = bed topography
+  w%wet = w%H > 0._rkind
 
-  ! indices
-  Sklp  = S(k  ,lp )
-  Sklm  = S(k  ,lm )
-  Skpl  = S(kp ,l  )
-  Skl   = S(k  ,l  )
-  Skml  = S(km ,l  )
-  !
-  Hkpl  = H(kp ,l  )
-  Hkppl = H(kpp,l  )
-  Hkml  = H(km ,l  )
-  Hkmml = H(kmm,l  )
-  Hkl   = H(k  ,l  )
-  Hklp  = H(k  ,lp )
-  Hklpp = H(k  ,lpp)
-  Hklm  = H(k  ,lm )
-  Hklmm = H(k  ,lmm)
+  divisor = 0._rkind
+  associate(H=>w%H, wet=>w%wet)
+  do j = 1, ny
+    jp = lp(j); jm = lm(j); jpp = lpp(j); jmm = lmm(j)
+    do i = 1, nx
+      ip = kp(i); im = km(i); ipp = kpp(i); imm = kmm(i)
 
-  ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
-  call refl(S(kp,l ), S(k,l ), S(km,l ), wet(kp,l ), wet(km,l ), Xkpl , Xkml )
-  call refl(S(kp,lp), S(k,lp), S(km,lp), wet(kp,lp), wet(km,lp), Xkplp, Xkmlp)
-  call refl(S(kp,lm), S(k,lm), S(km,lm), wet(kp,lm), wet(km,lm), Xkplm, Xkmlm)
-  call refl(S(k ,lp), S(k,l ), S(k ,lm), wet(k,lp ), wet(k,lm ), Xklp , Xklm )
-  call refl(S(kp,lp), S(kp,l), S(kp,lm), wet(kp,lp), wet(kp,lm), Yplp , Yplm )
-  call refl(S(km,lp), S(km,l), S(km,lm), wet(km,lp), wet(km,lm), Ymlp , Ymlm )
+      ! neighbouring surface and thickness
+      Sklp = S(i,jp); Sklm = S(i,jm); Skpl = S(ip,j); Skl = S(i,j); Skml = S(im,j)
+      Hkpl = H(ip,j); Hkppl = H(ipp,j); Hkml = H(im,j); Hkmml = H(imm,j); Hkl = H(i,j)
+      Hklp = H(i,jp); Hklpp = H(i,jpp); Hklm = H(i,jm); Hklmm = H(i,jmm)
 
-  ! calculate l+1/2 index
-  H_l_up_m = minus(Hklm, Hkl, Hklp)
-  H_l_up_p = pluss(Hkl, Hklp, Hklpp)
-  H_l_up_m = max(H_l_up_m, 0._rkind)
-  H_l_up_p = max(H_l_up_p, 0._rkind)
+      ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
+      call refl(S(ip,j ), S(i,j ), S(im,j ), wet(ip,j ), wet(im,j ), Xkpl , Xkml )
+      call refl(S(ip,jp), S(i,jp), S(im,jp), wet(ip,jp), wet(im,jp), Xkplp, Xkmlp)
+      call refl(S(ip,jm), S(i,jm), S(im,jm), wet(ip,jm), wet(im,jm), Xkplm, Xkmlm)
+      call refl(S(i ,jp), S(i,j ), S(i ,jm), wet(i,jp ), wet(i,jm ), Xklp , Xklm )
+      call refl(S(ip,jp), S(ip,j), S(ip,jm), wet(ip,jp), wet(ip,jm), Yplp , Yplm )
+      call refl(S(im,jp), S(im,j), S(im,jm), wet(im,jp), wet(im,jm), Ymlp , Ymlm )
 
-  ! calculate l-1/2 index
-  H_l_dn_m = minus(Hklmm, Hklm, Hkl)
-  H_l_dn_p = pluss(Hklm, Hkl, Hklp)
-  H_l_dn_m = max(H_l_dn_m, 0._rkind)
-  H_l_dn_p = max(H_l_dn_p, 0._rkind)
+      ! l direction: up face l+1/2, down face l-1/2
+      H_up_m = max(minus(Hklm, Hkl, Hklp), 0._rkind)
+      H_up_p = max(pluss(Hkl, Hklp, Hklpp), 0._rkind)
+      H_dn_m = max(minus(Hklmm, Hklm, Hkl), 0._rkind)
+      H_dn_p = max(pluss(Hklm, Hkl, Hklp), 0._rkind)
+      f_p = flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dx, dy, n)
+      f_m = flux(Xkpl, Xkml, Xkplm, Xkmlm, Skl, Sklm, dx, dy, n)
+      D_l_up = faceD(Sklp, Skl, H_up_m, H_up_p, gamma*H_up_m**(n+2_i4b)*f_p, gamma*H_up_p**(n+2_i4b)*f_p)
+      D_l_dn = faceD(Skl, Sklm, H_dn_m, H_dn_p, gamma*H_dn_m**(n+2_i4b)*f_m, gamma*H_dn_p**(n+2_i4b)*f_m)
+      ! no flow across a face with either cell outside the mask
+      if(mask(i,j)==0 .or. mask(i,jp)==0) D_l_up = 0._rkind
+      if(mask(i,j)==0 .or. mask(i,jm)==0) D_l_dn = 0._rkind
 
-  ! calculate l flux
-  f_l_p = flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dx, dy, n)
-  f_l_m = flux(Xkpl, Xkml, Xkplm, Xkmlm, Skl, Sklm, dx, dy, n)
+      ! k direction: up face k+1/2, down face k-1/2
+      H_up_m = max(minus(Hkml, Hkl, Hkpl), 0._rkind)
+      H_up_p = max(pluss(Hkl, Hkpl, Hkppl), 0._rkind)
+      H_dn_m = max(minus(Hkmml, Hkml, Hkl), 0._rkind)
+      H_dn_p = max(pluss(Hkml, Hkl, Hkpl), 0._rkind)
+      f_p = flux(Xklp, Xklm, Yplp, Yplm, Skpl, Skl, dy, dx, n)
+      f_m = flux(Xklp, Xklm, Ymlp, Ymlm, Skl, Skml, dy, dx, n)
+      D_k_up = faceD(Skpl, Skl, H_up_m, H_up_p, gamma*H_up_m**(n+2_i4b)*f_p, gamma*H_up_p**(n+2_i4b)*f_p)
+      D_k_dn = faceD(Skl, Skml, H_dn_m, H_dn_p, gamma*H_dn_m**(n+2_i4b)*f_m, gamma*H_dn_p**(n+2_i4b)*f_m)
+      if(mask(i,j)==0 .or. mask(ip,j)==0) D_k_up = 0._rkind
+      if(mask(i,j)==0 .or. mask(im,j)==0) D_k_dn = 0._rkind
 
-  ! calculate l Diffusivity
-  D_l_up_m = gamma * H_l_up_m**(n+2_i4b) * f_l_p  ! equation 30 Jarosh 2013
-  D_l_up_p = gamma * H_l_up_p**(n+2_i4b) * f_l_p  ! equation 30 Jarosh 2013
-  D_l_up_min = min(D_l_up_m, D_l_up_p)            ! equation 31 Jarosh 2013
-  D_l_up_max = max(D_l_up_m, D_l_up_p)            ! equation 32 Jarosh 2013
-  !
-  D_l_dn_m = gamma * H_l_dn_m**(n+2_i4b) * f_l_m  ! equation 30 Jarosh 2013
-  D_l_dn_p = gamma * H_l_dn_p**(n+2_i4b) * f_l_m  ! equation 30 Jarosh 2013
-  D_l_dn_min = min(D_l_dn_m, D_l_dn_p)            ! equation 31 Jarosh 2013
-  D_l_dn_max = max(D_l_dn_m, D_l_dn_p)            ! equation 32 Jarosh 2013
+      ! largest diffusivity sets the time step
+      if(abs(D_k_up) > divisor) divisor = abs(D_k_up)
+      if(abs(D_k_dn) > divisor) divisor = abs(D_k_dn)
+      if(abs(D_l_up) > divisor) divisor = abs(D_l_up)
+      if(abs(D_l_dn) > divisor) divisor = abs(D_l_dn)
 
-  ! equation 33 Jarosh 2013
-  D_l_up = 0._rkind
-  do i = 1, ny
-    do j = 1, nx
-      if(Sklp(j,i) <= Skl(j,i) .and. H_l_up_m(j,i) <= H_l_up_p(j,i))then
-        D_l_up(j,i) = D_l_up_min(j,i)
-      else if(Sklp(j,i) <= Skl(j,i) .and. H_l_up_m(j,i) > H_l_up_p(j,i))then
-        D_l_up(j,i) = D_l_up_max(j,i)
-      else if(Sklp(j,i) > Skl(j,i) .and. H_l_up_m(j,i) <= H_l_up_p(j,i))then
-        D_l_up(j,i) = D_l_up_max(j,i)
-      else if(Sklp(j,i) > Skl(j,i) .and. H_l_up_m(j,i) > H_l_up_p(j,i))then
-        D_l_up(j,i) = D_l_up_min(j,i)
-      endif
+      ! equation 36 Jarosh 2013
+      div_q(i,j) = SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx) + SIA(D_l_up, Sklp, Skl, D_l_dn, Sklm, dy)
     enddo
   enddo
-  D_l_dn = 0._rkind
-  do i = 1, ny
-    do j = 1, nx
-      if(Skl(j,i) <= Sklm(j,i) .and. H_l_dn_m(j,i) <= H_l_dn_p(j,i))then
-        D_l_dn(j,i) = D_l_dn_min(j,i)
-      else if(Skl(j,i) <= Sklm(j,i) .and. H_l_dn_m(j,i) > H_l_dn_p(j,i))then
-        D_l_dn(j,i) = D_l_dn_max(j,i)
-      else if(Skl(j,i) > Sklm(j,i) .and. H_l_dn_m(j,i) <= H_l_dn_p(j,i))then
-        D_l_dn(j,i) = D_l_dn_max(j,i)
-      else if(Skl(j,i) > Sklm(j,i) .and. H_l_dn_m(j,i) > H_l_dn_p(j,i))then
-        D_l_dn(j,i) = D_l_dn_min(j,i)
-      endif
-    enddo
-  enddo
-  ! no flow across a face with either cell outside the mask
-  D_l_up = merge(0._rkind, D_l_up, mask==0 .or. mask(k,lp)==0)
-  D_l_dn = merge(0._rkind, D_l_dn, mask==0 .or. mask(k,lm)==0)
-
-  ! calculate k+1/2 index
-  H_k_up_m = minus(Hkml, Hkl, Hkpl)
-  H_k_up_p = pluss(Hkl, Hkpl, Hkppl)
-  H_k_up_m = max(H_k_up_m, 0._rkind)
-  H_k_up_p = max(H_k_up_p, 0._rkind)
-
-  ! calculate k-1/2 index
-  H_k_dn_m = minus(Hkmml, Hkml, Hkl)
-  H_k_dn_p = pluss(Hkml, Hkl, Hkpl)
-  H_k_dn_m = max(H_k_dn_m, 0._rkind)
-  H_k_dn_p = max(H_k_dn_p, 0._rkind)
-
-  ! calculate k flux
-  f_k_p = flux(Xklp, Xklm, Yplp, Yplm, Skpl, Skl, dy, dx, n)
-  f_k_m = flux(Xklp, Xklm, Ymlp, Ymlm, Skl, Skml, dy, dx, n)
-
-  ! calculate k Diffusivity
-  D_k_up_m = gamma * H_k_up_m**(n+2_i4b) * f_k_p  ! equation 30 Jarosh 2013
-  D_k_up_p = gamma * H_k_up_p**(n+2_i4b) * f_k_p  ! equation 30 Jarosh 2013
-  D_k_up_min = min(D_k_up_m, D_k_up_p)            ! equation 31 Jarosh 2013
-  D_k_up_max = max(D_k_up_m, D_k_up_p)            ! equation 32 Jarosh 2013
-  !
-  D_k_dn_m = gamma * H_k_dn_m**(n+2_i4b) * f_k_m  ! equation 30 Jarosh 2013
-  D_k_dn_p = gamma * H_k_dn_p**(n+2_i4b) * f_k_m  ! equation 30 Jarosh 2013
-  D_k_dn_min = min(D_k_dn_m, D_k_dn_p)            ! equation 31 Jarosh 2013
-  D_k_dn_max = max(D_k_dn_m, D_k_dn_p)            ! equation 32 Jarosh 2013
-
-  ! equation 33 Jarosh 2013
-  D_k_up = 0._rkind
-  do i = 1, ny
-    do j = 1, nx
-      if(Skpl(j,i) <= Skl(j,i) .and. H_k_up_m(j,i) <= H_k_up_p(j,i))then
-        D_k_up(j,i) = D_k_up_min(j,i)
-      else if(Skpl(j,i) <= Skl(j,i) .and. H_k_up_m(j,i) > H_k_up_p(j,i))then
-        D_k_up(j,i) = D_k_up_max(j,i)
-      else if(Skpl(j,i) > Skl(j,i) .and. H_k_up_m(j,i) <= H_k_up_p(j,i))then
-        D_k_up(j,i) = D_k_up_max(j,i)
-      else if(Skpl(j,i) > Skl(j,i) .and. H_k_up_m(j,i) > H_k_up_p(j,i))then
-        D_k_up(j,i) = D_k_up_min(j,i)
-      endif
-    enddo
-  enddo
-  D_k_dn = 0._rkind
-  do i = 1, ny
-    do j = 1, nx
-      if(Skl(j,i) <= Skml(j,i) .and. H_k_dn_m(j,i) <= H_k_dn_p(j,i))then
-        D_k_dn(j,i) = D_k_dn_min(j,i)
-      else if(Skl(j,i) <= Skml(j,i) .and. H_k_dn_m(j,i) > H_k_dn_p(j,i))then
-        D_k_dn(j,i) = D_k_dn_max(j,i)
-      else if(Skl(j,i) > Skml(j,i) .and. H_k_dn_m(j,i) <= H_k_dn_p(j,i))then
-        D_k_dn(j,i) = D_k_dn_max(j,i)
-      else if(Skl(j,i) > Skml(j,i) .and. H_k_dn_m(j,i) > H_k_dn_p(j,i))then
-        D_k_dn(j,i) = D_k_dn_min(j,i)
-      endif
-    enddo
-  enddo
-  ! no flow across a face with either cell outside the mask
-  D_k_up = merge(0._rkind, D_k_up, mask==0 .or. mask(kp,l)==0)
-  D_k_dn = merge(0._rkind, D_k_dn, mask==0 .or. mask(km,l)==0)
+  end associate
 
   ! calculate delta t and t
-  divisor = max(maxval(abs(D_k_up)), maxval(abs(D_k_dn)), maxval(abs(D_l_up)), maxval(abs(D_l_dn)))
   if(divisor == 0._rkind)then
     dt_cfl = max_dt
   else
     dt_cfl = cfl * min(dy**2, dx**2) / divisor
   endif
-
-  ! Calculate the time step values
-  div_l = SIA(D_l_up, Sklp, Skl, D_l_dn, Sklm, dy) ! equation 36 Jarosh 2013
-  div_k = SIA(D_k_up, Skpl, Skl, D_k_dn, Skml, dx) ! equation 36 Jarosh 2013
-  div_q = div_k + div_l
-
-  end associate
 
 end subroutine diffusion_MUSCL
 
@@ -1451,6 +1335,24 @@ pure elemental function SIA(Dup, Sup, S, Ddn, Sdn, d)
 
   SIA = (Dup * (Sup - S) / d - Ddn * (S - Sdn) / d) / d
 end function SIA
+
+! equations 31-33 Jarosh 2013: diffusivity on a face from the upwind choice of the two reconstructed values
+pure elemental function faceD(Sa, Sb, Hm, Hp, Dm, Dp)
+  implicit none
+  real(rkind), intent(in) :: Sa, Sb, Hm, Hp, Dm, Dp  ! surface either side of the face, thickness and diffusivity from each reconstruction
+  real(rkind) :: faceD
+
+  faceD = 0._rkind
+  if(Sa <= Sb .and. Hm <= Hp)then
+    faceD = min(Dm, Dp)
+  else if(Sa <= Sb .and. Hm > Hp)then
+    faceD = max(Dm, Dp)
+  else if(Sa > Sb .and. Hm <= Hp)then
+    faceD = max(Dm, Dp)
+  else if(Sa > Sb .and. Hm > Hp)then
+    faceD = min(Dm, Dp)
+  endif
+end function faceD
 
 ! neighbours p and m of centre c for a centred difference; one without ice is the reflection of the other, both: c
 pure elemental subroutine refl(p, c, m, hasP, hasM, xp, xm)
