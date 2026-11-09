@@ -27,14 +27,13 @@ RUN_LABEL="$1"
 # Experiment configuration
 # ----------------------------------------------------------------------
 
-RUN_LABEL="$1"
 MANIFEST="$HOME/data/century/MM/$RUN_LABEL/settings/manifest_century.toml"
 
 # ----------------------------------------------------------------------
 # Runtime environment
 # ----------------------------------------------------------------------
 
-source "$HOME/models/summa/build/cmake/env_summa.fir.bash"
+source "$HOME/models/summa/utils/hpc/fir/env_summa.fir.bash"
 
 echo "--------------------------------------------------"
 echo "SUMMA model-instance scaling experiment"

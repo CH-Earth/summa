@@ -450,14 +450,4 @@ else()
     target_link_libraries(${EXEC_NAME_OPT} PRIVATE summa PARALLEL_UTILS)
   endif()
 
-  # Standalone calibration executable
-  if (USE_MPI)
-    add_executable(calibration_mpi.exe
-      ${CALIBR_DIR}/calibration_driver.f90
-      ${CALIBR_DIR}/test_model.f90
-    )
-    target_compile_options(calibration_mpi.exe PRIVATE ${FLAGS_ALL})
-    target_link_libraries(calibration_mpi.exe PRIVATE SUMMA_NRTYPE PARALLEL_UTILS)
-  endif()
-
 endif()

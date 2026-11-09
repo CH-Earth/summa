@@ -34,9 +34,3 @@ set(CALIBR_MPI
     ${CALIBR_DIR}/dynamic_case_dispatch.f90
     ${CALIBR_DIR}/summa_parameter_sampling.f90
 )
-
-# Standalone calibration driver and test model
-set(CALIBR_STANDALONE
-    ${CALIBR_DIR}/calibration_driver.f90
-    ${CALIBR_DIR}/test_model.f90
-)

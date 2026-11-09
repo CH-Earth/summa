@@ -126,16 +126,17 @@ end_date   = "2018-07-31"
 
 n_samples = ${N_SAMPLES}
 
-param_list = [
-    "frozenPrecipMultip",
-    "tempCritRain",
-    "glacierWindFactor",
-    "glacierTempReduction",
-    "albedoMax",
-    "aquiferBaseflowExp"
-]
-
 write_aligned = false
+
+
+[calibration.parameters]
+
+frozenPrecipMultip   = {}
+tempCritRain         = {}
+glacierWindFactor    = {}
+glacierTempReduction = {}
+albedoMax            = {}
+aquiferBaseflowExp   = {}
 
 
 [calibration.nsga2]
@@ -147,7 +148,8 @@ population_size = ${POPULATION}
 
 name      = "gulkana_discharge"
 variable  = "streamflow"
-reach     = 1
+spatial_unit = "reach"
+spatial_id   = 1
 obs_path  = "${DATA}/observations/"
 obs_file  = "gulkana_USGS_15478040_daily_flow.nc"
 vname_obs = "q_obs"
@@ -158,7 +160,8 @@ metric    = "kge"
 
 name      = "wolverine_discharge"
 variable  = "streamflow"
-reach     = 2
+spatial_unit = "reach"
+spatial_id   = 2
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_USGS_15236900_daily_flow.nc"
 vname_obs = "q_obs"
@@ -169,7 +172,8 @@ metric    = "kge"
 
 name      = "gulkana_grace"
 variable  = "basin__StorageChange"
-gru       = 1
+spatial_unit = "gru"
+spatial_id   = 1
 obs_path  = "${DATA}/observations/"
 obs_file  = "gulkana_grace_tws.nc"
 vname_obs = "tws_obs"
@@ -183,7 +187,8 @@ baseline_end   = "2018-07-31"
 
 name      = "wolverine_grace"
 variable  = "basin__StorageChange"
-gru       = 2
+spatial_unit = "gru"
+spatial_id   = 2
 obs_path  = "${DATA}/observations/"
 obs_file  = "wolverine_grace_tws.nc"
 vname_obs = "tws_obs"

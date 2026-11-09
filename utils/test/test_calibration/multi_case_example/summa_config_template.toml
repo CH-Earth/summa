@@ -128,33 +128,28 @@ n_samples      = 1000
 start_date     = "1983-10-01"
 end_date       = "1990-09-30"
 
-param_list = [
-    "k_soil",
-    "theta_sat",
-    "aquiferBaseflowExp",
-    "aquiferBaseflowRate",
-    "qSurfScale",
-    "summerLAI",
-    "frozenPrecipMultip",
-    "Fcapil",
-    "tempCritRain",
-    "heightCanopyTop",
-    "heightCanopyBottom",
-    "windReductionParam",
-    "vGn_n",
-    "routingGammaScale",
-    "routingGammaShape",
-    "critSoilTranspire",
-    "fieldCapacity"
-]
-
 write_aligned  = false
 
 
-[calibration.parameter_transformations]
+[calibration.parameters]
 
-k_soil              = "log"
-aquiferBaseflowRate = "log"
+k_soil              = { transformation = "log" }
+theta_sat           = {}
+aquiferBaseflowExp  = {}
+aquiferBaseflowRate = { transformation = "log" }
+qSurfScale          = {}
+summerLAI           = {}
+frozenPrecipMultip  = {}
+Fcapil              = {}
+tempCritRain        = {}
+heightCanopyTop     = {}
+heightCanopyBottom  = {}
+windReductionParam  = {}
+vGn_n               = {}
+routingGammaScale   = {}
+routingGammaShape   = {}
+critSoilTranspire   = {}
+fieldCapacity       = {}
 
 
 [[parameter_dependencies.ordered]]
@@ -162,6 +157,9 @@ parameters   = ["heightCanopyBottom", "heightCanopyTop"]
 gap_fraction = 0.25
 
 [[parameter_dependencies.ordered]]
-parameters = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+parameters = ["theta_res", "critSoilWilting", "critSoilTranspire", "theta_sat"]
 gap_fraction = 0.025
-sample_gaps  = true
+
+[[parameter_dependencies.ordered]]
+parameters = ["theta_res", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025

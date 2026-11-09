@@ -6,6 +6,7 @@
 # targets: daily discharge (KGE) and the GRACE storage anomaly (RMSE). The same sample
 # budget is spent twice - by NSGA-II on the two objectives, and by DDS on their weighted
 # sum - and the script checks the NSGA-II front, then compares what each search found.
+# The DDS run also scores a zero-weight Box-Cox NSE diagnostic, which must not steer the search.
 #
 # The budget is tiny, so this exercises the machinery; it does not settle which search is
 # better. Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON.
@@ -216,6 +217,24 @@ baseline_end   = "2004-12-31"
 metric         = "rmse"
 weight         = ${GRACE_WEIGHT}
 EOF
+  # DDS also scores a zero-weight diagnostic, saved but left out of the search (NSGA-II refuses one)
+  if [ "${algorithm}" = "dds" ]; then
+    cat >> "${dir}/config.toml" <<EOF
+
+
+[[calibration.target]]
+
+name          = "discharge_boxcox"
+variable      = "streamflow"
+obs_path      = "${DATA}/observations/"
+obs_file      = "CAN_05BB001_daily_flow_2002-2017.nc"
+vname_obs     = "q_obs"
+metric        = "nse"
+obs_transform = "boxcox"
+boxcox_lambda = 0.2
+weight        = 0.0
+EOF
+  fi
 }
 
 # run_search <algorithm>
@@ -314,6 +333,13 @@ check(nf >= 1, f"the front holds {nf} trial(s)")
 
 # compare with DDS on the weighted sum, same budget
 dd, obj_dds, _, failed_dds = load("dds")
+check(obj_dds.shape[0] == 3, "DDS records 3 targets, the third a diagnostic")
+tn = dd["target_name"][:]
+names = [str(n).strip() for n in (nc.chartostring(tn) if tn.ndim == 2 else tn)]
+check(names[2] == "discharge_boxcox", "the diagnostic is labelled discharge_boxcox")
+check(float(dd["target_weight"][2]) == 0.0, "the diagnostic is saved with weight 0")
+check(float(dd["target_boxcox_lambda"][2]) == 0.2, "the diagnostic is saved with Box-Cox exponent 0.2")
+check(bool(np.all(np.isfinite(obj_dds[2, ~failed_dds]))), "the diagnostic is finite on every trial that ran")
 f_dds = oriented(obj_dds, sense, failed_dds)
 ref = np.maximum(f[:, ~failed].max(axis=1), f_dds[:, ~failed_dds].max(axis=1))
 hv_n, hv_d = hypervolume(f, ref), hypervolume(f_dds, ref)

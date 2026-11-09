@@ -159,31 +159,26 @@ end_date   = "2004-12-31"
 
 n_samples = ${N_TRIALS}
 
-param_list = [
-    "k_soil",
-    "theta_sat",
-    "aquiferBaseflowExp",
-    "aquiferBaseflowRate",
-    "qSurfScale",
-    "summerLAI",
-    "frozenPrecipMultip",
-    "Fcapil",
-    "tempCritRain",
-    "heightCanopyTop",
-    "heightCanopyBottom",
-    "windReductionParam",
-    "vGn_n",
-    "routingGammaScale",
-    "routingGammaShape"
-]
-
 write_aligned = false
 
 
-[calibration.parameter_transformations]
+[calibration.parameters]
 
-k_soil              = "log"
-aquiferBaseflowRate = "log"
+k_soil              = { transformation = "log" }
+theta_sat           = {}
+aquiferBaseflowExp  = {}
+aquiferBaseflowRate = { transformation = "log" }
+qSurfScale          = {}
+summerLAI           = {}
+frozenPrecipMultip  = {}
+Fcapil              = {}
+tempCritRain        = {}
+heightCanopyTop     = {}
+heightCanopyBottom  = {}
+windReductionParam  = {}
+vGn_n               = {}
+routingGammaScale   = {}
+routingGammaShape   = {}
 
 
 [[parameter_dependencies.ordered]]
@@ -193,9 +188,12 @@ gap_fraction = 0.25
 
 [[parameter_dependencies.ordered]]
 
-parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "theta_sat"]
 gap_fraction = 0.025
-sample_gaps  = true
+
+[[parameter_dependencies.ordered]]
+parameters   = ["theta_res", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
 EOF
 
 echo "Running calibration..."
