@@ -11,268 +11,252 @@ module write_evaluation_module
 contains
 
   ! **************************************************************************************************
-  ! Write objective-function evaluation results to the SUMMA NetCDF output file.
-  ! The objective-function value is always written. The aligned observed and
-  ! simulated streamflow time series are written only when write_aligned is true.
+  ! Write one calibration target to its own NetCDF4 group, under /evaluation/<targetName>.
+  !
+  ! Each target has an independent time dimension. This is essential when, for example, daily
+  ! streamflow is scored alongside irregularly spaced GRACE storage observations.
+  ! The exact observation time bounds are retained, rather than inferred from adjacent timestamps.
+  ! Optional inputs precede err/message; callers use keyword error arguments.
   ! **************************************************************************************************
-  subroutine write_evaluation(ncid,write_aligned,          &
-                              timeEval,flowObs,flowSim,   &
-                              timeUnits,flowUnits,        &
-                              metric,transformation,      &
-                              objective,                  &
-                              err,message)
+  subroutine write_evaluation(ncid,targetName,write_aligned,                    &
+                              timeEval,timeBounds,valObs,valSim,nSimSteps,     &
+                              timeUnits,valUnits,metric,transformation,       &
+                              objective,boxcox_lambda,err,message)
     integer(i4b), intent(in)  :: ncid
+    character(*), intent(in)  :: targetName
     logical, intent(in)       :: write_aligned
     real(rkind), intent(in)   :: timeEval(:)
-    real(rkind), intent(in)   :: flowObs(:)
-    real(rkind), intent(in)   :: flowSim(:)
+    real(rkind), intent(in)   :: timeBounds(:,:) ! (2,nEval), in timeUnits
+    real(rkind), intent(in)   :: valObs(:)
+    real(rkind), intent(in)   :: valSim(:)
+    integer(i4b), intent(in) :: nSimSteps(:)
     character(*), intent(in)  :: timeUnits
-    character(*), intent(in)  :: flowUnits
+    character(*), intent(in)  :: valUnits
     character(*), intent(in)  :: metric
     character(*), intent(in)  :: transformation
     real(rkind), intent(in)   :: objective
+    real(rkind), optional, intent(in) :: boxcox_lambda
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-    character(len=256) :: cmessage
+    integer(i4b) :: groupTarget
+    character(len=512) :: cmessage
 
     err = 0
     message = 'write_evaluation/'
 
-    ! define objective-function variable
-    call define_objective(ncid,metric,transformation,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    ! optionally define aligned evaluation time series
+    ! All diagnostics must refer to the same observation intervals.
     if(write_aligned)then
-      call define_evaluation_series(ncid,size(timeEval),timeUnits,flowUnits,err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(size(valObs)/=size(timeEval) .or. size(valSim)/=size(timeEval) .or. &
+         size(nSimSteps)/=size(timeEval))then
+        message=trim(message)//'evaluation time-series dimensions differ'
+        err=20; return
+      endif
+      if(size(timeBounds,1)/=2 .or. size(timeBounds,2)/=size(timeEval))then
+        message=trim(message)//'evaluation time bounds must have shape (2,nEval)'
+        err=20; return
+      endif
+    endif
+    if(len_trim(targetName)==0)then
+      message=trim(message)//'calibration target name is empty'
+      err=20; return
     endif
 
-    ! write objective-function value
-    call write_objective(ncid,objective,err,cmessage)
+    call define_evaluation_target(ncid,targetName,write_aligned,size(timeEval),timeUnits,valUnits,metric, &
+                                  transformation,groupTarget,boxcox_lambda=boxcox_lambda,ierr=err, &
+                                  message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! optionally write aligned evaluation time series
-    if(write_aligned)then
-      call write_evaluation_series(ncid,timeEval,flowObs,flowSim,err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
+    call write_evaluation_values(groupTarget,write_aligned,timeEval,timeBounds, &
+                                 valObs,valSim,nSimSteps,objective,err,cmessage)
+    if(err/=0) message=trim(message)//trim(cmessage)
 
   end subroutine write_evaluation
 
   ! **************************************************************************************************
-  ! Add the objective-function variable and metadata to an existing SUMMA NetCDF file.
+  ! Define one target group and all its variables in the existing SUMMA NetCDF4 output file.
+  ! Repeated target names are an error: each target must own a unique group.
   ! **************************************************************************************************
-  subroutine define_objective(ncid,metric,transformation,ierr,message)
-    integer(i4b), intent(in)  :: ncid
-    character(*), intent(in)  :: metric
-    character(*), intent(in)  :: transformation
+  subroutine define_evaluation_target(ncid,targetName,write_aligned,nEval,            &
+                                      timeUnits,valUnits,metric,transformation,      &
+                                      groupTarget,boxcox_lambda,ierr,message)
+    use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan, ieee_is_finite
+    integer(i4b), intent(in)  :: ncid,nEval
+    character(*), intent(in)  :: targetName,timeUnits,valUnits,metric,transformation
+    logical, intent(in)       :: write_aligned
+    integer(i4b), intent(out) :: groupTarget
+    real(rkind), optional, intent(in) :: boxcox_lambda
     integer(i4b), intent(out) :: ierr
     character(*), intent(out) :: message
-    integer(i4b) :: varid_obj
+    integer(i4b) :: groupEval
+    integer(i4b) :: dimTime,dimNv
+    integer(i4b) :: varObjective,varTime,varBounds,varObs,varSim,varSteps
     integer(i4b) :: ierr_enddef
+    real(rkind) :: nanValue,lambda
     logical :: in_define
 
-    ierr = 0
-    message = 'define_objective/'
-    in_define = .false.
+    ierr=0
+    message='define_evaluation_target/'
+    in_define=.false.
+    nanValue=ieee_value(0._rkind,ieee_quiet_nan)
+    lambda=0.25_rkind
+    if(present(boxcox_lambda)) lambda=boxcox_lambda
+    if(trim(transformation)=='boxcox')then
+      if(.not.ieee_is_finite(lambda))then
+        message=trim(message)//'Box-Cox exponent must be finite'
+        ierr=20; return
+      endif
+    endif
+
     netcdf_block: block
+      ! SUMMA uses NetCDF4, so groups and independent time dimensions are supported.
+      ierr=nf90_redef(ncid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      in_define=.true.
 
-      ! enter (re)-define mode
-      ierr = nf90_redef(ncid)
-      if(ierr/=nf90_noerr) exit netcdf_block
-      in_define = .true.
+      ierr=nf90_inq_ncid(ncid,'evaluation',groupEval)
+      if(ierr/=nf90_noerr)then
+        ierr=nf90_def_grp(ncid,'evaluation',groupEval)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
 
-      ! objective-function value
-      ierr = nf90_def_var(ncid,'objective',NF90_DOUBLE,varid=varid_obj)
+      ierr=nf90_def_grp(groupEval,trim(targetName),groupTarget)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_obj,'long_name','objective-function value')
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_obj,'metric',trim(metric))
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_obj,'transformation',trim(transformation))
+      ierr=nf90_put_att(groupTarget,NF90_GLOBAL,'target_name',trim(targetName))
       if(ierr/=nf90_noerr) exit netcdf_block
 
-      ! leave define mode
-      ierr = nf90_enddef(ncid)
+      ! A scalar objective is always present, even if diagnostics are disabled.
+      ierr=nf90_def_var(groupTarget,'objective',NF90_DOUBLE,varid=varObjective)
       if(ierr/=nf90_noerr) exit netcdf_block
-      in_define = .false.
+      ierr=nf90_put_att(groupTarget,varObjective,'long_name','objective-function value')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(groupTarget,varObjective,'metric',trim(metric))
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(groupTarget,varObjective,'transformation',trim(transformation))
+      if(ierr/=nf90_noerr) exit netcdf_block
+      if(trim(transformation)=='boxcox')then
+        ierr=nf90_put_att(groupTarget,varObjective,'boxcox_lambda',lambda)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varObjective,'boxcox_definition', &
+                          '(Q**lambda-1)/lambda; lambda=0: log(Q); no offset')
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
 
+      if(write_aligned)then
+        ! Target-local dimensions: different targets may have different numbers of observations.
+        ierr=nf90_def_dim(groupTarget,'time',nEval,dimTime)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_def_dim(groupTarget,'nv',2,dimNv)
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(groupTarget,'time',NF90_DOUBLE,(/dimTime/),varTime)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varTime,'standard_name','time')
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varTime,'units',trim(timeUnits))
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varTime,'bounds','time_bnds')
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ! Fortran dimensions (nv,time) appear as (time,nv) in ncdump / CF files.
+        ierr=nf90_def_var(groupTarget,'time_bnds',NF90_DOUBLE,(/dimNv,dimTime/),varBounds)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varBounds,'units',trim(timeUnits))
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(groupTarget,'obs',NF90_DOUBLE,(/dimTime/),varObs)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varObs,'long_name','observed values used for evaluation')
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varObs,'units',trim(valUnits))
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varObs,'_FillValue',nanValue)
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(groupTarget,'sim',NF90_DOUBLE,(/dimTime/),varSim)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varSim,'long_name','simulated values aligned to observation periods')
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varSim,'units',trim(valUnits))
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varSim,'_FillValue',nanValue)
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_def_var(groupTarget,'n_sim_steps',NF90_INT,(/dimTime/),varSteps)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_att(groupTarget,varSteps,'long_name', &
+                          'number of simulated time steps in observation period')
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
+
+      ierr=nf90_enddef(ncid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      in_define=.false.
     end block netcdf_block
 
-    ! process NetCDF errors
     if(ierr/=nf90_noerr)then
-      message = trim(message)//trim(nf90_strerror(ierr))
-      if(in_define) ierr_enddef = nf90_enddef(ncid)
+      message=trim(message)//'target "'//trim(targetName)//'": '//trim(nf90_strerror(ierr))
+      if(in_define) ierr_enddef=nf90_enddef(ncid)
       return
     endif
-    ierr = 0
+    ierr=0
 
-  end subroutine define_objective
-
-  ! **************************************************************************************************
-  ! Add aligned objective-function evaluation time series to an existing SUMMA NetCDF file.
-  !
-  ! The evaluation time series has its own time dimension because the observation
-  ! timestep may differ from the native SUMMA simulation timestep.
-  ! **************************************************************************************************
-  subroutine define_evaluation_series(ncid,nEval,timeUnits,flowUnits, ierr,message)
-    use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
-    integer(i4b), intent(in)  :: ncid
-    integer(i4b), intent(in)  :: nEval
-    character(*), intent(in)  :: timeUnits
-    character(*), intent(in)  :: flowUnits
-    integer(i4b), intent(out) :: ierr
-    character(*), intent(out) :: message
-    integer(i4b) :: dim_eval
-    integer(i4b) :: varid_time
-    integer(i4b) :: varid_obs
-    integer(i4b) :: varid_sim
-    integer(i4b) :: ierr_enddef
-    real(rkind) :: nanValue
-    logical :: in_define
-
-    ierr = 0
-    message = 'define_evaluation_series/'
-    in_define = .false.
-    nanValue = ieee_value(0._rkind,ieee_quiet_nan)
-    netcdf_block: block
-
-      ! enter (re)-define mode
-      ierr = nf90_redef(ncid)
-      if(ierr/=nf90_noerr) exit netcdf_block
-      in_define = .true.
-
-      ! evaluation time dimension
-      ierr = nf90_def_dim(ncid,'eval_time',nEval,dim_eval)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ! evaluation time coordinate
-      ierr = nf90_def_var(ncid,'eval_time',NF90_DOUBLE,(/dim_eval/),varid_time)
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_time,'long_name','objective-function evaluation time')
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_time,'standard_name','time')
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_time,'units',trim(timeUnits))
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ! observed streamflow
-      ierr = nf90_def_var(ncid,'eval_qobs',NF90_DOUBLE,(/dim_eval/),varid_obs)
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_obs,'long_name','observed streamflow used for objective-function evaluation')
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_obs,'units',trim(flowUnits))
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_obs,'_FillValue',nanValue)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ! simulated streamflow aligned to observation periods
-      ierr = nf90_def_var(ncid,'eval_qsim',NF90_DOUBLE,(/dim_eval/),varid_sim)
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_sim,'long_name','simulated streamflow aligned to observation periods')
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_sim,'units',trim(flowUnits))
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_att(ncid,varid_sim,'_FillValue',nanValue)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ! leave define mode
-      ierr = nf90_enddef(ncid)
-      if(ierr/=nf90_noerr) exit netcdf_block
-      in_define = .false.
-
-    end block netcdf_block
-
-    ! process NetCDF errors
-    if(ierr/=nf90_noerr)then
-      message = trim(message)//trim(nf90_strerror(ierr))
-      if(in_define) ierr_enddef = nf90_enddef(ncid)
-      return
-    endif
-    ierr = 0
-
-  end subroutine define_evaluation_series
+  end subroutine define_evaluation_target
 
   ! **************************************************************************************************
-  ! Write the objective-function value to an existing SUMMA NetCDF file.
+  ! Write scalar objective and optional target-specific aligned diagnostics.
   ! **************************************************************************************************
-  subroutine write_objective(ncid,objective,ierr,message)
-    integer(i4b), intent(in)  :: ncid
+  subroutine write_evaluation_values(groupTarget,write_aligned,       &
+                                     timeEval,timeBounds,valObs,valSim, &
+                                     nSimSteps,objective,ierr,message)
+    integer(i4b), intent(in)  :: groupTarget
+    logical, intent(in)       :: write_aligned
+    real(rkind), intent(in)   :: timeEval(:),timeBounds(:,:),valObs(:),valSim(:)
+    integer(i4b), intent(in) :: nSimSteps(:)
     real(rkind), intent(in)   :: objective
     integer(i4b), intent(out) :: ierr
     character(*), intent(out) :: message
-    integer(i4b) :: varid_obj
+    integer(i4b) :: varObjective,varTime,varBounds,varObs,varSim,varSteps
 
-    ierr = 0
-    message = 'write_objective/'
+    ierr=0
+    message='write_evaluation_values/'
+
     netcdf_block: block
-      ierr = nf90_inq_varid(ncid,'objective',varid_obj)
+      ierr=nf90_inq_varid(groupTarget,'objective',varObjective)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_put_var(ncid,varid_obj,objective)
+      ierr=nf90_put_var(groupTarget,varObjective,objective)
       if(ierr/=nf90_noerr) exit netcdf_block
+
+      if(write_aligned)then
+        ierr=nf90_inq_varid(groupTarget,'time',varTime)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_inq_varid(groupTarget,'time_bnds',varBounds)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_inq_varid(groupTarget,'obs',varObs)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_inq_varid(groupTarget,'sim',varSim)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_inq_varid(groupTarget,'n_sim_steps',varSteps)
+        if(ierr/=nf90_noerr) exit netcdf_block
+
+        ierr=nf90_put_var(groupTarget,varTime,timeEval)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_var(groupTarget,varBounds,timeBounds)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_var(groupTarget,varObs,valObs)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_var(groupTarget,varSim,valSim)
+        if(ierr/=nf90_noerr) exit netcdf_block
+        ierr=nf90_put_var(groupTarget,varSteps,nSimSteps)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
     end block netcdf_block
 
-    ! process NetCDF errors
     if(ierr/=nf90_noerr)then
-      message = trim(message)//trim(nf90_strerror(ierr))
+      message=trim(message)//trim(nf90_strerror(ierr))
       return
     endif
-    ierr = 0
+    ierr=0
 
-  end subroutine write_objective
-
-  ! **************************************************************************************************
-  ! Write aligned observed and simulated streamflow time series to an existing SUMMA NetCDF file.
-  ! **************************************************************************************************
-  subroutine write_evaluation_series(ncid,timeEval,flowObs,flowSim, ierr,message)
-    integer(i4b), intent(in)  :: ncid
-    real(rkind), intent(in)   :: timeEval(:)
-    real(rkind), intent(in)   :: flowObs(:)
-    real(rkind), intent(in)   :: flowSim(:)
-    integer(i4b), intent(out) :: ierr
-    character(*), intent(out) :: message
-    integer(i4b) :: varid_time
-    integer(i4b) :: varid_obs
-    integer(i4b) :: varid_sim
-
-    ierr = 0
-    message = 'write_evaluation_series/'
-
-    ! check dimensions
-    if(size(flowObs)/=size(timeEval) .or. size(flowSim)/=size(timeEval))then
-      message=trim(message)//'evaluation time-series dimensions differ'
-      ierr=20; return
-    endif
-    netcdf_block: block
-      ! get variable IDs
-      ierr = nf90_inq_varid(ncid,'eval_time',varid_time)
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_inq_varid(ncid,'eval_qobs',varid_obs)
-      if(ierr/=nf90_noerr) exit netcdf_block
-      ierr = nf90_inq_varid(ncid,'eval_qsim',varid_sim)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ! evaluation time coordinate
-      ierr = nf90_put_var(ncid,varid_time,timeEval)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ! observed streamflow
-      ierr = nf90_put_var(ncid,varid_obs,flowObs)
-      if(ierr/=nf90_noerr) exit netcdf_block
-
-      ! simulated streamflow
-      ierr = nf90_put_var(ncid,varid_sim,flowSim)
-      if(ierr/=nf90_noerr) exit netcdf_block
-    end block netcdf_block
-
-    ! process NetCDF errors
-    if(ierr/=nf90_noerr)then
-      message = trim(message)//trim(nf90_strerror(ierr))
-      return
-    endif
-    ierr = 0
-
-  end subroutine write_evaluation_series
+  end subroutine write_evaluation_values
 
 end module write_evaluation_module

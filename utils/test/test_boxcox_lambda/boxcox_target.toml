@@ -1,0 +1,13 @@
+# Additional diagnostic target; append to the existing explicit target list.
+# Requires BOTH the zero-weight diagnostic patch and the configurable Box-Cox patch.
+# This is an illustrative exponent, not a calibrated model parameter.
+[[calibration.target]]
+name          = "streamflow_nse_boxcox"
+variable      = "streamflow"
+obs_path      = "{home}/data/camels-spat/observations/obs-daily/"
+obs_file      = "{case_name}_daily_flow_observations.nc"
+vname_obs     = "q_obs"
+metric        = "nse"
+obs_transform = "boxcox"
+boxcox_lambda = 0.2
+weight        = 0.0

@@ -1,0 +1,24 @@
+# Replace corresponding parameter/dependency sections in a working case TOML.
+# Illustrative test bounds, not recommended scientific calibration bounds.
+[calibration.spatial_multipliers]
+theta_sat = { lower = 0.8, upper = 1.2 }
+
+[calibration.parameter_ratios]
+critSoilTranspire = { lower = 0.5, upper = 0.95, reference_reduction = "min" }
+critSoilWilting   = { lower = 0.2, upper = 0.9 }
+
+[[parameter_dependencies.parameter_ratio]]
+reference = "theta_sat"
+dependent = "critSoilTranspire"
+
+[[parameter_dependencies.parameter_ratio]]
+reference = "critSoilTranspire"
+dependent = "critSoilWilting"
+
+[[parameter_dependencies.ordered]]
+parameters = ["theta_res", "critSoilWilting"]
+gap_fraction = 0.01
+
+[[parameter_dependencies.ordered]]
+parameters = ["critSoilWilting", "critSoilTranspire", "theta_sat"]
+gap_fraction = 0.025

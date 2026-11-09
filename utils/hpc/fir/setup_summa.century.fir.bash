@@ -24,14 +24,14 @@ if [ ! -d "$SLURM_TMPDIR/data/century/MM/domain" ]; then
 
   echo "[$(hostname)] Staging Century data..."
 
-  cp "$HOME/data/century/MM/MM-exp.tar" \
+  cp "$HOME/data/century/MM/MM-domains.tar" \
      "$SLURM_TMPDIR/data/century/MM/"
 
   tar --warning=no-unknown-keyword \
-      -xf "$SLURM_TMPDIR/data/century/MM/MM-exp.tar" \
+      -xf "$SLURM_TMPDIR/data/century/MM/MM-domains.tar" \
       -C "$SLURM_TMPDIR/data/century/MM/"
 
-  rm "$SLURM_TMPDIR/data/century/MM/MM-exp.tar"
+  rm "$SLURM_TMPDIR/data/century/MM/MM-domains.tar"
 
   echo "[$(hostname)] Century data staged"
 
