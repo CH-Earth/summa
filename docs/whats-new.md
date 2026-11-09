@@ -74,8 +74,13 @@ covers the user-facing highlights.
 - Calibration parameters are listed in `[calibration.parameters]`, one entry per parameter,
   with optional `lower`, `upper` and `transformation`. Anything left out comes from the SUMMA
   parameter files (or code defaults) and the transformation defaults to `none`, so
-  `theta_sat = {}` is enough. The older `param_list = [...]` with
-  `[calibration.parameter_transformations]` is still accepted.
+  `theta_sat = {}` is enough. The older `param_list`, `parameter_transformations`,
+  `parameter_bounds` and ordered-chain `sample_gaps` keys are refused (PR #671).
+- `[calibration.spatial_multipliers]` and `[calibration.parameter_ratios]` search a factor on a
+  parameter's initialized field, or on another parameter, so spatial and layer patterns are kept
+  (PR #671).
+- A calibration target with `weight = 0.0` is scored and saved as a diagnostic without steering
+  DDS, and the Box-Cox exponent is set with `boxcox_lambda` (PR #671).
 
 ### Process options
 - New `infRateMax` decision for the maximum infiltration rate (`topmodel_GA`, `GreenAmpt`,

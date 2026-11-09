@@ -22,6 +22,7 @@ module indexState_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! derived types to define the data structures
 USE data_types,only:var_ilength                            ! data vector with variable length dimension (i4b)
@@ -333,13 +334,20 @@ contains
  integer(i4b)                                    :: ixTopMat        ! index of upper-most total water matric potential state in the soil subdomain
  integer(i4b)                                    :: ixTopLMP        ! index of upper-most liquid water matric potential state in the soil subdomain
  integer(i4b)                                    :: ixTopHydMat     ! index of upper-most hydrology matric potential state in the soil subdomain
- integer(i4b),dimension(in_indexSplit % nSubset) :: ixSequence      ! sequential index in model state vector
- logical(lgt),dimension(in_indexSplit % nSubset) :: stateTypeMask   ! mask of state vector for specific state subsets
- logical(lgt),dimension(in_indexSplit % nLayers) :: volFracWat_mask ! mask of layers within the layers
- logical(lgt),dimension(in_indexSplit % nSoil)   :: matricHead_mask ! mask of layers within the soil
+ integer(i4b),allocatable,save                   :: ixSequence(:)   ! sequential index in model state vector
+ logical(lgt),allocatable,save                   :: stateTypeMask(:) ! mask of state vector for specific state subsets
+ logical(lgt),allocatable,save                   :: volFracWat_mask(:) ! mask of layers within the layers
+ logical(lgt),allocatable,save                   :: matricHead_mask(:) ! mask of layers within the soil
  character(len=256)                              :: cmessage        ! error message of downwind routine
+ ! one copy of the scratch arrays per thread
+ !$omp threadprivate(ixSequence, stateTypeMask, volFracWat_mask, matricHead_mask)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ call sizeScratch(1,in_indexSplit%nSubset,ixSequence)
+ call sizeScratch(1,in_indexSplit%nSubset,stateTypeMask)
+ call sizeScratch(1,in_indexSplit%nLayers,volFracWat_mask)
+ call sizeScratch(1,in_indexSplit%nSoil,matricHead_mask)
+
  ! make association to variables in the data structures
  fullState: associate(&
  ! number of layers, total number of layers, and number of states in the subset
@@ -410,8 +418,10 @@ contains
  ! - preliminaries...
  ! ------------------
 
- ! define the type of variable in the layers
- do concurrent (iLayer=1:nLayers,ixHydLayer(iLayer)/=integerMissing)   ! loop through non-missing hydrology state variables in the layer domains
+! define the type of variable in the layers, layers with no hydrology state carry none
+ ixHydType(:) = integerMissing
+ do iLayer=1,nLayers   ! loop through non-missing hydrology state variables in the layer domains
+   if(ixHydLayer(iLayer)==integerMissing) cycle
    ixHydType(iLayer) = ixStateType( ixHydLayer(iLayer) )
  enddo
 

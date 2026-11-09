@@ -124,7 +124,7 @@ integer(i4b),parameter  :: nDomains=6                 ! number of domains (veget
 integer(i4b),parameter  :: nWork=32                   ! number of sets kept per thread
 type :: opSplit_work
   integer(i4b)             :: nLayers(4)=-1               ! snow, lake, soil and glacier ice layers the set was allocated for
-  integer(i4b)             :: lastUse=0                   ! call count at the last use of the set
+  integer(i8b)             :: lastUse=0                   ! call count at the last use of the set
   type(var_dlength)        :: prog_temp,diag_temp,flux_temp,flux_mean,flux_mntemp,deriv_data
   type(var_ilength)        :: fluxCount
   type(var_flagVec)        :: fluxMask
@@ -132,7 +132,7 @@ type :: opSplit_work
   type(io_type_varSubstep) :: io_varSubstep
 end type opSplit_work
 type(opSplit_work),target :: work(nWork)               ! cached sets
-integer(i4b)              :: nWorkCall=0              ! calls to opSplittin on this thread
+integer(i8b)              :: nWorkCall=0              ! calls to opSplittin on this thread
 !$omp threadprivate(work, nWorkCall)
 
 ! class definitions

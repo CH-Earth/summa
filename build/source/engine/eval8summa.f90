@@ -22,6 +22,7 @@ module eval8summa_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -202,30 +203,38 @@ subroutine eval8summa(&
   real(rkind)                     :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
   real(rkind)                     :: scalarCanopyWatTrial        ! trial value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerTempTrial             ! trial value for temperature of layers in the layer domains (K)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracWatTrial       ! trial value for volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadTrial       ! trial value for total water matric potential (m)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqTrial    ! trial value for liquid water matric potential (m)
+  real(rkind),allocatable,save    :: mLayerTempTrial(:)          ! trial value for temperature of layers in the layer domains (K)
+  real(rkind),allocatable,save    :: mLayerVolFracWatTrial(:)    ! trial value for volumetric fraction of total water (-)
+  real(rkind),allocatable,save    :: mLayerMatricHeadTrial(:)    ! trial value for total water matric potential (m)
+  real(rkind),allocatable,save    :: mLayerMatricHeadLiqTrial(:) ! trial value for liquid water matric potential (m)
   real(rkind)                     :: scalarAquiferStorageTrial   ! trial value of storage of water in the aquifer (m)
   ! diagnostic variables
   real(rkind)                     :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial        ! trial value for mass of ice on the vegetation canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial       ! trial value for volumetric fraction of liquid water (-)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial       ! trial value for volumetric fraction of ice (-)
+  real(rkind),allocatable,save    :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
+  real(rkind),allocatable,save    :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
   ! enthalpy
   real(rkind)                     :: scalarCanairEnthalpyTrial   ! trial value for enthalpy of the canopy air space (J m-3
   real(rkind)                     :: scalarCanopyEnthTempTrial   ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial         ! trial vector of temperature component of enthalpy for layers (J m-3)
+  real(rkind),allocatable,save    :: mLayerEnthTempTrial(:)      ! trial vector of temperature component of enthalpy for layers (J m-3)
   ! other local variables
   logical(lgt)                    :: checkLWBalance              ! flag to check longwave balance
   integer(i4b)                    :: ixTop,ixBot                 ! top and bottom defining desired layers
-  real(rkind),dimension(nState)   :: rVecScaled                  ! scaled residual vector
+  real(rkind),allocatable,save    :: rVecScaled(:)               ! scaled residual vector
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
   logical(lgt)                    :: updateStateCp               ! flag to indicate if we update Cp at each step for LHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: updateFluxCp                ! flag to indicate if we update Cp at each step for RHS, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                    :: needStateCm                 ! flag to indicate if the energy equation contains LHS Cm = dH_T/dTheta_m,, set with nrgConserv choice and needStateCm_closedForm flag
   logical(lgt),parameter          :: updateCp_closedForm=.true. ! nrgConserv = closedForm flag to indicate if we update Cp at each step
   logical(lgt),parameter          :: needCm_closedForm=.true.   ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(mLayerTempTrial, mLayerVolFracWatTrial, mLayerVolFracLiqTrial, mLayerVolFracIceTrial, &
+  !$omp& mLayerEnthTempTrial, mLayerMatricHeadTrial, mLayerMatricHeadLiqTrial, rVecScaled)
+
+  call sizeScratch(1,nLayers,mLayerTempTrial, mLayerVolFracWatTrial, mLayerVolFracLiqTrial, mLayerVolFracIceTrial, &
+                  &mLayerEnthTempTrial)
+  call sizeScratch(1,nSoil,mLayerMatricHeadTrial, mLayerMatricHeadLiqTrial)
+  call sizeScratch(1,nState,rVecScaled)
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -697,6 +706,7 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
   real(rkind)                 :: fNew        ! function values, not needed here
   integer(i4b)                :: err         ! error in imposeConstraints
   character(len=256)          :: message     ! error message of downwind routine
+  integer(i4b)                :: iState      ! index of state
   !======= Internals ============
 
   ! get equations data from user-defined data
@@ -714,7 +724,11 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
       eqns_data%stateVecPrev, eqns_data%nState, eqns_data%nSnow, eqns_data%nLake, eqns_data%nSoil, eqns_data%nGlce,message, err)
      if(err/=0)then; ierr=1; message="eval8summa4kinsol/"//trim(message); print*, message; return; end if  ! (check for errors)
   endif
-  eqns_data%stateVecPrev = stateVec(:)  ! save the state vector for the next iteration
+
+  ! save the state vector for the next iteration
+  do iState=1,eqns_data%nState 
+    eqns_data%stateVecPrev(iState) = stateVec(iState)
+  end do
   
   ! compute the flux and the residual vector for a given state vector
   call eval8summa(&
@@ -765,7 +779,9 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
   
   ! save residual and return success
-  eqns_data%resVec = rVec
+  do iState=1,eqns_data%nState
+    eqns_data%resVec(iState) = rVec(iState)
+  end do
   ierr = 0
   return
 

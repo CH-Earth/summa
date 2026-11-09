@@ -20,6 +20,10 @@ Tests and example domains for SUMMA, grouped by what they exercise:
   `test_calibration_wolverine.sh`, NSGA-II on two glacier basins, one GRU and reach each,
   scoring discharge, GRACE, mass balance and a synthetic well; and `multi_case_example/`, which calibrates several
   cases from one manifest on a stub dataset built from the bundled Bow domain.
+- [`test_calibration_units/`](test_calibration_units/README.md) -- unit tests of the calibration
+  modules (metrics, parameter fields, ordered constraints, optimizers, the SUMMA parameter
+  adapter), compiled from the production sources with gfortran alone; no SUMMA build, MPI,
+  TOML or NetCDF. Run `test_calibration_units/run_tests.sh`.
 - [`test_ngen/`](test_ngen/readme.md) -- example NextGen case studies (Provo,
   gauge_01073000) showing how a SUMMA setup looks under NextGen, run either
   standalone or coupled through ngen with t-route routing. Not a pass/fail
@@ -27,6 +31,7 @@ Tests and example domains for SUMMA, grouped by what they exercise:
 
 Runnable right after cloning, given a build with the options named above
 (see [docs/index.md](../../docs/index.md)): `test_mizuroute/test_mizuroute_bundled.sh`,
+`test_calibration_units/run_tests.sh` (gfortran only),
 `test_calibration/test_calibration_bow.sh`, `test_calibration/test_calibration_bow_pareto.sh`,
 `test_calibration/multi_case_example/make_stub_century.bash`
 followed by the run it prints.

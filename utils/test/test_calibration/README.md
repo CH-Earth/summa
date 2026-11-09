@@ -54,6 +54,18 @@ RMSE) count negatively - so a larger sum is always a better fit whatever mix of 
 a single target of weight one that sum is the metric itself, which is exactly what DDS maximized
 before targets existed.
 
+A target with `weight = 0.0` is a diagnostic: it is scored and saved with the others but takes no part
+in the search. A diagnostic that cannot be computed (say, a constant series, or a logarithm of a zero
+flow) is saved as missing and logged, and the trial stands; the same failure in a target with a
+positive weight fails the trial. Weights must be finite and not negative, at least one must be
+positive, and NSGA-II does not take diagnostics, since every target it is given is an objective. The
+trials file records `target_weight` beside `target_name`.
+
+`obs_transform = "boxcox"` uses the exponent `boxcox_lambda`, 0.25 unless a target or `[calibration]`
+sets it (the target's wins). At `boxcox_lambda = 0.0` it is the plain logarithm, without the small
+offset `obs_transform = "log"` adds. A zero exponent or a negative one cannot take a zero flow, so a
+series with zeros is undefined there. The trials file records `target_boxcox_lambda`.
+
 `variable` accepts `streamflow` (or `discharge`) for the routed flow mizuRoute produces, or the name
 of any variable SUMMA knows - `basin__StorageChange`, `scalarAquiferStorage`, `lowerBoundHead`. A name
 SUMMA does not know is refused when the calibration starts, rather than after a simulation has been
@@ -68,18 +80,21 @@ A target can name the unit it scores, by the id the domain or the river network 
 
 ```toml
 [[calibration.target]]
-name     = "gulkana_storage"
-variable = "basin__StorageChange"
-gru      = 1                  # one GRU: the area-weighted mean of its HRUs
+name         = "gulkana_storage"
+variable     = "basin__StorageChange"
+spatial_unit = "gru"            # one GRU: the area-weighted mean of its HRUs
+spatial_id   = 1
 
 [[calibration.target]]
-name     = "upstream_flow"
-variable = "streamflow"
-reach    = 710289040          # one reach of the mizuRoute network, by its segId
+name         = "upstream_flow"
+variable     = "streamflow"
+spatial_unit = "reach"          # one reach of the mizuRoute network, by its segId
+spatial_id   = 710289040
 ```
 
-`gru`, `hru` and `reach` are the three choices, and a target names at most one. An id the domain or
-the network does not hold is refused at start-up. A variable SUMMA holds once per GRU, like
+`spatial_unit` is `domain` (the default, with no `spatial_id`), `gru`, `hru` or `reach`. An id the
+domain or the network does not hold is refused at start-up. The older `gru = 1`, `hru = 5` and
+`reach = 2` keys are refused. A variable SUMMA holds once per GRU, like
 `basin__StorageChange`, can be scored over a `gru` but not an `hru`, and a `reach` carries routed
 `streamflow` only. Two targets naming the same variable over the same unit share one collected series.
 
@@ -106,7 +121,8 @@ comparable:
 [[calibration.target]]
 name           = "grace_tws"
 variable       = "basin__StorageChange"   # kg m-2 s-1, which is mm of water per second
-gru            = 1
+spatial_unit   = "gru"
+spatial_id     = 1
 obs_file       = "gulkana_grace_tws.nc"
 vname_obs      = "tws_obs"
 accumulate     = true                     # integrate the rate into the storage itself
@@ -119,7 +135,11 @@ metric         = "rmse"
   over seconds leaves kg m-2, which is millimetres of water.
 - `baseline_start`/`baseline_end` express **both** series as departures from their own mean over that
   period. Doing it to both sides is what removes the constant of integration an accumulated series
-  carries, which is what makes an integrated rate comparable to a storage anomaly at all.
+  carries, which is what makes an integrated rate comparable to a storage anomaly at all. Both means
+  are taken after the series are aligned, over the same observation periods, so a gap in the
+  observations leaves the same gap in the simulated mean. The baseline may lie outside the
+  calibration period; only the calibration period is scored. (A `balance` target removes the
+  baseline before it finds the extremes, as it did before.)
 
 ### Glacier mass balance
 
@@ -131,8 +151,9 @@ storage, between the extremes the simulation itself has:
 ```toml
 [[calibration.target]]
 name       = "mass_balance"
-variable   = "basin__GlacierMassChange"   # kg m-2 s-1 over the glacier area, not the basin's
-gru        = 1
+variable     = "basin__GlacierMassChange"   # kg m-2 s-1 over the glacier area, not the basin's
+spatial_unit = "gru"
+spatial_id   = 1
 obs_file   = "gulkana_mass_balance_seasonal.nc"
 vname_obs  = "mb_obs"
 accumulate = true                         # integrate into glacier storage, mm w.e.
@@ -154,37 +175,61 @@ metric     = "rmse"
 - `basin__GlacierMassChange` is the glacier domains' total mass change over the glacier area, which is
   what a glacier-wide balance is per unit of.
 
+### Low flows
+
+Without wells, groundwater can still be calibrated on the low flows the aquifer sustains, as GSFLOW
+does. `low_flow` scores only the fraction of the record with the lowest observed flows:
+
+```toml
+[[calibration.target]]
+name          = "low_flow"
+variable      = "streamflow"
+spatial_unit  = "reach"
+spatial_id    = 9
+obs_file      = "USGS_10343500_daily_flow.nc"
+vname_obs     = "q_obs"
+obs_transform = "log"
+low_flow      = 0.3                        # the 30% of days with the lowest observed flow
+metric        = "kge"
+```
+
+- The lowest fraction is taken from the aligned pairs, after any other step the target asks for, so a
+  wet year contributes fewer days than a dry one.
+- `flow_duration = true` sorts each series on its own before scoring, so the flow-duration curves are
+  compared and timing drops out. With `low_flow` it scores the low end of each curve, its own lowest
+  fraction, so the simulated low flows need not fall on the observed days.
+- Score discharge as well: low flows alone say how the aquifer drains, not how much water reaches it.
+
 ## Parameters for one domain type
 
-A name in `param_list` sets that parameter in every domain of every HRU. `name@type` sets it only in the
+A parameter name sets that parameter in every domain of every HRU. `name@type` sets it only in the
 domains of that type: `upland`, `glacCln1`, `glacCln2`, `glacDbr` or `wetland`. For example,
-`"k_soil@upland"` calibrates the tundra soil and leaves the glacier debris at its parameter-file value.
-It takes the bounds and default of the parameter it names, and a transformation is given under the full
-name (`"k_soil@upland" = "log"`). Basin parameters have no domains and take no suffix. `--param` on the
-command line accepts the same form.
+`"k_soil@upland" = { transformation = "log" }` calibrates the tundra soil and leaves the glacier debris at
+its parameter-file value. It takes the bounds and default of the parameter it names. A name cannot be
+calibrated both with and without a suffix in one configuration. Basin parameters have no domains and take
+no suffix. `--param` on the command line accepts the same form.
 
 ## Parameters that must stay in order
 
-Some parameters are only valid in order: SUMMA refuses a soil unless
-`theta_res <= critSoilWilting <= critSoilTranspire <= fieldCapacity <= theta_sat`. An ordered chain
-says so, and keeps adjacent members at least `gap_fraction` of the chain's whole range apart:
+Some parameters are only valid in order: SUMMA refuses a soil unless `theta_res <= critSoilWilting <=
+critSoilTranspire <= theta_sat` and `theta_res <= fieldCapacity <= theta_sat`. An ordered chain says so,
+and keeps adjacent members at least `gap_fraction` of the chain's whole range apart:
 
 ```toml
 [[parameter_dependencies.ordered]]
-parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "fieldCapacity", "theta_sat"]
+parameters   = ["theta_res", "critSoilWilting", "critSoilTranspire", "theta_sat"]
 gap_fraction = 0.025
-sample_gaps  = true
+
+[[parameter_dependencies.ordered]]
+parameters   = ["theta_res", "fieldCapacity", "theta_sat"]
+gap_fraction = 0.025
 ```
 
-Without `sample_gaps`, only the members in `param_list` are searched, the rest stay at their
-defaults, and a trial out of order is drawn again. So calibrating `theta_sat` alone can only move it
-above the default `fieldCapacity`.
-
-With `sample_gaps = true`, every member is searched, whether or not it is in `param_list`. The first is
-searched as itself, up to the highest value that still leaves room for the rest; each later one as the
-fraction of the room between the one before it (plus the gap) and the highest value it can take. Every
-trial is in order and within bounds by construction, so none is drawn again or refused. A later member
-cannot also be given a transformation. The trials file holds the values, not the fractions.
+Only the members that are calibrated are searched; the rest keep their initialized values. A trial out
+of order is drawn again (DDS and the random first sample) or bred again (NSGA-II), and the search bounds
+stay as configured. A chain whose members are all fixed is checked once, when the calibration starts.
+The order is checked on the whole field, so a layered or spatially varying parameter must be in order
+in every layer and HRU. `sample_gaps` is no longer accepted.
 
 ## Searching for the trade-offs: `algorithm = "nsga2"`
 
@@ -225,6 +270,15 @@ An NSGA-II trials file carries, beside every trial's parameters and objectives:
 `objective:sense` lists `maximize` or `minimize` per target, which is what a reader needs to recompute
 dominance.
 
+## Repeating a run
+
+The random seed is fixed (42, plus the run index less one), so a calibration repeated with the same
+configuration draws the same numbers. NSGA-II repeats exactly, whatever the number of workers,
+because it proposes a whole generation before any of it is evaluated. DDS proposes each trial from the
+best result returned so far, so with more than one worker its trial sequence depends on the order the
+workers finish in, and two runs part ways after the first few trials. A given parameter set always
+scores the same. To repeat a DDS run exactly, run it with one worker (two ranks).
+
 ## Failed trials
 
 A parameter set the model refuses (`paramCheck`) or fails on during the run (a balance check, a solver
@@ -256,8 +310,8 @@ which is physically distributed). Each searches one common set:
 `windReductionParam`, `vGn_n`, `routingGammaScale`, `routingGammaShape`
 
 with `k_soil` and `aquiferBaseflowRate` on log scales, the canopy heights ordered, and `theta_sat`
-in the five-member soil chain above with `sample_gaps = true`, which searches the other four too
-(Bow's default `critSoilWilting` lies below `theta_res`). A glacier basin adds `glacierWindFactor`, `glacierTempReduction`,
+in the two soil chains above (`test_calibration_bow_pareto.sh` searches `k_soil` as a spatial
+multiplier instead). A glacier basin adds `glacierWindFactor`, `glacierTempReduction`,
 `glacStor_kIce`, `glacStor_kSnow`, `glacStor_kFirn`, `debrisConc`, and the snow parameters
 `k_snow`, `mw_exp`, `albedoDecayRate` and `albedoMax`, which set the shortwave the snow and firn
 absorb and how fast the meltwater drains. `aquiferScaleFactor` is not searched: it enters only the
@@ -346,10 +400,41 @@ A bound that is left out is taken from the SUMMA parameter files (`localParamInf
 `basinParamInfo.txt`), or from the code defaults if they do not list it. The transformation
 defaults to `none`. A bound set outside the native range is allowed but logs a warning.
 
-The older form still works, alone or together with the table: `param_list = ["k_soil", ...]` in
-`[calibration]`, with transformations given in `[calibration.parameter_transformations]`
-(`k_soil = "log"`). `[calibration.parameter_bounds]` (`k_soil = [1.0e-7, 1.0e-4]`) also still
-replaces the native bounds, and is applied before the bounds in `[calibration.parameters]`.
+The older keys are refused with an error rather than ignored: `param_list`,
+`[calibration.parameter_transformations]`, `[calibration.parameter_bounds]` and an ordered chain's
+`sample_gaps`. Put bounds and transformations in the `[calibration.parameters]` entries instead.
+
+### Keeping a parameter's spatial pattern: multipliers and ratios
+
+A `[calibration.parameters]` entry sets one value everywhere. Two other tables search a factor instead,
+and keep whatever pattern the parameter has across HRUs and layers. Both need explicit `lower` and
+`upper`, since they bound the factor, not the parameter:
+
+```toml
+[calibration.spatial_multipliers]
+k_soil = { lower = 0.5, upper = 2.0, transformation = "log" }   # every HRU and layer times one factor
+
+[calibration.parameter_ratios]
+critSoilTranspire = { lower = 0.5, upper = 0.95, reference_reduction = "min" }
+critSoilWilting   = { lower = 0.2, upper = 0.9 }
+
+[[parameter_dependencies.parameter_ratio]]
+reference = "theta_sat"
+dependent = "critSoilTranspire"
+
+[[parameter_dependencies.parameter_ratio]]
+reference = "critSoilTranspire"
+dependent = "critSoilWilting"
+```
+
+A spatial multiplier scales the parameter's initialized field. A ratio sets the dependent to the ratio
+times its reference, layer by layer, after the reference's own multiplier or ratio has been applied, so
+ratios can be chained; a cycle is refused. The reference and dependent must have the same layers unless
+`reference_reduction = "min"`, which sets a scalar dependent from the smallest reference value in each
+HRU (never across HRUs). Every trial starts again from the initialized fields, so nothing accumulates
+between trials. A ratio below one keeps the dependent below its reference, but not above a third
+parameter such as `theta_res`, so keep the ordered chains for that. A parameter can be in only one of
+the three tables.
 
 ## `multi_case_example/` -- multi-case calibration
 
@@ -392,10 +477,10 @@ manifest unless `template_path` is given, and the common settings are read from
 | File | What it is |
 | --- | --- |
 | `make_stub_century.bash` | builds the stub dataset, and the manifest and template that drive it |
-| `manifest_century.toml` | the full manifest, listing 112 basins; the stub manifest is derived from it |
+| `manifest_century.toml` | the full manifest of the Century basins; the stub manifest is derived from it |
 | `summa_config_template.toml` | the per-case configuration template the manifest expands |
 | `summa_config_CAN_05BB001.toml` | a single filled-in case, useful for seeing what the template produces |
 
 `settings/` holds the common SUMMA settings the template names, shared by every case. The
-full 112-basin calibration needs the Century dataset, which is not in this repository; how it was
+full calibration needs the Century dataset, which is not in this repository; how it was
 run on Fir is in `utils/hpc/fir/README.md`.

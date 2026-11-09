@@ -22,6 +22,7 @@ module groundwatr_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! model constants
 USE multiconst,only:iden_water   ! density of water (kg m-3)
@@ -291,10 +292,10 @@ subroutine computBaseflow(&
   ! general local variables
   integer(i4b)                       :: iLayer,jLayer         ! index of model layer
   ! local variables for the ice impedance of the lateral flow
-  real(rkind)                        :: iceImpedeFac(nSoil)   ! ice impedance factor of each soil layer (-)
-  real(rkind)                        :: dIceImpede_dT(nSoil)  ! derivative in the ice impedance factor w.r.t. temperature (K-1)
+  real(rkind),allocatable,save       :: iceImpedeFac(:)       ! ice impedance factor of each soil layer (-)
+  real(rkind),allocatable,save       :: dIceImpede_dT(:)      ! derivative in the ice impedance factor w.r.t. temperature (K-1)
   real(rkind)                        :: dImpede_dLiq          ! derivative in the ice impedance factor w.r.t. liquid water, zero in SUMMA (-)
-  real(rkind)                        :: trSoilNoIce(nSoil)    ! transmissivity of each layer before the ice impedance (m2 s-1)
+  real(rkind),allocatable,save       :: trSoilNoIce(:)        ! transmissivity of each layer before the ice impedance (m2 s-1)
   ! local variables for the exfiltration
   real(rkind)                        :: totalColumnInflow     ! total column inflow (m s-1)
   real(rkind)                        :: totalColumnOutflow    ! total column outflow (m s-1)
@@ -303,7 +304,7 @@ subroutine computBaseflow(&
   real(rkind),parameter              :: xCenter=0.001_rkind   ! center of the exfiltration function (m)
   real(rkind),parameter              :: xWidth=0.0001_rkind   ! width of the exfiltration function (m)
   real(rkind)                        :: expF,logF             ! logistic smoothing function (-)
-  real(rkind)                        :: fieldCapacity_use(nSoil) ! water content below which a layer does not drain laterally (-)
+  real(rkind),allocatable,save       :: fieldCapacity_use(:)     ! water content below which a layer does not drain laterally (-)
   real(rkind)                        :: kAnisotropic_use     ! anisotropy factor used to compute transmissivity
   ! local variables for the lateral flux among soil columns
   real(rkind)                        :: activePorosity        ! "active" porosity associated with storage above a threshold (-)
@@ -311,27 +312,37 @@ subroutine computBaseflow(&
   real(rkind)                        :: tran0                 ! maximum transmissivity (m2 s-1)
   real(rkind)                        :: surfaceHydCond_use    ! macropore conductivity at the soil surface (m s-1)
   integer(i4b)                       :: ix_hc_profile         ! index for the choice of the hydraulic conductivity profile
-  real(rkind),dimension(nSoil)       :: xTrans                ! dimensionless transmissivity profile, trTotal = tran0*xTrans (-)
-  real(rkind),dimension(nSoil)       :: zActive               ! water table thickness associated with storage below and including the given layer (m)
-  real(rkind),dimension(nSoil)       :: trTotal               ! total transmissivity associated with total water table depth zActive (m2 s-1)
-  real(rkind),dimension(nSoil)       :: trSoil                ! transmissivity of water in a given layer (m2 s-1)
+  real(rkind),allocatable,save       :: xTrans(:)             ! dimensionless transmissivity profile, trTotal = tran0*xTrans (-)
+  real(rkind),allocatable,save       :: zActive(:)            ! water table thickness associated with storage below and including the given layer (m)
+  real(rkind),allocatable,save       :: trTotal(:)            ! total transmissivity associated with total water table depth zActive (m2 s-1)
+  real(rkind),allocatable,save       :: trSoil(:)             ! transmissivity of water in a given layer (m2 s-1)
   ! local variables for the derivatives
-  real(rkind),dimension(nSoil,nSoil) :: dBaseflow_dVolLiq     ! derivative in baseflow w.r.t. volumetric liquid water content (s-1)
+  real(rkind),allocatable,save       :: dBaseflow_dVolLiq(:,:) ! derivative in baseflow w.r.t. volumetric liquid water content (s-1)
   real(rkind)                        :: qbTotal               ! total baseflow (m s-1)
   real(rkind)                        :: exfilDrive            ! surplus the column cannot store, which it must return (m s-1)
   real(rkind)                        :: length2area           ! ratio of hillslope width to hillslope area (m m-2)
-  real(rkind),dimension(nSoil)       :: depth2capacity        ! ratio of layer depth to total subsurface storage capacity (-)
-  real(rkind),dimension(nSoil)       :: dXdS                  ! change in dimensionless flux w.r.t. change in dimensionless storage (-)
-  real(rkind),dimension(nSoil)       :: dLogFunc_dWat         ! derivative in the logistic function w.r.t. soil water characteristic
-  real(rkind),dimension(nSoil)       :: dExfiltrate_dWat      ! derivative in exfiltration w.r.t. soil water characteristic
-  real(rkind),dimension(nSoil)       :: dExfiltrate_dTk       ! derivative in exfiltration w.r.t. temperature (K-1)
+  real(rkind),allocatable,save       :: depth2capacity(:)     ! ratio of layer depth to total subsurface storage capacity (-)
+  real(rkind),allocatable,save       :: dXdS(:)               ! change in dimensionless flux w.r.t. change in dimensionless storage (-)
+  real(rkind),allocatable,save       :: dLogFunc_dWat(:)      ! derivative in the logistic function w.r.t. soil water characteristic
+  real(rkind),allocatable,save       :: dExfiltrate_dWat(:)   ! derivative in exfiltration w.r.t. soil water characteristic
+  real(rkind),allocatable,save       :: dExfiltrate_dTk(:)    ! derivative in exfiltration w.r.t. temperature (K-1)
   ! local variables for the cap on the lateral outflow
   real(rkind)                        :: qOutflow              ! uncapped lateral outflow of a layer (m s-1)
   real(rkind)                        :: qOutflowMax           ! the same layer's drainable water spread over the data step (m s-1)
   real(rkind)                        :: xCap                  ! ratio of the outflow to the cap (-)
   real(rkind)                        :: tCap,sqCap            ! tanh of that ratio, and its derivative (-)
-  real(rkind),dimension(nSoil)       :: dCap_dOutflow         ! derivative of the capped outflow w.r.t. the uncapped outflow (-)
-  real(rkind),dimension(nSoil)       :: dCap_dLiq             ! derivative of the capped outflow w.r.t. this layer's liquid water (m s-1)
+  real(rkind),allocatable,save       :: dCap_dOutflow(:)      ! derivative of the capped outflow w.r.t. the uncapped outflow (-)
+  real(rkind),allocatable,save       :: dCap_dLiq(:)          ! derivative of the capped outflow w.r.t. this layer's liquid water (m s-1)
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(iceImpedeFac, dIceImpede_dT, trSoilNoIce, fieldCapacity_use, xTrans, zActive, trTotal, trSoil, &
+  !$omp& depth2capacity, dXdS, dLogFunc_dWat, dExfiltrate_dWat, dExfiltrate_dTk, dCap_dOutflow, dCap_dLiq, &
+  !$omp& dBaseflow_dVolLiq)
+
+  call sizeScratch(1,nSoil,iceImpedeFac, dIceImpede_dT, trSoilNoIce, fieldCapacity_use, xTrans, zActive, trTotal, &
+                  &trSoil, depth2capacity, dXdS, dLogFunc_dWat, dExfiltrate_dWat, dExfiltrate_dTk, dCap_dOutflow, &
+                  &dCap_dLiq)
+  call sizeScratch(nSoil,nSoil,dBaseflow_dVolLiq)
+
   ! ---------------------------------------------------------------------------------------
   ! * association to data in structures
   ! ---------------------------------------------------------------------------------------
@@ -519,13 +530,13 @@ subroutine computBaseflow(&
     end do
 
     ! loop through soil layers
-    do iLayer=1,nSoil
+    do jLayer=1,nSoil
       ! compute diagonal terms (s-1)
-      dBaseflow_dVolLiq(iLayer,iLayer) = tran0*dXdS(iLayer)*depth2capacity(iLayer)*length2area
-      dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
-      dBaseflow_dTk(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dTk(iLayer)
+      dBaseflow_dVolLiq(jLayer,jLayer) = tran0*dXdS(jLayer)*depth2capacity(jLayer)*length2area
+      dBaseflow_dWat(jLayer,jLayer) = dBaseflow_dVolLiq(jLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
+      dBaseflow_dTk(jLayer,jLayer) = dBaseflow_dVolLiq(jLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       ! compute off-diagonal terms
-      do jLayer=iLayer+1,nSoil  ! only dependent on layers below
+      do iLayer=1,jLayer-1  ! only dependent on layers below
         dBaseflow_dVolLiq(iLayer,jLayer) = tran0*(dXdS(iLayer) - dXdS(iLayer+1))*depth2capacity(jLayer)*length2area
         dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
         dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)

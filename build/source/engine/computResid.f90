@@ -22,6 +22,7 @@ module computResid_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -161,10 +162,13 @@ subroutine computResid(&
   integer(i4b),parameter              :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
   real(rkind)                         :: scalarCanopyHydTrial      ! trial value of canopy water content (kg m-2), either liquid water content or total water content
   real(rkind)                         :: scalarCanopyHyd           ! canopy water content (kg m-2), either liquid water content or total water content
-  real(rkind),dimension(nLayers)      :: mLayerVolFracHydTrial     ! trial vector of volumetric water content (-), either liquid water content or total water content
-  real(rkind),dimension(nLayers)      :: mLayerVolFracHyd          ! vector of volumetric water content (-), either liquid water content or total water content
+  real(rkind),allocatable,save       :: mLayerVolFracHydTrial(:)  ! trial vector of volumetric water content (-), either liquid water content or total water content
+  real(rkind),allocatable,save       :: mLayerVolFracHyd(:)       ! vector of volumetric water content (-), either liquid water content or total water content
+  !$omp threadprivate(mLayerVolFracHydTrial, mLayerVolFracHyd) ! one copy per thread
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,nLayers,mLayerVolFracHydTrial, mLayerVolFracHyd)
+
   ! link to the necessary variables for the residual computations
   associate(&
     ! model state variables (vegetation canopy)
@@ -225,7 +229,8 @@ subroutine computResid(&
     ! compute energy associated with melt/freeze for snow
     ! NOTE: allow expansion of ice during melt-freeze for snow; deny expansion of ice during melt-freeze for soil
     if(nSnLaSoGlNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         select case( layerType(iLayer) )
           case(iname_snow, iname_lake, iname_glce); rAdd( ixSnLaSoGlNrg(iLayer) ) = rAdd( ixSnLaSoGlNrg(iLayer) ) + LH_fus*iden_ice  *( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIce(iLayer) )
           case(iname_soil)                        ; rAdd( ixSnLaSoGlNrg(iLayer) ) = rAdd( ixSnLaSoGlNrg(iLayer) ) + LH_fus*iden_water*( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIce(iLayer) )
@@ -239,7 +244,8 @@ subroutine computResid(&
     ! NOTE 3: rAdd for all other Hyd is =0, and is defined in the initialization above
     ! NOTE 4: same sink terms for matric head and liquid matric potential
     if(nSoilOnlyHyd>0)then
-      do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+      do iLayer=1,nSoil   ! (loop through non-missing hydrology state variables in the layer domains)
+        if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
         rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + ( ( mLayerTranspire(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow+nLake) - mLayerCompress(iLayer) )*dt
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
@@ -268,7 +274,8 @@ subroutine computResid(&
 
     ! compute the residual vector for the layer sub-domains for energy
     if(nSnLaSoGlNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         if(mixdformNrg)then
           rVec( ixSnLaSoGlNrg(iLayer) ) = ( mLayerEnthTempTrial(iLayer) - mLayerEnthTemp(iLayer) ) - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         else
@@ -281,7 +288,8 @@ subroutine computResid(&
     ! compute the residual vector for the layer sub-domains for hydrology
     ! NOTE: residual depends on choice of state variable
     if(nSnLaSoGlHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing hydrology state variables in the layer domains)
+        if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
         ! (get the correct state variable)
         mLayerVolFracHydTrial(iLayer) = merge(mLayerVolFracWatTrial(iLayer), mLayerVolFracLiqTrial(iLayer) , (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
         mLayerVolFracHyd(iLayer)      = merge(mLayerVolFracWat(iLayer),      mLayerVolFracLiq(iLayer),       (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )

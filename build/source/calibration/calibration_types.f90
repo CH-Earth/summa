@@ -79,6 +79,8 @@ module calibration_types
   character(len=:), allocatable  :: baseline_end            ! end of the anomaly baseline (YYYY-MM-DD)
   character(len=16)              :: balance = ''            ! seasonal or annual balance between extremes
   real(rkind)                    :: balance_window = 60._rkind ! half-width of the search for an extreme (days)
+  real(rkind)                    :: low_flow = 1._rkind     ! fraction of the lowest observed values scored
+  logical(lgt)                   :: flow_duration = .false. ! score the sorted series (flow-duration curves)
  end type target_info
 
  ! -----------------------------------------------------------------------------------------------------------

@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # from {$maindir}/sundials/builddir, run
-# cp ../../summa/build/cmake_external/build_cmakeSundials.bash build_cmake
-# run script from the builddir directory with ./build_cmake
-# run `make`, then `make install`
-# Note, using -DEXAMPLES_ENABLE_C=OFF -DEXAMPLES_ENABLE_F2003=OFF, if want to run examples should change
+# cp ../../summa/build/build_cmakeSundials.bash build_cmake.bash
+# run script from the builddir directory with ./build_cmake.bash
+# Note, using -DSUNDIALS_ENABLE_C_EXAMPLES=OFF -DSUNDIALS_ENABLE_FORTRAN_EXAMPLES=OFF for quickness
 
-cmake ../../sundials-software/ -DEXAMPLES_ENABLE_C=OFF -DEXAMPLES_ENABLE_F2003=OFF -DBUILD_FORTRAN_MODULE_INTERFACE=ON -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=../../sundials/instdir -DEXAMPLES_INSTALL_PATH=../../sundials/instdir/examples
+cmake ../../sundials-software/ -DSUNDIALS_ENABLE_C_EXAMPLES=OFF -DSUNDIALS_ENABLE_FORTRAN_EXAMPLES=OFF -DSUNDIALS_ENABLE_FORTRAN=ON -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=../../sundials/instdir -DEXAMPLES_INSTALL_PATH=../../sundials/instdir/examples

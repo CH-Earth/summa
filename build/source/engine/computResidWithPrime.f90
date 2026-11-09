@@ -4,6 +4,7 @@ module computResidWithPrime_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -141,9 +142,12 @@ subroutine computResidWithPrime(&
   integer(i4b)                     :: iLayer                   ! index of layer within the layer domains
   integer(i4b),parameter           :: ixVegVolume=1            ! index of the desired vegetation control volumne (currently only one veg layer)
   real(rkind)                      :: scalarCanopyHydPrime     ! trial value for canopy water (kg m-2), either liquid water content or total water content
-  real(rkind),dimension(nLayers)   :: mLayerVolFracHydPrime    ! vector of volumetric water content (-), either liquid water content or total water content
+  real(rkind),allocatable,save    :: mLayerVolFracHydPrime(:) ! vector of volumetric water content (-), either liquid water content or total water content
+  !$omp threadprivate(mLayerVolFracHydPrime) ! one copy per thread
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,nLayers,mLayerVolFracHydPrime)
+
   ! link to the necessary variables for the residual computations
   associate(&
     ! canopy and layer depth
@@ -190,7 +194,8 @@ subroutine computResidWithPrime(&
       ! compute energy associated with melt/freeze for snow
       ! NOTE: allow expansion of ice during melt-freeze for snow; deny expansion of ice during melt-freeze for soil
       if(nSnLaSoGlNrg>0)then
-        do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+        do iLayer=1,nLayers   ! (loop through non-missing energy state variables in the layer domains)
+          if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
           select case( layerType(iLayer) )
             case(iname_snow, iname_lake, iname_glce); rAdd( ixSnLaSoGlNrg(iLayer) ) = rAdd( ixSnLaSoGlNrg(iLayer) ) + LH_fus*iden_ice * mLayerVolFracIcePrime(iLayer)
             case(iname_soil);                         rAdd( ixSnLaSoGlNrg(iLayer) ) = rAdd( ixSnLaSoGlNrg(iLayer) ) + LH_fus*iden_water * mLayerVolFracIcePrime(iLayer)
@@ -206,7 +211,8 @@ subroutine computResidWithPrime(&
     ! NOTE 3: rAdd for all other Hyd is =0, and is defined in the initialization above
     ! NOTE 4: same sink terms for matric head and liquid matric potential
     if(nSoilOnlyHyd>0)then
-      do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+      do iLayer=1,nSoil   ! (loop through non-missing hydrology state variables in the layer domains)
+        if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
        rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + ( ( mLayerTranspire(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow+nLake) - mLayerCompress(iLayer) )*dt
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
@@ -234,7 +240,8 @@ subroutine computResidWithPrime(&
 
     ! compute the residual vector for the layer sub-domains for energy
     if(nSnLaSoGlNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         if(enthalpyStateVec)then
           rVec( ixSnLaSoGlNrg(iLayer) ) = mLayerEnthalpyPrime(iLayer) - ( fVec( ixSnLaSoGlNrg(iLayer) )*dt + rAdd( ixSnLaSoGlNrg(iLayer) ) )
         else
@@ -247,7 +254,8 @@ subroutine computResidWithPrime(&
     ! compute the residual vector for the layer sub-domains for hydrology
     ! NOTE: residual depends on choice of state variable
     if(nSnLaSoGlHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing hydrology state variables in the layer domains)
+        if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
         ! (get the correct state variable)
         mLayerVolFracHydPrime(iLayer) = merge(mLayerVolFracWatPrime(iLayer), mLayerVolFracLiqPrime(iLayer), (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
         ! (compute the residual)

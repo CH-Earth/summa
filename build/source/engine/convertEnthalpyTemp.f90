@@ -89,7 +89,25 @@ public::enthalpy2T_veg
 public::enthalpy2T_snLaGl
 public::enthalpy2T_soil
 private::hyp_2F1_real
-private::brent, brent0, diff_H_veg, diff_H_snLaGl, diff_H_soil
+private::newton_safe, fdf_veg, fdf_snLaGl, fdf_soil
+
+! enthalpy residual (J m-3) and its temperature derivative (J m-3 K-1) for newton_safe; lookup arguments are soil only
+abstract interface
+  subroutine fdf_interface(T, vec, f, df, err, message, use_lookup, lookup_data, ixControlIndex)
+    import :: rkind, i4b, lgt, zLookup
+    real(rkind),intent(in)             :: T, vec(10)
+    real(rkind),intent(out)            :: f, df
+    integer(i4b),intent(out)           :: err
+    character(*),intent(out)           :: message
+    logical(lgt),intent(in),optional   :: use_lookup
+    type(zLookup),intent(in),optional  :: lookup_data
+    integer(i4b),intent(in),optional   :: ixControlIndex
+  end subroutine fdf_interface
+end interface
+
+! root-finder stopping tolerances, tight enough that temperature is smooth in the solver state
+real(rkind),parameter,private          :: tol_x=1.e-10_rkind ! temperature (K)
+real(rkind),parameter,private          :: tol_f=1.e-4_rkind  ! enthalpy (J m-3)
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter                 :: nlook=10001       ! number of elements in the lookup table
@@ -658,7 +676,8 @@ subroutine T2enthTemp_soil(&
                       mLayerMatricHead,         & ! intent(in):  total water matric potential (m)
                       mLayerEnthTemp,           & ! intent(out): temperature component of enthalpy soil layer (J m-3)
                       err,message,              & ! intent(out): error code and message
-                      volFracWat0)                ! intent(in):  optional total water content of mLayerMatricHead if computed outside (-)
+                      volFracWat0,              & ! intent(in):  optional total water content of mLayerMatricHead if computed outside (-)
+                      dEnthTemp_dT)               ! intent(out): optional derivative of mLayerEnthTemp with temperature (J m-3 K-1)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
@@ -689,9 +708,11 @@ subroutine T2enthTemp_soil(&
   integer(i4b),intent(out)         :: err                    ! error code
   character(*),intent(out)         :: message                ! returned error message
   real(rkind),intent(in),optional  :: volFracWat0            ! total water content of mLayerMatricHead if computed outside (-)
+  real(rkind),intent(out),optional :: dEnthTemp_dT           ! derivative of mLayerEnthTemp with temperature (J m-3 K-1)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   real(rkind)                      :: Tcrit                  ! temperature where all water is unfrozen (K)
+  real(rkind)                      :: dIntegral_dT           ! derivative of the frozen water integral with temperature, the liquid fraction (-)
   real(rkind)                      :: volFracWat             ! volumetric fraction of total water, liquid+ice (-)
   real(rkind)                      :: diff0                  ! temperature difference of Tcrit from Tfreeze
   real(rkind)                      :: diffT                  ! temperature difference of temp from Tfreeze
@@ -726,6 +747,7 @@ subroutine T2enthTemp_soil(&
   if(mlayerTemp>=Tcrit)then
     enthLiq= iden_water * Cp_water * volFracWat * diffT
     enthIce= 0._rkind
+    dIntegral_dT = volFracWat
 
   ! *** compute enthalpy of water for frozen conditions
   else
@@ -756,6 +778,7 @@ subroutine T2enthTemp_soil(&
         ! get the upper limit of the integral
         call splint(Tk,Ly,L2,mlayerTemp,integral_frz_upp,dL,err,cmessage)
         if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+        dIntegral_dT = dL
         
       end associate lookVars
 
@@ -778,6 +801,7 @@ subroutine T2enthTemp_soil(&
       arg              = (vGn_alpha * mLayerPsiLiq)**vGn_n
       gauss_hg_T       = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
       integral_frz_upp = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+      if(present(dEnthTemp_dT)) dIntegral_dT = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
     endif
 
     enthLiq   = iden_water * Cp_water * (integral_unf + integral_frz_upp - integral_frz_low)
@@ -789,6 +813,14 @@ subroutine T2enthTemp_soil(&
   enthAir  = iden_air * Cp_air * ( 1._rkind - theta_sat - volFracWat ) * diffT
 
   mLayerEnthTemp = enthLiq + enthIce + enthSoil + enthAir
+  if(present(dEnthTemp_dT))then
+    if(mlayerTemp>=Tcrit)then
+      dEnthTemp_dT = iden_water * Cp_water * dIntegral_dT
+    else
+      dEnthTemp_dT = iden_water * Cp_water * dIntegral_dT + iden_ice * Cp_ice * ( volFracWat - dIntegral_dT )
+    endif
+    dEnthTemp_dT = dEnthTemp_dT + soil_dens_intr * Cp_soil * ( 1._rkind - theta_sat ) + iden_air * Cp_air * ( 1._rkind - theta_sat - volFracWat )
+  endif
 
 end subroutine T2enthTemp_soil
 
@@ -1023,9 +1055,9 @@ subroutine enthalpy2T_veg(&
     T = min(scalarCanopyTemp, Tfreeze)  ! initial guess
     vec      = 0._rkind
     vec(1:6) = (/scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat/)
-    call brent(diff_H_veg, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
-    T = T_out
+    call newton_safe(fdf_veg, T, 0._rkind, Tfreeze, vec, T_out, err, cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    T = T_out
 
     ! compute Jacobian terms
     if(computeJac)then
@@ -1147,7 +1179,7 @@ subroutine enthalpy2T_snLaGl(&
     if(mLayerEnthalpy>0._rkind .and. .not.(isLake))then
       T = Tfreeze - verySmall ! need to merge layers, don't iterate to find the temperature
     else
-      call brent(diff_H_snLaGl, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
+      call newton_safe(fdf_snLaGl, T, 0._rkind, Tfreeze, vec, T_out, err, cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       T = T_out
     endif
@@ -1349,7 +1381,7 @@ subroutine enthalpy2T_soil(&
     T = min(mLayerTemp, Tcrit) ! initial guess
     vec(1:10) = (/mLayerEnthalpy, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low, mLayerMatricHead, volFracWat/)
     if (Tcrit>0._rkind) then
-      call brent(diff_H_soil, T, T_out, 0._rkind, Tcrit, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
+      call newton_safe(fdf_soil, T, 0._rkind, Tcrit, vec, T_out, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     else
       T_out = 0._rkind ! bail with a low temperature
     end if
@@ -1438,415 +1470,153 @@ end subroutine enthalpy2T_soil
 end function hyp_2F1_real
 
 !----------------------------------------------------------------------
-! private function: Brent's method to find a root of a function
+! private subroutine: safeguarded Newton root of fdf on [LowerBound, UpperBound], f increasing in T;
+! bisects when a step leaves the bracket or, once both ends are found, shrinks by less than half
 !----------------------------------------------------------------------
-function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message, use_lookup, lookup_data, ixControlIndex)
-  !
-  ! Description of algorithm: 
-  ! Find a root of function f(x) given intial bracketing interval [a,b]
-  ! where f(a) and f(b) must have opposite signs. At a typical step we have
-  ! three points a, b, and c such that f(b)f(c)<0, and a may coincide with
-  ! c. The points a, b, and c change during the algorithm, and the root
-  ! always lies in either [b,c] or [c, b]. The value b is the best
-  ! approximation to the root and a is the previous value of b. 
-  ! 
-  ! The iteration uses following selection of algorithms 
-  ! when bracket shrinks reasonablly fast,
-  !  - Linear interporation if a == b
-  !  - Quadratic interporation if a != b and the point is in the bracket.
-  ! othrwise 
-  ! - Bisection.
-  ! 
-  ! Inputs:
-  !   fun: function to be solved
-  !   tol_x: tolerance for x
-  !   tol_f: tolerance for f(x)
-  !   x1, x2: Upper bound and lower bound for a function
-  !   detail: output result of iteration if detail is >0 
-  !  
-  ! Based on zeroin.f in netlib
-  ! modified from fzero.f90 by Yoki Okawa, Jan 30, 2009
-
+subroutine newton_safe (fdf, x0, LowerBound, UpperBound, vec, T_out, err, message, use_lookup, lookup_data, ixControlIndex)
   implicit none
-  real(rkind) :: brent0
-  integer, parameter :: d = rkind
-  real(rkind), intent(IN) :: x1, x2, fx1, fx2, vec(10), tol_x, tol_f
-  real(rkind), external :: fun
-  integer, intent(IN) :: detail
-  logical(lgt), intent(in), optional :: use_lookup
-  type(zLookup),intent(in), optional :: lookup_data
-  integer(i4b), intent(in), optional :: ixControlIndex
-  integer(i4b),intent(out) :: err
-  character(*),intent(out) :: message
-  
-  integer :: i, exitflag, disp
-  real(rkind) :: a, b, c, diff,e, fa, fb, fc, p, q, r, s, tol1, xm, tmp
-  real(rkind), parameter :: EPS = epsilon(a)
-  integer, parameter :: imax = 100  ! maximum number of iteration
-  
-  ! initialize error control
-  err=0; message=''
-  
-  exitflag = 0
-  if (detail /= 0) then
-    disp = 1
-  else
-    disp = 0
-  end if
-    
-  ! intialize values
-  a = x1
-  b = x2
-  c = x2
-  fa = fx1
-  fb = fx2
-  fc = fx2
-    
-  ! check sign, should be fine since checked in main function brent
-  if ( (fa>0. .and. fb>0. )  .or.  (fa>0. .and. fb>0. )) then
-    write(*,*)  'Error (brent0.f90): Root must be bracketed by two inputs'
-    write(*, "(' x1 = ', 1F8.4, ' x2 = ', 1F8.4, ' f(x1) = ', 1F15.4, ' f(x2) = ', 1F15.4)") a,b,fa,fb
-    stop
-  end if
-  
-  if (disp == 1 ) then 
-    write(*,*) 'Brents method to find a root of f(x)'
-    write(*,*) ' '
-    write(*,*) '  i           x         bracketsize           f(x)'
-  end if
-  
-  ! main iteration
-  do i = 1, imax
-    ! rename c and adjust bounding interval if both a(=b) and c are same sign
-    if ((fb > 0.  .and. fc > 0) .or. (fb <0. .and. fc < 0. ) ) then 
-      c = a
-      fc = fa
-      e = b-a
-      diff = e
-    end if
-    
-    ! if c is better guess than b, use it. 
-    if (abs(fc) < abs(fb) ) then 
-      a=b
-      b=c
-      c=a
-      fa=fb
-      fb=fc
-      fc=fa
-    end if
+  procedure(fdf_interface)           :: fdf                    ! enthalpy residual (J m-3) and its derivative (J m-3 K-1)
+  real(rkind),intent(in)             :: x0                     ! initial guess (K)
+  real(rkind),intent(in)             :: LowerBound, UpperBound ! bounds on the root (K)
+  real(rkind),intent(in)             :: vec(10)                ! parameters of fdf
+  real(rkind),intent(out)            :: T_out                  ! temperature (K)
+  integer(i4b),intent(out)           :: err                    ! error code
+  character(*),intent(out)           :: message                ! error message
+  logical(lgt),intent(in),optional   :: use_lookup             ! soil only
+  type(zLookup),intent(in),optional  :: lookup_data            ! soil only
+  integer(i4b),intent(in),optional   :: ixControlIndex         ! soil only
+  integer(i4b),parameter             :: maxiter = 100          ! maximum number of iterations
+  real(rkind)                        :: T, Tnew, f, df, lo, hi, dxOld
+  logical(lgt)                       :: haveLo, haveHi         ! flags if the bracket ends have been evaluated
+  character(len=256)                 :: cmessage               ! error message of downwind routine
+  integer(i4b)                       :: iter
 
-    if (disp == 1) then 
-      tmp = c-b
-      write(*,"('  ', 1I2, 2F16.10,1F20.10)") i, b, abs(b-c), fb
-    end if
-    
-    ! convergence check
-    tol1=2.0_rkind* EPS * abs(b) + 0.5_rkind*tol_x
-    xm = 0.5_rkind * (c - b)
-    if (abs(xm) < tol1 .or. abs(fb) <= tol_f )  then
-      exitflag = 1
-      exit
-    end if
-     
-    ! try inverse quadratic interpolation
-    if (abs(e) >= tol1 .and. abs(fa) > abs(fb) ) then 
-      s = fb/fa
-        if (abs(a - c) < EPS) then 
-        p = 2.0_rkind *xm * s
-        q = 1.0_rkind  - s
-      else
-        q = fa/fc
-        r = fb/fc
-        p = s * (2.0_rkind * xm * q * (q -r ) - (b - a) * (r - 1.0_rkind))
-        q = (q - 1.0_rkind ) * (r - 1.0_rkind) * (s - 1.0_rkind) 
-      end if
-      
-      ! accept if q is not too small to stay in bound
-      if (p > 0._rkind) q = -q
-      p = abs(p)                
-      if (2.0 * p < min(3.0 * xm * q - abs(tol1* q), abs(e *q))) then 
-        e = d
-        diff = p / q
-      else   ! interpolation failed. use bisection
-        diff= xm 
-        e = d
-      end if
-    else  ! quadratic interpolation bounds moves too slowly, use bisection
-      diff = xm
-      e = d
-    end if
-    
-    ! update last bound
-    a = b
-    fa = fb
-    
-    ! move the best guess
-    if (abs(d) > tol1) then 
-      b = b + diff
-    else
-      b = b + sign(tol1, xm)
-    end if
-    
-    ! evaluate new trial root
-    if(present(use_lookup))then
-      fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
-    else
-      fb = fun(b, vec)
-    end if
-
-  end do 
-  
-  ! case for non convergence
-  if (exitflag /= 1 ) then 
-    write(*,*) 'Error (brent0.f90) :  convergence was not attained'
-    write(*,*) 'Initial value:'
-    write(*,"(4F10.5)" )   x1, x2, fx1, fx2
-    write(*,*) ' '
-    write(*,*) 'final value:'
-    write(*,"('x = '  ,1F6.4, ':                f(x1) = ' ,  1F6.4  )" )  b,  fb  
-    err = 20;message = trim(message)//'convergence was not attained';return
-  else if( disp == 1) then
-    write(*,*) 'Brents method was converged.'
-    write(*,*) ''
-  end if
-  brent0 = b
-  return
-  
-  end function brent0
-
-!----------------------------------------------------------------------
-! private subroutine: Find an initial guess of bracket and call brent0
-!----------------------------------------------------------------------
-  subroutine brent (fun, x0, brent_out, LowerBound, UpperBound, vec, err, message, use_lookup, lookup_data, ixControlIndex)
-    ! 
-    ! Inputs
-    !   fun: function to evaluate
-    !   x0: Initial guess
-    !   LowerBound, UpperBound : Lower and upper bound of the function 
-    
-    implicit none
-    integer, parameter :: d = rkind
-    real(rkind), intent(in) :: x0, vec(10)
-    real(rkind), external :: fun
-    real(rkind), intent(out) :: brent_out
-    real(rkind), intent(in) :: LowerBound, UpperBound
-    logical(lgt), intent(in), optional :: use_lookup
-    type(zLookup),intent(in), optional :: lookup_data
-    integer(i4b), intent(in), optional :: ixControlIndex
-    integer(i4b),intent(out) :: err 
-    character(*),intent(out) :: message 
-    
-    real(rkind) :: a , b , olda, oldb, fa, fb, folda, foldb
-    real(rkind), parameter :: sqrt2 = sqrt(2.0_d)! change in dx
-    integer, parameter :: maxiter = 20, detail = 0
-    real(rkind) :: dx  ! change in bracket
-    integer :: iter, exitflag, disp, exita, exitb
-    real(rkind) :: sgn
-    real(rkind), parameter :: tol_x = 1.e-10_rkind, tol_f = 1.e-4_rkind ! (K, J m-3) tight enough that temperature is smooth in the solver state
-    character(LEN=256):: cmessage ! error message of downwind routine
-    
-    ! initialize error control
-    err=0; message='brent/'
-
-    a = x0 ! lower bracket
-    b = x0 ! upper bracket
-    exitflag = 0  ! flag to see we found the bracket
-    exita = 0
-    exitb = 0
-
-    if(present(use_lookup))then
-      sgn = fun(x0, vec, use_lookup, lookup_data, ixControlIndex) ! sign of initial guess
-    else  
-      sgn = fun(x0, vec)
-    endif
-    ! set disp variable
-    if (detail /= 0) then
-      disp = 1
-    else
-      disp = 0
-    end if
-    fa = sgn
-    fb = sgn
-
-    if(abs(sgn) <= tol_f ) then ! if solution didn't change, initial guess is the solution
-      brent_out = x0; return
-    end if  
-    
-    ! set initial change dx
-    if (abs(x0)<240._rkind) then ! a very cold temperature
-      dx = 2.0_rkind/50._rkind * Tfreeze
-    else
-      dx = 1.0_rkind/50._rkind * Tfreeze
-    end if
-    
-    if (disp == 1) then 
-      write(*,*) 'Search for initial guess for Brents method'
-      write(*,*) 'find two points whose sign for f(x) is different '
-      write(*,*) 'x1 searches downwards, x2 searches upwards with increasing increment'
-      write(*,*) ' '
-      write(*,*) '  i           x1               x2            f(x1)            f(x2)'
-      write(*,"(1I4,4F17.6)") 0, a, b, fa, fb
-    end if
-
-    ! main loop to extend a and b
-    do iter = 1, maxiter
-      ! update boundary, function is monotonically increasing
-      if (fa<=0) exita = 1
-      if (fb<=0)then; a = b; fa = fb; exita = 1; endif
-      if (fb>=0) exitb = 1
-      if (fa>=0)then; b = a; fb = fa; exitb = 1; endif
-      olda = a 
-      oldb = b
-      folda = fa
-      foldb = fb
-      if (exita/= 1)then
-        a = a - dx
-        if (a < LowerBound ) a = LowerBound
-      endif
-      if (exitb/= 1)then
-        b = b + dx
-        if (b > UpperBound ) b = UpperBound
-      endif
-      dx = dx * sqrt2
-
-      if(present(use_lookup))then
-        if (exita/= 1) fa = fun(a, vec, use_lookup, lookup_data, ixControlIndex)
-        if (exitb/= 1) fb = fun(b, vec, use_lookup, lookup_data, ixControlIndex)
-      else  
-        if (exita/= 1) fa = fun(a, vec)
-        if (exitb/= 1) fb = fun(b, vec)
-      end if
-      if (a==LowerBound) exita = 1
-      if (b==UpperBound) exitb = 1
-      
-      if (disp == 1) write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
-      
-      ! check if sign of functions changed or not
-      if (( (sgn >= 0 ) .and.  (fa <= 0) ) .or. & 
-          ( (sgn <= 0 ) .and.  (fa >= 0  ) ))then  ! sign of a changed 
-        ! use a and olda as bracket
-        b = olda
-        fb = folda
-        exitflag = 1
-        exit
-      else if  (( (sgn >= 0 ) .and.  (fb <= 0  ) ) .or. & 
-                ( (sgn <= 0 ) .and.  (fb >= 0  ) )) then ! sign of b changed
-        a = oldb
-        fa = foldb
-        exitflag = 1
-        exit
-      end if
-      
-    end do
-    
-    ! case for non convergence
-    if (exitflag /=  1 ) then   
-      if (a==LowerBound .and. fa>0 .and. fb>0)then
-        brent_out = LowerBound; return ! if bracket is not found, use lower bound since true temperature and enthalpy is very low, LowerBound is close enough
-      elseif (b==UpperBound .and. fa<0 .and. fb<0)then ! fb will be a small negative value but should be zero to tolerances
-        brent_out = UpperBound; return ! if bracket is not found, use upper bound since true temperature is very close to upper bound, UpperBound is close enough
-      else 
-        write(*,*) ' Error (temperature from enthalpy computation): Proper initial value for Brents method could not be found in between bounds'
-        write(*,*) '  i           x1               x2            f(x1)            f(x2)'
-        write(*,"(1I4,4F17.6)") iter, a, b, fa, fb
-        write(*,*) 'vec=',vec
-        err = 20;message = trim(message)//'proper initial value could not be found'; return
-      endif
-    else if (disp == 1) then
-      write(*,*) '  Initial guess was found.'
-      write(*,*) ''
-    end if
-    
-    ! call brent0
-    if(present(use_lookup))then
-      brent_out = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage, use_lookup, lookup_data, ixControlIndex)
-    else
-      brent_out = brent0(fun, a, b, fa, fb, tol_x, tol_f, detail, vec, err, cmessage)
-    end if
+  err=0; message='newton_safe/'
+  lo = LowerBound; hi = UpperBound
+  haveLo = .false.; haveHi = .false.
+  T = min(max(x0, LowerBound), UpperBound)
+  dxOld = hi - lo
+  do iter = 1, maxiter
+    call fdf(T, vec, f, df, err, cmessage, use_lookup, lookup_data, ixControlIndex)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    
-  end subroutine brent  
+    if (abs(f) <= tol_f) then; T_out = T; return; endif
+    if (f > 0._rkind) then; hi = T; haveHi = .true.; else; lo = T; haveLo = .true.; endif
 
-  !----------------------------------------------------------------------
-  ! private functions for temperature to enthalpy conversion for Brent's method
-  !----------------------------------------------------------------------
-  function diff_H_veg ( scalarCanopyTemp, vec)
-    USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
-    implicit none
-    real(rkind) :: diff_H_veg
-    real(rkind) , intent(IN) :: scalarCanopyTemp, vec(8) 
-    real(rkind) :: scalarCanopyEnthalpy, scalarCanopyEnthTemp, scalarCanopyWat
-    real(rkind) :: canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, fLiq
-  
-    scalarCanopyEnthalpy = vec(1)
-    canopyDepth          = vec(2)
-    specificHeatVeg      = vec(3)
-    maxMassVegetation    = vec(4)
-    snowfrz_scale        = vec(5)
-    scalarCanopyWat      = vec(6)
-  
-    call T2enthTemp_veg(canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyTemp, &
-                        scalarCanopyWat, scalarCanopyEnthTemp)
-    fLiq       = fracliquid(scalarCanopyTemp, snowfrz_scale)
-    diff_H_veg = scalarCanopyEnthTemp - LH_fus * scalarCanopyWat* (1._rkind - fLiq)/ canopyDepth - scalarCanopyEnthalpy
-  
-  end function diff_H_veg
-  !----------------------------------------------------------------------
-  function diff_H_snLaGl ( mLayerTemp, vec)
-    USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
-    implicit none
-    real(rkind) :: diff_H_snLaGl
-    real(rkind) , intent(IN) :: mLayerTemp, vec(10) 
-    real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerVolFracWat, snowfrz_scale, fLiq
-    logical(lgt) :: noLiq
-  
-    mLayerEnthalpy   = vec(1)
-    snowfrz_scale    = vec(2)
-    mLayerVolFracWat = vec(3)
-    noLiq = .false. ! assume liquid water exists
-    if(vec(4) == 1._rkind) noLiq = .true.! no liquid water, ice only
-  
-    call T2enthTemp_snLaGl(noLiq, snowfrz_scale, mLayerTemp, mLayerVolFracWat, mLayerEnthTemp)
-    fLiq          = fracliquid(mLayerTemp, snowfrz_scale, noLiq)
-    diff_H_snLaGl = mLayerEnthTemp - iden_water * LH_fus * mLayerVolFracWat * (1._rkind - fLiq) - mLayerEnthalpy
-  
-  end function diff_H_snLaGl
-  !----------------------------------------------------------------------
-  function diff_H_soil ( mLayerTemp, vec, use_lookup, lookup_data, ixControlIndex)
-    USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
-    USE soil_utils_module,only:volFracTot     ! compute volumetric fraction of total water based on total matric head
-    implicit none
-    real(rkind) :: diff_H_soil
-    real(rkind) , intent(in) :: mLayerTemp, vec(10) 
-    logical(lgt), intent(in) :: use_lookup
-    type(zLookup),intent(in) :: lookup_data
-    integer(i4b), intent(in) :: ixControlIndex
-    real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, mLayerMatricHead, volFracWat, xConst, mLayerPsiLiq, fLiq
-    real(rkind) :: soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low
-    integer(i4b) :: err
-    character(LEN=256):: cmessage ! error message of downwind routine
-  
-    mLayerEnthalpy   = vec(1)
-    soil_dens_intr   = vec(2)
-    vGn_alpha        = vec(3)
-    vGn_n            = vec(4)
-    theta_sat        = vec(5)
-    theta_res        = vec(6)
-    vGn_m            = vec(7)
-    integral_frz_low = vec(8)
-    mLayerMatricHead = vec(9)
-    volFracWat       = vec(10)
-  
-    call T2enthTemp_soil(use_lookup, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, &
-                         ixControlIndex, lookup_data, integral_frz_low, mLayerTemp, mLayerMatricHead, &
-                         mLayerEnthTemp, err, cmessage, volFracWat0=volFracWat)
-    if(err/=0) then; cmessage="diff_H_soil inside Brent solver"//trim(cmessage); print*, cmessage; stop; end if
-    xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-    mLayerPsiLiq = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
-    fLiq         = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! here fLiq is the total liquid fraction, not fraction of water fraction that is liquid
-    diff_H_soil  = mLayerEnthTemp - iden_water * LH_fus * (volFracWat - fLiq) - mLayerEnthalpy
-  
-  end function diff_H_soil
+    Tnew = T - f/df
+    if (.not.(Tnew > lo .and. Tnew < hi) .or. (haveLo .and. haveHi .and. abs(Tnew - T) > 0.5_rkind*abs(dxOld))) Tnew = 0.5_rkind*(lo + hi)
+    dxOld = Tnew - T
+    if (abs(dxOld) <= 0.5_rkind*tol_x) then; T_out = Tnew; return; endif
+    T = Tnew
+  end do
+  write(*,'(a,4es24.15)') ' newton_safe: no convergence, T, f, lo, hi = ', T, f, lo, hi
+  write(*,*) 'vec=', vec
+  err=20; message=trim(message)//'convergence was not attained'
 
+end subroutine newton_safe
+
+!----------------------------------------------------------------------
+! private subroutines: enthalpy residual f (J m-3) and df/dT (J m-3 K-1) at temperature T (K) for newton_safe
+!----------------------------------------------------------------------
+subroutine fdf_veg (T, vec, f, df, err, message, use_lookup, lookup_data, ixControlIndex)
+  implicit none
+  real(rkind),intent(in)             :: T, vec(10)
+  real(rkind),intent(out)            :: f, df
+  integer(i4b),intent(out)           :: err
+  character(*),intent(out)           :: message
+  logical(lgt),intent(in),optional   :: use_lookup
+  type(zLookup),intent(in),optional  :: lookup_data
+  integer(i4b),intent(in),optional   :: ixControlIndex
+  real(rkind) :: scalarCanopyEnthalpy, canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, scalarCanopyWat
+  real(rkind) :: scalarCanopyEnthTemp, x, fLiq, dfLiq_dT
+
+  err=0; message='fdf_veg/'
+  scalarCanopyEnthalpy = vec(1)
+  canopyDepth          = vec(2)
+  specificHeatVeg      = vec(3)
+  maxMassVegetation    = vec(4)
+  snowfrz_scale        = vec(5)
+  scalarCanopyWat      = vec(6)
+
+  call T2enthTemp_veg(canopyDepth, specificHeatVeg, maxMassVegetation, snowfrz_scale, T, scalarCanopyWat, scalarCanopyEnthTemp)
+  x        = snowfrz_scale * (T - Tfreeze)
+  fLiq     = 1._rkind / (1._rkind + x*x)
+  dfLiq_dT = -2._rkind * snowfrz_scale * x * fLiq*fLiq
+  f  = scalarCanopyEnthTemp - LH_fus * scalarCanopyWat * (1._rkind - fLiq) / canopyDepth - scalarCanopyEnthalpy
+  df = ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWat * fLiq + Cp_ice * scalarCanopyWat * (1._rkind - fLiq) &
+         + LH_fus * dfLiq_dT * scalarCanopyWat ) / canopyDepth
+
+end subroutine fdf_veg
+!----------------------------------------------------------------------
+subroutine fdf_snLaGl (T, vec, f, df, err, message, use_lookup, lookup_data, ixControlIndex)
+  implicit none
+  real(rkind),intent(in)             :: T, vec(10)
+  real(rkind),intent(out)            :: f, df
+  integer(i4b),intent(out)           :: err
+  character(*),intent(out)           :: message
+  logical(lgt),intent(in),optional   :: use_lookup
+  type(zLookup),intent(in),optional  :: lookup_data
+  integer(i4b),intent(in),optional   :: ixControlIndex
+  real(rkind) :: mLayerEnthalpy, snowfrz_scale, volFracWat, mLayerEnthTemp, x, fLiq, dfLiq_dT
+  logical(lgt) :: noLiq
+
+  err=0; message='fdf_snLaGl/'
+  mLayerEnthalpy = vec(1)
+  snowfrz_scale  = vec(2)
+  volFracWat     = vec(3)
+  noLiq          = (vec(4) == 1._rkind) ! ice only
+
+  call T2enthTemp_snLaGl(noLiq, snowfrz_scale, T, volFracWat, mLayerEnthTemp)
+  if (noLiq) then
+    fLiq = 0._rkind; dfLiq_dT = 0._rkind
+  else
+    x        = snowfrz_scale * (T - Tfreeze)
+    fLiq     = 1._rkind / (1._rkind + x*x)
+    dfLiq_dT = -2._rkind * snowfrz_scale * x * fLiq*fLiq
+  endif
+  f  = mLayerEnthTemp - iden_water * LH_fus * volFracWat * (1._rkind - fLiq) - mLayerEnthalpy
+  df = iden_water * Cp_water * volFracWat * fLiq + iden_water * Cp_ice * volFracWat * (1._rkind - fLiq) &
+       + iden_air * Cp_air * (1._rkind - volFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) ) &
+       + iden_water * LH_fus * dfLiq_dT * volFracWat
+
+end subroutine fdf_snLaGl
+!----------------------------------------------------------------------
+subroutine fdf_soil (T, vec, f, df, err, message, use_lookup, lookup_data, ixControlIndex)
+  USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
+  USE soil_utils_module,only:dTheta_dTk     ! differentiate the freezing curve w.r.t. temperature (soil)
+  implicit none
+  real(rkind),intent(in)             :: T, vec(10)
+  real(rkind),intent(out)            :: f, df
+  integer(i4b),intent(out)           :: err
+  character(*),intent(out)           :: message
+  logical(lgt),intent(in),optional   :: use_lookup
+  type(zLookup),intent(in),optional  :: lookup_data
+  integer(i4b),intent(in),optional   :: ixControlIndex
+  real(rkind) :: mLayerEnthalpy, mLayerEnthTemp, dEnthTemp_dT, mLayerMatricHead, volFracWat, xConst, mLayerPsiLiq, fLiq
+  real(rkind) :: soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, integral_frz_low
+  character(len=256) :: cmessage
+
+  err=0; message='fdf_soil/'
+  mLayerEnthalpy   = vec(1)
+  soil_dens_intr   = vec(2)
+  vGn_alpha        = vec(3)
+  vGn_n            = vec(4)
+  theta_sat        = vec(5)
+  theta_res        = vec(6)
+  vGn_m            = vec(7)
+  integral_frz_low = vec(8)
+  mLayerMatricHead = vec(9)
+  volFracWat       = vec(10)
+
+  call T2enthTemp_soil(use_lookup, soil_dens_intr, vGn_alpha, vGn_n, theta_sat, theta_res, vGn_m, &
+                       ixControlIndex, lookup_data, integral_frz_low, T, mLayerMatricHead, &
+                       mLayerEnthTemp, err, cmessage, volFracWat0=volFracWat, dEnthTemp_dT=dEnthTemp_dT)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  xConst       = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
+  mLayerPsiLiq = xConst*(T - Tfreeze)            ! liquid water matric potential from the Clapeyron eqution
+  fLiq         = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) ! total liquid fraction, not fraction of water that is liquid
+  f  = mLayerEnthTemp - iden_water * LH_fus * (volFracWat - fLiq) - mLayerEnthalpy
+  df = dEnthTemp_dT + iden_water * LH_fus * dTheta_dTk(T,theta_res,theta_sat,vGn_alpha,vGn_n,vGn_m)
+
+end subroutine fdf_soil
 
 end module convertEnthalpyTemp_module

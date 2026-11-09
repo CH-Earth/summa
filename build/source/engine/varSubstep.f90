@@ -22,6 +22,7 @@ module varSubstep_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 USE data_types,only:&
                     var_i,               & ! data vector (i4b)
                     var_d,               & ! data vector (rkind)
@@ -171,10 +172,10 @@ subroutine varSubstep(&
   real(rkind),parameter              :: F_inc = 1.25_rkind                     ! factor used to increase time step
   real(rkind),parameter              :: F_dec = 0.90_rkind                     ! factor used to decrease time step
   ! state and flux vectors (Note: nState = in_varSubstep % nSubset)
-  real(rkind)                        :: untappedMelt(in_varSubstep % nSubset)  ! un-tapped melt energy (J m-3 s-1)
-  real(rkind)                        :: stateVecInit(in_varSubstep % nSubset)  ! initial state vector (mixed units)
-  real(rkind)                        :: stateVecTrial(in_varSubstep % nSubset) ! trial state vector (mixed units)
-  real(rkind)                        :: stateVecPrime(in_varSubstep % nSubset) ! trial state vector (mixed units)
+  real(rkind),allocatable,save       :: untappedMelt(:)                        ! un-tapped melt energy (J m-3 s-1)
+  real(rkind),allocatable,save       :: stateVecInit(:)                        ! initial state vector (mixed units)
+  real(rkind),allocatable,save       :: stateVecTrial(:)                       ! trial state vector (mixed units)
+  real(rkind),allocatable,save       :: stateVecPrime(:)                       ! trial state vector (mixed units)
   type(var_dlength),pointer          :: flux_temp                              ! temporary model fluxes
   ! flags
   logical(lgt)                       :: firstSplitOper                         ! flag to indicate if we are processing the first flux call in a splitting operation
@@ -187,18 +188,23 @@ subroutine varSubstep(&
   real(rkind)                        :: sumSoilCompress                        ! sum of total soil compression
   real(rkind),allocatable            :: sumLayerCompress(:)                    ! sum of soil compression by layer
   ! balances and residual vectors
-  real(rkind)                        :: fluxVec(in_varSubstep % nSubset)       ! substep flux vector (mixed units)
-  real(rkind)                        :: resSink(in_varSubstep % nSubset)       ! substep sink terms on the RHS of the state equation
-  real(qp)                           :: resVec(in_varSubstep % nSubset)        ! substep residual vector
-  real(rkind)                        :: balance(in_varSubstep % nSubset)       ! substep balance per second
-  real(rkind)                        :: sumBalance(in_varSubstep % nSubset)    ! sum of substeps balance
+  real(rkind),allocatable,save       :: fluxVec(:)                             ! substep flux vector (mixed units)
+  real(rkind),allocatable,save       :: resSink(:)                             ! substep sink terms on the RHS of the state equation
+  real(qp),allocatable,save          :: resVec(:)                              ! substep residual vector
+  real(rkind),allocatable,save       :: balance(:)                             ! substep balance per second
+  real(rkind),allocatable,save       :: sumBalance(:)                          ! sum of substeps balance
   logical(lgt),parameter             :: computMassBalance = .true.             ! flag to compute the mass balance, will affect step length, default true
   logical(lgt),parameter             :: computNrgBalance = .true.              ! flag to compute the energy balance, will not effect solution but will not compute energy balance if false (saves expense)
   logical(lgt)                       :: computeEnthTemp                        ! flag to compute enthalpy regardless of the model decision
   logical(lgt)                       :: enthalpyStateVec                       ! flag if enthalpy is a state variable (ida)
   logical(lgt)                       :: use_lookup                             ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
-
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(untappedMelt, stateVecInit, stateVecTrial, stateVecPrime, fluxVec, resSink, resVec, balance, &
+  !$omp& sumBalance)
   ! ---------------------------------------------------------------------------------------
+  call sizeScratch(1,in_varSubstep%nSubset,untappedMelt, stateVecInit, stateVecTrial, stateVecPrime, fluxVec, &
+                  &resSink, resVec, balance, sumBalance)
+
   ! initialize error control
   out_varSubstep % err=0; out_varSubstep % cmessage='varSubstep/'
   ! ---------------------------------------------------------------------------------------
@@ -485,13 +491,15 @@ subroutine varSubstep(&
         if(ixCasNrg/=integerMissing) sumBalance(ixCasNrg) = sumBalance(ixCasNrg) + dtSubstep*balance(ixCasNrg)
         if(ixVegNrg/=integerMissing) sumBalance(ixVegNrg) = sumBalance(ixVegNrg) + dtSubstep*balance(ixVegNrg)
         if(nSnLaSoGlNrg>0) then
-          do concurrent (ixLayer=1:nLayers,ixSnLaSoGlNrg(ixLayer)/=integerMissing)
+          do ixLayer=1,nLayers
+            if(ixSnLaSoGlNrg(ixLayer)==integerMissing) cycle
             if(ixSnLaSoGlNrg(ixLayer)/=integerMissing) sumBalance(ixSnLaSoGlNrg(ixLayer)) = sumBalance(ixSnLaSoGlNrg(ixLayer)) + dtSubstep*balance(ixSnLaSoGlNrg(ixLayer))
           end do
         endif
         if(ixVegHyd/=integerMissing) sumBalance(ixVegHyd) = sumBalance(ixVegHyd) + dtSubstep*balance(ixVegHyd)
         if(nSnLaSoGlHyd>0) then
-          do concurrent (ixLayer=1:nLayers,ixSnLaSoGlHyd(ixLayer)/=integerMissing)
+          do ixLayer=1,nLayers
+            if(ixSnLaSoGlHyd(ixLayer)==integerMissing) cycle
             if(ixSnLaSoGlHyd(ixLayer)/=integerMissing) sumBalance(ixSnLaSoGlHyd(ixLayer)) = sumBalance(ixSnLaSoGlHyd(ixLayer)) + dtSubstep*balance(ixSnLaSoGlHyd(ixLayer))
           end do
         endif
@@ -625,13 +633,15 @@ subroutine varSubstep(&
       if(ixCasNrg/=integerMissing) diag_data%var(iLookDIAG%balanceCasNrg)%dat(1) = sumBalance(ixCasNrg)/dt
       if(ixVegNrg/=integerMissing) diag_data%var(iLookDIAG%balanceVegNrg)%dat(1) = sumBalance(ixVegNrg)/dt
       if(nSnLaSoGlNrg>0) then
-        do concurrent (ixLayer=1:nLayers,ixSnLaSoGlNrg(ixLayer)/=integerMissing)
+        do ixLayer=1,nLayers
+          if(ixSnLaSoGlNrg(ixLayer)==integerMissing) cycle
           diag_data%var(iLookDIAG%balanceLayerNrg)%dat(ixLayer) = sumBalance(ixSnLaSoGlNrg(ixLayer))/dt
         end do
       endif
       if(ixVegHyd/=integerMissing) diag_data%var(iLookDIAG%balanceVegMass)%dat(1) = sumBalance(ixVegHyd)/dt
       if(nSnLaSoGlHyd>0) then
-        do concurrent (ixLayer=1:nLayers,ixSnLaSoGlHyd(ixLayer)/=integerMissing)
+        do ixLayer=1,nLayers
+          if(ixSnLaSoGlHyd(ixLayer)==integerMissing) cycle
           diag_data%var(iLookDIAG%balanceLayerMass)%dat(ixLayer) = sumBalance(ixSnLaSoGlHyd(ixLayer))/dt
         end do
       endif 
@@ -721,48 +731,60 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: scalarCanairTempTrial         ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanopyTempTrial         ! trial value for temperature of the vegetation canopy (K)
   real(rkind)                     :: scalarCanopyWatTrial          ! trial value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerTempTrial               ! trial vector of temperature of layers in the layer domains (K)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracWatTrial         ! trial vector of volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadTrial         ! trial vector of total water matric potential (m)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqTrial      ! trial vector of liquid water matric potential (m)
+  real(rkind),allocatable,save    :: mLayerTempTrial(:)            ! trial vector of temperature of layers in the layer domains (K)
+  real(rkind),allocatable,save    :: mLayerVolFracWatTrial(:)      ! trial vector of volumetric fraction of total water (-)
+  real(rkind),allocatable,save    :: mLayerMatricHeadTrial(:)      ! trial vector of total water matric potential (m)
+  real(rkind),allocatable,save    :: mLayerMatricHeadLiqTrial(:)   ! trial vector of liquid water matric potential (m)
   real(rkind)                     :: scalarAquiferStorageTrial     ! trial value for storage of water in the aquifer (m)
   real(rkind)                     :: scalarCanairEnthalpyTrial     ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind)                     :: scalarCanopyEnthTempTrial     ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial           ! trial vector of temperature component of enthalpy of layers (J m-3)
+  real(rkind),allocatable,save    :: mLayerEnthTempTrial(:)        ! trial vector of temperature component of enthalpy of layers (J m-3)
   real(rkind)                     :: scalarCanopyEnthalpyTrial     ! trial value for enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial           ! trial vector of enthalpy of each layer (J m-3)
+  real(rkind),allocatable,save    :: mLayerEnthalpyTrial(:)        ! trial vector of enthalpy of each layer (J m-3)
   ! diagnostic variables
   real(rkind)                     :: scalarCanopyLiqTrial          ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial          ! trial value for mass of ice on the vegetation canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial         ! trial vector of volumetric fraction of liquid water (-)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial         ! trial vector of volumetric fraction of ice (-)
+  real(rkind),allocatable,save    :: mLayerVolFracLiqTrial(:)      ! trial vector of volumetric fraction of liquid water (-)
+  real(rkind),allocatable,save    :: mLayerVolFracIceTrial(:)      ! trial vector of volumetric fraction of ice (-)
   ! prime state variables
   real(rkind)                     :: scalarCanairTempPrime         ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanopyTempPrime         ! trial value for temperature of the vegetation canopy (K)
   real(rkind)                     :: scalarCanopyWatPrime          ! trial value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerTempPrime               ! trial vector of temperature of layers in the layer domains (K)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracWatPrime         ! trial vector of volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadPrime         ! trial vector of total water matric potential (m)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqPrime      ! trial vector of liquid water matric potential (m)
+  real(rkind),allocatable,save    :: mLayerTempPrime(:)            ! trial vector of temperature of layers in the layer domains (K)
+  real(rkind),allocatable,save    :: mLayerVolFracWatPrime(:)      ! trial vector of volumetric fraction of total water (-)
+  real(rkind),allocatable,save    :: mLayerMatricHeadPrime(:)      ! trial vector of total water matric potential (m)
+  real(rkind),allocatable,save    :: mLayerMatricHeadLiqPrime(:)   ! trial vector of liquid water matric potential (m)
   real(rkind)                     :: scalarAquiferStoragePrime     ! trial value for storage of water in the aquifer (m)
   ! diagnostic prime or delta variables
   real(rkind)                     :: scalarCanopyLiqPrime          ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIcePrime          ! trial value for mass of ice on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceDelta          ! delta value for mass of ice on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyHDelta            ! delta value for enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime         ! trial vector of volumetric fraction of liquid water (-)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime         ! trial vector of volumetric fraction of ice (-)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracIceDelta         ! delta vector volumetric fraction of ice of layers (-)
-  real(rkind),dimension(nLayers)  :: mLayerHDelta                  ! delta vector of enthalpy of layers (J m-3)
+  real(rkind),allocatable,save    :: mLayerVolFracLiqPrime(:)      ! trial vector of volumetric fraction of liquid water (-)
+  real(rkind),allocatable,save    :: mLayerVolFracIcePrime(:)      ! trial vector of volumetric fraction of ice (-)
+  real(rkind),allocatable,save    :: mLayerVolFracIceDelta(:)      ! delta vector volumetric fraction of ice of layers (-)
+  real(rkind),allocatable,save    :: mLayerHDelta(:)               ! delta vector of enthalpy of layers (J m-3)
   ! dummy state variables
   real(rkind)                     :: scalarCanairNrgTrial          ! trial value for energy of the canopy air space
   real(rkind)                     :: scalarCanopyNrgTrial          ! trial value for energy of the vegetation canopy
-  real(rkind),dimension(nLayers)  :: mLayerNrgTrial                ! trial vector of energy of each layer
+  real(rkind),allocatable,save    :: mLayerNrgTrial(:)             ! trial vector of energy of each layer
   real(rkind)                     :: scalarCanairNrgPrime          ! prime value for energy of the canopy air space
   real(rkind)                     :: scalarCanopyNrgPrime          ! prime value for energy of the vegetation canopy
-  real(rkind),dimension(nLayers)  :: mLayerNrgPrime                ! prime vector of energy of each layer
+  real(rkind),allocatable,save    :: mLayerNrgPrime(:)             ! prime vector of energy of each layer
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(mLayerTempTrial, mLayerVolFracWatTrial, mLayerMatricHeadTrial, mLayerMatricHeadLiqTrial, &
+  !$omp& mLayerEnthTempTrial, mLayerEnthalpyTrial, mLayerVolFracLiqTrial, mLayerVolFracIceTrial, mLayerTempPrime, &
+  !$omp& mLayerVolFracWatPrime, mLayerMatricHeadPrime, mLayerMatricHeadLiqPrime, mLayerVolFracLiqPrime, &
+  !$omp& mLayerVolFracIcePrime, mLayerVolFracIceDelta, mLayerHDelta, mLayerNrgTrial, mLayerNrgPrime)
   ! -------------------------------------------------------------------------------------------------------------------
   ! -------------------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,nLayers,mLayerTempTrial, mLayerVolFracWatTrial, mLayerEnthTempTrial, mLayerEnthalpyTrial, &
+                  &mLayerVolFracLiqTrial, mLayerVolFracIceTrial, mLayerTempPrime, mLayerVolFracWatPrime, &
+                  &mLayerVolFracLiqPrime, mLayerVolFracIcePrime, mLayerVolFracIceDelta, mLayerHDelta, mLayerNrgTrial, &
+                  &mLayerNrgPrime)
+  call sizeScratch(1,nSoil,mLayerMatricHeadTrial, mLayerMatricHeadLiqTrial, mLayerMatricHeadPrime, &
+                  &mLayerMatricHeadLiqPrime)
+
   ! point to flux variables in the data structure
   associate(&
     ! model decisions
@@ -1070,7 +1092,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = (scalarCanairEnthalpyTrial - scalarCanairEnthalpy)/dt - fluxVec(ixCasNrg)
           if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyHDelta/dt - fluxVec(ixVegNrg)
           if(nSnLaSoGlNrg>0)then
-            do concurrent (i=1:nLayers,ixSnLaSoGlNrg(i)/=integerMissing)
+            do i=1,nLayers
+              if(ixSnLaSoGlNrg(i)==integerMissing) cycle
               balance(ixSnLaSoGlNrg(i)) = mLayerHDelta(i)/dt - fluxVec(ixSnLaSoGlNrg(i))
             enddo
           endif
@@ -1088,7 +1111,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
       if(ixCasNrg/=integerMissing) balance(ixCasNrg) = realMissing
       if(ixVegNrg/=integerMissing) balance(ixVegNrg) = realMissing
       if(nSnLaSoGlNrg>0)then
-        do concurrent (i=1:nLayers,ixSnLaSoGlNrg(i)/=integerMissing)
+        do i=1,nLayers
+          if(ixSnLaSoGlNrg(i)==integerMissing) cycle
           balance(ixSnLaSoGlNrg(i)) = realMissing
         enddo
       endif
@@ -1199,7 +1223,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! resVec is the residual vector from the solver over dt
           if(ixVegHyd/=integerMissing) balance(ixVegHyd) = resVec(ixVegHyd)/dt
           if(nSnLaSoGlHyd>0)then
-            do concurrent (i=1:nLayers,ixSnLaSoGlHyd(i)/=integerMissing)
+            do i=1,nLayers
+              if(ixSnLaSoGlHyd(i)==integerMissing) cycle
               balance(ixSnLaSoGlHyd(i)) = resVec(ixSnLaSoGlHyd(i))/dt
             end do
           endif
@@ -1209,7 +1234,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
     else ! if not checking mass balance set balance to missing
       if(ixVegHyd/=integerMissing) balance(ixVegHyd) = realMissing
       if(nSnLaSoGlHyd>0)then
-        do concurrent (i=1:nLayers,ixSnLaSoGlHyd(i)/=integerMissing)
+        do i=1,nLayers
+          if(ixSnLaSoGlHyd(i)==integerMissing) cycle
           balance(ixSnLaSoGlHyd(i)) = realMissing
         end do
       endif

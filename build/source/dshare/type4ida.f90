@@ -37,10 +37,10 @@ type data4ida
   type(var_d),pointer             :: forc_data => null()             ! model forcing data, the caller's
   type(var_dlength),pointer       :: bvar_data => null()             ! model variables for the local basin, the caller's
   type(var_dlength),pointer       :: prog_data => null()             ! prognostic variables for a local HRU, the caller's
-  type(var_ilength)               :: indx_data                       ! indices defining model states and layers
-  type(var_dlength)               :: diag_data                       ! diagnostic variables for a local HRU
-  type(var_dlength)               :: flux_data                       ! model fluxes for a local HRU
-  type(var_dlength)               :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
+  type(var_ilength),pointer       :: indx_data                       ! indices defining model states and layers
+  type(var_dlength),pointer       :: diag_data                       ! diagnostic variables for a local HRU
+  type(var_dlength),pointer       :: flux_data                       ! model fluxes for a local HRU
+  type(var_dlength),pointer       :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
   real(qp), allocatable           :: sMul(:)                         ! state vector multiplier (used in the residual calculations)
   real(rkind), allocatable        :: dMat(:)                         ! diagonal of the Jacobian matrix
   real(rkind), allocatable        :: fluxVec(:)                      ! flux vector

@@ -108,12 +108,12 @@ public::coupled_em
 integer(i4b),parameter  :: nWork=32                   ! number of sets kept per thread
 type :: coupled_em_work
   integer(i4b)      :: nLayers(4)=-1                   ! snow, lake, soil and glacier ice layers the set was allocated for
-  integer(i4b)      :: lastUse=0                       ! call count at the last use of the set
+  integer(i8b)      :: lastUse=0                       ! call count at the last use of the set
   type(var_ilength) :: indx_temp,indx_temp0
   type(var_dlength) :: prog_temp,diag_temp,flux_mean,flux_inner
 end type coupled_em_work
 type(coupled_em_work),target :: work(nWork)           ! cached sets
-integer(i4b)                 :: nWorkCall=0           ! calls to coupled_em on this thread
+integer(i8b)                 :: nWorkCall=0           ! calls to coupled_em on this thread
 !$omp threadprivate(work, nWorkCall)
 contains
 
