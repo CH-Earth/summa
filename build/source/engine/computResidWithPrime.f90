@@ -4,6 +4,7 @@ module computResidWithPrime_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -141,9 +142,12 @@ subroutine computResidWithPrime(&
   integer(i4b)                     :: iLayer                   ! index of layer within the layer domains
   integer(i4b),parameter           :: ixVegVolume=1            ! index of the desired vegetation control volumne (currently only one veg layer)
   real(rkind)                      :: scalarCanopyHydPrime     ! trial value for canopy water (kg m-2), either liquid water content or total water content
-  real(rkind),dimension(nLayers)   :: mLayerVolFracHydPrime    ! vector of volumetric water content (-), either liquid water content or total water content
+  real(rkind),allocatable,save    :: mLayerVolFracHydPrime(:) ! vector of volumetric water content (-), either liquid water content or total water content
+  !$omp threadprivate(mLayerVolFracHydPrime) ! one copy per thread
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,nLayers,mLayerVolFracHydPrime)
+
   ! link to the necessary variables for the residual computations
   associate(&
     ! canopy and layer depth

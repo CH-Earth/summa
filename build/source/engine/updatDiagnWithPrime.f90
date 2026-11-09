@@ -22,6 +22,7 @@ module updatDiagnWithPrime_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -211,7 +212,8 @@ subroutine updatDiagnWithPrime(&
   integer(i4b)                       :: ixOther,ixOtherLocal            ! index of the coupled state variable within the (full, local) vector
   logical(lgt)                       :: isCoupled                       ! .true. if a given variable shared another state variable in the same control volume
   logical(lgt)                       :: isNrgState                      ! .true. if a given variable is an energy state
-  logical(lgt),allocatable           :: computedCoupling(:)             ! .true. if computed the coupling for a given state variable
+  logical(lgt),allocatable,save      :: computedCoupling(:)             ! .true. if computed the coupling for a given state variable
+  !$omp threadprivate(computedCoupling)                                 ! one copy per thread
   real(rkind)                        :: scalarVolFracLiq                ! volumetric fraction of liquid water (-)
   real(rkind)                        :: scalarVolFracIce                ! volumetric fraction of ice (-)
   real(rkind)                        :: scalarVolFracLiqPrime           ! time derivative volumetric fraction of liquid water (-)
@@ -318,8 +320,7 @@ subroutine updatDiagnWithPrime(&
     err=0; message='updatDiagnWithPrime/'
 
     ! allocate space and assign values to the flag vector
-    allocate(computedCoupling(size(ixMapSubset2Full)),stat=err)        ! .true. if computed the coupling for a given state variable
-    if(err/=0)then; message=trim(message)//'problem allocating computedCoupling'; return; endif
+    call sizeScratch(1,size(ixMapSubset2Full),computedCoupling)
     computedCoupling(:)=.false.
 
     ! loop through model state variables
@@ -878,8 +879,6 @@ subroutine updatDiagnWithPrime(&
     end do ! looping through state variables
 
     ! deallocate space
-    deallocate(computedCoupling,stat=err)        ! .true. if computed the coupling for a given state variable
-    if(err/=0)then; message=trim(message)//'problem deallocating computedCoupling'; return; endif
 
     ! end association to the variables in the data structures
 end associate

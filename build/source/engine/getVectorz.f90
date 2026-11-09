@@ -22,6 +22,7 @@ module getVectorz_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -112,9 +113,12 @@ subroutine popStateVec(&
   integer(i4b)                    :: iState                 ! index of state within the layer domains
   integer(i4b)                    :: iLayer                 ! index of layer within the layer domains
   integer(i4b)                    :: ixStateSubset          ! index within the state subset
-  logical(lgt),dimension(nState)  :: stateFlag              ! flag to denote that the state is populated
+  logical(lgt),allocatable,save   :: stateFlag(:)           ! flag to denote that the state is populated
+  !$omp threadprivate(stateFlag) ! one copy per thread
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,nState,stateFlag)
+
   ! make association with variables in the data structures
   fixedLength: associate(&
     ! model states for the vegetation canopy

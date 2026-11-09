@@ -29,6 +29,7 @@ public :: sizeScratch
 interface sizeScratch
  module procedure sizeScratch1
  module procedure sizeScratch2
+ module procedure sizeScratchL
 end interface sizeScratch
 contains
 
@@ -72,5 +73,23 @@ contains
   allocate(a(n1,n2))
   end subroutine fit
  end subroutine sizeScratch2
+
+ ! give each logical array present the bounds lb:ub
+ subroutine sizeScratchL(lb,ub,a1,a2)
+ integer(i4b),intent(in)                         :: lb,ub
+ logical(lgt),allocatable,intent(inout)          :: a1(:)
+ logical(lgt),allocatable,intent(inout),optional :: a2(:)
+ call fit(a1)
+ if(present(a2)) call fit(a2)
+ contains
+  subroutine fit(a)
+  logical(lgt),allocatable,intent(inout) :: a(:)
+  if(allocated(a))then
+   if(lbound(a,1)==lb .and. ubound(a,1)==ub) return
+   deallocate(a)
+  end if
+  allocate(a(lb:ub))
+  end subroutine fit
+ end subroutine sizeScratchL
 
 end module scratch_module

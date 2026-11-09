@@ -22,6 +22,7 @@ module computFlux_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! provide access to the derived types and classes used to define data structures and class objects
 USE data_types,only:&
@@ -208,7 +209,7 @@ subroutine computFlux(&
   integer(i4b)                       :: local_ixGroundwater         ! local index for groundwater representation
   integer(i4b)                       :: iLayer,nStart               ! index control of model layers
   logical(lgt)                       :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
-  real(rkind),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+  real(rkind),allocatable,save       :: dHydCond_dMatric(:)         ! derivative in hydraulic conductivity w.r.t matric head (s-1)
   character(LEN=256)                 :: cmessage                    ! error message of downwind routine
   real(rkind)                        :: surface_flux                ! surface flux (m s-1) into snow or ice
   real(rkind)                        :: bottom_flux                 ! bottom flux (m s-1) out of snow or ice
@@ -231,10 +232,11 @@ subroutine computFlux(&
   !$omp threadprivate(in_vegNrgFlux, out_vegNrgFlux, in_snowLakeSoilGlceNrgFlux, io_snowLakeSoilGlceNrgFlux, out_snowLakeSoilGlceNrgFlux, &
   !$omp & in_vegLiqFlux, out_vegLiqFlux, in_liqDomain, io_liqDomain, out_snowLakeGlceLiqFlux, &
   !$omp & in_soilLiqFlux, io_soilLiqFlux, out_soilLiqFlux, in_groundwatr, io_groundwatr, out_groundwatr, &
-  !$omp & in_bigAquifer, io_bigAquifer, out_bigAquifer)
+  !$omp & in_bigAquifer, io_bigAquifer, out_bigAquifer, dHydCond_dMatric)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
+  call sizeScratch(1,nSoil,dHydCond_dMatric)
 
   call initialize_computFlux; if(err/=0)then; return; endif ! Preliminary operations to start routine
 

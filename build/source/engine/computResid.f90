@@ -22,6 +22,7 @@ module computResid_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! derived types to define the data structures
 USE data_types,only:&
@@ -161,10 +162,13 @@ subroutine computResid(&
   integer(i4b),parameter              :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
   real(rkind)                         :: scalarCanopyHydTrial      ! trial value of canopy water content (kg m-2), either liquid water content or total water content
   real(rkind)                         :: scalarCanopyHyd           ! canopy water content (kg m-2), either liquid water content or total water content
-  real(rkind),dimension(nLayers)      :: mLayerVolFracHydTrial     ! trial vector of volumetric water content (-), either liquid water content or total water content
-  real(rkind),dimension(nLayers)      :: mLayerVolFracHyd          ! vector of volumetric water content (-), either liquid water content or total water content
+  real(rkind),allocatable,save       :: mLayerVolFracHydTrial(:)  ! trial vector of volumetric water content (-), either liquid water content or total water content
+  real(rkind),allocatable,save       :: mLayerVolFracHyd(:)       ! vector of volumetric water content (-), either liquid water content or total water content
+  !$omp threadprivate(mLayerVolFracHydTrial, mLayerVolFracHyd) ! one copy per thread
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,nLayers,mLayerVolFracHydTrial, mLayerVolFracHyd)
+
   ! link to the necessary variables for the residual computations
   associate(&
     ! model state variables (vegetation canopy)
