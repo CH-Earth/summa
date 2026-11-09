@@ -36,6 +36,8 @@ USE globalData, only: integerMissing
 USE globalData, only: realMissing
 USE globalData, only: iulog
 
+USE summa_parameter_fields, only: summa_calibration_adapter
+
 USE build_options, only: mizuroute_active
 USE build_options, only: openwq_active
 
@@ -135,24 +137,26 @@ contains
   subroutine evaluate_objectives(config,                            & ! SUMMA configuration structure
                                  domain_parallel,                   & ! MPI context for domain parallelism
                                  instance_parallel,                 & ! MPI context for model-instance parallelism
-                                 sample_id, param_name,param_value, & ! sample ID + parameter names and values
-                                 objective,                         & ! objective value for each target
-                                 err, message,                      & ! error code and message
-                                 trial_failed)                        ! .true. if the error came from the parameter set's own run
+                                 sample_id,param_name,param_value,  & ! Sample ID and parameter overrides
+                                 objective,                         & ! Objective values for each calibration target
+                                 trial_failed,                      & ! True if the parameter set caused the trial to fail
+                                 calibration,                       & ! Field-based calibration adapter
+                                 err,message)                         ! Error code and message
     use iso_fortran_env, only: output_unit, error_unit
     use globalData, only: output_fileSuffix
     use simulated_series, only: sim_series_type
     ! dummy arguments
-    type(config_info),           intent(inout) :: config
-    type(parallel_context_type), intent(in)    :: domain_parallel
-    type(parallel_context_type), intent(in)    :: instance_parallel
-    integer(i4b)               , intent(in)    :: sample_id
-    character(*)               , intent(in)    :: param_name(:)
-    real(rkind)                , intent(in)    :: param_value(:)
-    real(rkind), allocatable   , intent(out)   :: objective(:)
-    integer(i4b)               , intent(out)   :: err
-    character(*)               , intent(out)   :: message
-    logical(lgt), optional, intent(out) :: trial_failed
+    type(config_info)                        , intent(inout) :: config            ! SUMMA configuration structure
+    type(parallel_context_type)              , intent(in)    :: domain_parallel   ! MPI context for domain parallelism
+    type(parallel_context_type)              , intent(in)    :: instance_parallel ! MPI context for instance parallelism
+    integer(i4b)                             , intent(in)    :: sample_id         ! Calibration sample identifier
+    character(*)                             , intent(in)    :: param_name(:)     ! Parameter names for scalar overrides
+    real(rkind)                              , intent(in)    :: param_value(:)    ! Parameter values for scalar overrides
+    real(rkind), allocatable                 , intent(out)   :: objective(:)      ! Objective values for each target
+    logical(lgt), optional                   , intent(out)   :: trial_failed      ! True if the parameter set caused the trial to fail
+    type(summa_calibration_adapter), optional, intent(inout) :: calibration       ! Field-based calibration adapter
+    integer(i4b)                             , intent(out)   :: err               ! Error code
+    character(*)                             , intent(out)   :: message           ! Error message
     ! locals
     logical(lgt)                       :: failed                 ! true if the parameter set causes a model or scoring failure
     logical(lgt)                       :: unscored               ! true if no calibration targets are configured
@@ -222,9 +226,9 @@ contains
     ! All exits from this block proceed to finalization and restoration of the output suffix
     trial: block
 
-      ! Initialize SUMMA
-      call initialize_summa(config, summa1_struc(n), param_name, param_value, &
-                            err=err, message=cmessage)
+      ! Initialize SUMMA, optionally applying field-based calibration.
+      call initialize_summa(config,summa1_struc(n),param_name,param_value, &
+                            calibration=calibration,err=err,message=cmessage)
       if(err/=0)then; message=trim(message)//trim(cmessage); failed=.true.; exit trial; endif
 
       ! Run without scoring if no calibration targets are configured
@@ -285,7 +289,7 @@ contains
     ! ---- Report objective values ------------------------------------------------------------
 
     if(instance_parallel%size == 1)then
-      write(output_unit,'(ES24.16)') objective(1)
+      write(output_unit,'(*(ES24.16,:,1X))') objective(1:nTarget)
     else
       write(output_unit,'(A,A,A,I0,A,*(1X,F12.9))') &
            'case=',trim(config%case_name),', rank=',instance_parallel%rank,', objective=', &
@@ -299,17 +303,21 @@ contains
   ! **************************************************************************************************
   ! initialize SUMMA
   ! **************************************************************************************************
-  subroutine initialize_summa(config, summa_struct, param_name, param_value, &
-                              mpar_out, bpar_out, err, message)
-    type(config_info)                    , intent(inout)    :: config
-    type(summa1_type_dec)                , intent(inout)    :: summa_struct
-    character(*)                         , intent(in)       :: param_name(:)
-    real(rkind)                          , intent(in)       :: param_value(:)
-    type(gru_hru_dom_doublevec), optional, intent(out)      :: mpar_out
-    type(gru_double)           , optional, intent(out)      :: bpar_out
-    integer(i4b)                         , intent(out)      :: err
-    character(*)                         , intent(out)      :: message
-    character(len=1024) :: cmessage
+  subroutine initialize_summa(config,summa_struct,param_name,param_value, &
+                              mpar_out,bpar_out,calibration,err,message)
+    ! dummy arguments
+    type(config_info)                        , intent(inout)    :: config        ! SUMMA configuration
+    type(summa1_type_dec)                    , intent(inout)    :: summa_struct  ! SUMMA model data structures
+    character(*)                             , intent(in)       :: param_name(:) ! Parameter names for scalar overrides
+    real(rkind)                              , intent(in)       :: param_value(:)! Parameter values for scalar overrides
+    type(gru_hru_dom_doublevec)    , optional, intent(out)      :: mpar_out      ! Initialized model parameter fields
+    type(gru_double)               , optional, intent(out)      :: bpar_out      ! Initialized basin parameter fields
+    type(summa_calibration_adapter), optional, intent(inout)    :: calibration   ! Field-based calibration adapter
+    integer(i4b)                             , intent(out)      :: err           ! Error code
+    character(*)                             , intent(out)      :: message       ! Error message
+    ! local
+    character(len=1024) :: cmessage                                        ! Local error message
+
 
     err = 0
     message = 'initialize_summa/'
@@ -319,7 +327,8 @@ contains
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! initialize parameter data structures
-    call summa_paramSetup(summa_struct, param_name, param_value, err, cmessage)
+    call summa_paramSetup(summa_struct, param_name, param_value, &
+                          calibration, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! read restart data and reset model state
@@ -335,6 +344,9 @@ contains
     ! Retain initialized parameter structures
     if(present(mpar_out)) mpar_out = summa_struct%mparStruct
     if(present(bpar_out)) bpar_out = summa_struct%bparStruct
+
+    ! retain the trial-parameter names in the passed config structure
+    config%trial_param_names = summa_struct%config%trial_param_names
 
   end subroutine initialize_summa
 
@@ -596,12 +608,12 @@ contains
     use globalData, only: ncid
     use var_lookup, only: iLookFREQ
     use simulated_series, only: sim_series_type, find_simulated_series
-    use read_flowobs_module, only: read_observations
-    use timeseries_alignment, only: align_timeseries
-    use series_transform, only: accumulate_series, remove_baseline_mean, balance_between_extremes
-    use metrics, only: compute_metric
+    use read_observations_module, only: read_observations
+    use timeseries_alignment, only: align_timeseries, select_aligned_window
+    use series_transform, only: accumulate_series, remove_baseline_mean, &
+                                rebase_matched_series, balance_between_extremes
+    use metrics, only: compute_metric, metric_undefined
     use write_evaluation_module, only: write_evaluation
-    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
 
     type(config_info), intent(in) :: config
     integer(i4b), intent(in) :: iTarget, targetUnit
@@ -614,11 +626,17 @@ contains
     character(*), intent(out) :: message
 
     integer(i4b) :: iSeries
-    real(rkind), allocatable :: timeObs(:),timeBounds(:,:),flowObs(:)
+    real(rkind), allocatable :: timeObs(:),timeBounds(:,:),valObs(:)
     real(rkind), allocatable :: timeVal(:),valSim(:),valAccum(:),valAnom(:)
-    real(rkind), allocatable :: timeAligned(:),flowSimAligned(:),flowObsAligned(:)
-    character(len=:), allocatable :: timeObsUnits,flowObsUnits
+    real(rkind), allocatable :: timeAligned(:),timeBoundsAligned(:,:)
+    real(rkind), allocatable :: valSimAligned(:),valObsAligned(:)
+    integer(i4b), allocatable :: nSimAligned(:)
+    character(len=:), allocatable :: timeObsUnits,valObsUnits
     character(len=:), allocatable :: timeValUnits,valSimUnits
+    character(len=:), allocatable :: alignStart,alignEnd
+    real(rkind)  :: simBaseline,obsBaseline
+    integer(i4b) :: nBaseline
+    logical(lgt) :: hasBaseline
     character(len=1024) :: cmessage
 
     err=0
@@ -640,12 +658,12 @@ contains
 
       ! Read observations
       call read_observations(trim(calTarget%obs_path),trim(calTarget%obs_file),trim(calTarget%vname_obs), &
-                             timeObs,timeBounds,flowObs,timeObsUnits,flowObsUnits,err,cmessage)
+                             timeObs,timeBounds,valObs,timeObsUnits,valObsUnits,err,cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         return
       endif
-      if(len_trim(calTarget%obs_units) > 0) flowObsUnits=trim(calTarget%obs_units)
+      if(len_trim(calTarget%obs_units) > 0) valObsUnits=trim(calTarget%obs_units)
 
       ! Accumulate a simulated rate when requested
       if(calTarget%accumulate)then
@@ -658,8 +676,11 @@ contains
         if(trim(valSimUnits)=='kg m-2 s-1') valSimUnits='mm'
       endif
 
-      ! Remove the baseline mean from simulated and observed series
-      if(allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end))then
+      hasBaseline=allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end)
+
+      ! For seasonal/annual balances, retain the existing baseline treatment.
+      ! For other targets, baseline removal happens AFTER time alignment.
+      if(hasBaseline .and. len_trim(calTarget%balance)>0)then
         call remove_baseline_mean(timeVal,valSim,timeValUnits,                     &
                                   calTarget%baseline_start,calTarget%baseline_end, &
                                   valAnom,err,cmessage)
@@ -668,14 +689,14 @@ contains
           return
         endif
         call move_alloc(valAnom,valSim)
-        call remove_baseline_mean(timeObs,flowObs,timeObsUnits,                    &
+        call remove_baseline_mean(timeObs,valObs,timeObsUnits,                    &
                                   calTarget%baseline_start,calTarget%baseline_end, &
                                   valAnom,err,cmessage)
         if(err/=0)then
           message='calibration target "'//trim(calTarget%name)//'" (observed): '//trim(cmessage)
           return
         endif
-        call move_alloc(valAnom,flowObs)
+        call move_alloc(valAnom,valObs)
       endif
 
       ! Calculate the change between seasonal extremes
@@ -692,35 +713,85 @@ contains
         timeValUnits=timeObsUnits
       endif
 
-      ! Align simulated and observed time series
-      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,timeObs,flowObs,     &
-                            timeObsUnits,flowObsUnits,config%calib%start_date,           &
-                            config%calib%end_date,timeBounds,timeAligned,flowSimAligned, &
-                            flowObsAligned, err,cmessage)
+      ! Align over the union of the evaluation and baseline periods.
+      ! The simulated value for each observation is averaged over its
+      ! own observation time bounds, including irregular GRACE periods.
+      alignStart=config%calib%start_date
+      alignEnd=config%calib%end_date
+
+      if(hasBaseline .and. len_trim(calTarget%balance)==0)then
+        if(calTarget%baseline_start<alignStart) alignStart=calTarget%baseline_start
+        if(calTarget%baseline_end>alignEnd) alignEnd=calTarget%baseline_end
+      endif
+
+      call align_timeseries(timeVal,valSim,timeValUnits,valSimUnits,timeObs,valObs, &
+                            timeObsUnits,valObsUnits,alignStart,alignEnd,timeBounds, &
+                            timeAligned,timeBoundsAligned,nSimAligned,              &
+                            valSimAligned,valObsAligned,err,cmessage)
+
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
         return
+      endif
+
+      ! Rebase the aligned series using exactly the same valid observation periods
+      if(hasBaseline .and. len_trim(calTarget%balance)==0)then
+
+        call rebase_matched_series(timeAligned,valSimAligned,valObsAligned,nSimAligned, &
+                                   timeObsUnits,calTarget%baseline_start,             &
+                                   calTarget%baseline_end,simBaseline,obsBaseline,    &
+                                   nBaseline,err,cmessage)
+
+        if(err/=0)then
+          message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+
+        ! Retain only evaluation observations, excluding baseline-only periods
+        call select_aligned_window(timeAligned,timeBoundsAligned,nSimAligned, &
+                                   valSimAligned,valObsAligned,timeObsUnits,  &
+                                   config%calib%start_date,config%calib%end_date, &
+                                   err,cmessage)
+
+        if(err/=0)then
+          message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
+          return
+        endif
+
       endif
 
       ! Compute the calibration metric
-      call compute_metric(flowObsAligned,flowSimAligned,calTarget%metric, &
-                          calTarget%obs_transform, objective,err,cmessage)
+      call compute_metric(valObsAligned,valSimAligned,calTarget%metric,calTarget%obs_transform,objective, &
+                          boxcox_lambda=calTarget%boxcox_lambda,err=err,message=cmessage)
       if(err/=0)then
         message='calibration target "'//trim(calTarget%name)//'": '//trim(cmessage)
-        failed=any(ieee_is_finite(flowObsAligned)) .and. .not.any(ieee_is_finite(flowSimAligned))
-        return
+        if(err==metric_undefined .and. calTarget%weight==0._rkind)then
+          ! compute_metric returned NaN. Save it as a missing diagnostic while
+          ! retaining the valid optimization targets from this simulation.
+          write(iulog,'(A)') 'undefined diagnostic: '//trim(message)
+          err=0
+          message=''
+        else
+          ! Numerical failure of an active metric invalidates this trial.
+          ! Input/configuration errors remain fatal, even for diagnostic targets.
+          if(err==metric_undefined) failed=.true.
+          return
+        endif
       endif
 
-      ! Write evaluation time series for the first target
-      if(config%write_timeseries .and. iTarget == 1)then
-        call write_evaluation(ncid(iLookFREQ%timestep),config%calib%write_aligned,    &
-                              timeAligned,flowObsAligned,flowSimAligned,timeObsUnits, &
-                              flowObsUnits,calTarget%metric,calTarget%obs_transform,  &
-                              objective,err,cmessage)
+      ! Write diagnostics for every calibration target
+      if(config%write_timeseries)then
+      
+        call write_evaluation(ncid(iLookFREQ%timestep),calTarget%name,config%calib%write_aligned,timeAligned, &
+                              timeBoundsAligned,valObsAligned,valSimAligned,nSimAligned,timeObsUnits, &
+                              valObsUnits,calTarget%metric,calTarget%obs_transform,objective, &
+                              boxcox_lambda=calTarget%boxcox_lambda,err=err,message=cmessage)
+      
         if(err/=0)then
           message=trim(cmessage)
           return
         endif
+      
       endif
 
     end associate
@@ -762,6 +833,8 @@ contains
     if(.not.allocated(config%calib%targets)) return
 
     do iTarget=1,min(size(config%calib%targets),size(objective))
+      ! Skip before reading the objective: zero times NaN is still NaN.
+      if(config%calib%targets(iTarget)%weight==0._rkind) cycle
       if(metric_is_maximized(config%calib%targets(iTarget)%metric))then
         F = F + config%calib%targets(iTarget)%weight*objective(iTarget)
       else

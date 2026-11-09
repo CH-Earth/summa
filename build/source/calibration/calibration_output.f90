@@ -24,6 +24,7 @@ module calibration_output_module
 
   USE data_types,       only: target_info
   USE parameter_search, only: parameter_spec
+  USE parameter_search, only: param_physical,param_spatial_multiplier,param_ratio
 
   implicit none
   private
@@ -66,7 +67,8 @@ contains
     character(*),         intent(out) :: message
     integer(i4b) :: dim_sample,dim_time,dim_target,dim_name
     integer(i4b) :: varid_sample,varid_objective,varid_param
-    integer(i4b) :: varid_worker_rank,varid_target_name
+    integer(i4b) :: varid_worker_rank,varid_target_name,varid_target_weight,varid_boxcox_lambda
+    real(rkind) :: target_lambdas(size(targets))
     integer(i4b) :: varid_start_time,varid_end_time
     integer(i4b) :: dim_member,dim_generation,varid
     integer(i4b), dimension(2) :: time_dims
@@ -77,6 +79,7 @@ contains
     character(len=len(targets(1)%name))  :: target_name
     character(len=:), allocatable :: constraint_names
     character(len=64) :: attribute_name
+    character(len=32) :: param_type_name
     integer(i4b) :: iParam
     integer(i4b) :: iConstraint
     integer(i4b) :: iOrdered
@@ -126,14 +129,33 @@ contains
       ! Parameter variables and metadata
       ! -----------------------------------------------------------------------------------------------
       do iParam=1,size(spec%params)
+        
+        ! Only sampled calibration variables have one value per trial.
+        if(.not.spec%params(iParam)%sampled) cycle
+     
+        ! descriptive metadata for the sampled calibration variable.
+        select case(spec%params(iParam)%param_type)
+          case (param_physical);           param_type_name = 'physical'
+          case (param_spatial_multiplier); param_type_name = 'spatial_multiplier'
+          case (param_ratio);              param_type_name = 'parameter_ratio'
+          case default;                    param_type_name = 'unknown'
+        end select
+
+        ! parameters
         ierr=nf90_def_var(ncid,trim(spec%params(iParam)%name),NF90_DOUBLE, (/dim_sample/),varid_param)
         if(ierr/=nf90_noerr) exit netcdf_block
         ierr=nf90_put_att(ncid,varid_param,'long_name', trim(spec%params(iParam)%long_name))
         if(ierr/=nf90_noerr) exit netcdf_block
-        ierr=nf90_put_att(ncid,varid_param,'units', trim(spec%params(iParam)%units))
+        
+        ! Units: multipliers and parameter ratios are dimensionless.
+        if(spec%params(iParam)%param_type==param_physical)then
+          ierr=nf90_put_att(ncid,varid_param,'units',trim(spec%params(iParam)%units))
+        else
+          ierr=nf90_put_att(ncid,varid_param,'units','-')
+        endif
         if(ierr/=nf90_noerr) exit netcdf_block
 
-        ! native physical parameter bounds
+        ! parameter bounds
         ierr=nf90_put_att(ncid,varid_param,'lower_bound',spec%params(iParam)%lower)
         if(ierr/=nf90_noerr) exit netcdf_block
         ierr=nf90_put_att(ncid,varid_param,'upper_bound',spec%params(iParam)%upper)
@@ -143,6 +165,19 @@ contains
         ierr=nf90_put_att(ncid,varid_param,'transformation', trim(spec%params(iParam)%transformation))
         if(ierr/=nf90_noerr) exit netcdf_block
 
+        ! metadata describing how the calibration variable constructs physical fields.
+        ierr=nf90_put_att(ncid,varid_param,'param_type',trim(param_type_name))
+        if(ierr/=nf90_noerr) exit netcdf_block
+        
+        if(len_trim(spec%params(iParam)%reference_name)>0)then
+          ierr=nf90_put_att(ncid,varid_param,'reference_name', &
+                            trim(spec%params(iParam)%reference_name))
+          if(ierr/=nf90_noerr) exit netcdf_block
+          ierr=nf90_put_att(ncid,varid_param,'reference_reduction', &
+                            trim(spec%params(iParam)%reference_reduction))
+          if(ierr/=nf90_noerr) exit netcdf_block
+        endif
+
         ! parameter sampling status
         if(spec%params(iParam)%sampled)then
           sampled=1
@@ -150,10 +185,6 @@ contains
           sampled=0
         endif
         ierr=nf90_put_att(ncid,varid_param,'sampled',sampled)
-        if(ierr/=nf90_noerr) exit netcdf_block
-
-        ! scalar trial value supplied by the model-specific parameter specification
-        ierr=nf90_put_att(ncid,varid_param,'trial_value',spec%params(iParam)%trial_value)
         if(ierr/=nf90_noerr) exit netcdf_block
 
       enddo
@@ -194,6 +225,8 @@ contains
       objective_dims=(/dim_target,dim_sample/)
       ierr=nf90_def_var(ncid,'objective',NF90_DOUBLE,objective_dims,varid_objective)
       if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_objective,'_FillValue',NF90_FILL_DOUBLE)
+      if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'long_name','calibration objective function')
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'units','-')
@@ -209,6 +242,34 @@ contains
       ierr=nf90_put_att(ncid,varid_objective,'variable',trim(joined_field(targets,'variable')))
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,varid_objective,'sense',trim(joined_field(targets,'sense')))
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ierr=nf90_put_att(ncid,varid_objective,'comment', &
+                        'An undefined diagnostic is a fill value; trial_failed distinguishes failed trials.')
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! Preserve which targets contributed to DDS selection.
+      ierr=nf90_def_var(ncid,'target_weight',NF90_DOUBLE,(/dim_target/),varid_target_weight)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_target_weight,'long_name','configured calibration target weight')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_target_weight,'units','-')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_target_weight,'comment', &
+                        'DDS: zero = diagnostic only, positive = optimization target. NSGA-II ignores positive magnitudes.')
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! Record the effective exponent only for Box-Cox targets; otherwise missing.
+      ierr=nf90_def_var(ncid,'target_boxcox_lambda',NF90_DOUBLE,(/dim_target/),varid_boxcox_lambda)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_boxcox_lambda,'_FillValue',NF90_FILL_DOUBLE)
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_boxcox_lambda,'long_name','Box-Cox exponent for each target')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_boxcox_lambda,'units','-')
+      if(ierr/=nf90_noerr) exit netcdf_block
+      ierr=nf90_put_att(ncid,varid_boxcox_lambda,'comment', &
+                        'Only used for boxcox: (Q**lambda-1)/lambda; lambda=0: log(Q); no offset.')
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! a failed trial has no objectives and ranks last on every target
@@ -272,7 +333,7 @@ contains
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'global_case_group',global_case_group)
       if(ierr/=nf90_noerr) exit netcdf_block
-      ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','physical')
+      ierr=nf90_put_att(ncid,NF90_GLOBAL,'parameter_space','untransformed_calibration_variables')
       if(ierr/=nf90_noerr) exit netcdf_block
       ierr=nf90_put_att(ncid,NF90_GLOBAL,'algorithm',trim(algorithm))
       if(ierr/=nf90_noerr) exit netcdf_block
@@ -303,6 +364,17 @@ contains
 
       ! leave define mode
       ierr=nf90_enddef(ncid)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      ! Target weights, written once in the same order as target_name.
+      ierr=nf90_put_var(ncid,varid_target_weight,targets%weight)
+      if(ierr/=nf90_noerr) exit netcdf_block
+
+      target_lambdas=NF90_FILL_DOUBLE
+      do iTarget=1,nTarget
+        if(trim(targets(iTarget)%obs_transform)=='boxcox') target_lambdas(iTarget)=targets(iTarget)%boxcox_lambda
+      enddo
+      ierr=nf90_put_var(ncid,varid_boxcox_lambda,target_lambdas)
       if(ierr/=nf90_noerr) exit netcdf_block
 
       ! target names, written once now that the file holds them
@@ -368,6 +440,7 @@ contains
   ! **************************************************************************************************
   subroutine write_calibration_output(ncid,isample,worker_rank,param_names,param_values, &
                                       objective,failed,start_time,end_time,ierr,message)
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
     integer(i4b), intent(in) :: ncid
     integer(i4b), intent(in) :: isample
@@ -438,7 +511,10 @@ contains
         ierr=nf90_put_var(ncid,varid_objective,spread(NF90_FILL_DOUBLE,1,size(objective)), &
                           start=(/1,isample/),count=(/size(objective),1/))
       else
-        ierr=nf90_put_var(ncid,varid_objective,objective, &
+        ! A valid trial can contain an undefined zero-weight diagnostic.
+        ! Map only non-finite entries to the standard NetCDF missing value.
+        ierr=nf90_put_var(ncid,varid_objective, &
+                          merge(objective,NF90_FILL_DOUBLE,ieee_is_finite(objective)), &
                           start=(/1,isample/),count=(/size(objective),1/))
       endif
       if(ierr/=nf90_noerr) exit netcdf_block
@@ -537,31 +613,52 @@ contains
   ! and rerun.sh, which reruns the trial with the serial driver built beside this one. Returns the
   ! directory in dir.
   ! **************************************************************************************************
-  subroutine write_failed_trial(config,sample_id,worker_rank,param_names,param_values,error_message,dir)
+  subroutine write_failed_trial(config,sample_id,worker_rank,param_names,param_values, &
+                                error_message,dir,allow_serial_rerun,err,message)
     USE summa_type,       only: config_info
     USE summaFileManager, only: OUTPUT_PATH,STATE_PATH,SETTINGS_PATH,MODEL_INITCOND
     implicit none
-    type(config_info), intent(in)  :: config
-    integer(i4b),      intent(in)  :: sample_id
-    integer(i4b),      intent(in)  :: worker_rank
-    character(*),      intent(in)  :: param_names(:)
-    real(rkind),       intent(in)  :: param_values(:)
-    character(*),      intent(in)  :: error_message
-    character(len=:), allocatable, intent(out) :: dir
+    ! dummy
+    type(config_info)            , intent(in)        :: config             ! SUMMA configuration
+    integer(i4b)                 , intent(in)        :: sample_id          ! Calibration sample identifier
+    integer(i4b)                 , intent(in)        :: worker_rank        ! MPI worker rank
+    character(*)                 , intent(in)        :: param_names(:)     ! Sampled calibration parameter names
+    real(rkind)                  , intent(in)        :: param_values(:)    ! Sampled calibration parameter values
+    character(*)                 , intent(in)        :: error_message      ! Reason the calibration trial failed
+    character(len=:), allocatable, intent(out)       :: dir                ! Directory containing failed-trial diagnostics
+    logical(lgt), optional       , intent(in)        :: allow_serial_rerun ! Allow replay using scalar parameter overrides
+    integer(i4b)                 , intent(out)       :: err                ! Error code
+    character(*)                 , intent(out)       :: message            ! Error message
+    ! local
     character(len=:), allocatable :: exe,serial_exe,init_state,source_rev,launch_dir
     character(len=32)   :: val
     character(len=4096) :: line
+    character(len=4) :: runString  ! Independent calibration run identifier
     integer(i4b) :: unit,iParam,ix,ios
     logical(lgt) :: rerunnable
 
-    ! one directory per trial
+    err=0
+    message='write_failed_trial/'
+    
+    ! unique string
     write(val,'(i6.6)') sample_id
     if(trim(config%calib%algorithm) == 'nsga2')then
       write(line,'(a,i0,a)') 'nsga2_g',(sample_id-1)/config%calib%nsga2%population_size+1,'_s'//trim(val)
     else
       line=trim(config%calib%algorithm)//'_s'//trim(val)
     endif
-    dir=trim(OUTPUT_PATH)//'failed_trials/'//trim(line)//'/'
+
+    ! directory name: avoid collisions across multiple basins
+    if(allocated(config%manifest_file))then
+      write(runString,'(I4.4)') config%run_index
+      dir=trim(OUTPUT_PATH)//'failed_trials/'// &
+          trim(config%case_name)//'/run'//runString//'/'// &
+          trim(line)//'/'
+    else
+      dir=trim(OUTPUT_PATH)//'failed_trials/'//trim(line)//'/'
+    endif
+   
+    ! create the case- and run-specific failed-trial directory.
     call execute_command_line('mkdir -p "'//dir//'"')
 
     ! the executable that ran the trial, and its serial driver (_opt dropped)
@@ -595,6 +692,11 @@ contains
 
     ! a manifest case is built from a template, so only a single configuration file can be rerun as it stands
     rerunnable=allocated(config%config_file) .and. .not.allocated(config%manifest_file)
+
+    if(present(allow_serial_rerun))then
+      if(.not.allow_serial_rerun) rerunnable=.false.
+    endif
+    
     if(allocated(config%config_file)) call execute_command_line('cp "'//config%config_file//'" "'//dir//'config.toml"')
 
     ! trial.json
