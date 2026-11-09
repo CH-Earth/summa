@@ -225,6 +225,15 @@ An NSGA-II trials file carries, beside every trial's parameters and objectives:
 `objective:sense` lists `maximize` or `minimize` per target, which is what a reader needs to recompute
 dominance.
 
+## Repeating a run
+
+The random seed is fixed (42, plus the run index less one), so a calibration repeated with the same
+configuration draws the same numbers. NSGA-II repeats exactly, whatever the number of workers,
+because it proposes a whole generation before any of it is evaluated. DDS proposes each trial from the
+best result returned so far, so with more than one worker its trial sequence depends on the order the
+workers finish in, and two runs part ways after the first few trials. A given parameter set always
+scores the same. To repeat a DDS run exactly, run it with one worker (two ranks).
+
 ## Failed trials
 
 A parameter set the model refuses (`paramCheck`) or fails on during the run (a balance check, a solver
