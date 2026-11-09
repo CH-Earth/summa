@@ -22,6 +22,7 @@ module summaSolv4homegrown_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -167,13 +168,13 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
- real(rkind) :: nJac(in_SS4HG % nState,in_SS4HG % nState)             ! numerical Jacobian matrix
- real(rkind) :: aJac(in_SS4HG % nLeadDim,in_SS4HG % nState)           ! Jacobian matrix
- real(rkind) :: aJacScaled(in_SS4HG % nLeadDim,in_SS4HG % nState)     ! Jacobian matrix (scaled)
- real(rkind) :: aJacScaledTemp(in_SS4HG % nLeadDim,in_SS4HG % nState) ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
+ real(rkind),allocatable,save             :: nJac(:,:)            ! numerical Jacobian matrix
+ real(rkind),allocatable,save             :: aJac(:,:)            ! Jacobian matrix
+ real(rkind),allocatable,save             :: aJacScaled(:,:)      ! Jacobian matrix (scaled)
+ real(rkind),allocatable,save             :: aJacScaledTemp(:,:)  ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
  ! solution/step vectors
- real(rkind),dimension(in_SS4HG % nState) :: rVecScaled           ! residual vector (scaled)
- real(rkind),dimension(in_SS4HG % nState) :: newtStepScaled       ! full newton step (scaled)
+ real(rkind),allocatable,save             :: rVecScaled(:)        ! residual vector (scaled)
+ real(rkind),allocatable,save             :: newtStepScaled(:)    ! full newton step (scaled)
  ! general
  integer(i4b)                    :: mSoil                         ! number of soil layers in solution vector
  integer(i4b)                    :: iLayer                        ! row index
@@ -183,8 +184,13 @@ contains
  ! class objects for subroutine arguments
  type(in_type_computJacob)       :: in_computJacob                ! computJacob object
  type(out_type_computJacob)      :: out_computJacob               ! computJacob object 
+ ! one copy of the scratch arrays per thread
+ !$omp threadprivate(nJac, aJac, aJacScaled, aJacScaledTemp, rVecScaled, newtStepScaled)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
+ call sizeScratch(in_SS4HG%nState,in_SS4HG%nState,nJac)
+ call sizeScratch(in_SS4HG%nLeadDim,in_SS4HG%nState,aJac, aJacScaled, aJacScaledTemp)
+ call sizeScratch(1,in_SS4HG%nState,rVecScaled, newtStepScaled)
 
  ! ***** Compute the Newton Step *****
 
@@ -503,8 +509,8 @@ contains
   ! --------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                      ! error message of downwind routine
-  real(rkind)                    :: gradScaled(in_SS4HG % nState) ! scaled gradient
-  real(rkind)                    :: xInc(in_SS4HG % nState)       ! iteration increment (re-scaled to original units of the state vector)
+  real(rkind),allocatable,save   :: gradScaled(:)                 ! scaled gradient
+  real(rkind),allocatable,save   :: xInc(:)                       ! iteration increment (re-scaled to original units of the state vector)
   logical(lgt)                   :: feasible                      ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iLine                         ! line search index
   integer(i4b),parameter         :: maxLineSearch=5               ! maximum number of backtracks
@@ -517,7 +523,11 @@ contains
   real(rkind)                    :: disc                          ! temporary variable used in cubic
   real(rkind)                    :: xLambdaPrev                   ! previous lambda value (used in the cubic)
   real(rkind)                    :: fPrev                         ! previous function evaluation (used in the cubic)
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(gradScaled, xInc)
   ! --------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,in_SS4HG%nState,gradScaled, xInc)
+
   associate(&
    ! intent(in) variables
    doLineSearch => in_LSR % doSearch            ,& ! flag to do the line search
@@ -785,14 +795,18 @@ contains
   character(len=256)              :: cmessage                  ! error message of downwind routine
   real(rkind),parameter           :: relTolerance=0.005_rkind  ! force bi-section if trial is slightly larger than (smaller than) xmin (xmax)
   real(rkind)                     :: xTolerance                ! relTolerance*(xmax-xmin)
-  real(rkind)                     :: xInc(in_SS4HG % nState)   ! iteration increment (re-scaled to original units of the state vector)
-  real(rkind)                     :: rVec(in_SS4HG % nState)   ! residual vector (re-scaled to original units of the state equation)
+  real(rkind),allocatable,save    :: xInc(:)                   ! iteration increment (re-scaled to original units of the state vector)
+  real(rkind),allocatable,save    :: rVec(:)                   ! residual vector (re-scaled to original units of the state equation)
   logical(lgt)                    :: feasible                  ! feasibility of the solution
   logical(lgt)                    :: doBisection               ! flag to do the bi-section
   logical(lgt)                    :: bracketsDefined           ! flag to define if the brackets are defined
   integer(i4b),parameter          :: nCheck=100                ! number of times to check the model state variables
   real(rkind),parameter           :: delX=1._rkind             ! trial increment
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(xInc, rVec)
   ! --------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,in_SS4HG%nState,xInc, rVec)
+
   associate(&
    iter           => in_SS4HG % iter           ,& ! intent(in): iteration index
    nSnow          => in_SS4HG % nSnow          ,& ! intent(in): number of snow layers
@@ -940,13 +954,17 @@ contains
   real(rkind),intent(inout)       :: xMin,xMax                       ! constraints
   character(*),intent(out)        :: message                         ! error message
   ! locals
-  real(rkind)                     :: stateVecPrev(in_SS4HG % nState) ! iteration state vector
+  real(rkind),allocatable,save    :: stateVecPrev(:)                 ! iteration state vector
   integer(i4b)                    :: iCheck                          ! check the model state variables
   integer(i4b),parameter          :: nCheck=10                       ! number of times to check the model state variables
   logical(lgt)                    :: feasible                        ! feasibility of the solution
   real(rkind),parameter           :: delX=1._rkind                   ! trial increment
-  real(rkind)                     :: xIncrement(in_SS4HG % nState)   ! trial increment
+  real(rkind),allocatable,save    :: xIncrement(:)                   ! trial increment
   character(len=256)              :: cmessage                        ! error message of downwind routine
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(stateVecPrev, xIncrement)
+  call sizeScratch(1,in_SS4HG%nState,stateVecPrev, xIncrement)
+
   ! initialize
   err=0; message='getBrackets/'
 
@@ -1149,8 +1167,8 @@ contains
   type(out_type_summaSolv4homegrown),intent(in) :: out_SS4HG  ! new function evaluation, convergence flag, and error control
   real(rkind),intent(in),optional :: xScale(:)                ! multiplier taking xInc to mixed units
   ! locals
-  real(rkind),dimension(mSoil) :: psiScale                    ! scaling factor for matric head
-  real(rkind),dimension(nState):: rVecScaled                  ! scaled rVec for saturated soil
+  real(rkind),allocatable,save :: psiScale(:)                 ! scaling factor for matric head
+  real(rkind),allocatable,save :: rVecScaled(:)               ! scaled rVec for saturated soil
   real(rkind),parameter        :: xSmall=1.e-0_rkind          ! a small offset
   real(rkind),parameter        :: scalarTighten=0.1_rkind     ! scaling factor for the scalar solution
   real(rkind),parameter        :: saturatedLoosen=1.e3_rkind  ! scaling factor for saturated glacier debris or lake soil 
@@ -1169,9 +1187,15 @@ contains
   logical(lgt)                 :: matricConv                  ! flag for matric head convergence
   logical(lgt)                 :: energyConv                  ! flag for energy convergence
   logical(lgt)                 :: aquiferConv                 ! flag for aquifer water balance convergence
-  integer(i4b),dimension(mSoil):: ixSoilMat                   ! soil layer carrying each matric head state
+  integer(i4b),allocatable,save :: ixSoilMat(:)                ! soil layer carrying each matric head state
   integer(i4b)                 :: iMat                        ! index of matric head state in the subset
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(psiScale, rVecScaled, ixSoilMat)
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,mSoil,psiScale)
+  call sizeScratch(1,nState,rVecScaled)
+  call sizeScratch(1,mSoil,ixSoilMat)
+
   ! association to variables in the data structures
   associate(&
    ! model control

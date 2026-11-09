@@ -22,6 +22,7 @@ module systemSolv_module
 
 ! data types
 USE nr_type
+USE scratch_module,only:sizeScratch  ! size the per-thread scratch arrays
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -233,30 +234,30 @@ subroutine systemSolv(&
   type(var_dlength),pointer       :: flux_init                     ! model fluxes at the start of the time step
   real(rkind),allocatable         :: dBaseflow_dWat(:,:)           ! derivative in baseflow w.r.t. soil water characteristic
   real(rkind),allocatable         :: dBaseflow_dTk(:,:)            ! derivative in baseflow w.r.t. temperature (m s-1 K-1)
-  real(rkind)                     :: stateVecNew(nState)           ! new state vector (mixed units)
-  real(rkind)                     :: fluxVec0(nState)              ! flux vector (mixed units)
-  real(rkind)                     :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
-  real(qp)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
-  real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
+  real(rkind),allocatable,save    :: stateVecNew(:)                ! new state vector (mixed units)
+  real(rkind),allocatable,save    :: fluxVec0(:)                   ! flux vector (mixed units)
+  real(rkind),allocatable,save    :: dMat(:)                       ! diagonal matrix (excludes flux derivatives)
+  real(qp),allocatable,save       :: sMul(:)         ! NOTE: qp    ! multiplier for state vector for the residual calculations
+  real(rkind),allocatable,save    :: rAdd(:)                       ! additional terms in the residual vector
   logical(lgt)                    :: feasible                      ! feasibility flag
   logical(lgt)                    :: sunSucceeds                   ! flag to indicate if SUNDIALS successfully solved the problem in current data step
   integer(i4b)                    :: top                           ! index of the top layer (1 for snow, 1+nSoil+nLake for glacier ice)
   ! ida variables
-  real(rkind)                     :: atol(nState)                  ! absolute tolerance ida
-  real(rkind)                     :: rtol(nState)                  ! relative tolerance ida
+  real(rkind),allocatable,save    :: atol(:)                       ! absolute tolerance ida
+  real(rkind),allocatable,save    :: rtol(:)                       ! relative tolerance ida
   type(var_dlength),pointer       :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_cur
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   ! ida solver variables outputted if use eval8summaWithPrime (not used here, just inside ida solver)
   logical(lgt)                    :: firstSplitOper0               ! flag to indicate if we are processing the first flux call in a splitting operation, changed inside eval8summaWithPrime
   real(rkind)                     :: scalarCanopyTempPrime         ! prime value for temperature of the vegetation canopy (K s-1)
   real(rkind)                     :: scalarCanopyWatPrime          ! prime value for total water content of the vegetation canopy (kg m-2 s-1)
-  real(rkind)                     :: mLayerTempPrime(nLayers)      ! prime vector of temperature of each layer (K s-1)
+  real(rkind),allocatable,save    :: mLayerTempPrime(:)            ! prime vector of temperature of each layer (K s-1)
   real(rkind), allocatable        :: mLayerMatricHeadPrime(:)      ! prime vector of matric head of each layer (m s-1)
-  real(rkind)                     :: mLayerVolFracWatPrime(nLayers)! prime vector of volumetric total water content of each layer (s-1)
+  real(rkind),allocatable,save    :: mLayerVolFracWatPrime(:)      ! prime vector of volumetric total water content of each layer (s-1)
   ! kinsol and homegrown solver variables
-  real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
-  real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
-  real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector homegrown solver
+  real(rkind),allocatable,save    :: fScale(:)                     ! characteristic scale of the function evaluations (mixed units)
+  real(rkind),allocatable,save    :: xScale(:)                     ! characteristic scale of the state vector (mixed units)
+  real(qp),allocatable,save       :: resVecNew(:)       ! NOTE: qp ! new residual vector homegrown solver
   ! homegrown solver variables
   real(rkind)                     :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled homegrown solver
   real(rkind)                     :: xMin,xMax                     ! state minimum and maximum (mixed units) homegrown solver
@@ -272,7 +273,12 @@ subroutine systemSolv(&
   ! flags
   logical(lgt) :: return_flag ! flag for handling systemSolv returns trigerred from internal subroutines 
   logical(lgt) :: exit_flag   ! flag for handling loop exit statements trigerred from internal subroutines 
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(stateVecNew, fluxVec0, dMat, sMul, rAdd, atol, rtol, mLayerTempPrime, mLayerVolFracWatPrime, &
+  !$omp& fScale, xScale, resVecNew)
   ! -----------------------------------------------------------------------------------------------------------
+  call sizeScratch(1,nState,stateVecNew, fluxVec0, dMat, sMul, rAdd, atol, rtol, fScale, xScale, resVecNew)
+  call sizeScratch(1,nLayers,mLayerTempPrime, mLayerVolFracWatPrime)
 
   call initialize_systemSolv; if (return_flag) return ! initialize variables and allocate arrays -- return if error
 
