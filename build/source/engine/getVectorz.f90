@@ -166,7 +166,8 @@ subroutine popStateVec(&
 
     ! build the state vector for the temperature of the canopy air space
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
-    do concurrent (iState=1:size(ixCasNrg),ixCasNrg(iState)/=integerMissing)
+    do iState=1,size(ixCasNrg)
+      if(ixCasNrg(iState)==integerMissing) cycle
       if(enthalpyStateVec)then
         stateVec( ixCasNrg(iState) ) = scalarCanairEnthalpy ! transfer canopy air enthalpy to the state vector
       else
@@ -177,7 +178,8 @@ subroutine popStateVec(&
 
     ! build the state vector for the temperature of the vegetation canopy
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
-    do concurrent (iState=1:size(ixVegNrg),ixVegNrg(iState)/=integerMissing)
+    do iState=1,size(ixVegNrg)
+      if(ixVegNrg(iState)==integerMissing) cycle
       if(enthalpyStateVec)then
         stateVec( ixVegNrg(iState) ) = scalarCanopyEnthalpy ! transfer vegetation enthalpy to the state vector
       else
@@ -188,7 +190,8 @@ subroutine popStateVec(&
 
     ! build the state vector for the water in the vegetation canopy
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
-    do concurrent (iState=1:size(ixVegHyd),ixVegHyd(iState)/=integerMissing)
+    do iState=1,size(ixVegHyd)
+      if(ixVegHyd(iState)==integerMissing) cycle
       stateFlag( ixVegHyd(iState) ) = .true. ! flag to denote that the state is populated
       select case(ixStateType_subset( ixVegHyd(iState) ))
         case(iname_watCanopy); stateVec( ixVegHyd(iState) ) = scalarCanopyWat ! transfer total canopy water to the state vector
@@ -199,7 +202,8 @@ subroutine popStateVec(&
 
     ! build the energy state vector for the snow and soil domain
     if(nSnLaSoGlNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         ixStateSubset            = ixSnLaSoGlNrg(iLayer) ! index within the state vector
         if(enthalpyStateVec)then
           stateVec(ixStateSubset) = mLayerEnthalpy(iLayer) ! transfer enthalpy from a layer to the state vector
@@ -213,7 +217,8 @@ subroutine popStateVec(&
     ! build the hydrology state vector for the layer domains
     ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
     if(nSnLaSoGlHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing) ! (loop through non-missing hydrology state variables in the layer domains)
+      do iLayer=1,nLayers ! (loop through non-missing hydrology state variables in the layer domains)
+        if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
         ixStateSubset            = ixSnLaSoGlHyd(iLayer) ! index within the state vector
         stateFlag(ixStateSubset) = .true.                ! flag to denote that the state is populated
         select case( ixHydType(iLayer) )
@@ -228,7 +233,8 @@ subroutine popStateVec(&
 
     ! build the state vector for the aquifer storage
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer aquifer
-    do concurrent (iState=1:size(ixAqWat),ixAqWat(iState)/=integerMissing)
+    do iState=1,size(ixAqWat)
+      if(ixAqWat(iState)==integerMissing) cycle
       stateVec( ixAqWat(iState) )  = scalarAquiferStorage    ! transfer aquifer storage to the state vector
       stateFlag( ixAqWat(iState) ) = .true.                  ! flag to denote that the state is populated
     end do
@@ -364,7 +370,8 @@ subroutine getScaling(&
 
     ! define the energy multiplier and diagonal elements for the state vector for residual calculations (layer domain)
     if(nSnLaSoGlNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         ixStateSubset        = ixSnLaSoGlNrg(iLayer)      ! index within the state vector
         sMul(ixStateSubset)  = mLayerVolHeatCap(iLayer)   ! transfer volumetric heat capacity to the state multiplier
         dMat(ixStateSubset)  = realMissing                ! diagonal element populated within the iteration loop
@@ -373,7 +380,8 @@ subroutine getScaling(&
 
     ! define the hydrology multiplier and diagonal elements for the state vector for residual calculations (layer domain)
     if(nSnLaSoGlHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
         ixStateSubset        = ixSnLaSoGlHyd(iLayer)      ! index within the state vector
         sMul(ixStateSubset)  = 1._rkind                   ! state multiplier = 1 (nothing else on the left-hand-side)
         dMat(ixStateSubset)  = 1._rkind                   ! diagonal element = 1 (nothing else on the left-hand-side)
@@ -519,7 +527,8 @@ subroutine checkFeas(&
     endif
 
     ! loop through non-missing hydrology state variables in the layer domains
-    do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)
+    do iLayer=1,nLayers
+      if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
 
       ! check the minimum and maximum water constraints
       if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
@@ -658,14 +667,16 @@ subroutine varExtract(&
 
     ! overwrite with the energy values from the state vector
     if(nSnLaSoGlNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         mLayerNrgTrial(iLayer) = stateVec( ixSnLaSoGlNrg(iLayer) )
       end do  ! looping through non-missing energy state variables in the layer domains
     endif
 
     ! overwrite with the hydrology values from the state vector
     if(nSnLaSoGlHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing hydrology state variables in the layer domains)
+        if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
         select case( ixHydType(iLayer) )
           case(iname_watLayer); mLayerVolFracWatTrial(iLayer)                = stateVec( ixSnLaSoGlHyd(iLayer) ) ! total water state variable for layers
           case(iname_liqLayer); mLayerVolFracLiqTrial(iLayer)                = stateVec( ixSnLaSoGlHyd(iLayer) ) ! liquid water state variable for layers

@@ -203,21 +203,24 @@ subroutine popTol4ida(&
     tolFlag(:) = .false.
 
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
-    do concurrent (iState=1:size(ixCasNrg),ixCasNrg(iState)/=integerMissing)
+    do iState=1,size(ixCasNrg)
+      if(ixCasNrg(iState)==integerMissing) cycle
       absTol( ixCasNrg(iState) )  = absTolTempCas            ! transfer canopy air temperature to the state vector
       relTol( ixCasNrg(iState) )  = relTolTempCas
       tolFlag( ixCasNrg(iState) ) = .true.                 ! flag to denote that tolerances are populated
     end do
 
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
-    do concurrent (iState=1:size(ixVegNrg),ixVegNrg(iState)/=integerMissing)
+    do iState=1,size(ixVegNrg)
+      if(ixVegNrg(iState)==integerMissing) cycle
       absTol( ixVegNrg(iState) )  = absTolTempVeg      ! transfer vegetation temperature to the state vector
       relTol( ixVegNrg(iState) )  = relTolTempVeg     ! transfer vegetation temperature to the state vector
       tolFlag( ixVegNrg(iState) ) = .true.                 ! flag to denote that tolerances are populated
     end do
 
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer canopy
-    do concurrent (iState=1:size(ixVegHyd),ixVegHyd(iState)/=integerMissing)
+    do iState=1,size(ixVegHyd)
+      if(ixVegHyd(iState)==integerMissing) cycle
       tolFlag( ixVegHyd(iState) ) = .true.                 ! flag to denote that tolerances are populated
       select case(ixStateType_subset( ixVegHyd(iState) ))
         case(iname_watCanopy); absTol( ixVegHyd(iState) )  = absTolWatVeg ; relTol( ixVegHyd(iState) )  = relTolWatVeg
@@ -228,7 +231,8 @@ subroutine popTol4ida(&
 
     ! tolerance for tempreture of the snow and soil domain
     if(nSnLaSoGlNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         ixStateSubset            = ixSnLaSoGlNrg(iLayer)  ! index within the state vector
         absTol(ixStateSubset)  = absTolTempSoilSnow    ! transfer temperature from a layer to the state vector
         relTol(ixStateSubset)  = relTolTempSoilSnow
@@ -238,7 +242,8 @@ subroutine popTol4ida(&
 
     ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
     if(nSnLaSoGlHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the layer domains)
+      do iLayer=1,nLayers   ! (loop through non-missing hydrology state variables in the layer domains)
+        if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
         ixStateSubset            = ixSnLaSoGlHyd(iLayer)   ! index within the state vector
         tolFlag(ixStateSubset) = .true.                  ! flag to denote that tolerances are populated
         select case( ixHydType(iLayer) )
@@ -253,7 +258,8 @@ subroutine popTol4ida(&
 
     ! build the state vector for the aquifer storage
     ! NOTE: currently vector length=1, and use "do concurrent" to generalize to a multi-layer aquifer
-    do concurrent (iState=1:size(ixAqWat),ixAqWat(iState)/=integerMissing)
+    do iState=1,size(ixAqWat)
+      if(ixAqWat(iState)==integerMissing) cycle
       absTol( ixAqWat(iState) )  = absTolAquifr    ! transfer aquifer storage to the state vector
       relTol( ixAqWat(iState) )  = relTolAquifr
       tolFlag( ixAqWat(iState) ) = .true.                  ! flag to denote that tolerances are populated

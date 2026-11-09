@@ -87,6 +87,7 @@ public::alloc_driver_work
 public::allocGlobal
 public::allocLocal
 public::allocCached
+public::allocCachedInt
 public::resizeData
 
 ! named slots of the per-thread cache of local var_dlength structures (one structure per slot is live at a time)
@@ -94,16 +95,25 @@ integer(i4b),parameter,public :: ixCache_varSubstepFlux=1  ! varSubstep flux_tem
 integer(i4b),parameter,public :: ixCache_systemSolvInit=2  ! systemSolv flux_init
 integer(i4b),parameter,public :: ixCache_systemSolvSum=3   ! systemSolv flux_sum
 integer(i4b),parameter,public :: ixCache_idaFluxPrev=4     ! summaSolv4ida flux_prev
-integer(i4b),parameter        :: nCacheSlot=4              ! number of slots
+integer(i4b),parameter,public :: ixCache_idaDiag=5         ! summaSolv4ida copy of diag_data
+integer(i4b),parameter,public :: ixCache_idaFlux=6         ! summaSolv4ida copy of flux_data
+integer(i4b),parameter,public :: ixCache_idaDeriv=7        ! summaSolv4ida copy of deriv_data
+integer(i4b),parameter        :: nCacheSlot=7              ! number of slots
 integer(i4b),parameter        :: nCacheSet=32              ! structures kept per slot, one per combination of layer counts
 type :: cached_dlength
   integer(i4b)      :: nLayers(4)=-1                       ! snow, lake, soil and glacier ice layers the structure was allocated for
   integer(i8b)      :: lastUse=0                           ! call count at the last use of the structure
   type(var_dlength) :: struc                               ! the structure
 end type cached_dlength
+type :: cached_ilength
+  integer(i4b)      :: nLayers(4)=-1                       ! snow, lake, soil and glacier ice layers the structure was allocated for
+  integer(i8b)      :: lastUse=0                           ! call count at the last use of the structure
+  type(var_ilength) :: struc                               ! the structure
+end type cached_ilength
 type(cached_dlength),target :: dCache(nCacheSet,nCacheSlot) ! cached structures
+type(cached_ilength),target :: iCache(nCacheSet)           ! cached integer structures
 integer(i8b)                :: nCacheCall=0                ! calls to allocCached on this thread
-!$omp threadprivate(dCache, nCacheCall)
+!$omp threadprivate(dCache, iCache, nCacheCall)
 contains
 
 ! ************************************************************************************************
@@ -428,6 +438,42 @@ subroutine allocGlobal(metaStruct,dataStruct,err,message)
  dCache(iSet,ixSlot)%lastUse = nCacheCall
  dataStruct => dCache(iSet,ixSlot)%struc
  end subroutine allocCached
+
+ ! ************************************************************************************************
+ ! public subroutine allocCachedInt: as allocCached, for the integer index structure
+ ! ************************************************************************************************
+ subroutine allocCachedInt(metaStruct,dataStruct,nSnow,nLake,nSoil,nGlce,err,message)
+ implicit none
+ type(var_info),intent(in)        :: metaStruct(:)  ! metadata structure
+ type(var_ilength),pointer        :: dataStruct     ! data structure
+ integer(i4b),intent(in)          :: nSnow,nLake,nSoil,nGlce ! number of snow, lake, soil and glacier ice layers
+ integer(i4b),intent(out)         :: err            ! error code
+ character(*),intent(out)         :: message        ! error message
+ integer(i4b)                     :: iSet,jSet      ! index of the cached structure
+ character(len=256)               :: cmessage       ! error message of the downwind routine
+ err=0; message='allocCachedInt/'
+ nCacheCall = nCacheCall + 1
+ iSet = 0
+ do jSet=1,nCacheSet
+  if(iCache(jSet)%nLayers(1)==nSnow .and. iCache(jSet)%nLayers(2)==nLake .and. &
+     iCache(jSet)%nLayers(3)==nSoil .and. iCache(jSet)%nLayers(4)==nGlce)then
+   iSet = jSet; exit
+  end if
+ end do
+ if(iSet==0)then
+  iSet = 1
+  do jSet=2,nCacheSet
+   if(iCache(jSet)%lastUse < iCache(iSet)%lastUse) iSet = jSet
+  end do
+  if(allocated(iCache(iSet)%struc%var)) deallocate(iCache(iSet)%struc%var)
+  iCache(iSet)%nLayers = -1
+  call allocLocal(metaStruct,iCache(iSet)%struc,nSnow,nLake,nSoil,nGlce,0_i4b,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  iCache(iSet)%nLayers = [nSnow,nLake,nSoil,nGlce]
+ end if
+ iCache(iSet)%lastUse = nCacheCall
+ dataStruct => iCache(iSet)%struc
+ end subroutine allocCachedInt
 
  ! ************************************************************************************************
  ! public subroutine alloc_driver_work: allocate driver work structures

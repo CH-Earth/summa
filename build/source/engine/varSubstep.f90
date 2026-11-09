@@ -485,13 +485,15 @@ subroutine varSubstep(&
         if(ixCasNrg/=integerMissing) sumBalance(ixCasNrg) = sumBalance(ixCasNrg) + dtSubstep*balance(ixCasNrg)
         if(ixVegNrg/=integerMissing) sumBalance(ixVegNrg) = sumBalance(ixVegNrg) + dtSubstep*balance(ixVegNrg)
         if(nSnLaSoGlNrg>0) then
-          do concurrent (ixLayer=1:nLayers,ixSnLaSoGlNrg(ixLayer)/=integerMissing)
+          do ixLayer=1,nLayers
+            if(ixSnLaSoGlNrg(ixLayer)==integerMissing) cycle
             if(ixSnLaSoGlNrg(ixLayer)/=integerMissing) sumBalance(ixSnLaSoGlNrg(ixLayer)) = sumBalance(ixSnLaSoGlNrg(ixLayer)) + dtSubstep*balance(ixSnLaSoGlNrg(ixLayer))
           end do
         endif
         if(ixVegHyd/=integerMissing) sumBalance(ixVegHyd) = sumBalance(ixVegHyd) + dtSubstep*balance(ixVegHyd)
         if(nSnLaSoGlHyd>0) then
-          do concurrent (ixLayer=1:nLayers,ixSnLaSoGlHyd(ixLayer)/=integerMissing)
+          do ixLayer=1,nLayers
+            if(ixSnLaSoGlHyd(ixLayer)==integerMissing) cycle
             if(ixSnLaSoGlHyd(ixLayer)/=integerMissing) sumBalance(ixSnLaSoGlHyd(ixLayer)) = sumBalance(ixSnLaSoGlHyd(ixLayer)) + dtSubstep*balance(ixSnLaSoGlHyd(ixLayer))
           end do
         endif
@@ -625,13 +627,15 @@ subroutine varSubstep(&
       if(ixCasNrg/=integerMissing) diag_data%var(iLookDIAG%balanceCasNrg)%dat(1) = sumBalance(ixCasNrg)/dt
       if(ixVegNrg/=integerMissing) diag_data%var(iLookDIAG%balanceVegNrg)%dat(1) = sumBalance(ixVegNrg)/dt
       if(nSnLaSoGlNrg>0) then
-        do concurrent (ixLayer=1:nLayers,ixSnLaSoGlNrg(ixLayer)/=integerMissing)
+        do ixLayer=1,nLayers
+          if(ixSnLaSoGlNrg(ixLayer)==integerMissing) cycle
           diag_data%var(iLookDIAG%balanceLayerNrg)%dat(ixLayer) = sumBalance(ixSnLaSoGlNrg(ixLayer))/dt
         end do
       endif
       if(ixVegHyd/=integerMissing) diag_data%var(iLookDIAG%balanceVegMass)%dat(1) = sumBalance(ixVegHyd)/dt
       if(nSnLaSoGlHyd>0) then
-        do concurrent (ixLayer=1:nLayers,ixSnLaSoGlHyd(ixLayer)/=integerMissing)
+        do ixLayer=1,nLayers
+          if(ixSnLaSoGlHyd(ixLayer)==integerMissing) cycle
           diag_data%var(iLookDIAG%balanceLayerMass)%dat(ixLayer) = sumBalance(ixSnLaSoGlHyd(ixLayer))/dt
         end do
       endif 
@@ -1070,7 +1074,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = (scalarCanairEnthalpyTrial - scalarCanairEnthalpy)/dt - fluxVec(ixCasNrg)
           if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyHDelta/dt - fluxVec(ixVegNrg)
           if(nSnLaSoGlNrg>0)then
-            do concurrent (i=1:nLayers,ixSnLaSoGlNrg(i)/=integerMissing)
+            do i=1,nLayers
+              if(ixSnLaSoGlNrg(i)==integerMissing) cycle
               balance(ixSnLaSoGlNrg(i)) = mLayerHDelta(i)/dt - fluxVec(ixSnLaSoGlNrg(i))
             enddo
           endif
@@ -1088,7 +1093,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
       if(ixCasNrg/=integerMissing) balance(ixCasNrg) = realMissing
       if(ixVegNrg/=integerMissing) balance(ixVegNrg) = realMissing
       if(nSnLaSoGlNrg>0)then
-        do concurrent (i=1:nLayers,ixSnLaSoGlNrg(i)/=integerMissing)
+        do i=1,nLayers
+          if(ixSnLaSoGlNrg(i)==integerMissing) cycle
           balance(ixSnLaSoGlNrg(i)) = realMissing
         enddo
       endif
@@ -1199,7 +1205,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
           ! resVec is the residual vector from the solver over dt
           if(ixVegHyd/=integerMissing) balance(ixVegHyd) = resVec(ixVegHyd)/dt
           if(nSnLaSoGlHyd>0)then
-            do concurrent (i=1:nLayers,ixSnLaSoGlHyd(i)/=integerMissing)
+            do i=1,nLayers
+              if(ixSnLaSoGlHyd(i)==integerMissing) cycle
               balance(ixSnLaSoGlHyd(i)) = resVec(ixSnLaSoGlHyd(i))/dt
             end do
           endif
@@ -1209,7 +1216,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
     else ! if not checking mass balance set balance to missing
       if(ixVegHyd/=integerMissing) balance(ixVegHyd) = realMissing
       if(nSnLaSoGlHyd>0)then
-        do concurrent (i=1:nLayers,ixSnLaSoGlHyd(i)/=integerMissing)
+        do i=1,nLayers
+          if(ixSnLaSoGlHyd(i)==integerMissing) cycle
           balance(ixSnLaSoGlHyd(i)) = realMissing
         end do
       endif

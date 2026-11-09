@@ -573,7 +573,8 @@ contains
    if (ixVegNrg/=integerMissing) fluxVec(ixVegNrg) = scalarCanopyNetNrgFlux/canopyDepth
    if (ixVegHyd/=integerMissing) fluxVec(ixVegHyd) = scalarCanopyNetLiqFlux   ! NOTE: solid fluxes are handled separately
    if (nSnLaSoGlNrg>0) then ! if necessary, populate the flux vector for energy
-     do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing)   ! loop through non-missing energy state variables in the layer domains
+     do iLayer=1,nLayers   ! loop through non-missing energy state variables in the layer domains
+       if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
        fluxVec( ixSnLaSoGlNrg(iLayer) ) = mLayerNrgFlux(iLayer)
      end do
    end if

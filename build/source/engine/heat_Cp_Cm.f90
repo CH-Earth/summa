@@ -134,7 +134,8 @@ subroutine stateMultiplier(&
 
     ! define the energy multiplier for the state vector for residual calculations (layer domains)
     if(nSnLaSoGlNrg>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         ixStateSubset        = ixSnLaSoGlNrg(iLayer) ! index within the state vector
         sMul(ixStateSubset)  = mLayerHeatCap(iLayer) ! transfer volumetric heat capacity to the state multiplier
       end do  ! looping through non-missing energy state variables in the layer domains
@@ -142,7 +143,8 @@ subroutine stateMultiplier(&
 
     ! define the hydrology multiplier and diagonal elements for the state vector for residual calculations (layer domains)
     if(nSnLaSoGlHyd>0)then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlHyd(iLayer)/=integerMissing) ! (loop through non-missing energy state variables in the layer domains)
+      do iLayer=1,nLayers ! (loop through non-missing energy state variables in the layer domains)
+        if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
         ixStateSubset        = ixSnLaSoGlHyd(iLayer) ! index within the state vector
         sMul(ixStateSubset)  = 1._rkind              ! state multiplier = 1 (nothing else on the left-hand-side)
       end do  ! looping through non-missing energy state variables in the layer domains

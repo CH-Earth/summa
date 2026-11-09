@@ -715,7 +715,11 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
       eqns_data%stateVecPrev, eqns_data%nState, eqns_data%nSnow, eqns_data%nLake, eqns_data%nSoil, eqns_data%nGlce,message, err)
      if(err/=0)then; ierr=1; message="eval8summa4kinsol/"//trim(message); print*, message; return; end if  ! (check for errors)
   endif
-  eqns_data%stateVecPrev = stateVec(:)  ! save the state vector for the next iteration
+
+  ! save the state vector for the next iteration
+  do iState=1,eqns_data%nState 
+    eqns_data%stateVecPrev(iState) = stateVec(iState)
+  end do
   
   ! compute the flux and the residual vector for a given state vector
   call eval8summa(&

@@ -652,7 +652,8 @@ contains
   
     ! update temperatures (ensure new temperature is consistent with the fluxes)
     if (nSnLaSoGlNrg>0) then
-      do concurrent (iLayer=1:nLayers,ixSnLaSoGlNrg(iLayer)/=integerMissing) ! loop through non-missing energy state variables in the layer domains
+      do iLayer=1,nLayers ! loop through non-missing energy state variables in the layer domains
+        if(ixSnLaSoGlNrg(iLayer)==integerMissing) cycle
         iState = ixSnLaSoGlNrg(iLayer)
         stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))/real(sMul(iState), rkind)
         resVec(iState) = 0._qp
@@ -662,7 +663,8 @@ contains
     ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
     ! NOTE: for soil water balance is constrained within the iteration loop
     if (nSnLaSoGlHyd>0) then
-      do concurrent (iLayer=1:nSnow,ixSnLaSoGlHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+      do iLayer=1,nSnow   ! (loop through non-missing water state variables in the snow domain)
+        if(ixSnLaSoGlHyd(iLayer)==integerMissing) cycle
         iState = ixSnLaSoGlHyd(iLayer)
         stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))
         resVec(iState) = 0._qp
