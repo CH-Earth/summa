@@ -22,6 +22,7 @@ module snowLakeGlceLiqFlux_module
 
 ! access modules
 USE nr_type                               ! numerical recipes data types
+USE scratch_module,only:sizeScratch       ! size the per-thread scratch arrays
 ! physical constants
 USE multiconst,only:Tfreeze,     &         ! freezing point of pure water (K)
                     iden_ice,iden_water    ! intrinsic density of ice and water (kg m-3)
@@ -94,11 +95,14 @@ subroutine snowLakeGlceLiqFlux(&
    real(rkind)                      :: maxVolIceContent_use       ! maximum volumetric ice content depending if snow or firn
   real(rkind)                       :: availCap                   ! available storage capacity [0,1] (-)
   real(rkind)                       :: relSaturn                  ! relative saturation [0,1] (-)
-  real(rkind)                       :: iLayerLiqFluxSnLaGl(0:in_snowLakeGlceLiqFlux % nLayers)
-  real(rkind)                       :: iLayerLiqFluxSnLaGlDeriv(0:in_snowLakeGlceLiqFlux % nLayers)  
+  real(rkind),allocatable,save      :: iLayerLiqFluxSnLaGl(:)
+  real(rkind),allocatable,save      :: iLayerLiqFluxSnLaGlDeriv(:)
+  ! one copy of the scratch arrays per thread
+  !$omp threadprivate(iLayerLiqFluxSnLaGl, iLayerLiqFluxSnLaGlDeriv)
   ! ------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
   nLayers = in_snowLakeGlceLiqFlux % nLayers ! get number of snow/glce layers to get water fluxes over
+  call sizeScratch(0,nLayers,iLayerLiqFluxSnLaGl, iLayerLiqFluxSnLaGlDeriv)
   nStart = in_snowLakeGlceLiqFlux % nStart ! get the start index for the layers
   associate(&
     is_glac           => in_snowLakeGlceLiqFlux % is_glac,                       & ! intent(in): flag to denote if processing a glacier domain
