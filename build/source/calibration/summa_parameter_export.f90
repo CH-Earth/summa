@@ -29,7 +29,7 @@ contains
   ! The calibration adapter has already applied the selected parameter sample
   ! to mpar and bpar. Parameter names and metadata come from the specification.
   !
-  ! This implementation supports one domain per HRU.
+  ! HRUs with several domains get a dom dimension, as read_trial_parameters reads it.
   ! **************************************************************************************************
   subroutine write_physical_trial_parameters(filename,trial_param_names, &
                                              spec,param_map,mpar,bpar,sample_id,err,message)
@@ -48,18 +48,19 @@ contains
     character(*),                intent(out) :: message              ! Error message
 
     ! NetCDF identifiers
-    integer(i4b) :: ncid,dim_hru,dim_gru,dim_depth
+    integer(i4b) :: ncid,dim_hru,dim_gru,dim_depth,dim_dom
     integer(i4b) :: var_hru,var_gru
     integer(i4b), allocatable :: var_param(:)
 
     ! Spatial indices
-    integer(i4b) :: nGRU,nHRU
-    integer(i4b) :: g,h,i,k,n,ix
+    integer(i4b) :: nGRU,nHRU,nDom
+    integer(i4b) :: g,h,i,k,n,ix,d,iAt
     integer(i4b) :: soil_type
 
     ! Parameter values and identifiers
     integer(i4b), allocatable :: hru_id(:),gru_id(:)
-    real(rkind), allocatable :: hru_value(:),gru_value(:),soil_value(:,:)
+    real(rkind), allocatable :: hru_value(:,:),gru_value(:),soil_value(:,:,:)
+    character(len=64) :: base_name
 
     ! List of trial model parameters
     type(export_parameter), allocatable :: export_list(:)
@@ -78,15 +79,12 @@ contains
     ! ---------------------------------------------------------------------------------------
     nGRU=size(bpar%gru)
     nHRU=0
+    nDom=1
 
     do g=1,nGRU
       nHRU=nHRU+size(mpar%gru(g)%hru)
-
       do h=1,size(mpar%gru(g)%hru)
-        if(size(mpar%gru(g)%hru(h)%dom)/=1)then
-          message=trim(message)//'multiple domains per HRU are not supported'
-          err=20; return
-        endif
+        nDom=max(nDom,size(mpar%gru(g)%hru(h)%dom))
       enddo
     enddo
 
@@ -121,17 +119,17 @@ contains
     
       if(.not.spec%params(i)%sampled) cycle
     
-      if(param_map(i)%domain_type/=0)then
-        message=trim(message)//'domain-qualified parameters are not supported'
-        err=20; return
-      endif
-    
+      ! name@type is written under its parameter name: the file holds every domain's value
+      base_name=spec%params(i)%name
+      iAt=index(base_name,'@')
+      if(iAt>0) base_name=base_name(1:iAt-1)
+
       if(nExport>0)then
-        if(any(export_list(1:nExport)%name==trim(spec%params(i)%name))) cycle
+        if(any(export_list(1:nExport)%name==trim(base_name))) cycle
       endif
     
       nExport=nExport+1
-      export_list(nExport)%name=trim(spec%params(i)%name)
+      export_list(nExport)%name=trim(base_name)
       export_list(nExport)%ixM=param_map(i)%ixM
       export_list(nExport)%ixB=param_map(i)%ixB
     
@@ -152,8 +150,8 @@ contains
     ! ---------------------------------------------------------------------------------------
     allocate(var_param(nExport))
     allocate(hru_id(nHRU),gru_id(nGRU))
-    allocate(hru_value(nHRU),gru_value(nGRU))
-    if(has_soil) allocate(soil_value(nHRU,maxSoilLayers))
+    allocate(hru_value(nHRU,nDom),gru_value(nGRU))
+    if(has_soil) allocate(soil_value(nHRU,maxSoilLayers,nDom))
 
     k=0
     do g=1,nGRU
@@ -183,6 +181,11 @@ contains
 
       if(has_soil)then
         ierr=nf90_def_dim(ncid,'depth',maxSoilLayers,dim_depth)
+        if(ierr/=nf90_noerr) exit netcdf_block
+      endif
+
+      if(nDom>1)then
+        ierr=nf90_def_dim(ncid,'dom',nDom,dim_dom)
         if(ierr/=nf90_noerr) exit netcdf_block
       endif
 
@@ -218,9 +221,15 @@ contains
           ix=export_list(i)%ixM
           is_soil=mpar_meta(ix)%varType==soil_type
 
-          if(is_soil)then
+          if(is_soil .and. nDom>1)then
+            ierr=nf90_def_var(ncid,trim(export_list(i)%name), &
+                              nf90_double,[dim_hru,dim_depth,dim_dom],var_param(i))
+          elseif(is_soil)then
             ierr=nf90_def_var(ncid,trim(export_list(i)%name), &
                               nf90_double,[dim_hru,dim_depth],var_param(i))
+          elseif(nDom>1)then
+            ierr=nf90_def_var(ncid,trim(export_list(i)%name), &
+                              nf90_double,[dim_hru,dim_dom],var_param(i))
           else
             ierr=nf90_def_var(ncid,trim(export_list(i)%name), &
                               nf90_double,[dim_hru],var_param(i))
@@ -280,33 +289,40 @@ contains
           is_soil=mpar_meta(ix)%varType==soil_type
           k=0
 
-          if(is_soil) soil_value=nf90_fill_double
+          ! Domains an HRU does not have are never read, and left as fill values.
+          if(is_soil)then
+            soil_value=nf90_fill_double
+          else
+            hru_value=nf90_fill_double
+          endif
 
           do g=1,nGRU
             do h=1,size(mpar%gru(g)%hru)
 
               k=k+1
 
-              if(is_soil)then
-
-                ! Soil parameters retain their vertical distribution.
-                n=size(mpar%gru(g)%hru(h)%dom(1)%var(ix)%dat)
-                soil_value(k,1:n)=mpar%gru(g)%hru(h)%dom(1)%var(ix)%dat
-
-              else
-
-                ! Scalar parameters have one physical value per HRU.
-                hru_value(k)=mpar%gru(g)%hru(h)%dom(1)%var(ix)%dat(1)
-
-              endif
+              do d=1,size(mpar%gru(g)%hru(h)%dom)
+                if(is_soil)then
+                  ! Soil parameters retain their vertical distribution.
+                  n=size(mpar%gru(g)%hru(h)%dom(d)%var(ix)%dat)
+                  soil_value(k,1:n,d)=mpar%gru(g)%hru(h)%dom(d)%var(ix)%dat
+                else
+                  ! Scalar parameters have one physical value per HRU domain.
+                  hru_value(k,d)=mpar%gru(g)%hru(h)%dom(d)%var(ix)%dat(1)
+                endif
+              enddo
 
             enddo
           enddo
 
-          if(is_soil)then
+          if(is_soil .and. nDom>1)then
             ierr=nf90_put_var(ncid,var_param(i),soil_value)
-          else
+          elseif(is_soil)then
+            ierr=nf90_put_var(ncid,var_param(i),soil_value(:,:,1))
+          elseif(nDom>1)then
             ierr=nf90_put_var(ncid,var_param(i),hru_value)
+          else
+            ierr=nf90_put_var(ncid,var_param(i),hru_value(:,1))
           endif
 
         endif
