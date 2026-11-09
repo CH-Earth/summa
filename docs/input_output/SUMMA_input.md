@@ -425,7 +425,7 @@ variables:
 
 <a id="infile_local_parameters"></a>
 ### Local parameters file
-The local parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for SUMMA parameters. The file is parsed by `build/source/engine/read_pinit.f90:read_pinit()`.
+The local parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for SUMMA parameters. The file is parsed by `build/source/engine/read_parameter_defaults.f90:read_parameter_defaults()`.
 
 The first non-comment line is a format string that is used to process the remaining non-comment lines. The format definition defines the format of the file, which can be changed. The format string itself is a Fortran format statement and must be in single quotes. For example,
 ```Fortran
@@ -448,7 +448,7 @@ The parameters that need to be specified in this file are those listed as `iLook
 
 <a id="infile_basin_parameters"></a>
 ### Basin parameters file
-The basin parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for SUMMA basin parameters. The file is parsed by `build/source/engine/read_pinit.f90:read_pinit()`. The format of the file is identical to that of the [local parameters file](#infile_local_parameters).
+The basin parameters file is an [ASCII file](#infile_format_ASCII) that specifies spatially constant parameter values for SUMMA basin parameters. The file is parsed by `build/source/engine/read_parameter_defaults.f90:read_parameter_defaults()`. The format of the file is identical to that of the [local parameters file](#infile_local_parameters).
 
 The parameters that need to be specified in this file are those listed as `iLook_bpar` in the `var_lookup` module in `build/source/dshare/var_lookup.f90` (look for the comment `(11) define basin-average model parameters`), and are listed with their descriptions and units on the [SUMMA parameters](SUMMA_parameters#params_basin) page. Parameter names must match the code exactly (case-sensitive). The parameter value is set to the default value (second column). The parameter value limits are currently not used, but still need to be specified. Our intention is to use them when reading the [trial parameters file](#infile_trial_parameters) to ensure that the `gru` specific parameter values are within the specified limits.
 
@@ -458,7 +458,7 @@ SUMMA uses some of the input files and routines from the [Noah-MP Land Surface M
 
 <a id="infile_trial_parameters"></a>
 ### Trial parameters file
-The trial parameters file is a [NetCDF file](#infile_format_nc) that specifies model parameters for GRUs and individual HRUs. This enables the user to overwrite the default and/or Noah-MP parameter values with local-specific ones. The trial parameters file is parsed by `build/source/engine/read_param.f90:read_param()`.
+The trial parameters file is a [NetCDF file](#infile_format_nc) that specifies model parameters for GRUs and individual HRUs. This enables the user to overwrite the default and/or Noah-MP parameter values with local-specific ones. The trial parameters file is parsed by `build/source/engine/read_trial_parameters.f90:read_trial_parameters()`.
 
 The trial parameters file contains a `gru` and/or an `hru` dimension, depending on whether GRU or HRU are being specified. The file can be used to overwrite any of the variables in the [basin parameters file](#infile_basin_parameters), in which the variable dimension should be `gru`, or in the [local parameters file](#infile_local_parameters), in which the variable dimension should be `hru`. The file can contain zero or more parameter fields.
 
