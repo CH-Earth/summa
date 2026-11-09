@@ -89,7 +89,11 @@ public::enthalpy2T_veg
 public::enthalpy2T_snLaGl
 public::enthalpy2T_soil
 private::hyp_2F1_real
-private::brent, brent0, diff_H_veg, diff_H_snLaGl, diff_H_soil
+private::brent, brent0, newton_snLaGl, diff_H_veg, diff_H_snLaGl, diff_H_soil
+
+! root-finder stopping tolerances, tight enough that temperature is smooth in the solver state
+real(rkind),parameter,private          :: tol_x=1.e-10_rkind ! temperature (K)
+real(rkind),parameter,private          :: tol_f=1.e-4_rkind  ! enthalpy (J m-3)
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter                 :: nlook=10001       ! number of elements in the lookup table
@@ -1110,6 +1114,7 @@ subroutine enthalpy2T_snLaGl(&
   real(rkind)                      :: fLiq               ! fraction liquid 
   real(rkind)                      :: vec(10)            ! vector of parameters for the enthalpy function
   real(rkind)                      :: real_noLiq         ! real value of noLiq for the vector of parameters
+  logical(lgt)                     :: converged          ! flag if the Newton iteration converged
    ! variable derivatives
   real(rkind)                      :: dT_dEnthalpy       ! derivative of temperature with enthalpy state variable
   real(rkind)                      :: dT_dWat            ! derivative of temperature with water state variable
@@ -1147,8 +1152,12 @@ subroutine enthalpy2T_snLaGl(&
     if(mLayerEnthalpy>0._rkind .and. .not.(isLake))then
       T = Tfreeze - verySmall ! need to merge layers, don't iterate to find the temperature
     else
-      call brent(diff_H_snLaGl, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      call newton_snLaGl(T, vec, T_out, converged)
+      if(.not.converged)then
+        T = T_out
+        call brent(diff_H_snLaGl, T, T_out, 0._rkind, Tfreeze, vec, err, cmessage)
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      endif
       T = T_out
     endif
 
@@ -1642,7 +1651,6 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     real(rkind) :: dx  ! change in bracket
     integer :: iter, exitflag, disp, exita, exitb
     real(rkind) :: sgn
-    real(rkind), parameter :: tol_x = 1.e-10_rkind, tol_f = 1.e-4_rkind ! (K, J m-3) tight enough that temperature is smooth in the solver state
     character(LEN=256):: cmessage ! error message of downwind routine
     
     ! initialize error control
@@ -1766,6 +1774,51 @@ function brent0 (fun, x1, x2, fx1, fx2, tol_x, tol_f, detail, vec, err, message,
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
   end subroutine brent  
+
+  !----------------------------------------------------------------------
+  ! private subroutine: safeguarded Newton solve of diff_H_snLaGl on [0, Tfreeze], Brent finishes if not converged
+  !----------------------------------------------------------------------
+  subroutine newton_snLaGl (x0, vec, T_out, converged)
+    implicit none
+    real(rkind), intent(in)   :: x0, vec(10)       ! initial guess (K), parameters of diff_H_snLaGl
+    real(rkind), intent(out)  :: T_out             ! temperature (K), last iterate if not converged
+    logical(lgt), intent(out) :: converged         ! flag if converged to tol_f or tol_x
+    integer(i4b), parameter   :: maxiter = 10      ! maximum number of Newton iterations
+    real(rkind) :: T, Tnew, f, dH_dT, lo, hi, x, fLiq, dfLiq_dT, snowfrz_scale, volFracWat
+    integer(i4b) :: iter
+
+    snowfrz_scale = vec(2)
+    volFracWat    = vec(3)
+    lo = 0._rkind; hi = Tfreeze ! root bracket, f increases with temperature
+    T = x0
+    converged = .false.
+    do iter = 1, maxiter
+      f = diff_H_snLaGl(T, vec)
+      if (abs(f) <= tol_f) then; converged = .true.; exit; endif
+      if (f > 0._rkind) then; hi = T; else; lo = T; endif
+
+      ! derivative of enthalpy with temperature, as in the Jacobian of enthalpy2T_snLaGl
+      if (vec(4) == 1._rkind) then
+        fLiq = 0._rkind; dfLiq_dT = 0._rkind
+      else
+        x = snowfrz_scale * (T - Tfreeze)
+        fLiq = 1._rkind / (1._rkind + x*x)
+        dfLiq_dT = -2._rkind * snowfrz_scale * x * fLiq*fLiq
+      endif
+      dH_dT = iden_water * Cp_water * volFracWat * fLiq + iden_water * Cp_ice * volFracWat * (1._rkind - fLiq) &
+              + iden_air * Cp_air * (1._rkind - volFracWat * ( (iden_water/iden_ice)*(1._rkind-fLiq) + fLiq ) ) &
+              + iden_water * LH_fus * dfLiq_dT * volFracWat
+
+      ! Newton step, halved toward the bracket end it would cross
+      Tnew = T - f/dH_dT
+      if (Tnew >= hi) Tnew = 0.5_rkind*(T + hi)
+      if (Tnew <= lo) Tnew = 0.5_rkind*(T + lo)
+      if (abs(Tnew - T) <= 0.5_rkind*tol_x) then; T = Tnew; converged = .true.; exit; endif
+      T = Tnew
+    end do
+    T_out = T
+
+  end subroutine newton_snLaGl
 
   !----------------------------------------------------------------------
   ! private functions for temperature to enthalpy conversion for Brent's method
