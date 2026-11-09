@@ -292,6 +292,11 @@ if (USE_SUNDIALS)
     set(SUMMA_ALL ${SUMMA_ALL} ${MODRUN_SUNDIALS} ${SOLVER_SUNDIALS})
 endif()
 
+# automatic arrays of the solver and flux routines go on the stack, not the heap (they are layer-sized)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    set_source_files_properties(${SOLVER} ${SOLVER_SUNDIALS} PROPERTIES COMPILE_OPTIONS "-fstack-arrays")
+endif()
+
 if (USE_MIZUROUTE)
 
     # the TOML configuration reader is only built with mizuRoute, its only consumer
