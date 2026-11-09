@@ -69,9 +69,7 @@ real(rkind),parameter :: wallMinSlope=40._rkind      ! slope above which ground 
 ! nx by ny scratch arrays shared by the flow, diffusion and debris routines; allocated once per run_flowModel call
 type flowWork
   real(rkind), allocatable, dimension(:,:) :: H, Sklp, Sklm, Skpl, Skl, Skml
-  real(rkind), allocatable, dimension(:,:) :: Xkpl, Xkml, Xkplp, Xkmlp, Xklp, Xklm, Yplp, Yplm
-  real(rkind), allocatable, dimension(:,:) :: u_l_up, u_l_dn, u_k_up, u_k_dn, outRate, influx, englacial_emerg, div_uD
-  real(rkind), allocatable, dimension(:,:) :: f_l_up, f_l_dn, f_k_up, f_k_dn
+  real(rkind), allocatable, dimension(:,:) :: u_l_up, u_k_up, influx, div_uD
   real(rkind), allocatable, dimension(:,:) :: drivingStress, S_l_up, S_l_dn, S_k_up, S_k_dn
   real(rkind), allocatable, dimension(:,:) :: slope_l, slope_k, slope_g, div_q, m_dot
   integer(i4b), allocatable, dimension(:,:) :: mask
@@ -79,9 +77,9 @@ type flowWork
 end type flowWork
 
 ! privacy
-private::run_flowModel,run_debrisModel,diffusion_MUSCL,advection_upwind,static_emergElev_latRockfall,debris_unload
+private::run_flowModel,run_debrisModel,diffusion_MUSCL,static_emergElev_latRockfall,debris_unload
 private::fit_massBalanceCurve,cell_slopeAspect,argsort_desc,debrisLayering,debrisResplit
-private::superbee,flux,SIA,midpt,pluss,minus,refl,faceD,flowWork,allocFlowWork
+private::superbee,flux,SIA,midpt,pluss,minus,refl,faceD,upwindFlux,flowWork,allocFlowWork
 public::glacAreaChange
 public::time_updateGlacArea
 public::updateGlacDomain
@@ -625,9 +623,7 @@ subroutine allocFlowWork(w, nx, ny)
   type(flowWork), intent(out) :: w
   integer(i4b), intent(in) :: nx, ny
   allocate(w%H(nx,ny), w%Sklp(nx,ny), w%Sklm(nx,ny), w%Skpl(nx,ny), w%Skl(nx,ny), w%Skml(nx,ny))
-  allocate(w%Xkpl(nx,ny), w%Xkml(nx,ny), w%Xkplp(nx,ny), w%Xkmlp(nx,ny), w%Xklp(nx,ny), w%Xklm(nx,ny), w%Yplp(nx,ny), w%Yplm(nx,ny))
-  allocate(w%u_l_up(nx,ny), w%u_l_dn(nx,ny), w%u_k_up(nx,ny), w%u_k_dn(nx,ny), w%outRate(nx,ny), w%influx(nx,ny), &
-           w%englacial_emerg(nx,ny), w%div_uD(nx,ny), w%f_l_up(nx,ny), w%f_l_dn(nx,ny), w%f_k_up(nx,ny), w%f_k_dn(nx,ny))
+  allocate(w%u_l_up(nx,ny), w%u_k_up(nx,ny), w%influx(nx,ny), w%div_uD(nx,ny))
   allocate(w%drivingStress(nx,ny), w%S_l_up(nx,ny), w%S_l_dn(nx,ny), w%S_k_up(nx,ny), w%S_k_dn(nx,ny), &
            w%slope_l(nx,ny), w%slope_k(nx,ny), w%slope_g(nx,ny), w%div_q(nx,ny), w%m_dot(nx,ny), w%mask(nx,ny), w%wet(nx,ny))
 end subroutine allocFlowWork
@@ -956,7 +952,7 @@ end function massBalance
 
 ! ************************************************************************************************
 ! private subroutine run_debrisModel: set up englacial debris advection transport model and run
-!   for one sub-time step. Debris input is from englacial debris emergence and lateral moraine rockfall,
+!   for one flow time step. Debris input is from englacial debris emergence and lateral moraine rockfall,
 !   and output from terminus slumping and ice velocity (done in the main flow model).
 !   Follows the implementation of Mayer and Licciulli (2021), from Anderson and Anderson (2016).
 ! ************************************************************************************************
@@ -973,60 +969,74 @@ subroutine run_debrisModel(S, B, debris, gamma, n, t_total, m_dot, emergenceMask
   type(flowWork), intent(inout) :: w
   ! Local variables
   real(rkind),parameter :: cfl= 0.5 ! Courant-Friedrichs-Lewy condition
-  real(rkind) :: min_dt, t, max_dt, dt, dt_cfl, deltat
+  real(rkind) :: min_dt, t, max_dt, dt, dt_cfl, deltat, outMax, outRate, u_l_dn, u_k_dn, f_l_up, f_l_dn, f_k_up, f_k_dn
+  real(rkind) :: Xkpl, Xkml, Xkplp, Xkmlp, Xklp, Xklm, Yplp, Yplm
+  integer(i4b) :: i, j, ip, im, jp, jm
 
-  associate(H=>w%H, Sklp=>w%Sklp, Skpl=>w%Skpl, Skl=>w%Skl, Xkpl=>w%Xkpl, Xkml=>w%Xkml, Xkplp=>w%Xkplp, Xkmlp=>w%Xkmlp, &
-            Xklp=>w%Xklp, Xklm=>w%Xklm, Yplp=>w%Yplp, Yplm=>w%Yplm, u_l_up=>w%u_l_up, u_l_dn=>w%u_l_dn, u_k_up=>w%u_k_up, &
-            u_k_dn=>w%u_k_dn, outRate=>w%outRate, influx=>w%influx, englacial_emerg=>w%englacial_emerg, div_uD=>w%div_uD, mask=>w%mask, wet=>w%wet)
+  associate(H=>w%H, wet=>w%wet, mask=>w%mask, u_l_up=>w%u_l_up, u_k_up=>w%u_k_up, influx=>w%influx, div_uD=>w%div_uD)
 
   max_dt = 7._rkind * secprday ! maximum timestep in seconds, 1 week
   min_dt = 3600._rkind ! min timestep in seconds, 1 hour
   t = 0._rkind
 
   ! Use one-time masks/rockfall map computed from initial S for this yearly run.
-  englacial_emerg = merge(max(-m_dot, 0._rkind), 0._rkind, emergenceMask==1_i4b) * debrisConc ! (kg m-2 s-1)
-
-  ! Sum for total debris influx in m/s
-  influx = lat_rockfall + englacial_emerg/(iden_soil*(1._rkind - theta_sat)) 
+  ! total debris influx in m/s: rockfall plus englacial emergence (kg m-2 s-1) over the debris bulk density
+  influx = lat_rockfall + (merge(max(-m_dot, 0._rkind), 0._rkind, emergenceMask==1_i4b) * debrisConc)/(iden_soil*(1._rkind - theta_sat))
 
   mask = merge(1_i4b, 0_i4b, S>B) ! mask for glacier on subgrid
   H = merge(S - B, 0._rkind, mask==1_i4b)
   wet = H > 0._rkind
 
-  ! indices
-  Sklp = S(k ,lp)
-  Skpl = S(kp,l )
-  Skl  = S(k ,l )
+  ! SIA surface velocity on the up faces, down the surface slope; a face with either cell outside the mask is closed
+  do j = 1, ny
+    jp = lp(j); jm = lm(j)
+    do i = 1, nx
+      ip = kp(i); im = km(i)
+      ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
+      call refl(S(ip,j ), S(i,j ), S(im,j ), wet(ip,j ), wet(im,j ), Xkpl , Xkml )
+      call refl(S(ip,jp), S(i,jp), S(im,jp), wet(ip,jp), wet(im,jp), Xkplp, Xkmlp)
+      call refl(S(i ,jp), S(i,j ), S(i ,jm), wet(i,jp ), wet(i,jm ), Xklp , Xklm )
+      call refl(S(ip,jp), S(ip,j), S(ip,jm), wet(ip,jp), wet(ip,jm), Yplp , Yplm )
+      u_l_up(i,j) = -gamma * (n + 2_i4b)/(n + 1_i4b) * flux(Xkpl, Xkml, Xkplp, Xkmlp, S(i,jp), S(i,j), dx, dy, n) &
+                    * (S(i,jp) - S(i,j))/dy * midpt(H(i,j), H(i,jp))**(n + 1_i4b)
+      u_k_up(i,j) = -gamma * (n + 2_i4b)/(n + 1_i4b) * flux(Xklp, Xklm, Yplp, Yplm, S(ip,j), S(i,j), dy, dx, n) &
+                    * (S(ip,j) - S(i,j))/dx * midpt(H(i,j), H(ip,j))**(n + 1_i4b)
+      if(mask(i,j)==0 .or. mask(i,jp)==0) u_l_up(i,j) = 0._rkind
+      if(mask(i,j)==0 .or. mask(ip,j)==0) u_k_up(i,j) = 0._rkind
+    enddo
+  enddo
 
-  ! cross-slope neighbours: an ice-free neighbour is replaced by the reflection of the other side
-  call refl(S(kp,l ), S(k,l ), S(km,l ), wet(kp,l ), wet(km,l ), Xkpl , Xkml )
-  call refl(S(kp,lp), S(k,lp), S(km,lp), wet(kp,lp), wet(km,lp), Xkplp, Xkmlp)
-  call refl(S(k ,lp), S(k,l ), S(k ,lm), wet(k,lp ), wet(k,lm ), Xklp , Xklm )
-  call refl(S(kp,lp), S(kp,l), S(kp,lm), wet(kp,lp), wet(kp,lm), Yplp , Yplm )
-
-  ! SIA surface velocity on the up faces, down the surface slope
-  u_l_up = -gamma * (n + 2_i4b)/(n + 1_i4b) * flux(Xkpl, Xkml, Xkplp, Xkmlp, Sklp, Skl, dx, dy, n) &
-           * (Sklp - Skl)/dy * midpt(H, H(k,lp))**(n + 1_i4b)
-  u_k_up = -gamma * (n + 2_i4b)/(n + 1_i4b) * flux(Xklp, Xklm, Yplp, Yplm, Skpl, Skl, dy, dx, n) &
-           * (Skpl - Skl)/dx * midpt(H, H(kp,l))**(n + 1_i4b)
-
-  ! no flow across a face with either cell outside the mask; each down face is the up face of the cell below
-  u_l_up = merge(0._rkind, u_l_up, mask==0 .or. mask(k,lp)==0)
-  u_k_up = merge(0._rkind, u_k_up, mask==0 .or. mask(kp,l)==0)
-  u_l_dn = u_l_up(k,lm); u_l_dn(:,1) = 0._rkind
-  u_k_dn = u_k_up(km,l); u_k_dn(1,:) = 0._rkind
-
-  ! time step that lets no cell send out more than cfl of its debris
-  outRate = (max(u_l_up, 0._rkind) - min(u_l_dn, 0._rkind))/dy + (max(u_k_up, 0._rkind) - min(u_k_dn, 0._rkind))/dx
+  ! time step that lets no cell send out more than cfl of its debris; each down face is the up face of the cell below
+  outMax = 0._rkind
+  do j = 1, ny
+    do i = 1, nx
+      u_l_dn = 0._rkind; u_k_dn = 0._rkind
+      if(j > 1) u_l_dn = u_l_up(i,lm(j))
+      if(i > 1) u_k_dn = u_k_up(km(i),j)
+      outRate = (max(u_l_up(i,j), 0._rkind) - min(u_l_dn, 0._rkind))/dy + (max(u_k_up(i,j), 0._rkind) - min(u_k_dn, 0._rkind))/dx
+      if(outRate > outMax) outMax = outRate
+    enddo
+  enddo
   dt_cfl = max_dt
-  if(maxval(outRate) > 0._rkind) dt_cfl = cfl / maxval(outRate)
+  if(outMax > 0._rkind) dt_cfl = cfl / outMax
 
   ! ** movement with grid **
   do while (t < t_total)
     dt = t_total - t
 
-    ! Call a step of the advection scheme
-    call advection_upwind(u_l_up, u_k_up, debris, nx, ny, dx, dy, div_uD, w, l, lp, lm, k, kp, km)
+    ! first-order upwind advection (Mayer and Licciulli (2021) eq. 3): -div(uD) (m s-1), flux on each face from the upwind cell
+    do j = 1, ny
+      jp = lp(j); jm = lm(j)
+      do i = 1, nx
+        ip = kp(i); im = km(i)
+        f_l_up = upwindFlux(u_l_up(i,j), debris(i,j), debris(i,jp))
+        f_k_up = upwindFlux(u_k_up(i,j), debris(i,j), debris(ip,j))
+        f_l_dn = 0._rkind; f_k_dn = 0._rkind
+        if(j > 1) f_l_dn = upwindFlux(u_l_up(i,jm), debris(i,jm), debris(i,lp(jm)))
+        if(i > 1) f_k_dn = upwindFlux(u_k_up(im,j), debris(im,j), debris(kp(im),j))
+        div_uD(i,j) = (f_l_dn - f_l_up)/dy + (f_k_dn - f_k_up)/dx
+      enddo
+    enddo
 
     ! update time step
     deltat = min(dt_cfl, dt, max_dt)
@@ -1282,32 +1292,6 @@ end subroutine debris_unload
 
 
 ! ************************************************************************************************
-! private subroutine advection_upwind: first-order upwind advection for debris movement with ice velocity
-! ************************************************************************************************
-subroutine advection_upwind(u_l_up, u_k_up, D, nx, ny, dx, dy, div_uD, w, l, lp, lm, k, kp, km)
-  implicit none
-  ! Arguments
-  real(rkind), intent(in) :: u_l_up(nx,ny), u_k_up(nx,ny), D(nx,ny), dx, dy
-  integer(i4b), intent(in) :: nx, ny, l(ny), lp(ny), lm(ny), k(nx), kp(nx), km(nx)
-  real(rkind), intent(out) :: div_uD(nx,ny)
-  type(flowWork), intent(inout) :: w  ! f_l_up, f_l_dn, f_k_up, f_k_dn are the debris flux on each face (m2 s-1)
-
-  associate(f_l_up=>w%f_l_up, f_l_dn=>w%f_l_dn, f_k_up=>w%f_k_up, f_k_dn=>w%f_k_dn)
-
-  ! Mayer and Licciulli (2021) eq. 3., u_l_up and u_k_up are l+1/2 and k+1/2 face velocities (m s-1), zero on closed faces
-  ! flux on the up faces from the upwind cell; each down face is the up face of the cell below
-  f_l_up = u_l_up * merge(D(k,l), D(k,lp), u_l_up > 0._rkind)
-  f_k_up = u_k_up * merge(D(k,l), D(kp,l), u_k_up > 0._rkind)
-  f_l_dn = f_l_up(k,lm); f_l_dn(:,1) = 0._rkind
-  f_k_dn = f_k_up(km,l); f_k_dn(1,:) = 0._rkind
-
-  div_uD = (f_l_dn - f_l_up)/dy + (f_k_dn - f_k_up)/dx ! -div(uD) (m s-1)
-
-  end associate
-
-end subroutine advection_upwind
-
-! ************************************************************************************************
 ! private functions to assist in calculations
 ! ************************************************************************************************
 pure elemental function superbee(r)
@@ -1353,6 +1337,15 @@ pure elemental function faceD(Sa, Sb, Hm, Hp, Dm, Dp)
     faceD = min(Dm, Dp)
   endif
 end function faceD
+
+! debris flux through a face of velocity u, from the upwind cell
+pure elemental function upwindFlux(u, Dc, Dn)
+  implicit none
+  real(rkind), intent(in) :: u, Dc, Dn  ! face velocity, debris in the cell below the face and in the cell above it
+  real(rkind) :: upwindFlux
+
+  upwindFlux = u * merge(Dc, Dn, u > 0._rkind)
+end function upwindFlux
 
 ! neighbours p and m of centre c for a centred difference; one without ice is the reflection of the other, both: c
 pure elemental subroutine refl(p, c, m, hasP, hasM, xp, xm)
