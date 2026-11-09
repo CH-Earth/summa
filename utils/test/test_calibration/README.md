@@ -401,10 +401,10 @@ manifest unless `template_path` is given, and the common settings are read from
 | File | What it is |
 | --- | --- |
 | `make_stub_century.bash` | builds the stub dataset, and the manifest and template that drive it |
-| `manifest_century.toml` | the full manifest, listing 112 basins; the stub manifest is derived from it |
+| `manifest_century.toml` | the full manifest of the Century basins; the stub manifest is derived from it |
 | `summa_config_template.toml` | the per-case configuration template the manifest expands |
 | `summa_config_CAN_05BB001.toml` | a single filled-in case, useful for seeing what the template produces |
 
 `settings/` holds the common SUMMA settings the template names, shared by every case. The
-full 112-basin calibration needs the Century dataset, which is not in this repository; how it was
+full calibration needs the Century dataset, which is not in this repository; how it was
 run on Fir is in `utils/hpc/fir/README.md`.
