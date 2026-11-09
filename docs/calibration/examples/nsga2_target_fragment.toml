@@ -1,0 +1,44 @@
+# Replace the calibration settings and targets in a working configuration.
+# Retain that configuration's parameter and dependency tables.
+# This fragment is not a complete simulation; observation files are external.
+# Do not retain DDS zero-weight diagnostics in an NSGA-II target list.
+
+[calibration]
+algorithm = "nsga2"
+n_samples = 400
+metric = "kge"
+obs_transform = "none"
+start_date = "2016-01-01"
+end_date = "2017-01-01"
+write_aligned = false
+
+[calibration.nsga2]
+population_size = 20
+crossover_probability = 0.9
+crossover_eta = 20.0
+mutation_eta = 20.0
+
+[[calibration.target]]
+name = "streamflow_kge"
+variable = "streamflow"
+spatial_unit = "domain"
+obs_path = "{home}/data/example/observations/"
+obs_file = "{case_name}_daily_flow_observations.nc"
+vname_obs = "q_obs"
+metric = "kge"
+obs_transform = "none"
+weight = 1.0
+
+[[calibration.target]]
+name = "storage_rmse"
+variable = "basin__StorageChange"
+spatial_unit = "domain"
+obs_path = "{home}/data/example/observations/"
+obs_file = "{case_name}_storage_anomaly.nc"
+vname_obs = "tws_obs"
+metric = "rmse"
+obs_transform = "none"
+weight = 1.0
+accumulate = true
+baseline_start = "2016-01-01"
+baseline_end = "2017-01-01"

@@ -27,6 +27,18 @@ nav:
   - SUMMA Input: 'input_output/SUMMA_input.md'
   - SUMMA Output: 'input_output/SUMMA_output.md'
   - SUMMA Parameters: 'input_output/SUMMA_parameters.md'
+- Calibration:
+  - Overview: 'calibration/index.md'
+  - Parameter adjustments: 'calibration/parameters.md'
+  - Constraints and feasibility: 'calibration/constraints.md'
+  - Objectives and observations: 'calibration/objectives.md'
+  - Optimization algorithms: 'calibration/algorithms.md'
+  - Parallelization: 'calibration/parallelization.md'
+  - Configuration and execution: 'calibration/running.md'
+  - Outputs and diagnostics: 'calibration/outputs.md'
+  - Implementation and extension: 'calibration/implementation.md'
+  - Troubleshooting: 'calibration/troubleshooting.md'
+  - Examples: 'calibration/examples/index.md'
 - Development:
   - SUMMA Contributions: 'development/SUMMA_contributing.md'
   - SUMMA and Git: 'development/SUMMA_and_git.md'

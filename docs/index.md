@@ -153,17 +153,23 @@ full list.
 
 ### Calibrating parameters
 
-A build with `USE_MPI=ON` also produces `summa_sundials_opt.exe`, which searches for parameter
-values that optimise a streamflow objective function. It needs a TOML configuration naming the
-parameters, the observations and the evaluation period, and runs trials concurrently across ranks:
+A build with `USE_MPI=ON` produces an optimization executable whose name records
+its enabled components, for example `summa_sundials_mizuroute_opt.exe`. It runs
+independent parameter trials concurrently and supports manifest-driven
+calibration of multiple basins and independent repeats.
 
 ```bash
-mpirun -np 8 ./bin/summa_sundials_opt.exe -c /path/to/config.toml
+mpirun -np 12 ./bin/summa_sundials_mizuroute_opt.exe \
+  -c /path/to/config.toml --home /path/to/data/root
 ```
 
-`--manifest <file>` calibrates many basins in one job, from a manifest listing the cases and a
-configuration template. `utils/pre-processing/setup_summa_cases.bash` builds the per-case input
-directories a manifest expects.
+Each trial currently runs its complete model domain on one MPI rank. This
+model-instance parallelism is distinct from the domain decomposition in the
+simulation MPI executable.
+
+See the [calibration guide](calibration/index.md) for parameter adjustments,
+physical-field constraints, DDS and NSGA-II, observation targets, MPI scheduling,
+configuration examples, and output interpretation.
 
 ### Running with MPI
 
@@ -199,7 +205,10 @@ The `-c` option only exists in builds that have the TOML reader (see `USE_TOML`,
 `USE_MIZUROUTE` turns on). Passing it to a build without one is an error rather than a silent
 no-op, so a run cannot quietly ignore the configuration you gave it.
 
-mizuRoute routing is currently serial: it is not combined with `USE_MPI`.
+mizuRoute routing within each coupled model instance is currently serial.
+Independent coupled instances can be evaluated concurrently by the MPI
+calibration driver; this is not domain-parallel routing within a trial. See
+[calibration parallelization](calibration/parallelization.md).
 
 
 ## Credits
