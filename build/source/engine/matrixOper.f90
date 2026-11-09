@@ -71,8 +71,8 @@ contains
   case(ixFullMatrix)
 
    ! scale by both the scaling factors for the function (fScale) and variable (xScale)
-   do iState=1,nState
-    do jState=1,nState
+   do jState=1,nState
+    do iState=1,nState
      aJacScaled(iState,jState) = fScale(iState)*aJac(iState,jState)*xScale(jState)
     end do
    end do

@@ -519,13 +519,13 @@ subroutine computBaseflow(&
     end do
 
     ! loop through soil layers
-    do iLayer=1,nSoil
+    do jLayer=1,nSoil
       ! compute diagonal terms (s-1)
-      dBaseflow_dVolLiq(iLayer,iLayer) = tran0*dXdS(iLayer)*depth2capacity(iLayer)*length2area
-      dBaseflow_dWat(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
-      dBaseflow_dTk(iLayer,iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*mLayerdTheta_dTk(iLayer)
+      dBaseflow_dVolLiq(jLayer,jLayer) = tran0*dXdS(jLayer)*depth2capacity(jLayer)*length2area
+      dBaseflow_dWat(jLayer,jLayer) = dBaseflow_dVolLiq(jLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
+      dBaseflow_dTk(jLayer,jLayer) = dBaseflow_dVolLiq(jLayer,jLayer)*mLayerdTheta_dTk(jLayer)
       ! compute off-diagonal terms
-      do jLayer=iLayer+1,nSoil  ! only dependent on layers below
+      do iLayer=1,jLayer-1  ! only dependent on layers below
         dBaseflow_dVolLiq(iLayer,jLayer) = tran0*(dXdS(iLayer) - dXdS(iLayer+1))*depth2capacity(jLayer)*length2area
         dBaseflow_dWat(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dPsi(jLayer)
         dBaseflow_dTk(iLayer,jLayer) = dBaseflow_dVolLiq(iLayer,jLayer)*mLayerdTheta_dTk(jLayer)
