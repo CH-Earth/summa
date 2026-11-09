@@ -77,7 +77,7 @@ type flowWork
   real(rkind), allocatable, dimension(:,:) :: Xkpl, Xkml, Xkplp, Xkmlp, Xkplm, Xkmlm, Xklp, Xklm, Yplp, Yplm, Ymlp, Ymlm
   real(rkind), allocatable, dimension(:,:) :: u_l_up, u_l_dn, u_k_up, u_k_dn, outRate, influx, englacial_emerg, div_uD
   real(rkind), allocatable, dimension(:,:) :: f_l_up, f_l_dn, f_k_up, f_k_dn
-  real(rkind), allocatable, dimension(:,:) :: drivingStress, S_stepStart, S_l_up, S_l_dn, S_k_up, S_k_dn
+  real(rkind), allocatable, dimension(:,:) :: drivingStress, S_l_up, S_l_dn, S_k_up, S_k_dn
   real(rkind), allocatable, dimension(:,:) :: slope_l, slope_k, slope_g, div_q, m_dot
   integer(i4b), allocatable, dimension(:,:) :: mask
   logical, allocatable, dimension(:,:) :: wet
@@ -641,7 +641,7 @@ subroutine allocFlowWork(w, nx, ny)
            w%Xklm(nx,ny), w%Yplp(nx,ny), w%Yplm(nx,ny), w%Ymlp(nx,ny), w%Ymlm(nx,ny))
   allocate(w%u_l_up(nx,ny), w%u_l_dn(nx,ny), w%u_k_up(nx,ny), w%u_k_dn(nx,ny), w%outRate(nx,ny), w%influx(nx,ny), &
            w%englacial_emerg(nx,ny), w%div_uD(nx,ny), w%f_l_up(nx,ny), w%f_l_dn(nx,ny), w%f_k_up(nx,ny), w%f_k_dn(nx,ny))
-  allocate(w%drivingStress(nx,ny), w%S_stepStart(nx,ny), w%S_l_up(nx,ny), w%S_l_dn(nx,ny), w%S_k_up(nx,ny), w%S_k_dn(nx,ny), &
+  allocate(w%drivingStress(nx,ny), w%S_l_up(nx,ny), w%S_l_dn(nx,ny), w%S_k_up(nx,ny), w%S_k_dn(nx,ny), &
            w%slope_l(nx,ny), w%slope_k(nx,ny), w%slope_g(nx,ny), w%div_q(nx,ny), w%m_dot(nx,ny), w%mask(nx,ny), w%wet(nx,ny))
 end subroutine allocFlowWork
 
@@ -668,7 +668,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
   integer(i4b), intent(out) :: err                ! error code
   character(*), intent(out) :: message            ! error message
   ! Local variables
-  real(rkind) :: dt, t, max_dt, min_dt, deltat, debris_half_dt, dt_cfl, meanS
+  real(rkind) :: dt, t, max_dt, min_dt, deltat, dt_cfl, meanS
   real(rkind) :: gamma, lat_rockfall(nx,ny)
   integer(i4b) :: emergenceMask(nx,ny)
   integer(i4b),parameter :: n=3 ! Glen's flow law exponent
@@ -718,7 +718,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     lat_rockfall = 0._rkind
   endif
 
-  associate(H=>w%H, m_dot=>w%m_dot, div_q=>w%div_q, S_stepStart=>w%S_stepStart, drivingStress=>w%drivingStress, &
+  associate(H=>w%H, m_dot=>w%m_dot, div_q=>w%div_q, drivingStress=>w%drivingStress, &
             Sklp=>w%Sklp, Sklm=>w%Sklm, Skl=>w%Skl, Skpl=>w%Skpl, Skml=>w%Skml, S_l_up=>w%S_l_up, S_l_dn=>w%S_l_dn, &
             S_k_up=>w%S_k_up, S_k_dn=>w%S_k_dn, slope_l=>w%slope_l, slope_k=>w%slope_k, slope_g=>w%slope_g)
 
@@ -746,7 +746,6 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     ! get mass balance rate over surface (m ice s-1) and remove debris from glacier surface for flow calculation
     m_dot = massBalance(S, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
     S = S - debris
-    S_stepStart = S
 
     ! call a step of the diffusion scheme
     call diffusion_MUSCL(S, B, glacierMask, gamma, n, cfl, max_dt, nx, ny, dx, dy, div_q, dt_cfl, w,&
@@ -756,16 +755,7 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     deltat = min(dt_cfl, dt, max_dt)
     ! Apply a floor only when it does not violate CFL stability.
     if(dt_cfl >= min_dt .and. deltat < min_dt) deltat = min_dt
-    debris_half_dt = 0.5_rkind*deltat
     t = t + deltat
-
-    ! Strang splitting: half debris step on starting geometry if debris and ablation zone are present
-    if(sum(debris)>0._rkind .and. any(m_dot<0._rkind))then
-      call run_debrisModel(S_stepStart, B, debris, gamma, n, debris_half_dt, m_dot, emergenceMask, lat_rockfall,&
-               debrisConc, theta_sat, iden_soil, nx, ny, dx, dy, w, l, lp, lm, k, kp, km)
-    else
-      debris = 0._rkind
-    endif
 
     ! update S (with time discretization S_t+1 - S_t /dt = div(q_t)+ m_dot_t, so S_t+1 = S_t + (m_dot + div(q))*dt)
     S = S + (m_dot + div_q) * deltat
@@ -788,9 +778,9 @@ subroutine run_flowModel(t_total, debris, S, B, glacierMask, slope, intercept, v
     ! refresh m_dot on the updated surface
     m_dot = massBalance(S + debris, debris, glacierMask, slope, intercept, t_total, validElev, validCount, maxCount, nx, ny)
 
-    ! Strang splitting: half debris step on updated geometry if debris, ablation zone, and glacier are present
+    ! one debris step on the updated geometry if debris, ablation zone, and glacier are present
     if(sum(debris)>0._rkind .and. any(m_dot<0._rkind) .and. count(S-B>thick4area)>0_i4b)then
-      call run_debrisModel(S, B, debris, gamma, n, debris_half_dt, m_dot, emergenceMask, lat_rockfall,&
+      call run_debrisModel(S, B, debris, gamma, n, deltat, m_dot, emergenceMask, lat_rockfall,&
                debrisConc, theta_sat, iden_soil, nx, ny, dx, dy, w, l, lp, lm, k, kp, km)
 
       ! calculate glacier ice surface slope with a finite difference, add debris back to surface for slope calculation
