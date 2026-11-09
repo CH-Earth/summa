@@ -113,6 +113,13 @@ module mizuroute_coupling
   !       coupling(:)%id   --> runoff%hru_id(:)
   !       coupling(:)%qsim --> runoff%sim(:)
   !
+  ! For lakes, SUMMA supplies precipitation and Oudin evaporation [m s-1] for
+  ! each water-class HRU. These are area-averaged onto their GRU and then
+  ! remapped like runoff:
+  !
+  !       coupling_lake(:)%precip --> driver%host_precip(:)
+  !       coupling_lake(:)%evap   --> driver%host_evapo(:)
+  !
   ! The name runoff%hru_id can be confusing in the coupled configuration.
   ! It does not imply that these IDs are the mizuRoute river-network HRU IDs.
   ! Rather, runoff%hru_id identifies the spatial elements on which runoff is
@@ -285,9 +292,11 @@ contains
   !-----------------------------------------------------------------------
   ! Network routing in mizuRoute
   !-----------------------------------------------------------------------
-  subroutine route_mizuroute_from_summa(modelTimeStep, summaStruct, ierr, message)
+  subroutine route_mizuroute_from_summa(modelTimeStep, simDate, summaStruct, ierr, message)
   USE network_routing_module, only: network_routing
+  USE network_routing_module, only: combine_water_hrus
   integer(i4b),          intent(in)    :: modelTimeStep
+  integer(i4b),          intent(in)    :: simDate(5)     ! SUMMA time stamp: year, month, day, hour, minute
   type(summa1_type_dec), intent(inout) :: summaStruct
   integer(i4b),          intent(out)   :: ierr
   character(*),          intent(out)   :: message
@@ -305,8 +314,18 @@ contains
     ! Transfer summa routed runoff into the mizuRoute runoff structure
     domain%river_network%core%runoff%sim(:) = summaStruct%coupling(:)%qsim
 
+    ! Transfer lake precipitation and evaporation of the water-class HRUs
+    call combine_water_hrus(summaStruct%coupling_lake(:)%ixGRU,        &
+                            summaStruct%coupling_lake(:)%area,         &
+                            summaStruct%coupling_lake(:)%precip,       &
+                            summaStruct%coupling_lake(:)%evap,         &
+                            domain%river_network%driver%host_precip(:), &
+                            domain%river_network%driver%host_evapo(:))
+
     ! Route the complete runoff field
-    call network_routing(idx_buff,             &
+    call network_routing(modelTimeStep,        &
+                         simDate,              &
+                         idx_buff,             &
                          domain%river_network, &
                          domain%remap%routing, &
                          info%do_remapping,    &
@@ -412,6 +431,10 @@ contains
 
   ierr = 0
   message = 'init_mizuroute_wq_from_summa/'
+  if(summaStruct%config%mizu_info%mrout%is_lake_sim)then
+    message=trim(message)//'OpenWQ cannot be used with mizuRoute lakes (is_lake_sim): the reach water budget has no lake precipitation or evaporation'
+    ierr=20; return
+  endif
   call init_wq_exchange(summaStruct%mizu_domain%river_network, &
                         summaStruct%mizu_domain%remap%routing, &
                         summaStruct%config%mizu_info%do_remapping, &

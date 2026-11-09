@@ -37,6 +37,7 @@ module mizuroute_types
    real(wp)                      :: dt = 3600._wp       ! routing time step (s)
    logical(lgt)                  :: write_qbasin = .false.  ! flag to write basin runoff
    logical(lgt)                  :: write_Qreach = .false.  ! flag to write routed streamflow
+   logical(lgt)                  :: is_lake_sim  = .false.  ! flag to route lake segments with the lake models
   end type rout_info
 
   !---------------------------------------------------------------------
@@ -149,6 +150,7 @@ module mizuroute_types
   !---------------------------------------------------------------------
   type :: routing_output
     real(wp),               allocatable  :: streamflow(:,:) 
+    real(wp),               allocatable  :: volume(:,:)
   end type routing_output
   type :: river_network_driver
     ! IDs used by the driver
@@ -156,10 +158,15 @@ module mizuroute_types
     integer(i4b), allocatable :: seg_id(:)
     ! Network attributes used by the driver
     real(wp), allocatable :: totArea(:)
+    ! Host-model lake precipitation and evaporation on the host runoff elements (m/s)
+    real(wp), allocatable :: host_precip(:)
+    real(wp), allocatable :: host_evapo(:)
     ! Routing workspace
     real(wp), allocatable :: reach_inflow(:)
     ! Host-step output
     real(wp), allocatable :: basin_runoff(:,:)
+    real(wp), allocatable :: lake_precip(:,:)
+    real(wp), allocatable :: lake_evap(:,:)
     type(routing_output), allocatable :: method(:)
     ! Routing time information
     type(routing_time_data) :: time

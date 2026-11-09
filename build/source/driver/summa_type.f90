@@ -65,6 +65,7 @@ USE data_types,  only : &
                     gru2hru_map,           & ! x(iGRU)%hruinfo(iHRU)%y
                     hru2gru_map              ! x(iHRU)%y
 USE data_types,      only: q_coupling      ! x(:)%id, x(:)%qsim
+USE data_types,      only: lake_coupling   ! x(:)%id, x(:)%precip, x(:)%evap
 
 ! access missing values
 USE globalData,only:integerMissing      ! missing integer
@@ -214,6 +215,7 @@ type, public :: summa1_type_dec
     integer(i4b)                     :: n_write                    ! length of the output buffer
     ! generic runoff coupling data
     type(q_coupling), allocatable    :: coupling(:)                ! x(:)%id, x(:)%qsim
+    type(lake_coupling), allocatable :: coupling_lake(:)          ! x(:)%id, x(:)%precip, x(:)%evap: one per water-class HRU
 #ifdef MIZUROUTE_ACTIVE
     type(mizuroute_domain)           :: mizu_domain                ! mizuroute domain data
 #endif

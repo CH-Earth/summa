@@ -318,6 +318,17 @@ contains
     parFallback(iLookPARAM%f_hydCond)%lower_limit = 0.1_rkind
     parFallback(iLookPARAM%f_hydCond)%upper_limit = 10._rkind
   end if
+  ! Oudin et al. (2005) potential evaporation parameters (original values of the formula)
+  if (parFallback(iLookPARAM%oudinPETScaleK1)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%oudinPETScaleK1)%default_val = 100._rkind
+    parFallback(iLookPARAM%oudinPETScaleK1)%lower_limit = 10._rkind
+    parFallback(iLookPARAM%oudinPETScaleK1)%upper_limit = 100._rkind
+  end if
+  if (parFallback(iLookPARAM%oudinPETTempThrK2)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%oudinPETTempThrK2)%default_val = 5._rkind
+    parFallback(iLookPARAM%oudinPETTempThrK2)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%oudinPETTempThrK2)%upper_limit = 10._rkind
+  end if
  end subroutine set_glacier_lake_defaults
 
  ! ************************************************************************************************

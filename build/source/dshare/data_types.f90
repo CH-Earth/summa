@@ -213,6 +213,16 @@ MODULE data_types
    real(rkind)                           :: qsim                          ! simulated runoff for this element (m s-1)
  end type q_coupling
 
+ ! lake forcing of one water-class HRU
+ type, public :: lake_coupling
+   integer(i8b)                          :: id                            ! HRU identifier
+   integer(i4b)                          :: ixGRU                         ! index of the GRU holding the HRU, the runoff element
+   integer(i4b)                          :: ixHRU                         ! index of the HRU in the GRU
+   real(rkind)                           :: area                          ! HRU area (m2)
+   real(rkind)                           :: precip                        ! precipitation (m s-1)
+   real(rkind)                           :: evap                          ! Oudin potential evaporation, positive upward (m s-1)
+ end type lake_coupling
+
  ! ***********************************************************************************************************
  ! hierarchal derived data types
  ! ***********************************************************************************************************

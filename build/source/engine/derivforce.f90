@@ -62,6 +62,7 @@ USE mDecisions_module,only:  &
 implicit none
 private
 public::derivforce
+public::calcPotentialEvap_Oudin2005
 contains
 
  ! ************************************************************************************************
@@ -394,6 +395,33 @@ contains
  end associate
 
  end subroutine derivforce
+
+ ! ************************************************************************************************
+ ! public function calcPotentialEvap_Oudin2005: compute potential evaporation for HDS pond calculations
+ ! ************************************************************************************************
+ function calcPotentialEvap_Oudin2005(SWRadAtm, airtemp, K1, K2) result(potentialEvap)
+  ! calculate potential evaporation using the Oudin et al. (2005) formula for a specific HRU
+  USE multiconst,only:LH_vap,  & ! latent heat of vaporization   (J kg-1)
+                      iden_water ! intrinsic density of water    (kg m-3)
+  implicit none
+  ! function arguments
+  real(rkind),  intent(in)     :: SWRadAtm                ! downwelling shortwave radiation (W m-2)
+  real(rkind),  intent(in)     :: airtemp                 ! air temperature (K)
+  real(rkind),  intent(in)     :: K1                      ! scaling factor (deg C)
+  real(rkind),  intent(in)     :: K2                      ! minimum value of air temperature for which PE is not zero (deg C)
+  ! function result
+  real(rkind)                  :: potentialEvap           ! potential evaporation (mm s-1)
+
+  ! Oudin et al. (2005) formula
+  potentialEvap = 1000._rkind * &
+                  (SWRadAtm * 1.e-6_rkind / &                  ! W m-2 to MJ m-2 s-1
+                  (LH_vap * 1.e-6_rkind * iden_water)) * &     ! J kg-1 to MJ kg-1
+                  ((airtemp - 273.15_rkind + K2)/K1)            ! K to deg C
+
+  ! check for negative values
+  potentialEvap = max(potentialEvap, 0._rkind)
+
+ end function calcPotentialEvap_Oudin2005
 
 
 end module derivforce_module
