@@ -287,6 +287,7 @@ AFTER tag of v4.0.0-exp-Sundials
      Calibration parameters refactored, PR #671: [calibration.parameters], spatial_multipliers and parameter_ratios replace param_list and parameter_transformations;
       DDS and NSGA-II redraw candidates that break an ordered chain on the physical fields; zero-weight diagnostic targets; per-target boxcox_lambda;
       targets select space with spatial_unit and spatial_id; an anomaly baseline is removed after alignment, merged Nov 9, 2026
+     [[parameter_dependencies.remainder]] sets a fixed parameter to a total minus its sources (silt = 1 - sand - clay), commit 336ba751 Nov 10, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers), multi-calib commits d632b36a to de2ae997 Sep 21, 2026, not in this branch
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
       1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
@@ -328,3 +329,4 @@ AFTER tag of v4.0.0-exp-Sundials
  88) Noah-MP parameters, snow/ice enthalpy tables and elapsedSec days kept per HRU, so HRUs can run concurrently, commit 2cb8db21 Nov 2, 2026
  89) HRU cascade order kept in gru_struc instead of a module cache, elapsedUpdateArea atomic, so GRUs can run under OpenMP, commit c9cdcc34 Nov 2, 2026
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit 0cd46a4e Nov 10, 2026
+ 92) paramCheck.f90 sand, silt and clay fractions must be non-negative and add to one, commit 080e1b6e Nov 10, 2026
