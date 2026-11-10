@@ -193,6 +193,7 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: scalarGroundStabilityCorrection_old ! stability correction for the ground surface (-)
   ! turbulent heat transfer
   real(rkind)                        :: z0Ground                        ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
+  logical(lgt)                       :: andreasScalar                   ! flag for a snow or ice surface whose heat and vapour roughness follows Andreas (1987)
   real(rkind)                        :: soilEvapFactor                  ! soil water control on evaporation from non-vegetated surfaces
   real(rkind)                        :: soilRelHumidity_noSnow          ! relative humidity in the soil pores [0-1]
   real(rkind)                        :: scalarLeafConductance           ! leaf conductance (m s-1)
@@ -579,6 +580,9 @@ subroutine vegNrgFlux(&
         else
           err=20; message=trim(message)//'unable to identify ground surface under potential snow'; return
         end if
+        ! snow and ice on glacier and lake domains; upland snow and debris keep one roughness for momentum and heat
+        andreasScalar = (nGlce>0 .or. nLake>0) .and. &
+                        (scalarGroundSnowFraction>0._rkind .or. nLakeFrz>0 .or. (nLake==0 .and. nSoil==0))
 
         ! compute the total vegetation area index (leaf plus stem)
         VAI        = scalarLAI + scalarSAI  ! vegetation area index
@@ -671,7 +675,8 @@ subroutine vegNrgFlux(&
                         scalarSnowDepth,                    & ! intent(in): snow depth (m)
                         ! input: parameters
                         z0Ground,                           & ! intent(in): roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
-                        z0CanopyParam,                      & ! intent(in): roughness length of the canopy (m)
+                        andreasScalar,                      & ! intent(in): flag for a heat and vapour roughness from Andreas (1987)
+                        z0CanopyParam,                     & ! intent(in): roughness length of the canopy (m)
                         zpdFraction,                        & ! intent(in): zero plane displacement / canopy height (-)
                         critRichNumber,                     & ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
                         Louis79_bparam,                     & ! intent(in): parameter in Louis (1979) stability function
@@ -1432,7 +1437,8 @@ subroutine aeroResist(&
                       snowDepth,                     & ! intent(in):  snow depth (m)
                       ! input: parameters
                       z0Ground,                      & ! intent(in):  roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
-                      z0CanopyParam,                 & ! intent(in):  roughness length of the canopy (m)
+                      andreasScalar,                 & ! intent(in):  flag for a heat and vapour roughness from Andreas (1987)
+                      z0CanopyParam,                & ! intent(in):  roughness length of the canopy (m)
                       zpdFraction,                   & ! intent(in):  zero plane displacement / canopy height (-)
                       critRichNumber,                & ! intent(in):  critical value for the bulk Richardson number where turbulence ceases (-)
                       Louis79_bparam,                & ! intent(in):  parameter in Louis (1979) stability function
@@ -1489,7 +1495,8 @@ subroutine aeroResist(&
   real(rkind),intent(in)           :: snowDepth                     ! snow depth (m)
   ! input: parameters
   real(rkind),intent(in)           :: z0Ground                      ! roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
-  real(rkind),intent(in)           :: z0CanopyParam                 ! roughness length of the canopy (m)
+  logical(lgt),intent(in)          :: andreasScalar                 ! flag for a heat and vapour roughness from Andreas (1987)
+  real(rkind),intent(in)           :: z0CanopyParam                ! roughness length of the canopy (m)
   real(rkind),intent(in)           :: zpdFraction                   ! zero plane displacement / canopy height (-)
   real(rkind),intent(in)           :: critRichNumber                ! critical value for the bulk Richardson number where turbulence ceases (-)
   real(rkind),intent(in)           :: Louis79_bparam                ! parameter in Louis (1979) stability function
@@ -1553,6 +1560,14 @@ subroutine aeroResist(&
   real(rkind)                      :: heightCanopyTopAboveSnow             ! height at the top of the vegetation canopy relative to snowpack (m)
   real(rkind)                      :: heightCanopyBottomAboveSnow          ! height at the bottom of the vegetation canopy relative to snowpack (m)
   real(rkind)                      :: minExpLogHgt                         ! minimum height above ground for logarithmic wind profile (m)
+  ! local variables: scalar roughness of snow and ice, Andreas (1987) Eq. 53 and Table I for temperature
+  real(rkind),parameter            :: viscAir = 1.3e-5_rkind               ! kinematic viscosity of air at -5 degC (m2 s-1)
+  real(rkind),parameter            :: RstarSmooth = 0.135_rkind            ! roughness Reynolds number below which the surface is smooth (-)
+  real(rkind),parameter            :: RstarRough = 2.5_rkind               ! roughness Reynolds number above which the surface is rough (-)
+  real(rkind),parameter            :: RstarMax = 1000._rkind               ! largest roughness Reynolds number of the fit (-)
+  real(rkind)                      :: Rstar                                ! roughness Reynolds number from the neutral friction velocity (-)
+  real(rkind)                      :: lnRstar                              ! log of the roughness Reynolds number (-)
+  real(rkind)                      :: z0hGround                            ! roughness length of the ground for heat and vapour (m)
   ! local variables: derivatives
   real(rkind)                      :: dFV_dT                               ! derivative in friction velocity w.r.t. canopy air temperature
   real(rkind)                      :: dED_dT                               ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
@@ -1771,7 +1786,20 @@ subroutine aeroResist(&
     end if
 
     ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
-    groundExNeut = (vkc**2_i4b) / ( log(heightAboveGround/z0Ground)**2_i4b) ! turbulent transfer coefficient under conditions of neutral stability (-)
+    ! heat and vapour roughness from the roughness Reynolds number of the neutral wind profile, held at the fit's limit above it
+    z0hGround = z0Ground
+    if (andreasScalar) then
+      Rstar = min(vkc*windspd/log(heightAboveGround/z0Ground)*z0Ground/viscAir, RstarMax)
+      if (Rstar <= RstarSmooth) then
+        z0hGround = z0Ground*exp(1.250_rkind)
+      else if (Rstar < RstarRough) then
+        z0hGround = z0Ground*exp(0.149_rkind - 0.550_rkind*log(Rstar))
+      else
+        lnRstar = log(Rstar)
+        z0hGround = z0Ground*exp(0.317_rkind - 0.565_rkind*lnRstar - 0.183_rkind*lnRstar**2_i4b)
+      end if
+    end if
+    groundExNeut = (vkc**2_i4b) / ( log(heightAboveGround/z0Ground)*log(heightAboveGround/z0hGround) ) ! turbulent transfer coefficient under conditions of neutral stability (-)
     groundResistanceNeutral = 1._rkind / (groundExNeut*windspd)
 
     ! compute ground stability correction
