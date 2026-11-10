@@ -1183,6 +1183,9 @@ contains
   real(rkind)                  :: aquifer_max                 ! absolute value of the residual in aquifer water (m)
   logical(lgt)                 :: canopyConv                  ! flag for canopy water balance convergence
   logical(lgt)                 :: watbalConv                  ! flag for soil water balance convergence
+  logical(lgt)                 :: snowbalConv                 ! flag for snow water balance convergence
+  real(rkind)                  :: snowWatBalErr               ! depth-integrated snow water residual (m)
+  integer(i4b)                 :: iSnow                       ! index of snow layer
   logical(lgt)                 :: liquidConv                  ! flag for residual convergence
   logical(lgt)                 :: matricConv                  ! flag for matric head convergence
   logical(lgt)                 :: energyConv                  ! flag for energy convergence
@@ -1213,6 +1216,7 @@ contains
    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat          ,&  ! intent(in): [dp(:)] depth of each layer in the layer domains (m)
    mLayerdThetadPsi        => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat  ,&  ! intent(in): [dp(:)] derivative of liquid water content w.r.t. matric head (m-1)
    ! model indices
+   ixSnowOnlyHyd           => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat       ,&  ! intent(in): [i4b(:)] index in the state subset for hydrology states in the snow
    ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)          ,&  ! intent(in): [i4b]    index of aquifer storage state variable
    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy air space energy state variable
    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)         ,&  ! intent(in): [i4b]    index of canopy energy state variable
@@ -1298,6 +1302,17 @@ contains
     watbalConv    = .true.
    end if
 
+   ! check convergence based on the snow water balance error (m), which binds only when the snow is deeper than 1 m
+   snowWatBalErr = 0._rkind
+   do iSnow=1,nSnow
+    if (ixSnowOnlyHyd(iSnow)/=integerMissing) snowWatBalErr = snowWatBalErr + real(rVec(ixSnowOnlyHyd(iSnow)), rkind)*mLayerDepth(iSnow)
+   end do
+   if (scalarSolution) then
+     snowbalConv = (abs(snowWatBalErr) < absConvTol_liquid*scalarTighten)
+   else
+     snowbalConv = (abs(snowWatBalErr) < absConvTol_liquid)
+   endif
+
    ! check convergence based on the aquifer storage
    if (ixAqWat/=integerMissing) then
     aquifer_max = real(abs(rVec(ixAqWat)), rkind)*iden_water
@@ -1308,7 +1323,7 @@ contains
    end if
 
    ! final convergence check
-   checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv .and. aquiferConv)
+   checkConv = (canopyConv .and. watbalConv .and. snowbalConv .and. matricConv .and. liquidConv .and. energyConv .and. aquiferConv)
 
    ! print progress towards solution
    if (globalPrintFlag) then
