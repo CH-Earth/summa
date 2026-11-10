@@ -40,7 +40,7 @@ contains
     type(parameter_field_plan), intent(out) :: plan
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-    integer(i4b) :: i,j,h,k,n,nx,nDone,pass
+    integer(i4b) :: i,j,h,k,n,nx,nDone,pass,nLocal
     logical(lgt) :: changed
     logical(lgt), allocatable :: complete(:),seen(:)
 
@@ -86,14 +86,17 @@ contains
       if(size(field(i)%initial%hspatial)==0)then
         message=trim(message)//'empty spatial field: '//trim(spec%params(i)%name); return
       endif
+      ! A location may be empty (a layered parameter where there are no layers), but not every location.
+      nLocal=0
       do h=1,size(field(i)%initial%hspatial)
         if(.not.allocated(field(i)%initial%hspatial(h)%dat))then
           message=trim(message)//'missing local data: '//trim(spec%params(i)%name); return
         endif
-        if(size(field(i)%initial%hspatial(h)%dat)==0)then
-          message=trim(message)//'empty local data: '//trim(spec%params(i)%name); return
-        endif
+        nLocal=nLocal+size(field(i)%initial%hspatial(h)%dat)
       enddo
+      if(nLocal==0)then
+        message=trim(message)//'empty local data: '//trim(spec%params(i)%name); return
+      endif
       if(.not.field_is_finite(field(i)%initial))then
         message=trim(message)//'non-finite initial field: '//trim(spec%params(i)%name); return
       endif
@@ -260,8 +263,8 @@ contains
           field(i)%effective%hspatial(h)%dat(:)=value*field(i)%initial%hspatial(h)%dat(:)
         case(param_ratio)
           if(trim(spec%params(i)%reference_reduction)=='min')then
-            ! The reference already includes its multiplier or upstream ratio.
-            field(i)%effective%hspatial(h)%dat(1)= &
+            ! The reference already includes its multiplier or upstream ratio; an empty one leaves the target as it was.
+            if(size(field(j)%effective%hspatial(h)%dat)>0) field(i)%effective%hspatial(h)%dat(1)= &
               value*minval(field(j)%effective%hspatial(h)%dat(:))
           else
             field(i)%effective%hspatial(h)%dat(:)=value*field(j)%effective%hspatial(h)%dat(:)

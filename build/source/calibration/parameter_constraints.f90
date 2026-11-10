@@ -82,7 +82,7 @@ contains
         do h=1,size(field(a)%initial%hspatial)
           na=size(field(a)%initial%hspatial(h)%dat)
           nb=size(field(b)%initial%hspatial(h)%dat)
-          if(na/=nb .and. na/=1 .and. nb/=1)then
+          if(na/=nb .and. na>1 .and. nb>1)then
             message=trim(message)//'ordered fields have incompatible local lengths'; return
           endif
         enddo
@@ -252,6 +252,7 @@ contains
         associate(va=>field(a)%effective%hspatial(h)%dat, vb=>field(b)%effective%hspatial(h)%dat)
           na=size(va)
           nb=size(vb)
+          if(na==0 .or. nb==0) cycle  ! nothing to order where either side has no layers
           do k=1,max(na,nb)
             pa=va(min(k,na))
             pb=vb(min(k,nb))

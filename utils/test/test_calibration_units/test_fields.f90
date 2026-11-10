@@ -257,9 +257,18 @@ contains
     call initialize_model_constraints(ctx,err,message)
     call require(err/=0,'unallocated local array')
     ctx=base
+    ctx%fields(1)%initial%hspatial(1)%dat=[real(rkind)::]
     ctx%fields(1)%initial%hspatial(2)%dat=[real(rkind)::]
     call initialize_model_constraints(ctx,err,message)
-    call require(err/=0,'empty local array')
+    call require(err/=0,'empty local array at every location')
+    ! Soil on glacier ice: layered fields empty at one location, the scalar chain members not.
+    ctx=base
+    ctx%fields(1)%initial%hspatial(2)%dat=[real(rkind)::]
+    ctx%fields(2)%initial%hspatial(2)%dat=[real(rkind)::]
+    call initialize_model_constraints(ctx,err,message)
+    call require(err==0,'empty local array at one location: '//trim(message))
+    call is_feasible(ctx,[.94_rkind],feasible,err,message)
+    call require(err==0.and.feasible,'empty location does not constrain the chain: '//trim(message))
     ctx=base
     call set_field(ctx%fields(3),[.1_rkind])
     call initialize_model_constraints(ctx,err,message)

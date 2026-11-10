@@ -200,7 +200,7 @@ contains
             if(.not.allocated(mpar%gru(g)%hru(h)%dom(d)%var)) return
             if(map%ixM>size(mpar%gru(g)%hru(h)%dom(d)%var)) return
             if(.not.allocated(mpar%gru(g)%hru(h)%dom(d)%var(map%ixM)%dat)) return
-            if(size(mpar%gru(g)%hru(h)%dom(d)%var(map%ixM)%dat)<1) return
+            ! A layered parameter is empty in a domain with no such layers (soil on glacier ice).
             if(mpar_meta(map%ixM)%varType==iLookVarType%scalarv)then
               if(size(mpar%gru(g)%hru(h)%dom(d)%var(map%ixM)%dat)/=1) return
             endif
