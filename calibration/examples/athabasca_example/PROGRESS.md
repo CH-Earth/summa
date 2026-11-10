@@ -142,12 +142,102 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
   on 192/95/47/23 workers gives an idle fraction of about 14% at 5 evaluations per worker, falling to about
   1% at 43.
 
+## Oct 30-Nov 3: why does the Fortran DDS stop at 0.806? (v2 with its search rules)
+
+- The Fortran DDS differs from v2 in two rules: it starts from a random set (v2: defaults) and rejects
+  out-of-bounds candidates (v2: reflects). Each was switched on in v2 alone and together
+  (seed 42, 5,000 runs, 49 workers).
+
+| Run | Job | Start | Bounds | @1000 | @2000 | @3000 | Best |
+|---|---|---|---|---|---|---|---|
+| v2 | 21608093 | defaults | reflect | 0.841 | 0.875 | 0.884 | 0.8925 |
+| def_reject | 21895156 | defaults | reject | 0.781 | 0.785 | 0.819 | 0.8698 |
+| rand_reject (both rules) | 21895099 | random | reject | 0.816 | 0.854 | 0.855 | 0.8564 |
+| rand_reflect | 21895100 | random | reflect | 0.740 | 0.744 | 0.744 | 0.7813 |
+| Fortran DDS | 21621404 | random | reject | 0.802 | 0.805 | 0.805 | 0.8056 |
+
+- With both rules, v2 still reached 0.856, so the two rules alone do not explain 0.806. The Fortran best
+  sits in a different parameter region (opposite ends of qSurfScale and routingGammaScale, low
+  frozenPrecipMultip) from the v2 runs.
+
+## Nov 2-9: Pymoo GA, four crossover/mutation settings
+
+- Driver options added to `scripts/pymoo/calibrate_athabasca_pymoo.py`: `--cx-prob`, `--cx-eta`, `--mut-prob`,
+  `--mut-eta` (SBX crossover and polynomial mutation). Same J(), 5,000 runs, seed 42, start = defaults + Latin
+  hypercube sets, one whole node per job, workers = offspring per generation.
+
+| | S1 baseline | S2 more diversity | S3 more exploration | S4 balanced | GA Oct |
+|---|---|---|---|---|---|
+| Job | 21896879 | 21896880 | 21896881 | 21896882 | 21595996 |
+| Population / generations | 40 / 125 | 100 / 50 | 50 / 100 | 50 / 100 | 98 / 101 |
+| SBX prob / eta | 0.9 / 15 | 0.9 / 15 | 0.9 / 5 | 0.9 / 10 | 0.9 / 15 |
+| PM prob / eta | 0.1 / 20 | 0.1 / 20 | 0.2 / 10 | 0.15 / 15 | 1/15 / 20 |
+| Best KGE | 0.837 | 0.853 | 0.880 | 0.797 | 0.882 |
+| Idle workers | 15% | 29% | 9% | 6% | 22% |
+
+- S3 and S4 start from the same population, so the 0.880 vs 0.797 difference comes from the operators alone.
+  S1 and S4 lost most of their population diversity within 1,000-1,500 runs and stalled (S4 in a separate
+  region: qSurfScale ~48, routingGammaScale ~14); S3 kept the most diversity and kept improving.
+- No setting beat the October GA (0.882) or async DDS v2 (0.8925). The October GA (large population) and S3
+  (strong operators) reach ~0.88 by different routes.
+- All idle time comes from waiting at generation boundaries; replaying the same run times asynchronously gives
+  ~1% idle at 43 evaluations per worker, as for DDS.
+- v2, the October GA and S3 reach 0.88-0.89 with very different parameter sets (k_soil 1.2e-6 to 9.5e-3,
+  heightCanopyTop 6.5-100 m); routingGammaScale is at its upper bound in all three. About half of the runs
+  with KGE < -1 have frozenPrecipMultip > 1.9, in every scenario.
+
+## Nov 3-8: Fortran DDS with other seeds
+
+- Seed patch in `summa_parameter_sampling.f90`: the seed is read from `SUMMA_DDS_SEED` (default 42) and
+  printed in the log; nothing else changed. The rebuilt `libsumma.so` is byte-identical to the original in
+  code and data (only the build time stamp and Anvil's link metadata differ).
+- Seeds 43-45 (jobs 21987864-66; the first submission failed at start-up because `coldState.nc` was not
+  copied into the new state folders). The jobs stopped at their 30 h limit before 5,000 runs:
+
+| Seed | Runs | @1000 | @2000 | @3000 | Best |
+|---|---|---|---|---|---|
+| 42 (original) | 5,077 | 0.802 | 0.805 | 0.805 | 0.806 |
+| 43 | 3,983 | 0.760 | 0.821 | 0.828 | 0.849 |
+| 44 | 4,933 | 0.745 | 0.757 | 0.769 | 0.823 |
+| 45 | 4,370 | 0.822 | 0.827 | 0.829 | 0.847 |
+
+- With other seeds the same code reaches 0.82-0.85, so 0.806 was partly a bad draw. These runs went at
+  133-164 runs/h, against 239 runs/h for the original; the cause is not known yet.
+- The program writes `_calibration.nc` only at a normal end, so runs stopped by the time limit keep their
+  KGE values (in the log) but not their parameter sets. Writing the file during the run (`nf90_sync`) would
+  avoid this.
+
+## Nov 9-10: Fortran DDS started from the SUMMA defaults
+
+- Option added to the patched program (separate executable, `summa_mizuroute_opt_defstart.exe`):
+  `SUMMA_DDS_START=default` starts the search from the default values instead of a random set and prints
+  the 15 starting values. Search rules and everything else unchanged.
+- Jobs 22039052-54 (seeds 42-44), all finished normally: 5,000 runs, no failures.
+
+| Seed | Start | @1000 | @2000 | @3000 | @5000 | Runs/h | Median run |
+|---|---|---|---|---|---|---|---|
+| 42 | random (original) | 0.802 | 0.805 | 0.805 | 0.806 | 239 | 11.6 min |
+| 42 | defaults | 0.775 | 0.780 | 0.804 | 0.867 | 214 | 12.9 min |
+| 43 | defaults | 0.825 | 0.856 | 0.883 | 0.902 | 222 | 12.2 min |
+| 44 | defaults | 0.792 | 0.810 | 0.814 | 0.891 | 216 | 12.1 min |
+
+- From the defaults, the unmodified search reaches 0.867-0.902 (v2: 0.8925). With seed 42, the only change
+  is the start: 0.806 -> 0.867. The random start is the main reason for the low score.
+- Most of the gain comes after 3,000 runs, and all three found their best within the last 100 runs, so they
+  had not converged at 5,000. The default start is not faster per run.
+- Same-seed reruns of the random-start jobs (43b-45b, jobs 22038122-24) are still running. They measure the
+  spread from asynchronous worker timing (so far 43b is at 0.767 where seed 43 reached 0.849 at the same
+  stage) and will give complete 5,000-run random-start results.
+
 ## Next
 
 - Update this branch to current develop and bring in the develop version of `summa_c_api.f90`.
 - Repeat the develop calibration with 3-5 seeds (async DDS and SPOTPY DDS); raise the theta_sat lower
   bound to ~0.39 and widen the routingGammaScale upper bound.
 - If SCE-UA is repeated: fewer complexes than workers, or a larger budget.
-- Repeat v2, GA and v1 with 3-5 seeds; run the Fortran DDS from the defaults with reflection at the bounds
-  to separate the code from these two choices.
+- Repeat v2 and v1 with 3-5 seeds, and the GA with S3-type settings (2-3 seeds).
+- Cap frozenPrecipMultip at about 2 (about half of all KGE < -1 runs lie above 1.9).
+- Finish the same-seed reruns (43b-45b) and compare their parameter sets with the original 0.806 run.
+- Suggest to the SUMMA develop Fortran DDS: an option to start from the defaults, and writing
+  `_calibration.nc` during the run.
 - Validate the best sets outside 2016-2019.
