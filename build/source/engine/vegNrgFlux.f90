@@ -582,7 +582,7 @@ subroutine vegNrgFlux(&
         end if
         ! snow and ice on glacier and lake domains; upland snow and debris keep one roughness for momentum and heat
         andreasScalar = (nGlce>0 .or. nLake>0) .and. &
-                        (scalarGroundSnowFraction>0._rkind .or. nLakeFrz>0 .or. (nLake==0 .and. nSoil==0))
+                        (scalarGroundSnowFraction>0._rkind .or. (nLake>0 .and. groundTempTrial<=Tfreeze) .or. (nLake==0 .and. nSoil==0))
 
         ! compute the total vegetation area index (leaf plus stem)
         VAI        = scalarLAI + scalarSAI  ! vegetation area index
