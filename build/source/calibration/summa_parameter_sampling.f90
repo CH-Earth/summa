@@ -482,7 +482,7 @@ contains
         call write_failed_trial(config,sample_id,instance_parallel%rank, &
                                 adapter%calibration%search%param_names,  &
                                 adapter%calibration%values,cmessage,dir, &
-                                allow_serial_rerun=.false.,              &
+                                allow_serial_rerun=all(adapter%calibration%spec%params(:)%param_type==param_physical), &
                                 err=write_err,message=write_message)
         if(write_err/=0)then
           message=trim(message)//trim(write_message)

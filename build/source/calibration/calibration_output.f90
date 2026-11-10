@@ -626,7 +626,7 @@ contains
     real(rkind)                  , intent(in)        :: param_values(:)    ! Sampled calibration parameter values
     character(*)                 , intent(in)        :: error_message      ! Reason the calibration trial failed
     character(len=:), allocatable, intent(out)       :: dir                ! Directory containing failed-trial diagnostics
-    logical(lgt), optional       , intent(in)        :: allow_serial_rerun ! Allow replay using scalar parameter overrides
+    logical(lgt), optional       , intent(in)        :: allow_serial_rerun ! false when the parameters cannot be passed as --param values
     integer(i4b)                 , intent(out)       :: err                ! Error code
     character(*)                 , intent(out)       :: message            ! Error message
     ! local
@@ -730,7 +730,11 @@ contains
     write(unit,'(a)') '# Set SUMMA_EXE to use another build. Output goes to output/ and rerun.log beside this script.'
     write(unit,'(a)') 'set -euo pipefail'
     if(.not.rerunnable)then
-      write(unit,'(a)') 'echo "this trial came from a run manifest or file manager, not a single TOML configuration;"'
+      if(allocated(config%config_file) .and. .not.allocated(config%manifest_file))then
+        write(unit,'(a)') 'echo "this trial has spatial multipliers or parameter ratios, which --param cannot set;"'
+      else
+        write(unit,'(a)') 'echo "this trial came from a run manifest or file manager, not a single TOML configuration;"'
+      endif
       write(unit,'(a)') 'echo "rerun it by hand from trial.json"; exit 1'
     else
       write(unit,'(a)') 'here="$(cd "$(dirname "$0")" && pwd)"'
