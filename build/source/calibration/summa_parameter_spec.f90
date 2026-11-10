@@ -100,6 +100,12 @@ contains
     if(allocated(config%calib%multiplier))then
       nMax = nMax + size(config%calib%multiplier)
     endif
+    ! Include remainder parameters and their sources.
+    if(allocated(config%calib%remainder))then
+      do i=1,size(config%calib%remainder)
+        nMax = nMax + 1 + size(config%calib%remainder(i)%sources)
+      enddo
+    endif
     allocate(param_names(nMax),sampled(nMax),stat=err)
     if(err/=0)then
       message=trim(message)//'unable to allocate SUMMA parameter registry'
@@ -150,7 +156,26 @@ contains
           param_names(nParam)=trim(config%calib%multiplier(i)%parameters(1))
           sampled(nParam)=.false.
         endif
-    
+
+      enddo
+    endif
+    ! -----------------------------------------------------------------------------------------------
+    ! Add remainder parameters and their sources not already present.
+    ! -----------------------------------------------------------------------------------------------
+    if(allocated(config%calib%remainder))then
+      do i=1,size(config%calib%remainder)
+        do j=0,size(config%calib%remainder(i)%sources)
+          if(j==0)then
+            base_name=config%calib%remainder(i)%parameter
+          else
+            base_name=config%calib%remainder(i)%sources(j)
+          endif
+          if(find_parameter(trim(base_name),param_names(1:nParam))==0)then
+            nParam=nParam+1
+            param_names(nParam)=trim(base_name)
+            sampled(nParam)=.false.
+          endif
+        enddo
       enddo
     endif
     ! -----------------------------------------------------------------------------------------------
@@ -429,6 +454,36 @@ contains
 
     ! Chained ratios are resolved in dependency order by initialize_parameter_fields.
     ! Its cycle check runs during adapter setup, before any trial is dispatched.
+
+    ! -----------------------------------------------------------------------------------------------
+    ! Convert named remainder dependencies to master-registry indices; the remainder is never sampled.
+    ! -----------------------------------------------------------------------------------------------
+    nConstraint = 0
+    if(allocated(config%calib%remainder)) nConstraint = size(config%calib%remainder)
+    allocate(spec%remainder(nConstraint),stat=err)
+    if(err/=0)then
+      message=trim(message)//'unable to allocate remainder specifications'
+      return
+    endif
+    do i=1,nConstraint
+      ix = find_parameter(trim(config%calib%remainder(i)%parameter), param_names(1:nParam))
+      if(sampled(ix))then
+        message=trim(message)//'a remainder parameter must not be searched: '//trim(param_names(ix))
+        err=20; return
+      endif
+      spec%remainder(i)%target_index = ix
+      spec%remainder(i)%total = config%calib%remainder(i)%total
+      allocate(spec%remainder(i)%source_index(size(config%calib%remainder(i)%sources)))
+      do j=1,size(config%calib%remainder(i)%sources)
+        spec%remainder(i)%source_index(j) = &
+          find_parameter(trim(config%calib%remainder(i)%sources(j)), param_names(1:nParam))
+      enddo
+      write(iulog,'(3A,ES10.3,A)') 'Remainder dependency: ',trim(param_names(ix)),' = ', &
+                                   spec%remainder(i)%total,' minus'
+      do j=1,size(config%calib%remainder(i)%sources)
+        write(iulog,'(2A)') '  ',trim(config%calib%remainder(i)%sources(j))
+      enddo
+    enddo
 
     ! -----------------------------------------------------------------------------------------------
     ! Log multiplier dependencies 

@@ -23,6 +23,7 @@ module parameter_fields
   ! Resolved once, rather than looking up names/sorting ratios for every proposal.
   type, public :: parameter_field_plan
     integer(i4b), allocatable :: reference(:),order(:)
+    logical(lgt), allocatable :: derived(:)  ! set by a remainder dependency, so written like a sampled field
     logical(lgt) :: ready=.false.
   end type parameter_field_plan
 
@@ -40,7 +41,7 @@ contains
     type(parameter_field_plan), intent(out) :: plan
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-    integer(i4b) :: i,j,h,k,n,nx,nDone,pass,nLocal
+    integer(i4b) :: i,j,h,k,c,n,nx,nDone,pass,nLocal
     logical(lgt) :: changed
     logical(lgt), allocatable :: complete(:),seen(:)
 
@@ -63,12 +64,13 @@ contains
        size(search%upper)/=nx .or. size(search%transformation)/=nx)then
       message=trim(message)//'inconsistent search sizes'; return
     endif
-    allocate(plan%reference(n),plan%order(nx),complete(n),seen(nx),stat=err)
+    allocate(plan%reference(n),plan%order(nx),plan%derived(n),complete(n),seen(nx),stat=err)
     if(err/=0)then
       message=trim(message)//'cannot allocate parameterization plan'; return
     endif
     err=20
     plan%reference=0
+    plan%derived=.false.
     seen=.false.
 
     do i=1,n
@@ -207,6 +209,43 @@ contains
       endif
     enddo
 
+    ! A remainder is applied after every sampled field, elementwise against sources of the same shape.
+    if(allocated(spec%remainder))then
+      do c=1,size(spec%remainder)
+        i=spec%remainder(c)%target_index
+        if(i<1 .or. i>n .or. .not.allocated(spec%remainder(c)%source_index))then
+          message=trim(message)//'invalid remainder dependency'; return
+        endif
+        if(spec%params(i)%sampled .or. plan%derived(i))then
+          message=trim(message)//'remainder parameter is searched or set twice: '//trim(spec%params(i)%name); return
+        endif
+        if(any(plan%reference==i))then
+          message=trim(message)//'a ratio cannot reference a remainder: '//trim(spec%params(i)%name); return
+        endif
+        plan%derived(i)=.true.
+      enddo
+      do c=1,size(spec%remainder)
+        i=spec%remainder(c)%target_index
+        do k=1,size(spec%remainder(c)%source_index)
+          j=spec%remainder(c)%source_index(k)
+          if(j<1 .or. j>n .or. j==i)then
+            message=trim(message)//'invalid remainder source: '//trim(spec%params(i)%name); return
+          endif
+          if(plan%derived(j))then
+            message=trim(message)//'a remainder cannot be another remainder''s source: '//trim(spec%params(j)%name); return
+          endif
+          if(size(field(j)%initial%hspatial)/=size(field(i)%initial%hspatial))then
+            message=trim(message)//'remainder source has a different spatial count: '//trim(spec%params(j)%name); return
+          endif
+          do h=1,size(field(i)%initial%hspatial)
+            if(size(field(j)%initial%hspatial(h)%dat)/=size(field(i)%initial%hspatial(h)%dat))then
+              message=trim(message)//'remainder source has different local lengths: '//trim(spec%params(j)%name); return
+            endif
+          enddo
+        enddo
+      enddo
+    endif
+
     ! Deep allocation happens only at setup. Candidate construction uses slices.
     do i=1,n
       field(i)%effective=field(i)%initial
@@ -237,7 +276,7 @@ contains
     type(parameter_field_plan), intent(in) :: plan
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-    integer(i4b) :: k,i,j,h
+    integer(i4b) :: k,i,j,h,c
     real(rkind) :: value
     err=20
     message='apply_parameter_sample/'
@@ -272,6 +311,19 @@ contains
         end select
       enddo
     enddo
+    if(allocated(spec%remainder))then
+      do c=1,size(spec%remainder)
+        i=spec%remainder(c)%target_index
+        do h=1,size(field(i)%effective%hspatial)
+          field(i)%effective%hspatial(h)%dat(:)=spec%remainder(c)%total
+          do k=1,size(spec%remainder(c)%source_index)
+            j=spec%remainder(c)%source_index(k)
+            field(i)%effective%hspatial(h)%dat(:)=field(i)%effective%hspatial(h)%dat(:)- &
+                                                  field(j)%effective%hspatial(h)%dat(:)
+          enddo
+        enddo
+      enddo
+    endif
     err=0
     message=''
   end subroutine apply_parameter_sample

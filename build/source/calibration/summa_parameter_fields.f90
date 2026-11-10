@@ -101,6 +101,23 @@ contains
         endif
       endif
     enddo
+    if(allocated(spec%remainder))then
+      do c=1,size(spec%remainder)
+        a=spec%remainder(c)%target_index
+        if(a<1 .or. a>n .or. .not.allocated(spec%remainder(c)%source_index))then
+          message='remainder parameter index out of range'; return
+        endif
+        do j=1,size(spec%remainder(c)%source_index)
+          b=spec%remainder(c)%source_index(j)
+          if(b<1 .or. b>n)then
+            message='remainder source index out of range'; return
+          endif
+          if(.not.corresponding_maps(param_map(a),param_map(b)))then
+            message='remainder parameters select different SUMMA domains or local axes'; return
+          endif
+        enddo
+      enddo
+    endif
     if(allocated(spec%ordered))then
       do c=1,size(spec%ordered)
         if(.not.allocated(spec%ordered(c)%param_index))then
@@ -279,9 +296,9 @@ contains
                                 adapter%calibration%values,adapter%calibration%fields, &
                                 adapter%calibration%parameterization,err,message)
     if(err/=0) return
-    ! Validate every destination before the first model write.
+    ! Validate every destination before the first model write; remainders are written like sampled fields.
     do i=1,size(adapter%map)
-      if(.not.adapter%calibration%spec%params(i)%sampled) cycle
+      if(.not.writes_field(adapter,i)) cycle
       if(.not.field_is_finite(adapter%calibration%fields(i)%effective))then
         err=20; message='non-finite effective SUMMA field'; return
       endif
@@ -295,10 +312,18 @@ contains
       enddo
     enddo
     do i=1,size(adapter%map)
-      if(.not.adapter%calibration%spec%params(i)%sampled) cycle
+      if(.not.writes_field(adapter,i)) cycle
       call put_summa_parameter_field(adapter%map(i),adapter%calibration%fields(i)%effective,mpar,bpar)
     enddo
     err=0
     message=''
   end subroutine apply_summa_calibration_adapter
+
+  logical(lgt) function writes_field(adapter,i)
+    type(summa_calibration_adapter), intent(in) :: adapter
+    integer(i4b), intent(in) :: i
+    writes_field=adapter%calibration%spec%params(i)%sampled
+    if(allocated(adapter%calibration%parameterization%derived)) &
+      writes_field=writes_field .or. adapter%calibration%parameterization%derived(i)
+  end function writes_field
 end module summa_parameter_fields

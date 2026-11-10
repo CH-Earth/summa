@@ -447,6 +447,13 @@ contains
   !
   ! For parameter ratios:
   !   physical(dependent) = sampled(dependent) * physical(reference)
+  !
+  !   [[parameter_dependencies.remainder]]
+  !   parameter = "frac_silt"
+  !   of = ["frac_sand", "frac_clay"]
+  !   total = 1.0                       (optional, default 1)
+  !
+  ! The parameter is set to total minus its sources at every location; a negative remainder is infeasible.
   ! **************************************************************************************************
   subroutine parse_parameter_dependencies(subtable,calib,ierr,message)
 
@@ -467,6 +474,7 @@ contains
     ! ---------------------------------------------------------------------------------------
     type(toml_array), pointer :: ordered                 ! Ordered parameter constraints
     type(toml_array), pointer :: ratios                  ! Parameter-ratio dependencies
+    type(toml_array), pointer :: remainders              ! Remainder dependencies
     type(toml_array), pointer :: param_list              ! Parameter names in an ordered constraint
     type(toml_table), pointer :: constraint              ! Individual dependency specification
 
@@ -482,11 +490,12 @@ contains
     ierr=0
     message='parse_parameter_dependencies/'
 
-    nullify(ordered,ratios,constraint,param_list)
+    nullify(ordered,ratios,remainders,constraint,param_list)
 
     ! Reset parameter dependencies for each calibration case.
     if(allocated(calib%ordered)) deallocate(calib%ordered)
     if(allocated(calib%multiplier)) deallocate(calib%multiplier)
+    if(allocated(calib%remainder)) deallocate(calib%remainder)
 
     ! ---------------------------------------------------------------------------------------
     ! Ordered parameter dependencies
@@ -638,6 +647,87 @@ contains
 
         calib%multiplier(i)%parameters(1)=trim(reference)
         calib%multiplier(i)%parameters(2)=trim(dependent)
+
+      enddo
+
+    endif
+
+    ! ---------------------------------------------------------------------------------------
+    ! Remainder dependencies
+    ! ---------------------------------------------------------------------------------------
+    call get_value(subtable,'remainder',remainders,requested=.false.,stat=istat)
+    if(subtable%has_key('remainder') .and. .not.associated(remainders))then
+      message=trim(message)//'unable to read remainder dependencies'
+      ierr=20; return
+    endif
+
+    if(associated(remainders))then
+
+      nconstraints=len(remainders)
+      allocate(calib%remainder(nconstraints),stat=ierr)
+      if(ierr/=0)then
+        message=trim(message)//'unable to allocate remainder dependencies'
+        return
+      endif
+
+      do i=1,nconstraints
+
+        nullify(constraint,param_list)
+        call get_value(remainders,i,constraint,stat=istat)
+        if(istat/=0 .or. .not.associated(constraint))then
+          write(cmessage,'(A,I0)') 'unable to read remainder dependency, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        if(allocated(dependent)) deallocate(dependent)
+        call get_value(constraint,'parameter',dependent,stat=istat)
+        if(istat/=0 .or. .not.allocated(dependent))then
+          write(cmessage,'(A,I0)') 'parameter not defined for remainder, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+        if(len_trim(dependent)==0 .or. len_trim(dependent)>len(calib%remainder(i)%parameter))then
+          write(cmessage,'(A,I0)') 'empty or too long parameter name in remainder, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+        calib%remainder(i)%parameter=trim(dependent)
+
+        call get_value(constraint,'of',param_list,stat=istat)
+        if(istat/=0 .or. .not.associated(param_list))then
+          write(cmessage,'(A,I0)') 'source list "of" not defined for remainder, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+        call parse_word_list(param_list,calib%remainder(i)%sources,ierr,cmessage)
+        if(ierr/=0)then
+          message=trim(message)//trim(cmessage)
+          return
+        endif
+        if(size(calib%remainder(i)%sources)<1)then
+          write(cmessage,'(A,I0)') 'empty source list for remainder, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+        if(any(calib%remainder(i)%sources==calib%remainder(i)%parameter))then
+          message=trim(message)//'remainder parameter is also its own source: '//trim(dependent)
+          ierr=20; return
+        endif
+
+        call get_value(constraint,'total',calib%remainder(i)%total,1._rkind,stat=istat)
+        if(istat/=0)then
+          write(cmessage,'(A,I0)') 'unable to read total for remainder, i = ',i
+          message=trim(message)//trim(cmessage)
+          ierr=20; return
+        endif
+
+        do j=1,i-1
+          if(calib%remainder(j)%parameter==calib%remainder(i)%parameter)then
+            message=trim(message)//'duplicate remainder parameter: '//trim(dependent)
+            ierr=20; return
+          endif
+        enddo
 
       enddo
 

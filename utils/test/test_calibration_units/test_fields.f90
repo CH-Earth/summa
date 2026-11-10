@@ -11,8 +11,57 @@ program test_core
   call signed_tests()
   call invalid_setup_tests()
   call numerical_tests()
+  call remainder_tests()
   print '(A,I0,A)', 'PASS: nested feasibility core (',assertions,' assertions).'
 contains
+  ! Silt is the remainder of a searched sand and a fixed clay; the second location has no soil layers.
+  subroutine make_texture(ctx,err,message)
+    type(model_calibration_context), intent(out) :: ctx
+    integer(i4b), intent(out) :: err
+    character(*), intent(out) :: message
+    real(rkind) :: none(0)
+    allocate(ctx%spec%params(3),ctx%spec%ordered(0),ctx%spec%remainder(1),ctx%fields(3))
+    call set_param(ctx%spec%params(1),'frac_sand',.true.,0._rkind,.95_rkind,param_physical)
+    call set_param(ctx%spec%params(2),'frac_clay',.false.,0._rkind,1._rkind,param_physical)
+    call set_param(ctx%spec%params(3),'frac_silt',.false.,0._rkind,1._rkind,param_physical)
+    call set_field(ctx%fields(1),[.16_rkind,.16_rkind],none)
+    call set_field(ctx%fields(2),[.10_rkind,.20_rkind],none)
+    call set_field(ctx%fields(3),[.74_rkind,.64_rkind],none)
+    ctx%spec%remainder(1)%target_index=3
+    ctx%spec%remainder(1)%source_index=[1,2]
+    ctx%spec%remainder(1)%total=1._rkind
+    call prepare(ctx,err,message)
+  end subroutine make_texture
+
+  subroutine remainder_tests()
+    type(model_calibration_context) :: ctx
+    integer(i4b) :: err
+    character(len=256) :: message
+    logical(lgt) :: feasible
+    call make_texture(ctx,err,message)
+    call require(err==0,'remainder setup: '//trim(message))
+    call require(ctx%parameterization%derived(3).and..not.ctx%parameterization%derived(1),'remainder marked derived')
+    call is_feasible(ctx,[.6_rkind],feasible,err,message)
+    call require(err==0.and.feasible,'remainder feasible: '//trim(message))
+    call require(all(abs(ctx%fields(3)%effective%hspatial(1)%dat-[.3_rkind,.2_rkind])<1.e-14_rkind),'silt is the remainder per layer')
+    call require(size(ctx%fields(3)%effective%hspatial(2)%dat)==0,'empty location stays empty')
+    call is_feasible(ctx,[.85_rkind],feasible,err,message)
+    call require(err==0.and..not.feasible.and.index(message,'remainder below zero')>0,'negative remainder rejected')
+    call make_texture(ctx,err,message)
+    ctx%spec%remainder(1)%source_index=[1,3]
+    call prepare(ctx,err,message)
+    call require(err/=0,'remainder cannot be its own source')
+    call make_texture(ctx,err,message)
+    ctx%spec%remainder(1)%target_index=1
+    ctx%spec%remainder(1)%source_index=[2,3]
+    call prepare(ctx,err,message)
+    call require(err/=0,'searched parameter cannot be a remainder')
+    call make_texture(ctx,err,message)
+    call set_field(ctx%fields(2),[.10_rkind],[.10_rkind])
+    call prepare(ctx,err,message)
+    call require(err/=0,'remainder sources must match local lengths')
+  end subroutine remainder_tests
+
   subroutine make_soil(ctx,err,message)
     type(model_calibration_context), intent(out) :: ctx
     integer(i4b), intent(out) :: err

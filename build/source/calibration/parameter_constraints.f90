@@ -123,7 +123,7 @@ contains
     logical(lgt), intent(out) :: feasible
     integer(i4b), intent(out) :: err
     character(*), intent(out) :: message
-    integer(i4b) :: i,c
+    integer(i4b) :: i,c,h
     real(rkind) :: gap,tol
     logical(lgt) :: valid
 
@@ -156,6 +156,18 @@ contains
         message='non-finite effective field: '//trim(spec%params(i)%name); return
       endif
     enddo
+    ! A remainder below zero means its sources exceed the total.
+    if(allocated(spec%remainder))then
+      do c=1,size(spec%remainder)
+        i=spec%remainder(c)%target_index
+        tol=128._rkind*epsilon(1._rkind)*max(1._rkind,abs(spec%remainder(c)%total))
+        do h=1,size(field(i)%effective%hspatial)
+          if(any(field(i)%effective%hspatial(h)%dat<-tol))then
+            message='remainder below zero: '//trim(spec%params(i)%name); return
+          endif
+        enddo
+      enddo
+    endif
     do c=1,size(plan%fixed)
       if(plan%fixed(c)) cycle
       gap=plan%gap(c)

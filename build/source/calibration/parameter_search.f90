@@ -111,6 +111,19 @@ module parameter_search
   end type multiplier_constraint
 
   ! **************************************************************************************************
+  ! Remainder dependency: a non-sampled parameter set, at every location and layer, to
+  !
+  !   physical(target) = total - sum over sources of physical(source)
+  !
+  ! after the sampled parameters are applied. Indices refer to parameter_spec%params.
+  ! **************************************************************************************************
+  type, public :: remainder_constraint
+    integer(i4b)              :: target_index = 0
+    integer(i4b), allocatable :: source_index(:)
+    real(rkind)               :: total = 1._rkind
+  end type remainder_constraint
+
+  ! **************************************************************************************************
   ! Model-provided specification of the parameter search problem.
   !
   ! Any model can use the parameter-search routines by populating this structure with scalar trial
@@ -120,6 +133,7 @@ module parameter_search
     type(parameter_info),        allocatable :: params(:)
     type(ordered_constraint),    allocatable :: ordered(:)
     type(multiplier_constraint), allocatable :: multiplier(:)
+    type(remainder_constraint),  allocatable :: remainder(:)
   end type parameter_spec
 
   ! **************************************************************************************************

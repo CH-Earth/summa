@@ -208,6 +208,34 @@ program test_adapter
   map(2)%domain_type=2
   call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
   call require(err/=0.and.index(message,'ratio parameters')>0,'ratio wrong domain rejected')
+
+  ! A remainder field is written into SUMMA with the sampled ones, in every layer.
+  mpar=before
+  deallocate(spec%params,spec%ordered,map)
+  if(allocated(spec%multiplier)) deallocate(spec%multiplier)
+  allocate(spec%params(2),spec%ordered(0),spec%remainder(1),map(2))
+  call set_param(spec%params(1),'sand',.true.,0._rkind,.5_rkind,param_physical)
+  call set_param(spec%params(2),'silt',.false.,0._rkind,1._rkind,param_physical)
+  map(1)%ixM=1
+  map(2)%ixM=2
+  map%ixB=nr_integerMissing
+  spec%remainder(1)%target_index=2
+  spec%remainder(1)%source_index=[1]
+  spec%remainder(1)%total=.5_rkind
+  call build_search(spec,search,err,message)
+  call require(err==0,'remainder search setup: '//trim(message))
+  call initialize_summa_calibration_adapter(spec,search,map,mpar,bpar,adapter,err,message)
+  call require(err==0,'remainder adapter setup: '//trim(message))
+  adapter%calibration%values=[.3_rkind]
+  call is_feasible(adapter%calibration,adapter%calibration%values,feasible,err,message)
+  call require(err==0.and.feasible,'remainder candidate feasible')
+  call apply_summa_calibration_adapter(adapter,mpar,bpar,err,message)
+  call require(err==0,'write remainder: '//trim(message))
+  do g=1,2
+    do d=1,2
+      call require(all(abs(mpar%gru(g)%hru(1)%dom(d)%var(2)%dat-.2_rkind)<1.e-14_rkind),'remainder written in every layer')
+    enddo
+  enddo
   print '(A,I0,A)', 'PASS: SUMMA nested adapter (',assertions,' assertions).'
 contains
   subroutine setup_model()
