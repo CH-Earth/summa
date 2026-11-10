@@ -1,0 +1,24 @@
+--- a/build/source/calibration/summa_parameter_sampling.f90
++++ b/build/source/calibration/summa_parameter_sampling.f90
+@@ -101,6 +101,8 @@
+     integer(i4b)              :: i                                 ! parameter index
+     integer(i4b)              :: nseed                             ! random-number seed vector size
+     integer(i4b), allocatable :: seed(:)                           ! random-number seed vector
++    integer(i4b)              :: seed_base, seed_len, seed_stat     ! seed from SUMMA_DDS_SEED (default 42)
++    character(len=32)         :: seed_str                          ! value of SUMMA_DDS_SEED
+     character(len=256) :: cmessage                                 ! message returned by called routines
+   
+     err=0
+@@ -138,7 +140,11 @@
+         message=trim(message)//'unable to allocate random-number seed'
+         return
+       endif
+-      seed=42
++      seed_base=42
++      call get_environment_variable('SUMMA_DDS_SEED',seed_str,length=seed_len,status=seed_stat)
++      if(seed_stat==0 .and. seed_len>0) read(seed_str,*) seed_base
++      write(*,'(A,I0)') 'DDS random seed = ', seed_base
++      seed=seed_base
+       call random_seed(put=seed)
+ 
+       ! initialize best parameter vector on the dispatcher

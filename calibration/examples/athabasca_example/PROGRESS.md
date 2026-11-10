@@ -188,8 +188,8 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
 
 ## Nov 3-8: Fortran DDS with other seeds
 
-- Seed patch in `summa_parameter_sampling.f90`: the seed is read from `SUMMA_DDS_SEED` (default 42) and
-  printed in the log; nothing else changed. The rebuilt `libsumma.so` is byte-identical to the original in
+- Seed patch in `summa_parameter_sampling.f90` (`scripts/fortran_dds/patches/fortran_dds_seed.patch`): the seed is
+  read from `SUMMA_DDS_SEED` (default 42) and printed in the log; nothing else changed. The rebuilt `libsumma.so` is byte-identical to the original in
   code and data (only the build time stamp and Anvil's link metadata differ).
 - Seeds 43-45 (jobs 21987864-66; the first submission failed at start-up because `coldState.nc` was not
   copied into the new state folders). The jobs stopped at their 30 h limit before 5,000 runs:
@@ -209,7 +209,8 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
 
 ## Nov 9-10: Fortran DDS started from the SUMMA defaults
 
-- Option added to the patched program (separate executable, `summa_mizuroute_opt_defstart.exe`):
+- Option added to the patched program (`scripts/fortran_dds/patches/fortran_dds_seed_defstart.patch`, separate
+  executable `summa_mizuroute_opt_defstart.exe`, job script `slurm/run_fortran_dds_defstart.slurm`):
   `SUMMA_DDS_START=default` starts the search from the default values instead of a random set and prints
   the 15 starting values. Search rules and everything else unchanged.
 - Jobs 22039052-54 (seeds 42-44), all finished normally: 5,000 runs, no failures.
@@ -239,5 +240,5 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
 - Cap frozenPrecipMultip at about 2 (about half of all KGE < -1 runs lie above 1.9).
 - Finish the same-seed reruns (43b-45b) and compare their parameter sets with the original 0.806 run.
 - Suggest to the SUMMA develop Fortran DDS: an option to start from the defaults, and writing
-  `_calibration.nc` during the run.
+  `_calibration.nc` during the run. (Develop's Nov 9 update already sets the seed through `run_index`.)
 - Validate the best sets outside 2016-2019.

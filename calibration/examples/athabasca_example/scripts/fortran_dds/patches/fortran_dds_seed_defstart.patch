@@ -1,0 +1,109 @@
+--- a/build/source/calibration/summa_parameter_sampling.f90
++++ b/build/source/calibration/summa_parameter_sampling.f90
+@@ -101,6 +101,10 @@
+     integer(i4b)              :: i                                 ! parameter index
+     integer(i4b)              :: nseed                             ! random-number seed vector size
+     integer(i4b), allocatable :: seed(:)                           ! random-number seed vector
++    integer(i4b)              :: seed_base, seed_len, seed_stat     ! seed from SUMMA_DDS_SEED (default 42)
++    character(len=32)         :: start_str                           ! SUMMA_DDS_START
++    integer(i4b)              :: start_stat, idef, jdef
++    character(len=32)         :: seed_str                          ! value of SUMMA_DDS_SEED
+     character(len=256) :: cmessage                                 ! message returned by called routines
+   
+     err=0
+@@ -138,7 +142,11 @@
+         message=trim(message)//'unable to allocate random-number seed'
+         return
+       endif
+-      seed=42
++      seed_base=42
++      call get_environment_variable('SUMMA_DDS_SEED',seed_str,length=seed_len,status=seed_stat)
++      if(seed_stat==0 .and. seed_len>0) read(seed_str,*) seed_base
++      write(*,'(A,I0)') 'DDS random seed = ', seed_base
++      seed=seed_base
+       call random_seed(put=seed)
+ 
+       ! initialize best parameter vector on the dispatcher
+@@ -150,6 +158,21 @@
+       x_best=0._rkind
+       F_best=-huge(1._rkind)
+       sample_best=0
++      ! optional default start (SUMMA_DDS_START=default): DDS starts from SUMMA default values
++      start_str=''
++      call get_environment_variable('SUMMA_DDS_START',start_str,status=start_stat)
++      if(start_stat==0 .and. trim(start_str)=='default')then
++        do idef=1,size(search%param_names)
++          do jdef=1,size(param_spec%params)
++            if(trim(param_spec%params(jdef)%name)==trim(search%param_names(idef))) &
++              x_best(idef)=param_spec%params(jdef)%trial_value
++          enddo
++          write(*,'(A,A,A,ES14.6)') 'DDS default start: ',trim(search%param_names(idef)),' = ',x_best(idef)
++        enddo
++        write(*,'(A)') 'DDS start = SUMMA defaults'
++      else
++        write(*,'(A)') 'DDS start = random'
++      endif
+     endif
+ 
+   end subroutine initialize_parameter_evaluation
+@@ -197,6 +220,9 @@
+     real(rkind),       allocatable   :: param_overrides(:,:)
+     ! parameter-evaluation timing
+     integer(i4b),      allocatable  :: startModelRun(:,:)
++    character(len=32)                :: start_str2
++    integer(i4b)                     :: start_stat2
++    logical                          :: dds_default_start
+     integer(i4b),      allocatable  :: endModelRun(:,:)
+     ! MPI work-queue state
+     integer(i4b) :: worker
+@@ -259,6 +285,9 @@
+     ! -----------------------------------------------------------------------------------------------
+     if(instance_parallel%rank == 0)then
+       next_sample=1
++      start_str2=''
++      call get_environment_variable('SUMMA_DDS_START',start_str2,status=start_stat2)
++      dds_default_start=(start_stat2==0 .and. trim(start_str2)=='default')
+       nComplete=0
+ 
+       ! assign one initial parameter sample to each available worker
+@@ -266,7 +295,13 @@
+         if(next_sample <= nSamples)then
+ 
+           ! generate the next parameter sample and complete SUMMA override vector
+-          call generate_parameter_sample(param_spec,search, param_value,param_override, err,cmessage)
++          if(dds_default_start .and. next_sample==1)then
++            call generate_default_sample(param_spec,search,x_best, param_value,param_override, err,cmessage)
++          elseif(dds_default_start)then
++            call generate_dds_sample(param_spec,search,x_best,next_sample,nSamples, param_value,param_override,err,cmessage)
++          else
++            call generate_parameter_sample(param_spec,search, param_value,param_override, err,cmessage)
++          endif
+           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ 
+           ! save parameter samples (rank 0)
+@@ -491,6 +526,25 @@
+   
+   end subroutine generate_dds_sample
+ 
++  ! Optional DDS default start: evaluate x_start (the SUMMA default values) unchanged.
++  subroutine generate_default_sample(param_spec,search,x_start, param_value,param_override,err,message)
++    USE summa_parameter_spec, only: build_summa_parameter_overrides
++    implicit none
++    type(parameter_spec),        intent(in)  :: param_spec
++    type(parameter_search_info), intent(in)  :: search
++    real(rkind),                 intent(in)  :: x_start(:)
++    real(rkind),                 intent(out) :: param_value(:)
++    real(rkind),                 intent(out) :: param_override(:)
++    integer(i4b),                intent(out) :: err
++    character(*),                intent(out) :: message
++    character(len=256)          :: cmessage
++    err=0
++    message='generate_default_sample/'
++    param_value=x_start
++    call build_summa_parameter_overrides(param_spec,search%param_names,param_value,param_override,err,cmessage)
++    if(err/=0) message=trim(message)//trim(cmessage)
++  end subroutine generate_default_sample
++
+   ! --------------------------------------------------------------------------------------------------
+   ! --------------------------------------------------------------------------------------------------
+   ! --------------------------------------------------------------------------------------------------

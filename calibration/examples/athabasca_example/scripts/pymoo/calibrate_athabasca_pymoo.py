@@ -36,6 +36,10 @@ ap.add_argument("--seed", type=int, default=42)
 ap.add_argument("--timeout", type=int, default=2 * 3600, help="seconds per evaluation (default 7200, as async DDS)")
 ap.add_argument("--tag", default=os.environ.get("SLURM_JOB_ID", "local"))
 ap.add_argument("--resume", action="store_true", help="continue from results/pymoo/ga_<tag>/checkpoint.pkl")
+ap.add_argument("--cx-prob", type=float, default=0.9, help="SBX crossover probability (pymoo default 0.9)")
+ap.add_argument("--cx-eta", type=float, default=15.0, help="SBX distribution index (pymoo default 15)")
+ap.add_argument("--mut-prob", type=float, default=0.0, help="mutation probability per variable (0 = pymoo default 1/n_var)")
+ap.add_argument("--mut-eta", type=float, default=20.0, help="polynomial-mutation distribution index (pymoo default 20)")
 args = ap.parse_args()
 NWORK = size - 1
 assert NWORK >= 1, "needs at least 2 MPI processes (1 coordinator + workers)"
@@ -116,6 +120,8 @@ def coordinator():
     from pymoo.core.evaluator import Evaluator
     from pymoo.core.problem import Problem
     from pymoo.operators.sampling.lhs import LHS
+    from pymoo.operators.crossover.sbx import SBX
+    from pymoo.operators.mutation.pm import PM
     from pymoo.problems.static import StaticProblem
 
     out.mkdir(parents=True, exist_ok=True)
@@ -141,7 +147,9 @@ def coordinator():
         rng = np.random.default_rng(args.seed)
         X0 = LHS().do(problem, args.pop - 1, random_state=rng).get("X")
         X0 = np.vstack([x_default, X0])                     # the defaults are individual 1
-        algorithm = GA(pop_size=args.pop, n_offsprings=NOFF, sampling=X0, eliminate_duplicates=True)
+        algorithm = GA(pop_size=args.pop, n_offsprings=NOFF, sampling=X0, eliminate_duplicates=True,
+                       crossover=SBX(prob=args.cx_prob, eta=args.cx_eta),
+                       mutation=PM(eta=args.mut_eta, prob_var=(args.mut_prob if args.mut_prob > 0 else None)))
         algorithm.setup(problem, termination=("n_gen", NGEN), seed=args.seed)
         elapsed_before, n_eval = 0.0, 0
         evfile.write_text("n,generation,worker,kge,status,seconds,hours," + ",".join(NAMES) + "\n")
@@ -153,7 +161,8 @@ def coordinator():
 
     print(f"Pymoo {pymoo.__version__} GA: pop {args.pop}, {NOFF} offspring per generation, {NGEN} generations "
           f"= {args.pop + (NGEN - 1) * NOFF} evaluations (budget {args.evals}), {NWORK} workers, "
-          f"timeout {args.timeout} s, seed {args.seed}; start = defaults + {args.pop - 1} LHS", flush=True)
+          f"timeout {args.timeout} s, seed {args.seed}; start = defaults + {args.pop - 1} LHS; "
+          f"SBX prob {args.cx_prob} eta {args.cx_eta}, PM prob/var {args.mut_prob or '1/n'} eta {args.mut_eta}", flush=True)
     t_start = time.time()
     hours_now = lambda: (elapsed_before + time.time() - t_start) / 3600
     best_so_far = [float(-algorithm.opt.get("F").min())] if algorithm.opt is not None else [-np.inf]
@@ -227,6 +236,8 @@ def coordinator():
                "failed_by_reason": {s: sum(r["status"] == s for r in ev) for s in sorted({r["status"] for r in ev}) if s != "ok"},
                "elapsed_s": round(elapsed, 1), "runs_per_hour": round(len(ev) / elapsed * 3600, 1),
                "eval_timeout_s": args.timeout, "seed": args.seed, "start": "defaults + LHS",
+               "crossover": {"type": "SBX", "prob": args.cx_prob, "eta": args.cx_eta},
+               "mutation": {"type": "PM", "prob_var": args.mut_prob or "1/n_var", "eta": args.mut_eta},
                "default_params_kge": next((float(r["kge"]) for r in ev
                                            if all(abs(float(r[n]) - d) <= 1e-12 * max(1.0, abs(d)) for n, d in zip(NAMES, x_default))), None),
                "best_kge": float(k_run[i]), "best_found_at_evaluation": i + 1,
