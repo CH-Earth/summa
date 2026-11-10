@@ -362,11 +362,11 @@ contains
 
         endif
 
-        ! Validate bounds when both are explicitly supplied.
+        ! Validate bounds when both are explicitly supplied; equal bounds pin the parameter.
         if(entries(nParam)%has_lower .and. entries(nParam)%has_upper)then
 
-          if(entries(nParam)%lower_bound>=entries(nParam)%upper_bound)then
-            message=trim(message)//'lower bound must be less than upper bound for parameter: '// &
+          if(entries(nParam)%lower_bound>entries(nParam)%upper_bound)then
+            message=trim(message)//'lower bound must not exceed upper bound for parameter: '// &
                     trim(keys(i)%key)
             ierr=20; return
           endif
