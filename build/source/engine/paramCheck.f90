@@ -52,6 +52,7 @@ contains
  real(rkind),dimension(5)        :: zminLayer            ! minimum layer depth in each layer (m)
  real(rkind),dimension(4)        :: zmaxLayer_lower      ! lower value of maximum layer depth
  real(rkind),dimension(4)        :: zmaxLayer_upper      ! upper value of maximum layer depth
+ real(rkind),parameter           :: textureTol=1.e-3_rkind ! tolerance on the sum of the soil texture fractions (-)
  ! Start procedure here
  err=0; message="paramCheck/"
 
@@ -122,7 +123,11 @@ contains
  ! soil properties
  fieldCapacity          => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),     & ! intent(in): [dp]    field capacity (-)
  theta_sat              => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in): [dp(:)] soil porosity (-)
- theta_res              => mpar_data%var(iLookPARAM%theta_res)%dat             & ! intent(in): [dp(:)] soil residual volumetric water content (-)
+ theta_res              => mpar_data%var(iLookPARAM%theta_res)%dat,            & ! intent(in): [dp(:)] soil residual volumetric water content (-)
+ ! soil texture
+ frac_sand              => mpar_data%var(iLookPARAM%frac_sand)%dat,            & ! intent(in): [dp(:)] fraction of sand (-)
+ frac_silt              => mpar_data%var(iLookPARAM%frac_silt)%dat,            & ! intent(in): [dp(:)] fraction of silt (-)
+ frac_clay              => mpar_data%var(iLookPARAM%frac_clay)%dat             & ! intent(in): [dp(:)] fraction of clay (-)
  ) ! associations to parameters
 
  ! check canopy geometry
@@ -177,7 +182,18 @@ contains
   print*, 'theta_sat = ', theta_sat
   message=trim(message)//'porosity is less than the residual liquid water content '// &
                          '[NOTE: if overwriting Noah-MP soil table values in paramTrial or calibrating, must overwrite all soil parameters]'
- 
+
+  err=20; return
+ endif
+
+ ! check soil texture: sand, silt and clay are fractions of the mineral soil and add to one
+ if( any(frac_sand < 0._rkind) .or. any(frac_silt < 0._rkind) .or. any(frac_clay < 0._rkind) .or. &
+     any(abs(frac_sand + frac_silt + frac_clay - 1._rkind) > textureTol) )then
+  print*, 'frac_sand = ', frac_sand
+  print*, 'frac_silt = ', frac_silt
+  print*, 'frac_clay = ', frac_clay
+  message=trim(message)//'sand, silt and clay fractions must be non-negative and add to one '// &
+                         '[NOTE: if calibrating one of them, make silt the remainder of the others]'
   err=20; return
  endif
 
