@@ -241,6 +241,8 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     list(APPEND FLAGS_ALL -ffpe-summary=none)
 endif()
 
+# Use the configured Fortran options for mizuRoute and its coupling layers.
+set(FLAGS_MIZU ${FLAGS_ALL})
 
 # Assemble all of the SUMMA sub-routines
 
