@@ -580,7 +580,7 @@ subroutine vegNrgFlux(&
         else
           err=20; message=trim(message)//'unable to identify ground surface under potential snow'; return
         end if
-        ! snow and ice on glacier and lake domains; upland snow and debris keep one roughness for momentum and heat
+        ! glacier and lake snow and ice take Andreas (1987) for heat as their z0 is poorly known; upland snow and debris keep z0 for heat
         andreasScalar = (nGlce>0 .or. nLake>0) .and. &
                         (scalarGroundSnowFraction>0._rkind .or. (nLake>0 .and. groundTempTrial<=Tfreeze) .or. (nLake==0 .and. nSoil==0))
 
@@ -676,7 +676,7 @@ subroutine vegNrgFlux(&
                         ! input: parameters
                         z0Ground,                           & ! intent(in): roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
                         andreasScalar,                      & ! intent(in): flag for a heat and vapour roughness from Andreas (1987)
-                        z0CanopyParam,                     & ! intent(in): roughness length of the canopy (m)
+                        z0CanopyParam,                      & ! intent(in): roughness length of the canopy (m)
                         zpdFraction,                        & ! intent(in): zero plane displacement / canopy height (-)
                         critRichNumber,                     & ! intent(in): critical value for the bulk Richardson number where turbulence ceases (-)
                         Louis79_bparam,                     & ! intent(in): parameter in Louis (1979) stability function
@@ -1438,7 +1438,7 @@ subroutine aeroResist(&
                       ! input: parameters
                       z0Ground,                      & ! intent(in):  roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
                       andreasScalar,                 & ! intent(in):  flag for a heat and vapour roughness from Andreas (1987)
-                      z0CanopyParam,                & ! intent(in):  roughness length of the canopy (m)
+                      z0CanopyParam,                 & ! intent(in):  roughness length of the canopy (m)
                       zpdFraction,                   & ! intent(in):  zero plane displacement / canopy height (-)
                       critRichNumber,                & ! intent(in):  critical value for the bulk Richardson number where turbulence ceases (-)
                       Louis79_bparam,                & ! intent(in):  parameter in Louis (1979) stability function
@@ -1496,7 +1496,7 @@ subroutine aeroResist(&
   ! input: parameters
   real(rkind),intent(in)           :: z0Ground                      ! roughness length of the ground (below canopy or non-vegetated surface [snow]) (m)
   logical(lgt),intent(in)          :: andreasScalar                 ! flag for a heat and vapour roughness from Andreas (1987)
-  real(rkind),intent(in)           :: z0CanopyParam                ! roughness length of the canopy (m)
+  real(rkind),intent(in)           :: z0CanopyParam                 ! roughness length of the canopy (m)
   real(rkind),intent(in)           :: zpdFraction                   ! zero plane displacement / canopy height (-)
   real(rkind),intent(in)           :: critRichNumber                ! critical value for the bulk Richardson number where turbulence ceases (-)
   real(rkind),intent(in)           :: Louis79_bparam                ! parameter in Louis (1979) stability function
