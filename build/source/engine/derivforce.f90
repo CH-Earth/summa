@@ -145,8 +145,8 @@ contains
  newSnowDenMultWind      => mpar_data%var(iLookPARAM%newSnowDenMultWind)%dat(1)   , & ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
  newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
- glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! glacier surface wind as a fraction of the forcing's (-)
- glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature decrease to account for down-glacier katabatic wind (-)
+ glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! wind speed factor to account for glacier sheltering and katabatic wind profile (-)
+ glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature factor decrease to account for down-glacier katabatic wind (-)
  precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
  tempLapseRate           => mpar_data%var(iLookPARAM%tempLapseRate)%dat(1)        , & ! air temperature decrease per metre above the HRU elevation (K m-1)
  ! radiation geometry variables
@@ -218,7 +218,7 @@ contains
   windspd_x = windspd_x * glacierWindFactor
   windspd_y = windspd_y * glacierWindFactor
   if (airtemp>Tfreeze) then
-   katabaticCooling = glacierTempReduction
+   katabaticCooling = (1._rkind - glacierTempReduction)*(airtemp - Tfreeze)
    airtemp = airtemp - katabaticCooling
   endif
  endif

@@ -286,7 +286,7 @@ contains
   if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind
     parFallback(iLookPARAM%glacierWindFactor)%lower_limit = 0.3_rkind
-    parFallback(iLookPARAM%glacierWindFactor)%upper_limit = 3._rkind
+    parFallback(iLookPARAM%glacierWindFactor)%upper_limit = 1.5_rkind
   end if
   if (parFallback(iLookPARAM%precipElevGrad)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%precipElevGrad)%default_val = 0._rkind
@@ -294,9 +294,9 @@ contains
     parFallback(iLookPARAM%precipElevGrad)%upper_limit = 0.005_rkind
   end if
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierTempReduction)%default_val = 0._rkind
+    parFallback(iLookPARAM%glacierTempReduction)%default_val = 1._rkind
     parFallback(iLookPARAM%glacierTempReduction)%lower_limit = 0._rkind
-    parFallback(iLookPARAM%glacierTempReduction)%upper_limit = 2.5_rkind
+    parFallback(iLookPARAM%glacierTempReduction)%upper_limit = 1._rkind
   end if
   ! energy flux at the base of the soil column, the geothermal heat flux, only used with bcLowrTdyn = presFlux
   if (parFallback(iLookPARAM%lowerBoundNrgFlux)%default_val < 0.99_rkind*realMissing) then

@@ -307,8 +307,8 @@ contains
   case('Mahrt87_eScale'           ); get_ixParam = iLookPARAM%Mahrt87_eScale         ! exponential scaling factor in the Mahrt (1987) stability function (-)
   case('leafExchangeCoeff'        ); get_ixParam = iLookPARAM%leafExchangeCoeff      ! turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
   case('windReductionParam'       ); get_ixParam = iLookPARAM%windReductionParam     ! canopy wind reduction parameter (-)
-  case('glacierWindFactor'        ); get_ixParam = iLookPARAM%glacierWindFactor      ! glacier surface wind as a fraction of the forcing's (-)
-  case('glacierTempReduction'     ); get_ixParam = iLookPARAM%glacierTempReduction   ! air temperature decrease to account for down-glacier katabatic wind (-)
+  case('glacierWindFactor'        ); get_ixParam = iLookPARAM%glacierWindFactor      ! wind speed factor to account for glacier sheltering and katabatic wind profile (-)
+  case('glacierTempReduction'     ); get_ixParam = iLookPARAM%glacierTempReduction   ! air temperature factor decrease to account for down-glacier katabatic wind (-)
   ! stomatal conductance
   case('Kc25'                     ); get_ixParam = iLookPARAM%Kc25                   ! Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
   case('Ko25'                     ); get_ixParam = iLookPARAM%Ko25                   ! Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)

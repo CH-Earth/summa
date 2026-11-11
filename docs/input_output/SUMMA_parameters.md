@@ -63,8 +63,8 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `Mahrt87_eScale` | exponential scaling factor in the Mahrt (1987) stability function | - |
 | `leafExchangeCoeff` | turbulent exchange coeff between canopy surface and canopy air | m s-(1/2) |
 | `windReductionParam` | canopy wind reduction parameter | - |
-| `glacierWindFactor` | wind speed increase to account for glacier katabatic wind profile | - |
-| `glacierTempReduction` | air temperature decrease to account for down-glacier katabatic wind | - |
+| `glacierWindFactor` | wind speed factor to account for glacier sheltering and katabatic wind profile | - |
+| `glacierTempReduction` | air temperature factor decrease to account for down-glacier katabatic wind | - |
 | `Kc25` | Michaelis-Menten constant for CO2 at 25 degrees C | umol mol-1 |
 | `Ko25` | Michaelis-Menten constant for O2 at 25 degrees C | mol mol-1 |
 | `Kc_qFac` | factor in the q10 function defining temperature controls on Kc | - |
