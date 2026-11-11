@@ -122,7 +122,9 @@ contains
  real(rkind)                          :: airpres_base                  ! air pressure at the base elevation (Pa)
  real(rkind)                          :: exposure                      ! glacier surface wind as a fraction of the wind station's (-)
  real(rkind)                          :: katabaticCooling              ! air temperature removed by the glacier surface layer (K)
- real(rkind),parameter                :: lapseRate=0.006871_rkind      ! lapse rate (K m-1), 6.5C/1km is the standard environmental lapse rate
+ real(rkind)                          :: airtempHRU                    ! air temperature at the HRU elevation (K)
+ real(rkind)                          :: airpresHRU                    ! air pressure at the HRU elevation (Pa)
+ real(rkind)                          :: airtempDOM                    ! air temperature lapsed to the domain elevation, before katabatic cooling (K)
  ! ************************************************************************************************
  ! associate local variables with the information in the data structures
  associate(&
@@ -148,6 +150,7 @@ contains
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature decrease to account for down-glacier katabatic wind (-)
  windExposure            => mpar_data%var(iLookPARAM%windExposure)%dat(1)         , & ! glacier surface wind as a fraction of the wind station's (-)
  precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
+ tempLapseRate           => mpar_data%var(iLookPARAM%tempLapseRate)%dat(1)        , & ! air temperature decrease per metre above the HRU elevation (K m-1)
  ! radiation geometry variables
  latitude                => attr_data%var(iLookATTR%latitude)                     , & ! latitude (degrees north)
  longitude               => attr_data%var(iLookATTR%longitude)                    , & ! longitude (degrees east)
@@ -166,6 +169,7 @@ contains
  secondsSinceRefTime     => forc_data%var(iLookFORCE%time)                        , & ! time = seconds since reference time
  ! model forcing data
  SWRadAtm                => forc_data%var(iLookFORCE%SWRadAtm)                    , & ! downward shortwave radiation (W m-2)
+ LWRadAtm                => forc_data%var(iLookFORCE%LWRadAtm)                    , & ! downward longwave radiation (W m-2)
  airtemp                 => forc_data%var(iLookFORCE%airtemp)                     , & ! air temperature at 2 meter height (K)
  windspd                 => forc_data%var(iLookFORCE%windspd)                     , & ! wind speed at 10 meter height (m s-1)
  airpres                 => forc_data%var(iLookFORCE%airpres)                     , & ! air pressure at 2 meter height (Pa)
@@ -191,6 +195,10 @@ contains
 
  ! initialize error control
  err=0; message="derivforce/"
+
+ ! the forcing as given, at the HRU elevation
+ airtempHRU = airtemp
+ airpresHRU = airpres
 
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
  exposure = merge(windExposure, 1._rkind, is_glac)
@@ -308,9 +316,15 @@ contains
  spectralIncomingDiffuse(2) = SWRadAtm*(1._rkind - scalarFractionDirect)*(1._rkind - Frad_vis)    ! (diffuse nir)
 
  ! adjust the air temperature to the domain mean elevation
- airtemp = airtemp - (DOMelev - elevation) * lapseRate
+ airtemp = airtemp - (DOMelev - elevation) * tempLapseRate
  ! linear in elevation, so the area-weighted domains keep the HRU's precipitation
  pptrate = pptrate * max(0._rkind, 1._rkind + precipElevGrad * (DOMelev - elevation))
+ ! the HRU's relative humidity and sky emissivity carried to the domain's temperature and pressure
+ if(DOMelev /= elevation)then
+  airtempDOM = airtempHRU - (DOMelev - elevation) * tempLapseRate
+  spechum  = RELHM2SPHM(min(1._rkind, SPHM2RELHM(spechum, airpresHRU, airtempHRU)), airpres, airtempDOM)
+  LWRadAtm = LWRadAtm * (airtempDOM/airtempHRU)**4
+ endif
 
  ! compute relative humidity (-)
  relhum   = SPHM2RELHM(spechum, airpres, airtemp)

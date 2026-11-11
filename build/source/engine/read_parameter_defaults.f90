@@ -329,6 +329,11 @@ contains
     parFallback(iLookPARAM%oudinPETTempThrK2)%lower_limit = 0._rkind
     parFallback(iLookPARAM%oudinPETTempThrK2)%upper_limit = 10._rkind
   end if
+  if (parFallback(iLookPARAM%tempLapseRate)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%tempLapseRate)%default_val = 0.006871_rkind
+    parFallback(iLookPARAM%tempLapseRate)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%tempLapseRate)%upper_limit = 0.0098_rkind
+  end if
  end subroutine set_glacier_lake_defaults
 
  ! ************************************************************************************************
