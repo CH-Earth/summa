@@ -204,10 +204,8 @@ contains
  else
    windspd_x = windspd
    windspd_y = 0._rkind
-   if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
  endif
- if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
-
+ 
  ! adjust wind speed and air temperature for glacier katabatic winds, should be related to fetch length
  ! NOTE: Eventually want to have a separate katabatic wind model, but this is a simple first-order approach 
  ! see e.g. Radic et al., 2017, https://doi.org/10.5194/tc-11-2897-2017, following Oerlemans and Grisogono (2002)
@@ -221,6 +219,23 @@ contains
    katabaticCooling = (1._rkind - glacierTempReduction)*(airtemp - Tfreeze)
    airtemp = airtemp - katabaticCooling
   endif
+ endif
+
+ ! ensure wind speed is above a prescribed minimum value
+ if(windspd < minwind) then
+   if(ngen_forcing_active)then
+     if (windspd .ne. 0) then
+       windspd_x = windspd_x * (minwind/windspd)
+       windspd_y = windspd_y * (minwind/windspd)
+     else
+       windspd_x = minwind
+       windspd_y = 0._rkind
+     endif
+   else
+     windspd_x = minwind
+     windspd_y = 0._rkind
+   endif
+   windspd=minwind 
  endif
 
  ! check spectral dimension
