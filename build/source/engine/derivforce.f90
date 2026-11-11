@@ -145,7 +145,7 @@ contains
  newSnowDenMultWind      => mpar_data%var(iLookPARAM%newSnowDenMultWind)%dat(1)   , & ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
  newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
- glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! glacier surface wind as a fraction of the forcing's when the air is above freezing (-)
+ glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! glacier surface wind as a fraction of the forcing's (-)
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature decrease to account for down-glacier katabatic wind (-)
  precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
  tempLapseRate           => mpar_data%var(iLookPARAM%tempLapseRate)%dat(1)        , & ! air temperature decrease per metre above the HRU elevation (K m-1)
@@ -208,18 +208,19 @@ contains
  endif
  if(windspd < minwind) windspd=minwind ! ensure wind speed is above a prescribed minimum value
 
-
  ! adjust wind speed and air temperature for glacier katabatic winds, should be related to fetch length
  ! NOTE: Eventually want to have a separate katabatic wind model, but this is a simple first-order approach 
  ! see e.g. Radic et al., 2017, https://doi.org/10.5194/tc-11-2897-2017, following Oerlemans and Grisogono (2002)
  ! NOTE2: Should make dependent on the glacier geometry so wind speed increases and temperature decreases are larger down-glacier
  katabaticCooling = 0._rkind
- if (is_glac .and. airtemp>Tfreeze) then 
-  katabaticCooling = glacierTempReduction
+ if (is_glac) then
   windspd   = windspd   * glacierWindFactor
   windspd_x = windspd_x * glacierWindFactor
   windspd_y = windspd_y * glacierWindFactor
-  airtemp   = airtemp   - katabaticCooling
+  if (airtemp>Tfreeze) then
+   katabaticCooling = glacierTempReduction
+   airtemp = airtemp - katabaticCooling
+  endif
  endif
 
  ! check spectral dimension

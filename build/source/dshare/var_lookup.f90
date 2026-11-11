@@ -211,7 +211,7 @@ MODULE var_lookup
   integer(i4b)    :: Mahrt87_eScale        = integerMissing    ! exponential scaling factor in the Mahrt (1987) stability function (-)
   integer(i4b)    :: leafExchangeCoeff     = integerMissing    ! turbulent exchange coeff between canopy surface and canopy air ( m s-(1/2) )
   integer(i4b)    :: windReductionParam    = integerMissing    ! canopy wind reduction parameter (-)
-  integer(i4b)    :: glacierWindFactor     = integerMissing    ! glacier surface wind as a fraction of the forcing's when the air is above freezing (-)
+  integer(i4b)    :: glacierWindFactor     = integerMissing    ! glacier surface wind as a fraction of the forcing's (-)
   integer(i4b)    :: glacierTempReduction  = integerMissing    ! air temperature decrease to account for down-glacier katabatic wind (-)
   ! stomatal conductance
   integer(i4b)    :: Kc25                  = integerMissing    ! Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
