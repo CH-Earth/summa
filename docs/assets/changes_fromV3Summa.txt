@@ -224,7 +224,7 @@ AFTER tag of v4.0.0-exp-Sundials
      New attributes file entries: nGlac, nWtld, nGrid (all optional, assumed 0), plus the glacier grid dimensions and variables when nGlac>0.
      New GRU (basin) variables: basin__GlacierArea, basin__GlacierStorage, and glacier reservoir routing (glacIceRunoffFuture,
       glacSnowRunoffFuture, glacFirnRunoffFuture, updateJulDay).
-     New parameters: glacierTempReduction, glacierWindFactor (HRU, katabatic air-temperature reduction, windspeed increase), precipElevGrad (HRU, fractional precipitation change per metre above the HRU elevation (default 0))
+     New parameters: glacierTempReduction, glacierWindFactor (HRU, katabatic air-temperature reduction, windspeed change for sheltering and katabatic), precipElevGrad (HRU, fractional precipitation change per metre above the HRU elevation (default 0))
       glacStor_kIce / glacStor_kSnow / glacStor_kFirn and latMoraineWidth (GRU). All have defaults, so are only needed for glacier runs.
      maxSnowLayers is multiplied by 2.5 when any glacier is present, to allow firn development in the accumulation zone.
      The OpenWQ coupling was updated to be per (HRU, domain) rather than per HRU (see build/source/openwq), commit f16c3488 Sep 10, 2026.
