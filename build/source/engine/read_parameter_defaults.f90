@@ -285,13 +285,8 @@ contains
   end if
   if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind
-    parFallback(iLookPARAM%glacierWindFactor)%lower_limit = 1._rkind
+    parFallback(iLookPARAM%glacierWindFactor)%lower_limit = 0.3_rkind
     parFallback(iLookPARAM%glacierWindFactor)%upper_limit = 3._rkind
-  end if
-  if (parFallback(iLookPARAM%windExposure)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%windExposure)%default_val = 1._rkind
-    parFallback(iLookPARAM%windExposure)%lower_limit = 0.3_rkind
-    parFallback(iLookPARAM%windExposure)%upper_limit = 1._rkind
   end if
   if (parFallback(iLookPARAM%precipElevGrad)%default_val < 0.99_rkind*realMissing) then
     parFallback(iLookPARAM%precipElevGrad)%default_val = 0._rkind

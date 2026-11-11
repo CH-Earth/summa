@@ -120,7 +120,6 @@ contains
  real(rkind),parameter                :: andersonDenScal=1.5_rkind     ! Scalar parameter in Anderson (1976) new snow density function (-)
  real(rkind),parameter                :: pahautDenWindScal=0.5_rkind   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
  real(rkind)                          :: airpres_base                  ! air pressure at the base elevation (Pa)
- real(rkind)                          :: exposure                      ! glacier surface wind as a fraction of the wind station's (-)
  real(rkind)                          :: katabaticCooling              ! air temperature removed by the glacier surface layer (K)
  real(rkind)                          :: airtempHRU                    ! air temperature at the HRU elevation (K)
  real(rkind)                          :: airpresHRU                    ! air pressure at the HRU elevation (Pa)
@@ -146,9 +145,8 @@ contains
  newSnowDenMultWind      => mpar_data%var(iLookPARAM%newSnowDenMultWind)%dat(1)   , & ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
  newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
- glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! wind speed increase to account for glacier katabatic wind profile (-)
+ glacierWindFactor       => mpar_data%var(iLookPARAM%glacierWindFactor)%dat(1)    , & ! glacier surface wind as a fraction of the forcing's when the air is above freezing (-)
  glacierTempReduction    => mpar_data%var(iLookPARAM%glacierTempReduction)%dat(1) , & ! air temperature decrease to account for down-glacier katabatic wind (-)
- windExposure            => mpar_data%var(iLookPARAM%windExposure)%dat(1)         , & ! glacier surface wind as a fraction of the wind station's (-)
  precipElevGrad          => mpar_data%var(iLookPARAM%precipElevGrad)%dat(1)       , & ! fractional change in precipitation per metre above the HRU elevation (m-1)
  tempLapseRate           => mpar_data%var(iLookPARAM%tempLapseRate)%dat(1)        , & ! air temperature decrease per metre above the HRU elevation (K m-1)
  ! radiation geometry variables
@@ -201,13 +199,9 @@ contains
  airpresHRU = airpres
 
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
- exposure = merge(windExposure, 1._rkind, is_glac)
  if(ngen_forcing_active)then
-   windspd_x = windspd_x * exposure
-   windspd_y = windspd_y * exposure
    windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
  else
-   windspd   = windspd * exposure
    windspd_x = windspd
    windspd_y = 0._rkind
    if(windspd_x < minwind) windspd_x=minwind ! ensure wind speed is above a prescribed minimum value
