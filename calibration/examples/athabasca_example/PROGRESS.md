@@ -230,6 +230,42 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
   spread from asynchronous worker timing (so far 43b is at 0.767 where seed 43 reached 0.849 at the same
   stage) and will give complete 5,000-run random-start results.
 
+## Nov 10-12: final results, best parameter sets and run speed
+
+- The same-seed reruns 43b-45b (jobs 22038122-24) finished normally: 5,000 runs each, no failures. Their
+  first model run has the same KGE as the first attempts, so they share seed and starting point; they
+  replace the time-limited seeds 43-45 below. Script: `scripts/fortran_dds/analyze_fortran_dds.py`.
+
+| Seed | Start | Runs | @1000 | @3000 | Best | Wall time | Median run |
+|---|---|---|---|---|---|---|---|
+| 42 (original) | random | 5,077 | 0.802 | 0.805 | 0.806 | 20.8 h | 11.6 min |
+| 43 (43b) | random | 5,100 | 0.695 | 0.767 | 0.769 | 43.7 h | 25.6 min |
+| 44 (44b) | random | 5,133 | 0.754 | 0.824 | 0.864 | 42.0 h | 24.8 min |
+| 45 (45b) | random | 5,094 | 0.828 | 0.831 | 0.834 | 36.3 h | 21.2 min |
+| 42 | defaults | 5,113 | 0.775 | 0.804 | 0.867 | 23.3 h | 12.9 min |
+| 43 | defaults | 5,135 | 0.825 | 0.883 | 0.902 | 22.5 h | 12.2 min |
+| 44 | defaults | 5,140 | 0.792 | 0.814 | 0.892 | 23.2 h | 12.1 min |
+
+- Every default-start run ended above every random-start run (worst 0.867 vs best 0.864). With 4
+  independent random starts against 3 default starts this is suggestive (about 1 in 35 by chance), not
+  conclusive. The random start remains the most likely cause of the 0.806.
+- Seed 43 from the defaults (0.902) is the best Athabasca result so far. It reached KGE 0.88 in 2,886 runs
+  and 0.85 in 8.5 h (v2: 2,973 runs and 10.3 h).
+- Same seed, same start and same code still ended up to 0.08 apart (seed 43: 0.849 in the time-limited
+  run, 0.769 in the rerun): asynchronous worker timing changes the search path. Setups need several seeds
+  each to be compared.
+- Best parameter sets: the three default-start runs agree (qSurfScale 2.7-3.7, routingGammaScale ~99,000,
+  routingGammaShape 3.9-4.4, frozenPrecipMultip 0.94-1.36, aquiferBaseflowRate ~1e-7, heightCanopyTop
+  2-4 m). The random-start runs end in two other places: qSurfScale high with routingGammaScale low
+  (seed 42 original, 43b), or frozenPrecipMultip 0.61-0.75 with a baseflow rate 10-100 times higher (44b,
+  45b). routingGammaScale is at its upper bound (1e5) in 5 of the 7 best sets.
+- Run speed is set by heightCanopyTop, not by the job or the executable (all builds are Release -O3):
+  runs with heightCanopyTop >= 20 m take 18-26 min against 11-13 min below, in every job. The 15
+  parameters explain 97.5% of the variance of log run time (random forest, cross-validated), 95% of it
+  from heightCanopyTop. The reruns spent 99% of their runs at 50-97 m, which explains the slow seeds 43-45.
+- Scheduling is not the problem: in all seven jobs, 0.9-1.3% of the time comes after the last dispatch
+  and 0.4-0.8% of worker capacity is idle.
+
 ## Next
 
 - Update this branch to current develop and bring in the develop version of `summa_c_api.f90`.
@@ -238,7 +274,8 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
 - If SCE-UA is repeated: fewer complexes than workers, or a larger budget.
 - Repeat v2 and v1 with 3-5 seeds, and the GA with S3-type settings (2-3 seeds).
 - Cap frozenPrecipMultip at about 2 (about half of all KGE < -1 runs lie above 1.9).
-- Finish the same-seed reruns (43b-45b) and compare their parameter sets with the original 0.806 run.
+- Rerun the seven best sets with time-series output for a KGE breakdown (r, alpha, beta).
+- Cap heightCanopyTop at about 30 m (runs above 20 m take twice as long; the best sets use 2-4 m).
 - Suggest to the SUMMA develop Fortran DDS: an option to start from the defaults, and writing
   `_calibration.nc` during the run. (Develop's Nov 9 update already sets the seed through `run_index`.)
-- Validate the best sets outside 2016-2019.
+- Validate the best sets outside 2016-2019, starting with seed 43 from the defaults (0.902).
