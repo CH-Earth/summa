@@ -1,0 +1,81 @@
+# Structural example only: supply the named SUMMA and observation input files.
+# The parameter ranges illustrate syntax, not recommendations for every basin.
+# Direct launch: ..._opt.exe -c dds_case.toml --home /path/to/root
+
+[simulation]
+case_name = "CAN_01AD003"
+basin_dir = "data/example/domain/{case_name}"
+start_time = "2015-10-01 01:00"
+end_time = "2017-01-01 00:00"
+time_zone = "utcTime"
+use_mizuroute = false
+write_timeseries = false
+
+[summa_files]
+settings_path = "{home}/"
+state_path = "{home}/{basin_dir}/summa_state/"
+forcing_path = "{home}/{basin_dir}/summa_forcing/"
+output_path = "{home}/data/example/exp01/work/{case_name}/"
+init_condition = "coldState.nc"
+attributes = "{basin_dir}/summa_inputs/attributes.nc"
+forcing_list = "{basin_dir}/summa_inputs/forcingFileList.txt"
+trial_params = "{basin_dir}/summa_inputs/trialParams.nc"
+decisions = "data/example/exp01/common_inputs/modelDecisions.txt"
+output_control = "data/example/exp01/common_inputs/outputControl.txt"
+local_parameters = "data/example/exp01/common_inputs/localParamInfo.txt"
+basin_parameters = "data/example/exp01/common_inputs/basinParamInfo.txt"
+vegetation_table = "data/example/exp01/common_inputs/TBL_VEGPARM.TBL"
+soil_table = "data/example/exp01/common_inputs/TBL_SOILPARM.TBL"
+general_table = "data/example/exp01/common_inputs/TBL_GENPARM.TBL"
+noahmp_table = "data/example/exp01/common_inputs/TBL_MPTABLE.TBL"
+
+[observations]
+obs_path = "{home}/data/example/observations/"
+obs_file = "{case_name}_daily_flow_observations.nc"
+vname_obsflow = "q_obs"
+
+[calibration]
+algorithm = "dds"
+n_samples = 24
+metric = "kge"
+obs_transform = "none"
+boxcox_lambda = 0.25
+start_date = "2016-01-01"
+end_date = "2017-01-01"
+write_aligned = false
+
+[calibration.parameters]
+k_soil = { lower = 1.0e-7, upper = 1.0e-4, transformation = "log" }
+aquiferBaseflowRate = { lower = 1.0e-7, upper = 1.0e-5, transformation = "log" }
+aquiferBaseflowExp = { lower = 1.0, upper = 4.0 }
+
+[[calibration.target]]
+name = "streamflow_kge"
+variable = "streamflow"
+spatial_unit = "domain"
+obs_file = "{case_name}_daily_flow_observations.nc"
+vname_obs = "q_obs"
+metric = "kge"
+obs_transform = "none"
+weight = 1.0
+
+[[calibration.target]]
+name = "streamflow_nse_log"
+variable = "streamflow"
+spatial_unit = "domain"
+obs_file = "{case_name}_daily_flow_observations.nc"
+vname_obs = "q_obs"
+metric = "nse"
+obs_transform = "log"
+weight = 0.0
+
+[[calibration.target]]
+name = "streamflow_nse_boxcox_025"
+variable = "streamflow"
+spatial_unit = "domain"
+obs_file = "{case_name}_daily_flow_observations.nc"
+vname_obs = "q_obs"
+metric = "nse"
+obs_transform = "boxcox"
+boxcox_lambda = 0.25
+weight = 0.0

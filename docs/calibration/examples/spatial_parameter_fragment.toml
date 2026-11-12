@@ -1,0 +1,27 @@
+# Parameter/dependency fragment, NOT a complete simulation configuration.
+# Merge entries into the corresponding tables of a working case TOML.
+# Do not leave the same name in more than one parameterization table.
+# These are illustrative coefficients, not scientifically validated bounds.
+
+[calibration.parameters]
+theta_res = { lower = 0.001, upper = 0.1 }
+
+[calibration.spatial_multipliers]
+k_soil = { lower = 0.1, upper = 10.0, transformation = "log" }
+theta_sat = { lower = 0.8, upper = 1.2 }
+
+[calibration.parameter_ratios]
+critSoilTranspire = { lower = 0.5, upper = 0.95, reference_reduction = "min" }
+critSoilWilting = { lower = 0.2, upper = 0.9 }
+
+[[parameter_dependencies.parameter_ratio]]
+reference = "theta_sat"
+dependent = "critSoilTranspire"
+
+[[parameter_dependencies.parameter_ratio]]
+reference = "critSoilTranspire"
+dependent = "critSoilWilting"
+
+[[parameter_dependencies.ordered]]
+parameters = ["theta_res", "critSoilWilting", "critSoilTranspire", "theta_sat"]
+gap_fraction = 0.01
