@@ -181,10 +181,14 @@ worker also writes local failed-trial information, including scalar calibration
 values and the error message, with configuration and initial-state material for
 investigation. These records may contain paths from node-local storage.
 
-The field-adapter worker path disables automatic scalar-override replay. A
-`rerun.sh` in a failed-trial directory is therefore not a promise of a ready-to-run
-reproduction of a spatial field adjustment. Reconstruct the physical fields and
-initialization correctly before replaying it.
+Each failed-trial directory also holds a `rerun.sh`, which replays the trial
+with the serial driver by passing the trial's values as `--param` overrides.
+Replay works when the case was launched from a single TOML file and every
+calibrated parameter is a physical value; domain-qualified names are passed
+through, so the physical fields are reproduced. Spatial multipliers and
+parameter ratios cannot be expressed as `--param` values, and a manifest case is
+built from a template, so in those cases `rerun.sh` prints the reason and exits.
+Rebuild the physical fields and initialization from `trial.json` by hand.
 
 The current evaluator also classifies errors from trial initialization broadly
 as failed trials. Consequently, repeated failures with the same initialization

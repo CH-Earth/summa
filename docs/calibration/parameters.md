@@ -44,6 +44,14 @@ from SUMMA's parameter metadata/default initialization. Explicit limits outside
 the native range can generate a warning; supplying them is not a guarantee that
 SUMMA's subsequent physical checks will accept every proposed value.
 
+When both bounds are given, `lower` must not exceed `upper`. Equal bounds pin
+the parameter at that value: it stays in the calibration vector and outputs,
+but the search cannot move it.
+
+A layered parameter may have no elements at some locations, such as soil
+parameters in a glacier-ice domain with no soil layers. Those locations are
+skipped; the parameter is rejected only when it is empty everywhere.
+
 ## Spatial multipliers
 
 ```toml
@@ -217,6 +225,43 @@ There is no implicit root-zone average, selected-layer rule, or spatial mean.
 The local-minimum construction is a deliberate parameterization choice, not a
 claim that it is the best plant-water-stress model for every application.
 
+## Remainder dependencies: closing a sum
+
+Some parameters must add up to a fixed total, such as soil texture fractions.
+A remainder dependency sets one parameter to the total minus its sources:
+
+```toml
+[calibration.parameters]
+frac_sand = { lower = 0.05, upper = 0.8 }
+
+[[parameter_dependencies.remainder]]
+parameter = "frac_silt"
+of = ["frac_sand", "frac_clay"]
+total = 1.0
+```
+
+```text
+p_silt(h,l) = total - p_sand(h,l) - p_clay(h,l)
+```
+
+`total` is optional and defaults to `1`. The remainder is evaluated at every
+location and layer, after all sampled, multiplier, and ratio fields are built.
+Here `frac_sand` is searched and `frac_clay` stays at its initialized values.
+A source can be a sampled physical value, a multiplier, a ratio, or a fixed
+parameter.
+
+The remainder parameter adds no search variable. It must not also appear in
+`[calibration.parameters]`, `[calibration.spatial_multipliers]`, or
+`[calibration.parameter_ratios]`; it cannot be its own source, a source of another
+remainder, or the reference of a ratio. Each parameter takes at most one remainder.
+Sources must have the same horizontal locations and local lengths as the
+remainder parameter.
+
+A candidate whose sources sum to more than the total gives a negative remainder
+and is rejected as infeasible (see [Constraints](constraints.md)). Remainder
+values are written into SUMMA and into the trial parameter export like sampled
+values.
+
 ## Search transformations
 
 `transformation = "log"` applies to the scalar being searched. Specify bounds in
@@ -255,8 +300,8 @@ meaning and scope of these files.
 ## Initialization and application order
 
 For each candidate, the field machinery restores the retained initialized
-values, applies physical-value and multiplier adjustments, and evaluates ratios
-in dependency order. Unchanged parameters keep their initialized fields. SUMMA
+values, applies physical-value and multiplier adjustments, evaluates ratios
+in dependency order, and then sets remainder parameters. Unchanged parameters keep their initialized fields. SUMMA
 then updates parameter-dependent quantities and performs model-level checks.
 
 Applying a ratio to yesterday's trial or applying calibrated parameters after

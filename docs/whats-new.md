@@ -81,6 +81,15 @@ covers the user-facing highlights.
   (PR #671).
 - A calibration target with `weight = 0.0` is scored and saved as a diagnostic without steering
   DDS, and the Box-Cox exponent is set with `boxcox_lambda` (PR #671).
+- `[[parameter_dependencies.remainder]]` sets a parameter to a total minus other parameters,
+  e.g. `frac_silt = 1 - frac_sand - frac_clay`; a candidate leaving a negative remainder is
+  rejected.
+- Equal `lower` and `upper` bounds pin a calibration parameter. Layered parameters may be
+  empty in domains without those layers, so soil parameters calibrate on glacier-ice HRUs.
+- A failed trial's `rerun.sh` replays it with `--param` overrides when every calibrated
+  parameter is a physical value.
+- Calibration user guide under [calibration](calibration/index.md): parameters, constraints,
+  objectives, algorithms, parallel runs, outputs and example configurations (PR #675).
 
 ### Process options
 - New `infRateMax` decision for the maximum infiltration rate (`topmodel_GA`, `GreenAmpt`,

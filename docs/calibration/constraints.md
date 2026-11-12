@@ -80,6 +80,9 @@ have corresponding local axes and compatible lengths. Equal array lengths alone
 do not make unrelated quantities, such as soil layers and spectral bands,
 compatible.
 
+A location where either side of a pair has no local elements, such as soil
+parameters in a domain without soil layers, is skipped for that pair.
+
 There is no automatic broadcasting across horizontal locations. Likewise, local
 singleton broadcasting for a constraint does not relax the elementwise shape
 requirements for constructing a parameter ratio.
@@ -90,8 +93,9 @@ Before evaluating a candidate, the generic path:
 
 1. Checks the scalar vector length, finite values, and configured search bounds.
 2. Restores initialized fields and constructs physical, multiplier, and ratio
-   adjustments in dependency order.
-3. Rejects invalid or non-finite constructed values.
+   adjustments in dependency order, then remainder parameters.
+3. Rejects invalid or non-finite constructed values, and any remainder below
+   zero.
 4. Checks every candidate-dependent ordered chain over its selected physical
    locations and local components.
 
