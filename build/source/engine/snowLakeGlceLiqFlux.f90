@@ -149,7 +149,7 @@ subroutine snowLakeGlceLiqFlux(&
 
     ! get the inputs for the snow layers
     if(is_glac) then  ! snow can be firn
-      residThrs = 550._rkind ! firn density threshold to reduce residual liquid water content (kg m-3), maybe should be 800?
+      residThrs = 830._rkind ! firn holds water until its pores close off (kg m-3)
       maxVolIceContent_use = min(maxVolIceContent+0.15,0.85_rkind) ! firn maximum volumetric ice content to store water (-)
     else ! snow
       residThrs = 550._rkind ! snow density threshold to reduce residual liquid water
