@@ -288,6 +288,7 @@ AFTER tag of v4.0.0-exp-Sundials
       DDS and NSGA-II redraw candidates that break an ordered chain on the physical fields; zero-weight diagnostic targets; per-target boxcox_lambda;
       targets select space with spatial_unit and spatial_id; an anomaly baseline is removed after alignment, merged Nov 9, 2026
      [[parameter_dependencies.remainder]] sets a fixed parameter to a total minus its sources (silt = 1 - sand - clay), commit 336ba751 Nov 10, 2026
+     name@glacier sets a parameter on every clean and debris-covered glacier domain, commit 89c20b0c Nov 16, 2026
  68) Stream temperature on the coupled river network (stream HRUs, lake layers), multi-calib commits d632b36a to de2ae997 Sep 21, 2026, not in this branch
  69) Allow baseflow to have a temperature, various commits Sept 24-26 2026
       1) Geothermal heat flux as a lower boundary condition for thermodynamics-- New bcLowrTdyn option presFlux prescribes lowerBoundNrgFlux (W m-2, default 0.06) into the base of a soil column.
