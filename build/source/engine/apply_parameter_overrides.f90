@@ -31,6 +31,9 @@ private
 
 public :: apply_parameter_overrides
 public :: split_domain_target
+public :: targets_domain
+
+integer(i4b), parameter, public :: glacierDomains = 100 ! name@glacier: every clean and debris-covered glacier domain
 
 contains
 
@@ -68,7 +71,7 @@ contains
    ! a name@domainType value goes only to the domains of that type
    call split_domain_target(param_name(iParam),name,domType)
    if(domType==integerMissing)then
-     message=trim(message)//'unknown domain type in "'//trim(param_name(iParam))//'" (use upland, glacCln1, glacCln2, glacDbr, or wetland)'
+     message=trim(message)//'unknown domain type in "'//trim(param_name(iParam))//'" (use upland, glacCln1, glacCln2, glacDbr, glacier or wetland)'
      err=20; return
    endif
 
@@ -80,7 +83,7 @@ contains
      do iGRU=1,nGRU_local
        do iHRU=1,gru_struc(iGRU)%hruCount
          do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
-           if(domType>0 .and. gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type/=domType) cycle
+           if(.not.targets_domain(domType,gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type)) cycle
            mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM)%var(ixParam)%dat(:)=param_value(iParam)
          enddo
        enddo
@@ -131,9 +134,27 @@ contains
    case('glacCln1'); domType = glacCln1
    case('glacCln2'); domType = glacCln2
    case('glacDbr');  domType = glacDbr
+   case('glacier');  domType = glacierDomains
    case('wetland');  domType = wetland
    case default;     domType = integerMissing
  end select
  end subroutine split_domain_target
+
+ ! ************************************************************************************************
+ ! public function targets_domain: true if a split_domain_target domain type selects a domain of type dom_type
+ ! ************************************************************************************************
+ logical function targets_domain(domType, dom_type)
+ USE globalData,only:glacCln1,glacCln2,glacDbr ! glacier domain types
+ implicit none
+ integer(i4b), intent(in) :: domType  ! domain type from split_domain_target, 0 for every domain
+ integer(i4b), intent(in) :: dom_type ! type of the domain
+ if(domType==0)then
+   targets_domain = .true.
+ elseif(domType==glacierDomains)then
+   targets_domain = dom_type==glacCln1 .or. dom_type==glacCln2 .or. dom_type==glacDbr
+ else
+   targets_domain = dom_type==domType
+ endif
+ end function targets_domain
 
 end module parameter_overrides_module

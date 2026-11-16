@@ -284,7 +284,7 @@ contains
     parFallback(iLookPARAM%z0Ice)%upper_limit = 0.05_rkind
   end if
   if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind
+    parFallback(iLookPARAM%glacierWindFactor)%default_val = 0.59_rkind    ! Gulkana Site B, Wilson et al. (2026)
     parFallback(iLookPARAM%glacierWindFactor)%lower_limit = 0.3_rkind
     parFallback(iLookPARAM%glacierWindFactor)%upper_limit = 1.5_rkind
   end if
@@ -294,7 +294,7 @@ contains
     parFallback(iLookPARAM%precipElevGrad)%upper_limit = 0.005_rkind
   end if
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierTempReduction)%default_val = 1._rkind
+    parFallback(iLookPARAM%glacierTempReduction)%default_val = 0.73_rkind ! Gulkana Site B, Wilson et al. (2026)
     parFallback(iLookPARAM%glacierTempReduction)%lower_limit = 0._rkind
     parFallback(iLookPARAM%glacierTempReduction)%upper_limit = 1._rkind
   end if
@@ -328,11 +328,6 @@ contains
     parFallback(iLookPARAM%tempLapseRate)%default_val = 0.006871_rkind
     parFallback(iLookPARAM%tempLapseRate)%lower_limit = 0._rkind
     parFallback(iLookPARAM%tempLapseRate)%upper_limit = 0.0098_rkind
-  end if
-  if (parFallback(iLookPARAM%glacierSnowFactor)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierSnowFactor)%default_val = 1._rkind
-    parFallback(iLookPARAM%glacierSnowFactor)%lower_limit = 0.5_rkind
-    parFallback(iLookPARAM%glacierSnowFactor)%upper_limit = 5._rkind
   end if
   ! wet snow compaction, 0 keeps dry-snow compaction; Vionnet et al. (2012) use 60
   if (parFallback(iLookPARAM%wetSnowCompact)%default_val < 0.99_rkind*realMissing) then
