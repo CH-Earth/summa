@@ -13,6 +13,9 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `tempCritRain` | critical temperature where precipitation is rain | K |
 | `tempRangeTimestep` | temperature range over the time step | K |
 | `frozenPrecipMultip` | frozen precipitation multiplier | - |
+| `precipElevGrad` | fractional change in precipitation per metre above the HRU | m-1 |
+| `tempLapseRate` | air temperature decrease per metre above the HRU elevation | K m-1 |
+| `glacierSnowFactor` | snowfall multiplier on glacier domains for wind-blown and avalanched snow | - |
 | `snowfrz_scale` | scaling parameter for the freezing curve for snow | K-1 |
 | `fixedThermalCond_snow` | temporally constant thermal conductivity for snow | W m-1 K-1 |
 | `albedoMax` | maximum snow albedo (single spectral band) | - |
@@ -67,6 +70,8 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `windReductionParam` | canopy wind reduction parameter | - |
 | `glacierWindFactor` | wind speed factor to account for glacier sheltering and katabatic wind profile | - |
 | `glacierTempReduction` | air temperature factor decrease to account for down-glacier katabatic wind | - |
+| `oudinPETScaleK1` | Oudin PET formula scaling factor | deg C |
+| `oudinPETTempThrK2` | Oudin PET formula temperature threshold | deg C |
 | `Kc25` | Michaelis-Menten constant for CO2 at 25 degrees C | umol mol-1 |
 | `Ko25` | Michaelis-Menten constant for O2 at 25 degrees C | mol mol-1 |
 | `Kc_qFac` | factor in the q10 function defining temperature controls on Kc | - |
