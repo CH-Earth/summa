@@ -647,12 +647,11 @@ contains
  ! ***********************************************************************************************************
  ! public subroutine firnToIce: turn firn at the bottom of the snow on clean glacier ice into glacier ice
  ! ***********************************************************************************************************
- ! While the bottom snow layer of a clean glacier domain holds at least the firn maximum volumetric ice content,
+ ! While the bottom snow layer of a clean glacier domain has reached the pore close-off density (Schultz, 2024),
  ! the layer is removed and its mass (kg m-2) added to scalarGlceWE. The glacier ice layers keep their prescribed
  ! depths, as they do when ice is lost to melt, so the domain mass is unchanged.
  ! ***********************************************************************************************************
  subroutine firnToIce(prog_data,diag_data,flux_data,indx_data,nConvert,err,message)
- USE globalData,only:maxVolIceContent ! snow maximum volumetric ice content to store water (-)
  USE data_types,only:var_info         ! metadata structure
  implicit none
  type(var_dlength),intent(inout) :: prog_data      ! model prognostic variables for a local HRU
@@ -664,11 +663,10 @@ contains
  character(*),intent(out)        :: message        ! error message
  character(len=256)              :: cmessage       ! error message of downwind routine
  integer(i4b)                    :: nSnow,nLake,nSoil,nGlce,nLayers ! number of layers
- real(rkind)                     :: firnMaxIce     ! firn maximum volumetric ice content to store water (-)
+ real(rkind),parameter           :: closeOffDensity=830._rkind ! density at which the pores of firn close off (kg m-3)
  real(rkind)                     :: massLayer      ! mass of the bottom snow layer (kg m-2)
  real(rkind)                     :: depthLayer     ! depth of the bottom snow layer (m)
  err=0; message='firnToIce/'; nConvert=0
- firnMaxIce = min(maxVolIceContent+0.15_rkind, 0.85_rkind)
 
  do
    nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
@@ -677,7 +675,7 @@ contains
    nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
    nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
    if(nSnow==0 .or. nGlce==0 .or. nLake>0 .or. nSoil>0) exit ! only snow lying directly on glacier ice
-   if(prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow) < firnMaxIce) exit
+   if(prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow)*iden_ice < closeOffDensity) exit
 
    depthLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow)
    massLayer  = (iden_ice*prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow) &
