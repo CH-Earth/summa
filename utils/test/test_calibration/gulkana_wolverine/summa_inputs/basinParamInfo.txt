@@ -42,6 +42,6 @@ debrisConc                |       5.0000 |       0.0000 |      10.0000
 wallErosionRate           |       1.0000 |       0.0000 |       2.0000
 debrisCritStress          |   80000.0000 |   20000.0000 |  100000.0000
 latMoraineWidth           |     160.0000 |       0.0000 |     500.0000
-glenAFactor               |     1.000000 |       0.1000 |       3.0000
+glenAFactor               |     0.435000 |       0.1000 |       3.0000
 mbGradAbove               |     0.000000 |       0.0000 |      20.0000
 mbGradBelow               |     0.000000 |       0.0000 |      20.0000

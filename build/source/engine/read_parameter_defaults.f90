@@ -380,9 +380,9 @@ contains
     parFallback(iLookBPAR%latMoraineWidth)%lower_limit = 0._rkind
     parFallback(iLookBPAR%latMoraineWidth)%upper_limit = 500._rkind
   endif
-  ! glacier flow, A = glenAFactor*2.4e-24 Pa-3 s-1 (Le Meur and Vincent, 2003; Maussion et al., 2019)
+  ! glacier flow, A = glenAFactor*2.4e-24 Pa-3 s-1 (Le Meur and Vincent, 2003; Maussion et al., 2019); default from ITS_LIVE speeds at Wolverine and Gulkana
   if (parFallback(iLookBPAR%glenAFactor)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%glenAFactor)%default_val = 1._rkind
+    parFallback(iLookBPAR%glenAFactor)%default_val = 0.435_rkind
     parFallback(iLookBPAR%glenAFactor)%lower_limit = 0.1_rkind
     parFallback(iLookBPAR%glenAFactor)%upper_limit = 3._rkind
   endif
