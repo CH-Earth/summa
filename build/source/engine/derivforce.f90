@@ -136,6 +136,7 @@ contains
  tempCritRain            => mpar_data%var(iLookPARAM%tempCritRain)%dat(1)         , & ! critical temperature where precipitation is rain (K)
  tempRangeTimestep       => mpar_data%var(iLookPARAM%tempRangeTimestep)%dat(1)    , & ! temperature range over the time step (K)
  frozenPrecipMultip      => mpar_data%var(iLookPARAM%frozenPrecipMultip)%dat(1)   , & ! frozen precipitation multiplier (-)
+ glacierSnowFactor       => mpar_data%var(iLookPARAM%glacierSnowFactor)%dat(1)    , & ! glacier-domain snowfall multiplier (-)
  newSnowDenMin           => mpar_data%var(iLookPARAM%newSnowDenMin)%dat(1)        , & ! minimum new snow density (kg m-3)
  newSnowDenMult          => mpar_data%var(iLookPARAM%newSnowDenMult)%dat(1)       , & ! multiplier for new snow density (kg m-3)
  newSnowDenScal          => mpar_data%var(iLookPARAM%newSnowDenScal)%dat(1)       , & ! scaling factor for new snow density (K)
@@ -383,6 +384,7 @@ contains
   ! compute rainfall and snowfall
   rainfall = fracrain*pptrate
   snowfall = (1._rkind - fracrain)*pptrate*frozenPrecipMultip
+  if(is_glac) snowfall = snowfall*glacierSnowFactor  ! wind-blown and avalanched snow onto the ice
  end if
 
  ! compute density of new snow

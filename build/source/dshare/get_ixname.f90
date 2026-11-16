@@ -457,6 +457,7 @@ contains
   case('oudinPETScaleK1'          ); get_ixParam = iLookPARAM%oudinPETScaleK1        ! Oudin PET formula scaling factor (deg C)
   case('oudinPETTempThrK2'        ); get_ixParam = iLookPARAM%oudinPETTempThrK2      ! Oudin PET formula temperature threshold (deg C)
   case('tempLapseRate'            ); get_ixParam = iLookPARAM%tempLapseRate          ! air temperature decrease per metre above the HRU elevation (K m-1)
+  case('glacierSnowFactor'        ); get_ixParam = iLookPARAM%glacierSnowFactor      ! glacier-domain snowfall multiplier (-)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
