@@ -69,6 +69,7 @@ implicit none
 private
 public::layerMerge
 public::rmLyAllVars
+public::firnToIce
 
 contains
 
@@ -642,5 +643,111 @@ contains
  end do  ! looping through variables
 
  end subroutine rmLyAllVars
+
+ ! ***********************************************************************************************************
+ ! public subroutine firnToIce: turn firn at the bottom of the snow on clean glacier ice into glacier ice
+ ! ***********************************************************************************************************
+ ! While the bottom snow layer of a clean glacier domain holds at least the firn maximum volumetric ice content,
+ ! the layer is removed and its mass (kg m-2) added to scalarGlceWE. The glacier ice layers keep their prescribed
+ ! depths, as they do when ice is lost to melt, so the domain mass is unchanged.
+ ! ***********************************************************************************************************
+ subroutine firnToIce(prog_data,diag_data,flux_data,indx_data,nConvert,err,message)
+ USE globalData,only:maxVolIceContent ! snow maximum volumetric ice content to store water (-)
+ USE data_types,only:var_info         ! metadata structure
+ implicit none
+ type(var_dlength),intent(inout) :: prog_data      ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data      ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data      ! model flux variables
+ type(var_ilength),intent(inout) :: indx_data      ! type of model layer
+ integer(i4b),intent(out)        :: nConvert       ! number of snow layers turned into glacier ice
+ integer(i4b),intent(out)        :: err            ! error code
+ character(*),intent(out)        :: message        ! error message
+ character(len=256)              :: cmessage       ! error message of downwind routine
+ integer(i4b)                    :: nSnow,nLake,nSoil,nGlce,nLayers ! number of layers
+ real(rkind)                     :: firnMaxIce     ! firn maximum volumetric ice content to store water (-)
+ real(rkind)                     :: massLayer      ! mass of the bottom snow layer (kg m-2)
+ real(rkind)                     :: depthLayer     ! depth of the bottom snow layer (m)
+ err=0; message='firnToIce/'; nConvert=0
+ firnMaxIce = min(maxVolIceContent+0.15_rkind, 0.85_rkind)
+
+ do
+   nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+   nLake   = indx_data%var(iLookINDEX%nLake)%dat(1)
+   nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+   nGlce   = indx_data%var(iLookINDEX%nGlce)%dat(1)
+   nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+   if(nSnow==0 .or. nGlce==0 .or. nLake>0 .or. nSoil>0) exit ! only snow lying directly on glacier ice
+   if(prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow) < firnMaxIce) exit
+
+   depthLayer = prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow)
+   massLayer  = (iden_ice*prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow) &
+               + iden_water*prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow))*depthLayer
+
+   call rmBottomSnow(prog_data,prog_meta); if(err/=0) return
+   call rmBottomSnow(diag_data,diag_meta); if(err/=0) return
+   call rmBottomSnow(flux_data,flux_meta); if(err/=0) return
+   call rmBottomSnow(indx_data,indx_meta); if(err/=0) return
+
+   indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+   indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers-1
+   if(indx_data%var(iLookINDEX%nSnow)%dat(1) /= nSnow-1)then
+     err=20; message=trim(message)//'expect one snow layer fewer after turning firn into glacier ice'; return
+   end if
+   prog_data%var(iLookPROG%scalarGlceWE)%dat(1)    = prog_data%var(iLookPROG%scalarGlceWE)%dat(1) + massLayer
+   prog_data%var(iLookPROG%scalarSWE)%dat(1)       = max(prog_data%var(iLookPROG%scalarSWE)%dat(1) - massLayer, 0._rkind)
+   prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = max(prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) - depthLayer, 0._rkind)
+   nConvert = nConvert + 1
+ end do
+
+ if(nConvert>0)then
+   call calcHeight(indx_data,prog_data,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ end if
+
+ contains
+
+  ! remove the bottom snow layer from one structure, keeping the layer above it and the interface on the glacier ice
+  subroutine rmBottomSnow(dataStruct,metaStruct)
+  USE var_lookup,only:iLookVarType ! look up structure for variable typed
+  class(*),intent(inout)    :: dataStruct    ! data structure
+  type(var_info),intent(in) :: metaStruct(:) ! metadata structure
+  real(rkind)               :: keepMidR(size(metaStruct)),keepIfcR(size(metaStruct)) ! kept values (real)
+  integer(i4b)              :: keepMidI(size(metaStruct)),keepIfcI(size(metaStruct)) ! kept values (integer)
+  integer(i4b)              :: iVar          ! variable index
+  integer(i4b)              :: ixIfc         ! interface kept: the snow-glacier interface, or the surface if no snow is left
+  ixIfc = merge(nSnow, 0, nSnow>1)
+  do iVar=1,size(metaStruct)
+    select type(dataStruct)
+      type is (var_dlength)
+        select case(metaStruct(iVar)%varType)
+          case(iLookVarType%midSnow,iLookVarType%midToto); if(nSnow>1) keepMidR(iVar) = dataStruct%var(iVar)%dat(nSnow-1)
+          case(iLookVarType%ifcSnow,iLookVarType%ifcToto); keepIfcR(iVar) = dataStruct%var(iVar)%dat(ixIfc)
+        end select
+      type is (var_ilength)
+        select case(metaStruct(iVar)%varType)
+          case(iLookVarType%midSnow,iLookVarType%midToto); if(nSnow>1) keepMidI(iVar) = dataStruct%var(iVar)%dat(nSnow-1)
+          case(iLookVarType%ifcSnow,iLookVarType%ifcToto); keepIfcI(iVar) = dataStruct%var(iVar)%dat(ixIfc)
+        end select
+    end select
+  end do
+  call rmLyAllVars(.false.,dataStruct,metaStruct,nSnow-1,nSnow,nGlce,nLayers,err,cmessage) ! drops layer nSnow, blanks nSnow-1
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  do iVar=1,size(metaStruct)
+    select type(dataStruct)
+      type is (var_dlength)
+        select case(metaStruct(iVar)%varType)
+          case(iLookVarType%midSnow,iLookVarType%midToto); if(nSnow>1) dataStruct%var(iVar)%dat(nSnow-1) = keepMidR(iVar)
+          case(iLookVarType%ifcSnow,iLookVarType%ifcToto); dataStruct%var(iVar)%dat(nSnow-1) = keepIfcR(iVar)
+        end select
+      type is (var_ilength)
+        select case(metaStruct(iVar)%varType)
+          case(iLookVarType%midSnow,iLookVarType%midToto); if(nSnow>1) dataStruct%var(iVar)%dat(nSnow-1) = keepMidI(iVar)
+          case(iLookVarType%ifcSnow,iLookVarType%ifcToto); dataStruct%var(iVar)%dat(nSnow-1) = keepIfcI(iVar)
+        end select
+    end select
+  end do
+  end subroutine rmBottomSnow
+
+ end subroutine firnToIce
 
 end module layerMerge_module
