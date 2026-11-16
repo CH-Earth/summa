@@ -334,6 +334,12 @@ contains
     parFallback(iLookPARAM%glacierSnowFactor)%lower_limit = 0.5_rkind
     parFallback(iLookPARAM%glacierSnowFactor)%upper_limit = 5._rkind
   end if
+  ! wet snow compaction, 0 keeps dry-snow compaction; Vionnet et al. (2012) use 60
+  if (parFallback(iLookPARAM%wetSnowCompact)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%wetSnowCompact)%default_val = 0._rkind
+    parFallback(iLookPARAM%wetSnowCompact)%lower_limit = 0._rkind
+    parFallback(iLookPARAM%wetSnowCompact)%upper_limit = 120._rkind
+  end if
  end subroutine set_glacier_lake_defaults
 
  ! ************************************************************************************************

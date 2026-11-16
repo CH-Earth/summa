@@ -115,6 +115,7 @@ subroutine snowGlceDepth(&
                     mpar_data%var(iLookPARAM%densScalOvrbdn)%dat(1),   & ! intent(in):    density scaling factor for overburden pressure (kg-1 m3)
                     mpar_data%var(iLookPARAM%tempScalOvrbdn)%dat(1),   & ! intent(in):    temperature scaling factor for overburden pressure (K-1)
                     mpar_data%var(iLookPARAM%baseViscosity)%dat(1),    & ! intent(in):    viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+                    mpar_data%var(iLookPARAM%wetSnowCompact)%dat(1),   & ! intent(in):    increase of the overburden compaction rate per unit volumetric liquid water (-)
                     ! intent(inout): state variables
                     mLayerDepth(1:nSnow),                              & ! intent(inout): depth of each layer (m)
                     mLayerVolFracLiq(1:nSnow),                         & ! intent(inout): volumetric fraction of liquid water after iterations (-)
@@ -161,6 +162,7 @@ subroutine snowDensify(&
                       densScalOvrbdn,                 & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
                       tempScalOvrbdn,                 & ! intent(in): temperature scaling factor for overburden pressure (K-1)
                       baseViscosity,                  & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+                      wetSnowCompact,                 & ! intent(in): increase of the overburden compaction rate per unit volumetric liquid water (-)
                       ! intent(inout): state variables
                       mLayerDepth,                    & ! intent(inout): depth of each layer (m)
                       mLayerVolFracLiqNew,            & ! intent(inout):  volumetric fraction of liquid water after iterations (-)
@@ -181,6 +183,7 @@ subroutine snowDensify(&
   real(rkind),intent(in)              :: densScalOvrbdn           ! density scaling factor for overburden pressure (kg-1 m3)
   real(rkind),intent(in)              :: tempScalOvrbdn           ! temperature scaling factor for overburden pressure (K-1)
   real(rkind),intent(in)              :: baseViscosity            ! viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+  real(rkind),intent(in)              :: wetSnowCompact           ! increase of the overburden compaction rate per unit volumetric liquid water (-)
   ! intent(inout): state variables
   real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each layer (m)
   real(rkind),intent(inout)           :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each snow layer after iterations (-)
@@ -242,6 +245,7 @@ subroutine snowDensify(&
     chi4 = exp(-tempScalOvrbdn*(Tfreeze - mLayerTemp(iSnow)))       ! increase in compaction under colder snow temperatures (-)
     chi5 = exp(-densScalOvrbdn*mLayerVolFracIceNew(iSnow)*iden_ice) ! increase in compaction under low density snow (-)
     CR_ovrbdnPress = (weightSnow/baseViscosity)*chi4*chi5 ! compaction associated with over-burden pressure (s-1)
+    CR_ovrbdnPress = CR_ovrbdnPress*(1._rkind + wetSnowCompact*mLayerVolFracLiqNew(iSnow)) ! liquid water lowers the viscosity, Vionnet et al. (2012) eq. 8
     weightSnow = weightSnow + halfweight                  ! update the snow weight, add half of the weight from the current layer
 
     ! *** compute the compaction rate associated with snowmelt (s-1)
