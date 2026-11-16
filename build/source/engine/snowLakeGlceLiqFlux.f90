@@ -197,14 +197,12 @@ subroutine snowLakeGlceLiqFlux(&
           relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap ! relative saturation
           iLayerLiqFluxSnLaGl(iLayer)      = k_snow*relSaturn**mw_exp
           iLayerLiqFluxSnLaGlDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
-          if (mLayerVolFracIce(iLayer) > maxVolIceContent_use) then ! NOTE: use start-of-step ice content, to avoid convergence problems
-            ! ** allow liquid water to pass through under very high ice density
-            iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1)
-          end if
         else  ! flow does not occur
           iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         end if  ! storage above residual content
+        ! very dense snow passes its inflow straight through, above its residual or not, as the Jacobian assumes; start-of-step ice content
+        if (mLayerVolFracIce(iLayer) > maxVolIceContent_use) iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1)
       end do  ! end loop through snow/glce layers
     else ! ice
       if(ixTop==1) ixTop = 0 ! include the 0 index if the top layer is included, since surface flux downwards is 0 (impermeable) 
