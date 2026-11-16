@@ -339,7 +339,6 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%oudinPETScaleK1)                = var_info('oudinPETScaleK1'                , 'Oudin PET formula scaling factor'                                 , 'deg C'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%oudinPETTempThrK2)              = var_info('oudinPETTempThrK2'              , 'Oudin PET formula temperature threshold'                          , 'deg C'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%tempLapseRate)                  = var_info('tempLapseRate'                  , 'air temperature decrease per metre above the HRU elevation'      , 'K m-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%wetSnowCompact)                 = var_info('wetSnowCompact'                 , 'increase of the overburden compaction rate per unit volumetric liquid water', '-'  , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%firnViscosity)                  = var_info('firnViscosity'                  , 'viscosity of glacier firn under its overburden, scaled by the remaining pore space', 'Pa s', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin parameter data...
