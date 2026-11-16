@@ -239,3 +239,5 @@ tempLapseRate             |     0.006871 |       0.0000 |       0.0098
 glacierSnowFactor         |     1.000000 |       0.5000 |       5.0000
 oudinPETScaleK1           |   100.000000 |      10.0000 |     100.0000
 oudinPETTempThrK2         |     5.000000 |       0.0000 |      10.0000
+wetSnowCompact            |     0.000000 |       0.0000 |     120.0000
+firnViscosity             |   5.0000e+13 |   1.0000e+12 |   1.0000e+14
