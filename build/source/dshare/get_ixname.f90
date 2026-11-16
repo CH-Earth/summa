@@ -459,6 +459,7 @@ contains
   case('tempLapseRate'            ); get_ixParam = iLookPARAM%tempLapseRate          ! air temperature decrease per metre above the HRU elevation (K m-1)
   case('glacierSnowFactor'        ); get_ixParam = iLookPARAM%glacierSnowFactor      ! glacier-domain snowfall multiplier (-)
   case('wetSnowCompact'           ); get_ixParam = iLookPARAM%wetSnowCompact         ! increase of the overburden compaction rate per unit volumetric liquid water (-)
+  case('firnViscosity'            ); get_ixParam = iLookPARAM%firnViscosity          ! viscosity of glacier firn under its overburden, scaled by the remaining pore space (Pa s)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing

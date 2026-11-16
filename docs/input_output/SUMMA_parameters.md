@@ -49,6 +49,7 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `tempScalOvrbdn` | temperature scaling factor for overburden pressure | K-1 |
 | `baseViscosity` | viscosity coefficient at T=T_frz and snow density=0 | kg s m-2 |
 | `wetSnowCompact` | increase of the overburden compaction rate per unit volumetric liquid water; 0 for dry-snow compaction, 60 in Crocus (Vionnet et al., 2012) | - |
+| `firnViscosity` | viscosity of glacier firn under its overburden, scaled by the remaining pore space (Arthern et al., 2010); glacier domains only | Pa s |
 | `Fcapil` | capillary retention (fraction of total pore volume) | - |
 | `k_snow` | hydraulic conductivity of snow | m s-1 |
 | `mw_exp` | exponent for meltwater flow | - |

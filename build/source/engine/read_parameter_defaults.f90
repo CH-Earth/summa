@@ -340,6 +340,12 @@ contains
     parFallback(iLookPARAM%wetSnowCompact)%lower_limit = 0._rkind
     parFallback(iLookPARAM%wetSnowCompact)%upper_limit = 120._rkind
   end if
+  ! glacier firn compaction, fitted to the September 2023 firn core at Wolverine site EC
+  if (parFallback(iLookPARAM%firnViscosity)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%firnViscosity)%default_val = 5.e13_rkind
+    parFallback(iLookPARAM%firnViscosity)%lower_limit = 1.e12_rkind
+    parFallback(iLookPARAM%firnViscosity)%upper_limit = 1.e14_rkind
+  end if
  end subroutine set_glacier_lake_defaults
 
  ! ************************************************************************************************
