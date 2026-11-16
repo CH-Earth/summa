@@ -332,3 +332,4 @@ AFTER tag of v4.0.0-exp-Sundials
 -91) Homegrown solver also converges on the depth-integrated snow water residual; binds only in snow deeper than 1 m (glacier firn), commit 0cd46a4e Nov 10, 2026
  92) Sand, silt and clay fractions must be non-negative and add to one, commit 080e1b6e Nov 10, 2026
  93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 06e59ad2 Nov 11, 2026
+-94) snowLakeGlceLiqFlux.f90 very dense snow passes its inflow through even below its residual water, as the Jacobian assumes, commit 9a5ee16a Nov 16, 2026
