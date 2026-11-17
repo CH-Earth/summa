@@ -132,11 +132,16 @@ write_aligned = false
 [calibration.parameters]
 
 "frozenPrecipMultip@upland"  = {}
-"frozenPrecipMultip@glacier" = {}
 glacierWindFactor    = {}
 glacierTempReduction = {}
 albedoMax            = {}
 aquiferBaseflowExp   = {}
+
+
+# scales the glacier snowfall's elevation shape in trialParams.nc
+[calibration.spatial_multipliers]
+
+"frozenPrecipMultip@glacier" = { lower = 0.2, upper = 4.0 }
 
 
 [calibration.nsga2]
