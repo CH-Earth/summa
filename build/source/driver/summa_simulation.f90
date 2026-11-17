@@ -638,6 +638,7 @@ contains
     real(rkind)  :: simBaseline,obsBaseline
     integer(i4b) :: nBaseline
     logical(lgt) :: hasBaseline
+    logical(lgt), allocatable :: obsGain(:)  ! whether each observed balance is a gain, before any baseline is removed
     character(len=1024) :: cmessage
 
     err=0
@@ -678,6 +679,7 @@ contains
       endif
 
       hasBaseline=allocated(calTarget%baseline_start) .and. allocated(calTarget%baseline_end)
+      obsGain=valObs > 0._rkind
 
       ! For seasonal/annual balances, retain the existing baseline treatment.
       ! For other targets, baseline removal happens AFTER time alignment.
@@ -702,7 +704,7 @@ contains
 
       ! Calculate the change between seasonal extremes
       if(len_trim(calTarget%balance) > 0)then
-        call balance_between_extremes(timeVal,valSim,timeValUnits,timeObs,timeObsUnits, &
+        call balance_between_extremes(timeVal,valSim,timeValUnits,timeObs,timeObsUnits,obsGain, &
                                       calTarget%balance,calTarget%balance_window,       &
                                       valAnom,err,cmessage)
         if(err/=0)then
