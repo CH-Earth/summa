@@ -53,7 +53,7 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `firnViscosity` | viscosity of glacier firn under its overburden, scaled by the remaining pore space (Arthern et al., 2010); glacier domains only | Pa s |
 | `Fcapil` | capillary retention (fraction of total pore volume) | - |
 | `k_snow` | hydraulic conductivity of snow | m s-1 |
-| `mw_exp` | exponent for meltwater flow | - |
+| `mw_exp` | exponent on relative saturation in meltwater drainage | - |
 | `z0Water` | roughness length of open water | m |
 | `z0Ice` | roughness length of ice | m |
 | `z0Snow` | roughness length of snow | m |
@@ -143,7 +143,7 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `aquiferBaseflowRate` | baseflow rate when aquifer storage = aquiferScaleFactor | m s-1 |
 | `aquiferScaleFactor` | scaling factor for aquifer storage in the big bucket | m |
 | `aquiferBaseflowExp` | baseflow exponent | - |
-| `qSurfScale` | scaling factor in the surface runoff parameterization | - |
+| `qSurfScale` | shape of the infiltration area | - |
 | `specificYield` | specific yield | - |
 | `specificStorage` | specific storage coefficient | m-1 |
 | `f_impede` | ice impedence factor | - |

@@ -837,7 +837,7 @@ subroutine surfaceFlux(io_soilLiqFlux,in_surfaceFlux,io_surfaceFlux,out_surfaceF
   real(rkind)                      :: fInfRaw                             ! infiltrating area before imposing solution constraints (-)
   real(rkind),parameter            :: maxFracCap=0.995_rkind              ! maximum fraction capacity -- used to avoid numerical problems associated with an enormous derivative
   real(rkind),parameter            :: scaleFactor=0.000001_rkind          ! scale factor for the smoothing function (-)
-  real(rkind),parameter            :: qSurfScaleMax=1000._rkind           ! maximum surface runoff scaling factor (-)
+  real(rkind),parameter            :: qSurfScaleMax=1000._rkind           ! maximum shape of the infiltration area (-)
   ! fraction of impermeable area associated with frozen ground
   real(rkind)                      :: alpha                               ! shape parameter in the Gamma distribution
   real(rkind)                      :: xLimg                               ! upper limit of the integral
@@ -1615,7 +1615,7 @@ subroutine update_volFracLiq_derivatives
    mLayerDepth      => in_surfaceFlux % mLayerDepth         , & ! depth of each soil layer (m)
    ! input: soil parameters
    theta_sat        => in_surfaceFlux % theta_sat           , & ! soil porosity (-)
-   qSurfScale       => in_surfaceFlux % qSurfScale          , & ! scaling factor in the surface runoff parameterization (-)
+   qSurfScale       => in_surfaceFlux % qSurfScale          , & ! shape of the infiltration area (-)
    ! input-output: surface runoff and infiltration flux (m s-1)
    scalarInfilArea  => io_surfaceFlux % scalarInfilArea       & ! fraction of area where water can infiltrate, may be frozen (-)
   &)
