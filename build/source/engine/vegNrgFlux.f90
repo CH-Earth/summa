@@ -1802,10 +1802,10 @@ subroutine aeroResist(&
     groundExNeut = (vkc**2_i4b) / ( log(heightAboveGround/z0Ground)*log(heightAboveGround/z0hGround) ) ! turbulent transfer coefficient under conditions of neutral stability (-)
     groundResistanceNeutral = 1._rkind / (groundExNeut*windspd)
 
-    ! compute ground stability correction
+    ! compute ground stability correction; glacier and lake snow and ice take Mahrt (1987), as Louis (1979) suppresses turbulence over melting ice
     call aStability(&
                     ! input
-                    ixStability,                                      & ! input:  choice of stability function
+                    merge(mahrtExponential, ixStability, andreasScalar), & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
                     heightAboveGround,                                & ! input:  height difference from measurement height to surface -- "surface" is either snow or ground (m)
                     airtemp,                                          & ! input:  temperature at measurement height (K)
