@@ -108,6 +108,7 @@ contains
  real(rkind),parameter                :: co2Factor=355.e-6_rkind       ! empirical factor to obtain partial pressure of co2
  real(rkind),parameter                :: o2Factor=0.209_rkind          ! empirical factor to obtain partial pressure of o2
  real(rkind),parameter                :: minMeasHeight=1._rkind        ! minimum measurement height (m)
+ real(rkind),parameter                :: glacMeasHeight=2._rkind       ! height of the on-ice wind and air temperature the glacier factors give (m), Gulkana Site B
  real(rkind)                          :: relhum                        ! relative humidity (-)
  real(rkind)                          :: fracrain                      ! fraction of precipitation that falls as rain
  real(rkind)                          :: maxFrozenSnowTemp             ! maximum temperature of snow when the snow is predominantely frozen (K)
@@ -245,7 +246,12 @@ contains
  end if
 
  ! Ensure measurement height is above the snow surface
- adjMeasHeight = max(mHeight, scalarSnowDepth + minMeasHeight)
+ ! a glacier domain's air is the on-ice air the glacier factors give, not the HRU's above its vegetation
+ if (is_glac) then
+  adjMeasHeight = max(glacMeasHeight, scalarSnowDepth + minMeasHeight)
+ else
+  adjMeasHeight = max(mHeight, scalarSnowDepth + minMeasHeight)
+ endif
  
  ! Ensure measurement height is above the vegetation canopy
  if(has_canopy)then
