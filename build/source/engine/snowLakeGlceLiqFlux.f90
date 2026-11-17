@@ -121,7 +121,7 @@ subroutine snowLakeGlceLiqFlux(&
     mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat(nStart+1:nStart+nLayers),      & ! intent(in):    depth of each layer (m)
     Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
     k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
-    mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                                & ! intent(in):    exponent for meltwater flow (-)
+    mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                                & ! intent(in):    exponent on relative saturation in meltwater drainage (-)
     snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),                         & ! intent(in):    freezing curve scaling factor for snow (-)
     ! input-output: diagnostic variables -- only computed for the first iteration
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)

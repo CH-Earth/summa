@@ -197,7 +197,7 @@ MODULE var_lookup
   ! water flow within snow
   integer(i4b)    :: Fcapil                = integerMissing    ! capillary retention as a fraction of the total pore volume (-)
   integer(i4b)    :: k_snow                = integerMissing    ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
-  integer(i4b)    :: mw_exp                = integerMissing    ! exponent for meltwater flow (-)
+  integer(i4b)    :: mw_exp                = integerMissing    ! exponent on relative saturation in meltwater drainage (-)
   ! turbulent heat fluxes
   integer(i4b)    :: z0Water               = integerMissing    ! roughness length of water (m)
   integer(i4b)    :: z0Ice                 = integerMissing    ! roughness length of ice (m)
@@ -289,7 +289,7 @@ MODULE var_lookup
   integer(i4b)    :: aquiferBaseflowRate   = integerMissing    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   integer(i4b)    :: aquiferScaleFactor    = integerMissing    ! scaling factor for aquifer storage in the big bucket (m)
   integer(i4b)    :: aquiferBaseflowExp    = integerMissing    ! baseflow exponent (-)
-  integer(i4b)    :: qSurfScale            = integerMissing    ! scaling factor in the surface runoff parameterization (-)
+  integer(i4b)    :: qSurfScale            = integerMissing    ! shape of the infiltration area (-)
   integer(i4b)    :: specificYield         = integerMissing    ! specific yield (-)
   integer(i4b)    :: specificStorage       = integerMissing    ! specific storage coefficient (m-1)
   integer(i4b)    :: f_impede              = integerMissing    ! ice impedence factor (-)
