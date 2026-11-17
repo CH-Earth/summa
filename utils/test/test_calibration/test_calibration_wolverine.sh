@@ -132,7 +132,6 @@ write_aligned = false
 [calibration.parameters]
 
 frozenPrecipMultip   = {}
-tempCritRain         = {}
 glacierWindFactor    = {}
 glacierTempReduction = {}
 albedoMax            = {}

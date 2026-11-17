@@ -133,7 +133,6 @@ write_aligned = false
 
 "frozenPrecipMultip@upland"  = {}
 "frozenPrecipMultip@glacier" = {}
-tempCritRain         = {}
 glacierWindFactor    = {}
 glacierTempReduction = {}
 albedoMax            = {}
