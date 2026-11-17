@@ -662,7 +662,7 @@ subroutine vegNrgFlux(&
                         computeVegFlux,                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                         ix_veg_traits,                      & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
                         ix_windPrfile,                      & ! intent(in): choice of canopy wind profile
-                        ix_astability,                      & ! intent(in): choice of stability function
+                        merge(mahrtExponential, ix_astability, nGlce>0 .and. andreasScalar), & ! intent(in): stability function, Mahrt (1987) over glacier snow and ice, where Louis (1979) suppresses turbulence in the katabatic layer
                         ! input: above-canopy forcing data
                         mHeight,                            & ! intent(in): measurement height (m)
                         airtemp,                            & ! intent(in): air temperature at measurement height (K)
@@ -1802,10 +1802,10 @@ subroutine aeroResist(&
     groundExNeut = (vkc**2_i4b) / ( log(heightAboveGround/z0Ground)*log(heightAboveGround/z0hGround) ) ! turbulent transfer coefficient under conditions of neutral stability (-)
     groundResistanceNeutral = 1._rkind / (groundExNeut*windspd)
 
-    ! compute ground stability correction; glacier and lake snow and ice take Mahrt (1987), as Louis (1979) suppresses turbulence over melting ice
+    ! compute ground stability correction
     call aStability(&
                     ! input
-                    merge(mahrtExponential, ixStability, andreasScalar), & ! input:  choice of stability function
+                    ixStability,                                      & ! input:  choice of stability function
                     ! input: forcing data, diagnostic and state variables
                     heightAboveGround,                                & ! input:  height difference from measurement height to surface -- "surface" is either snow or ground (m)
                     airtemp,                                          & ! input:  temperature at measurement height (K)
