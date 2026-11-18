@@ -30,6 +30,7 @@ implicit none
 private
 
 public :: apply_parameter_overrides
+public :: apply_remainder_override
 public :: split_domain_target
 public :: targets_domain
 
@@ -112,7 +113,63 @@ contains
  enddo
 
  end subroutine apply_parameter_overrides
- 
+
+ ! ************************************************************************************************
+ ! public subroutine apply_remainder_override: set a parameter to what its sources leave of a total
+ ! ************************************************************************************************
+ ! in every domain the target selects, as the calibration's remainder dependency sets it (silt = 1 - sand - clay)
+ subroutine apply_remainder_override(nGRU_local,target,sources,total,mparStruct,err,message)
+ USE get_ixname_module,only:get_ixParam                      ! access function to find index of elements in structure
+ USE globalData,only:gru_struc                               ! mapping from GRUs to HRUs
+ implicit none
+ integer(i4b)                , intent(in)    :: nGRU_local   ! number of GRUs assigned to this rank
+ character(*)                , intent(in)    :: target       ! parameter set to the remainder, optionally name@domainType
+ character(*)                , intent(in)    :: sources(:)   ! parameters subtracted from the total
+ real(rkind)                 , intent(in)    :: total        ! total the parameter and its sources add to
+ type(gru_hru_dom_doubleVec) , intent(inout) :: mparStruct   ! model parameters for each local HRU and domain
+ integer(i4b)                , intent(out)   :: err          ! error code
+ character(*)                , intent(out)   :: message      ! error message
+ character(len=64)                           :: name         ! parameter name without its domain type
+ integer(i4b)                                :: domType      ! domain type of the target, 0 for every domain
+ integer(i4b)                                :: ixTarget     ! index of the target parameter
+ integer(i4b)                                :: ixSource(size(sources)) ! index of each source parameter
+ integer(i4b)                                :: iSource,iGRU,iHRU,iDOM,srcType
+ real(rkind)                                 :: tol          ! roundoff below zero that counts as zero
+
+ err=0; message='apply_remainder_override/'
+ call split_domain_target(target,name,domType)
+ ixTarget=get_ixParam(trim(name))
+ if(domType==integerMissing .or. ixTarget==integerMissing)then
+   message=trim(message)//'unable to identify remainder parameter "'//trim(target)//'"'
+   err=20; return
+ endif
+ do iSource=1,size(sources)
+   call split_domain_target(sources(iSource),name,srcType)
+   ixSource(iSource)=get_ixParam(trim(name))
+   if(srcType/=domType .or. ixSource(iSource)==integerMissing)then
+     message=trim(message)//'remainder source "'//trim(sources(iSource))//'" must be a model parameter of the domains of "'//trim(target)//'"'
+     err=20; return
+   endif
+ enddo
+
+ tol=128._rkind*epsilon(1._rkind)*max(1._rkind,abs(total))
+ do iGRU=1,nGRU_local
+   do iHRU=1,gru_struc(iGRU)%hruCount
+     do iDOM=1,gru_struc(iGRU)%hruInfo(iHRU)%domCount
+       if(.not.targets_domain(domType,gru_struc(iGRU)%hruInfo(iHRU)%domInfo(iDOM)%dom_type)) cycle
+       associate(dom=>mparStruct%gru(iGRU)%hru(iHRU)%dom(iDOM))
+         dom%var(ixTarget)%dat(:)=total
+         do iSource=1,size(sources)
+           dom%var(ixTarget)%dat(:)=dom%var(ixTarget)%dat(:)-dom%var(ixSource(iSource))%dat(:)
+         enddo
+         where(dom%var(ixTarget)%dat(:)<0._rkind .and. dom%var(ixTarget)%dat(:)>=-tol) dom%var(ixTarget)%dat(:)=0._rkind
+       end associate
+     enddo
+   enddo
+ enddo
+
+ end subroutine apply_remainder_override
+
  ! ************************************************************************************************
  ! public subroutine split_domain_target: split "name@domainType" into the parameter name and the domain type
  ! ************************************************************************************************
