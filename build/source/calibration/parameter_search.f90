@@ -660,39 +660,45 @@ contains
       ! ---------------------------------------------------------------------------------------------
       do d=1,nD                                              ! loop through all decision variables
         if(.not.N(d)) cycle                                  ! skip decision variables outside DDS neighborhood {N}
+        
+        ! transform parameter to search space
         call transform_parameter(x_best(d),                  & ! transform x_best(d) from physical to search space
                                  search%transformation(d),   & ! transformation for decision variable d
                                  x_best_d,                   & ! transformed value of x_best(d)
                                  err,cmessage)                 ! error code and message
-        if(err/=0)then
-          message=trim(message)//trim(cmessage)
-          return
-        endif
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        
+        ! obtain DDS perturbation
         x_min_d=search%search_lower(d)                        ! lower decision-variable bound in search space
         x_max_d=search%search_upper(d)                        ! upper decision-variable bound in search space
         sigma_d=r*(x_max_d-x_min_d)                          ! sigma_d = r [x_max(d) - x_min(d)]
         call random_normal(z)                                ! generate standard normal random variable N(0,1)
         x_new_d=x_best_d+sigma_d*z                           ! perturb x_best(d) to generate x_new(d)
-        if(x_new_d < x_min_d .or. x_new_d > x_max_d)then
-          last_rejection='proposal outside configured bounds'
-          cycle candidate_loop
-        endif
+        
+        ! reflect parameter if violate bounds
+        do while (x_new_d < x_min_d .or. x_new_d > x_max_d)
+          if (x_new_d < x_min_d) then
+            x_new_d = 2._rkind*x_min_d - x_new_d
+          else
+            x_new_d = 2._rkind*x_max_d - x_new_d
+          endif
+        enddo
+
+        ! back-transform parameter to physical space
         call inverse_transform_parameter(x_new_d,            & ! transform x_new(d) from search to physical space
                                          search%transformation(d), & ! transformation for decision variable d
                                          x_new(d),           & ! proposed physical-space value of dimension d
                                          err,cmessage)         ! error code and message
-        if(err/=0)then
-          message=trim(message)//trim(cmessage)
-          return
-        endif
-      enddo
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      
+      enddo  ! looping through decision variables
+      
+      ! check if parameter set is feasible
       call is_feasible(context,x_new,feasible,err,cmessage)
-      if(err/=0)then
-        message=trim(message)//trim(cmessage)
-        return
-      endif
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       if(feasible) return
       last_rejection=cmessage
+    
     enddo candidate_loop
     message=trim(message)//'DDS candidate retry limit reached; last rejection: '//trim(last_rejection)
     err=20
