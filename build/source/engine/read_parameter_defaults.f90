@@ -284,7 +284,7 @@ contains
     parFallback(iLookPARAM%z0Ice)%upper_limit = 0.05_rkind
   end if
   if (parFallback(iLookPARAM%glacierWindFactor)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierWindFactor)%default_val = 1._rkind
+    parFallback(iLookPARAM%glacierWindFactor)%default_val = 0.59_rkind    ! Gulkana Site B, Wilson et al. (2026)
     parFallback(iLookPARAM%glacierWindFactor)%lower_limit = 0.3_rkind
     parFallback(iLookPARAM%glacierWindFactor)%upper_limit = 1.5_rkind
   end if
@@ -294,7 +294,7 @@ contains
     parFallback(iLookPARAM%precipElevGrad)%upper_limit = 0.005_rkind
   end if
   if (parFallback(iLookPARAM%glacierTempReduction)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%glacierTempReduction)%default_val = 1._rkind
+    parFallback(iLookPARAM%glacierTempReduction)%default_val = 0.73_rkind ! Gulkana Site B, Wilson et al. (2026)
     parFallback(iLookPARAM%glacierTempReduction)%lower_limit = 0._rkind
     parFallback(iLookPARAM%glacierTempReduction)%upper_limit = 1._rkind
   end if
@@ -328,6 +328,12 @@ contains
     parFallback(iLookPARAM%tempLapseRate)%default_val = 0.006871_rkind
     parFallback(iLookPARAM%tempLapseRate)%lower_limit = 0._rkind
     parFallback(iLookPARAM%tempLapseRate)%upper_limit = 0.0098_rkind
+  end if
+  ! glacier firn compaction, fitted to the September 2023 firn core at Wolverine site EC
+  if (parFallback(iLookPARAM%firnViscosity)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%firnViscosity)%default_val = 5.e13_rkind
+    parFallback(iLookPARAM%firnViscosity)%lower_limit = 1.e12_rkind
+    parFallback(iLookPARAM%firnViscosity)%upper_limit = 1.e14_rkind
   end if
  end subroutine set_glacier_lake_defaults
 
@@ -374,9 +380,9 @@ contains
     parFallback(iLookBPAR%latMoraineWidth)%lower_limit = 0._rkind
     parFallback(iLookBPAR%latMoraineWidth)%upper_limit = 500._rkind
   endif
-  ! glacier flow, A = glenAFactor*2.4e-24 Pa-3 s-1 (Le Meur and Vincent, 2003; Maussion et al., 2019)
+  ! glacier flow, A = glenAFactor*2.4e-24 Pa-3 s-1 (Le Meur and Vincent, 2003; Maussion et al., 2019); default from ITS_LIVE speeds at Wolverine and Gulkana
   if (parFallback(iLookBPAR%glenAFactor)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookBPAR%glenAFactor)%default_val = 1._rkind
+    parFallback(iLookBPAR%glenAFactor)%default_val = 0.36_rkind
     parFallback(iLookBPAR%glenAFactor)%lower_limit = 0.1_rkind
     parFallback(iLookBPAR%glenAFactor)%upper_limit = 3._rkind
   endif

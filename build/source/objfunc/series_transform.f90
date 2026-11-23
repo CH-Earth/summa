@@ -271,18 +271,23 @@ contains
   ! simulated extremes are found where the simulation puts them, so a melt season that runs early or
   ! late is scored on its mass and not on its dates:
   !   seasonal  the extreme within windowDays of the observed date that is a turning point - the
-  !             maximum in spring, the minimum in autumn - less the opposite extreme in the year before it
+  !             maximum in spring, the minimum in autumn - less the opposite extreme in the year before it.
+  !             Where a short melt season or a mid-winter low puts both inside the window, the observed
+  !             balance says which it is: a gain (winter) ends at the maximum, a loss (summer) at the minimum
   !   annual    the minimum within windowDays of the observed date, less the minimum within windowDays
   !             of a year before that
-  ! A balance whose search reaches outside the simulation, or whose turning point is not clear, is NaN.
+  ! The simulation starts and ends a balance year, so every search is clipped to it, and an extreme on the
+  ! simulation's first or last step counts as a turning point: the last summer of a run that ends on 30 September
+  ! ends there.  A balance whose window the simulation covers less than half of, or that has no turning point, is NaN.
   ! **************************************************************************************************
-  subroutine balance_between_extremes(timeSim,storage,timeSimUnits,timeObs,timeObsUnits, &
+  subroutine balance_between_extremes(timeSim,storage,timeSimUnits,timeObs,timeObsUnits,obsGain, &
                                       balance,windowDays,simAtObs,err,message)
     real(rkind),              intent(in)  :: timeSim(:)     ! simulated time coordinate
     real(rkind),              intent(in)  :: storage(:)     ! simulated storage
     character(*),             intent(in)  :: timeSimUnits   ! units of the simulated time coordinate
     real(rkind),              intent(in)  :: timeObs(:)     ! times of the observed balances
     character(*),             intent(in)  :: timeObsUnits   ! units of the observed time coordinate
+    logical(lgt),             intent(in)  :: obsGain(:)     ! whether each observed balance is a gain (winter)
     character(*),             intent(in)  :: balance        ! seasonal or annual
     real(rkind),              intent(in)  :: windowDays     ! half-width of the search for an extreme (days)
     real(rkind), allocatable, intent(out) :: simAtObs(:)    ! simulated balance at each observed time
@@ -290,7 +295,7 @@ contains
     character(*),             intent(out) :: message        ! error message
     real(rkind), parameter    :: yearDays=365._rkind
     real(rkind), allocatable  :: daySim(:),dayObs(:)
-    real(rkind)  :: nan
+    real(rkind)  :: nan,lo,hi
     integer(i4b) :: i,iEnd,iStart,iMax,iMin
     logical(lgt) :: maxTurns,minTurns
 
@@ -298,6 +303,10 @@ contains
     message='balance_between_extremes/'
     if(size(timeSim) /= size(storage))then
       message=trim(message)//'the time and value vectors have different lengths'
+      err=20; return
+    endif
+    if(size(obsGain) /= size(timeObs))then
+      message=trim(message)//'the observed times and balances have different lengths'
       err=20; return
     endif
     if(trim(balance)/='seasonal' .and. trim(balance)/='annual')then
@@ -317,20 +326,27 @@ contains
 
     do i=1,size(dayObs)
       simAtObs(i)=nan
+      lo=max(dayObs(i)-windowDays,daySim(1))
+      hi=min(dayObs(i)+windowDays,daySim(size(daySim)))
+      if(hi-lo < windowDays) cycle
       if(trim(balance)=='annual')then
-        iEnd=extreme_in(dayObs(i)-windowDays,dayObs(i)+windowDays,.false.)
+        iEnd=extreme_in(lo,hi,.false.)
         if(iEnd==0) cycle
-        iStart=extreme_in(daySim(iEnd)-yearDays-windowDays,daySim(iEnd)-yearDays+windowDays,.false.)
+        lo=max(daySim(iEnd)-yearDays-windowDays,daySim(1))
+        hi=min(daySim(iEnd)-yearDays+windowDays,daySim(size(daySim)))
+        if(hi-lo < windowDays) cycle
+        iStart=extreme_in(lo,hi,.false.)
       else
         ! the balance ends at whichever extreme turns inside the window; the other lies on its edge
-        iMax=extreme_in(dayObs(i)-windowDays,dayObs(i)+windowDays,.true.)
-        iMin=extreme_in(dayObs(i)-windowDays,dayObs(i)+windowDays,.false.)
+        iMax=extreme_in(lo,hi,.true.)
+        iMin=extreme_in(lo,hi,.false.)
         if(iMax==0 .or. iMin==0) cycle
-        maxTurns=turns(iMax,dayObs(i)-windowDays,dayObs(i)+windowDays)
-        minTurns=turns(iMin,dayObs(i)-windowDays,dayObs(i)+windowDays)
-        if(maxTurns .eqv. minTurns) cycle
+        maxTurns=turns(iMax,lo,hi)
+        minTurns=turns(iMin,lo,hi)
+        if(.not.(maxTurns .or. minTurns)) cycle
+        if(maxTurns .and. minTurns) maxTurns=obsGain(i)  ! both turn: the observed season decides
         iEnd=merge(iMax,iMin,maxTurns)
-        iStart=extreme_in(daySim(iEnd)-yearDays,daySim(iEnd),.not.maxTurns)
+        iStart=extreme_in(max(daySim(iEnd)-yearDays,daySim(1)),daySim(iEnd),.not.maxTurns)
       endif
       if(iStart==0) cycle
       simAtObs(i)=storage(iEnd)-storage(iStart)
@@ -361,12 +377,15 @@ contains
       enddo
     end function extreme_in
 
-    ! whether an extreme lies inside [dayLo,dayHi] by more than a day, rather than on its edge
+    ! whether an extreme lies inside [dayLo,dayHi] by more than a day, rather than on its edge; an edge that is
+    ! the simulation's own start or end does not count as one
     pure function turns(ix,dayLo,dayHi) result(inside)
       integer(i4b), intent(in) :: ix
       real(rkind),  intent(in) :: dayLo,dayHi
       logical(lgt)             :: inside
-      inside = daySim(ix) > dayLo+1._rkind .and. daySim(ix) < dayHi-1._rkind
+      real(rkind), parameter   :: tol=1.e-6_rkind
+      inside = (daySim(ix) > dayLo+1._rkind .or. dayLo <= daySim(1)+tol) .and. &
+               (daySim(ix) < dayHi-1._rkind .or. dayHi >= daySim(size(daySim))-tol)
     end function turns
 
   end subroutine balance_between_extremes

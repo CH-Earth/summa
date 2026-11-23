@@ -662,7 +662,7 @@ subroutine vegNrgFlux(&
                         computeVegFlux,                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
                         ix_veg_traits,                      & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
                         ix_windPrfile,                      & ! intent(in): choice of canopy wind profile
-                        ix_astability,                      & ! intent(in): choice of stability function
+                        merge(mahrtExponential, ix_astability, nGlce>0 .and. andreasScalar), & ! intent(in): stability function, Mahrt (1987) over glacier snow and ice, where Louis (1979) suppresses turbulence in the katabatic layer
                         ! input: above-canopy forcing data
                         mHeight,                            & ! intent(in): measurement height (m)
                         airtemp,                            & ! intent(in): air temperature at measurement height (K)

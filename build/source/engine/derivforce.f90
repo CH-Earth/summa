@@ -108,6 +108,7 @@ contains
  real(rkind),parameter                :: co2Factor=355.e-6_rkind       ! empirical factor to obtain partial pressure of co2
  real(rkind),parameter                :: o2Factor=0.209_rkind          ! empirical factor to obtain partial pressure of o2
  real(rkind),parameter                :: minMeasHeight=1._rkind        ! minimum measurement height (m)
+ real(rkind),parameter                :: bareMeasHeight=2._rkind       ! measurement height over a domain without a canopy (m), that of the on-ice air the glacier factors give at Gulkana Site B
  real(rkind)                          :: relhum                        ! relative humidity (-)
  real(rkind)                          :: fracrain                      ! fraction of precipitation that falls as rain
  real(rkind)                          :: maxFrozenSnowTemp             ! maximum temperature of snow when the snow is predominantely frozen (K)
@@ -245,7 +246,12 @@ contains
  end if
 
  ! Ensure measurement height is above the snow surface
- adjMeasHeight = max(mHeight, scalarSnowDepth + minMeasHeight)
+ ! a domain without a canopy (glacier, wetland, stream) takes screen-level air, not the HRU's height above its vegetation
+ if (.not. has_canopy) then
+  adjMeasHeight = max(bareMeasHeight, scalarSnowDepth + minMeasHeight)
+ else
+  adjMeasHeight = max(mHeight, scalarSnowDepth + minMeasHeight)
+ endif
  
  ! Ensure measurement height is above the vegetation canopy
  if(has_canopy)then

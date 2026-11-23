@@ -13,6 +13,8 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `tempCritRain` | critical temperature where precipitation is rain | K |
 | `tempRangeTimestep` | temperature range over the time step | K |
 | `frozenPrecipMultip` | frozen precipitation multiplier | - |
+| `precipElevGrad` | fractional change in precipitation per metre above the HRU | m-1 |
+| `tempLapseRate` | air temperature decrease per metre above the HRU elevation | K m-1 |
 | `snowfrz_scale` | scaling parameter for the freezing curve for snow | K-1 |
 | `fixedThermalCond_snow` | temporally constant thermal conductivity for snow | W m-1 K-1 |
 | `albedoMax` | maximum snow albedo (single spectral band) | - |
@@ -48,9 +50,10 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `densScalOvrbdn` | density scaling factor for overburden pressure | kg-1 m3 |
 | `tempScalOvrbdn` | temperature scaling factor for overburden pressure | K-1 |
 | `baseViscosity` | viscosity coefficient at T=T_frz and snow density=0 | kg s m-2 |
+| `firnViscosity` | viscosity of glacier firn under its overburden, scaled by the remaining pore space (Arthern et al., 2010); glacier domains only | Pa s |
 | `Fcapil` | capillary retention (fraction of total pore volume) | - |
 | `k_snow` | hydraulic conductivity of snow | m s-1 |
-| `mw_exp` | exponent for meltwater flow | - |
+| `mw_exp` | exponent on relative saturation in meltwater drainage | - |
 | `z0Water` | roughness length of open water | m |
 | `z0Ice` | roughness length of ice | m |
 | `z0Snow` | roughness length of snow | m |
@@ -65,6 +68,8 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `windReductionParam` | canopy wind reduction parameter | - |
 | `glacierWindFactor` | wind speed factor to account for glacier sheltering and katabatic wind profile | - |
 | `glacierTempReduction` | air temperature factor decrease to account for down-glacier katabatic wind | - |
+| `oudinPETScaleK1` | Oudin PET formula scaling factor | deg C |
+| `oudinPETTempThrK2` | Oudin PET formula temperature threshold | deg C |
 | `Kc25` | Michaelis-Menten constant for CO2 at 25 degrees C | umol mol-1 |
 | `Ko25` | Michaelis-Menten constant for O2 at 25 degrees C | mol mol-1 |
 | `Kc_qFac` | factor in the q10 function defining temperature controls on Kc | - |
@@ -138,7 +143,7 @@ These are the spatially constant, HRU-level parameters set in the [local paramet
 | `aquiferBaseflowRate` | baseflow rate when aquifer storage = aquiferScaleFactor | m s-1 |
 | `aquiferScaleFactor` | scaling factor for aquifer storage in the big bucket | m |
 | `aquiferBaseflowExp` | baseflow exponent | - |
-| `qSurfScale` | scaling factor in the surface runoff parameterization | - |
+| `qSurfScale` | shape of the infiltration area | - |
 | `specificYield` | specific yield | - |
 | `specificStorage` | specific storage coefficient | m-1 |
 | `f_impede` | ice impedence factor | - |

@@ -121,7 +121,7 @@ subroutine snowLakeGlceLiqFlux(&
     mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat(nStart+1:nStart+nLayers),      & ! intent(in):    depth of each layer (m)
     Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                                & ! intent(in):    capillary retention as a fraction of the total pore volume (-)
     k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                                & ! intent(in):    hydraulic conductivity of snow (m s-1)    
-    mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                                & ! intent(in):    exponent for meltwater flow (-)
+    mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                                & ! intent(in):    exponent on relative saturation in meltwater drainage (-)
     snowfrz_scale    => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),                         & ! intent(in):    freezing curve scaling factor for snow (-)
     ! input-output: diagnostic variables -- only computed for the first iteration
     mLayerPoreSpace  => diag_data%var(iLookDIAG%mLayerPoreSpace)%dat(nStart+1:nStart+nLayers),  & ! intent(inout): pore space in each layer (-)
@@ -149,7 +149,7 @@ subroutine snowLakeGlceLiqFlux(&
 
     ! get the inputs for the snow layers
     if(is_glac) then  ! snow can be firn
-      residThrs = 550._rkind ! firn density threshold to reduce residual liquid water content (kg m-3), maybe should be 800?
+      residThrs = 830._rkind ! firn holds water until its pores close off (kg m-3)
       maxVolIceContent_use = min(maxVolIceContent+0.15,0.85_rkind) ! firn maximum volumetric ice content to store water (-)
     else ! snow
       residThrs = 550._rkind ! snow density threshold to reduce residual liquid water
@@ -197,14 +197,12 @@ subroutine snowLakeGlceLiqFlux(&
           relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap ! relative saturation
           iLayerLiqFluxSnLaGl(iLayer)      = k_snow*relSaturn**mw_exp
           iLayerLiqFluxSnLaGlDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
-          if (mLayerVolFracIce(iLayer) > maxVolIceContent_use) then ! NOTE: use start-of-step ice content, to avoid convergence problems
-            ! ** allow liquid water to pass through under very high ice density
-            iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1)
-          end if
         else  ! flow does not occur
           iLayerLiqFluxSnLaGl(iLayer)      = 0._rkind
           iLayerLiqFluxSnLaGlDeriv(iLayer) = 0._rkind
         end if  ! storage above residual content
+        ! very dense snow passes its inflow straight through, above its residual or not, as the Jacobian assumes; start-of-step ice content
+        if (mLayerVolFracIce(iLayer) > maxVolIceContent_use) iLayerLiqFluxSnLaGl(iLayer) = iLayerLiqFluxSnLaGl(iLayer) + iLayerLiqFluxSnLaGl(iLayer-1)
       end do  ! end loop through snow/glce layers
     else ! ice
       if(ixTop==1) ixTop = 0 ! include the 0 index if the top layer is included, since surface flux downwards is 0 (impermeable) 

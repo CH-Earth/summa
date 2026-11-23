@@ -3,8 +3,8 @@
 # Multi-objective calibration over two GRUs: Gulkana (GRU 1) and Wolverine (GRU 2) glaciers.
 #
 # NSGA-II on each basin's routed discharge (KGE) and its GRACE storage anomaly (RMSE, relative to the run
-# period), Oct 2016 - Jul 2018 after a spin-up from Oct 2015, over six snow, glacier and groundwater
-# parameters. It tests that a calibration scores several targets on several GRUs and reaches; the budget is
+# period), Oct 2016 - Jul 2018 after a spin-up from Oct 2015, over seven snow, glacier and groundwater
+# parameters, the snowfall multiplier apart on the upland and the glaciers. It tests that a calibration scores several targets on several GRUs and reaches; the budget is
 # tiny, so it calibrates nothing.
 #
 # Needs an executable built with -DUSE_MPI=ON -DUSE_MIZUROUTE=ON. Each GRU drains to its own reach:
@@ -131,12 +131,17 @@ write_aligned = false
 
 [calibration.parameters]
 
-frozenPrecipMultip   = {}
-tempCritRain         = {}
+"frozenPrecipMultip@upland"  = {}
 glacierWindFactor    = {}
 glacierTempReduction = {}
 albedoMax            = {}
 aquiferBaseflowExp   = {}
+
+
+# scales the glacier snowfall's elevation shape in trialParams.nc
+[calibration.spatial_multipliers]
+
+"frozenPrecipMultip@glacier" = { lower = 0.2, upper = 4.0 }
 
 
 [calibration.nsga2]

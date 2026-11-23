@@ -610,7 +610,7 @@ contains
     ! a name@domainType parameter takes the default and bounds of the parameter it names
     call split_domain_target(param_name,name,domType)
     if(domType==integerMissing)then
-      message=trim(message)//'unknown domain type in "'//trim(param_name)//'" (use upland, glacCln1, glacCln2, glacDbr, wetland or stream)'
+      message=trim(message)//'unknown domain type in "'//trim(param_name)//'" (use upland, glacCln1, glacCln2, glacDbr, glacier, wetland or stream)'
       err=20; return
     endif
   

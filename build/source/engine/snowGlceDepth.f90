@@ -10,6 +10,7 @@ USE data_types,only:&
 ! constants
 USE multiconst,only:&
                     Tfreeze,      & ! freezing temperature (K)
+                    gravity,      & ! acceleration of gravity (m s-2)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_air,     & ! intrinsic density of air (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
@@ -115,6 +116,8 @@ subroutine snowGlceDepth(&
                     mpar_data%var(iLookPARAM%densScalOvrbdn)%dat(1),   & ! intent(in):    density scaling factor for overburden pressure (kg-1 m3)
                     mpar_data%var(iLookPARAM%tempScalOvrbdn)%dat(1),   & ! intent(in):    temperature scaling factor for overburden pressure (K-1)
                     mpar_data%var(iLookPARAM%baseViscosity)%dat(1),    & ! intent(in):    viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+                    mpar_data%var(iLookPARAM%firnViscosity)%dat(1),    & ! intent(in):    viscosity of glacier firn under its overburden (Pa s)
+                    nGlce>0,                                           & ! intent(in):    flag that the snow lies on a glacier
                     ! intent(inout): state variables
                     mLayerDepth(1:nSnow),                              & ! intent(inout): depth of each layer (m)
                     mLayerVolFracLiq(1:nSnow),                         & ! intent(inout): volumetric fraction of liquid water after iterations (-)
@@ -161,6 +164,8 @@ subroutine snowDensify(&
                       densScalOvrbdn,                 & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
                       tempScalOvrbdn,                 & ! intent(in): temperature scaling factor for overburden pressure (K-1)
                       baseViscosity,                  & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+                      firnViscosity,                  & ! intent(in): viscosity of glacier firn under its overburden (Pa s)
+                      onGlacier,                      & ! intent(in): flag that the snow lies on a glacier
                       ! intent(inout): state variables
                       mLayerDepth,                    & ! intent(inout): depth of each layer (m)
                       mLayerVolFracLiqNew,            & ! intent(inout):  volumetric fraction of liquid water after iterations (-)
@@ -181,6 +186,8 @@ subroutine snowDensify(&
   real(rkind),intent(in)              :: densScalOvrbdn           ! density scaling factor for overburden pressure (kg-1 m3)
   real(rkind),intent(in)              :: tempScalOvrbdn           ! temperature scaling factor for overburden pressure (K-1)
   real(rkind),intent(in)              :: baseViscosity            ! viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+  real(rkind),intent(in)              :: firnViscosity            ! viscosity of glacier firn under its overburden (Pa s)
+  logical(lgt),intent(in)             :: onGlacier                ! flag that the snow lies on a glacier
   ! intent(inout): state variables
   real(rkind),intent(inout)           :: mLayerDepth(:)           ! depth of each layer (m)
   real(rkind),intent(inout)           :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each snow layer after iterations (-)
@@ -197,6 +204,9 @@ subroutine snowDensify(&
   real(rkind)                         :: CR_grainGrowth              ! compaction rate for grain growth (s-1)
   real(rkind)                         :: CR_ovrbdnPress              ! compaction rate associated with over-burden pressure (s-1)
   real(rkind)                         :: CR_metamorph                ! compaction rate for metamorphism (s-1)
+  real(rkind)                         :: CR_firn                     ! compaction rate of glacier firn (s-1)
+  real(rkind),parameter               :: firnActEnergy=60000._rkind  ! activation energy of firn compaction (J mol-1), Arthern et al. (2010)
+  real(rkind),parameter               :: gasConstant=8.314_rkind     ! universal gas constant (J mol-1 K-1)
   real(rkind)                         :: massIceOld                  ! mass of ice in the snow layer (kg m-2)
   real(rkind)                         :: massLiqOld                  ! mass of liquid water in the snow layer (kg m-2)
   real(rkind)                         :: scalarDepthNew              ! updated layer depth (m)
@@ -242,6 +252,12 @@ subroutine snowDensify(&
     chi4 = exp(-tempScalOvrbdn*(Tfreeze - mLayerTemp(iSnow)))       ! increase in compaction under colder snow temperatures (-)
     chi5 = exp(-densScalOvrbdn*mLayerVolFracIceNew(iSnow)*iden_ice) ! increase in compaction under low density snow (-)
     CR_ovrbdnPress = (weightSnow/baseViscosity)*chi4*chi5 ! compaction associated with over-burden pressure (s-1)
+    ! glacier firn: d(rho)/dt = sigma*(rho_ice - rho)/firnViscosity (Arthern et al., 2010), taking over where it compacts faster
+    if(onGlacier)then
+      CR_firn = gravity*weightSnow*(1._rkind - mLayerVolFracIceNew(iSnow))/(firnViscosity*mLayerVolFracIceNew(iSnow)) &
+              * exp(-firnActEnergy/gasConstant*(1._rkind/min(mLayerTemp(iSnow),Tfreeze) - 1._rkind/Tfreeze))
+      CR_ovrbdnPress = max(CR_ovrbdnPress, CR_firn)
+    end if
     weightSnow = weightSnow + halfweight                  ! update the snow weight, add half of the weight from the current layer
 
     ! *** compute the compaction rate associated with snowmelt (s-1)

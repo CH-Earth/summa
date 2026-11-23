@@ -197,7 +197,7 @@ MODULE var_lookup
   ! water flow within snow
   integer(i4b)    :: Fcapil                = integerMissing    ! capillary retention as a fraction of the total pore volume (-)
   integer(i4b)    :: k_snow                = integerMissing    ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
-  integer(i4b)    :: mw_exp                = integerMissing    ! exponent for meltwater flow (-)
+  integer(i4b)    :: mw_exp                = integerMissing    ! exponent on relative saturation in meltwater drainage (-)
   ! turbulent heat fluxes
   integer(i4b)    :: z0Water               = integerMissing    ! roughness length of water (m)
   integer(i4b)    :: z0Ice                 = integerMissing    ! roughness length of ice (m)
@@ -289,7 +289,7 @@ MODULE var_lookup
   integer(i4b)    :: aquiferBaseflowRate   = integerMissing    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   integer(i4b)    :: aquiferScaleFactor    = integerMissing    ! scaling factor for aquifer storage in the big bucket (m)
   integer(i4b)    :: aquiferBaseflowExp    = integerMissing    ! baseflow exponent (-)
-  integer(i4b)    :: qSurfScale            = integerMissing    ! scaling factor in the surface runoff parameterization (-)
+  integer(i4b)    :: qSurfScale            = integerMissing    ! shape of the infiltration area (-)
   integer(i4b)    :: specificYield         = integerMissing    ! specific yield (-)
   integer(i4b)    :: specificStorage       = integerMissing    ! specific storage coefficient (m-1)
   integer(i4b)    :: f_impede              = integerMissing    ! ice impedence factor (-)
@@ -362,6 +362,8 @@ MODULE var_lookup
   integer(i4b)    :: oudinPETTempThrK2     = integerMissing    ! Oudin PET formula temperature threshold (deg C)
   ! air temperature lapse from the HRU to its domains
   integer(i4b)    :: tempLapseRate         = integerMissing    ! air temperature decrease per metre above the HRU elevation (K m-1)
+  ! glacier firn compaction
+  integer(i4b)    :: firnViscosity         = integerMissing    ! viscosity of glacier firn under its overburden, scaled by the remaining pore space (Pa s)
  endtype iLook_param
 
  ! ***********************************************************************************************************
@@ -1042,7 +1044,7 @@ MODULE var_lookup
                                                                         171,172,173,174,175,176,177,178,179,180,&
                                                                         181,182,183,184,185,186,187,188,189,190,&
                                                                         191,192,193,194,195,196,197,198,199,200,&
-                                                                        201)
+                                                                        201,202)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

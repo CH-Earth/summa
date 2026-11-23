@@ -6,6 +6,7 @@ module summa_parameter_fields
   use parameter_search, only: parameter_spec,parameter_search_info,param_ratio
   use parameter_fields, only: parameter_field,spatial_parameter_field,field_is_finite,apply_parameter_sample
   use model_calibration, only: model_calibration_context,initialize_model_constraints
+  use parameter_overrides_module, only: targets_domain
   implicit none
   private
 
@@ -160,7 +161,7 @@ contains
     type(summa_parameter_map), intent(in) :: map
     integer(i4b), intent(in) :: g,h,d
     selected_domain=.true.
-    if(map%domain_type/=0) selected_domain=map%domain_type==gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type
+    if(map%domain_type/=0) selected_domain=targets_domain(map%domain_type,gru_struc(g)%hruInfo(h)%domInfo(d)%dom_type)
   end function selected_domain
 
   ! Validate the model-specific boundary, then copy native arrays directly.

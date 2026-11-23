@@ -156,6 +156,7 @@ subroutine coupled_em(&
   USE canopySnow_module,only:canopySnow                         ! compute interception and unloading of snow from the vegetation canopy
   USE volicePack_module,only:newsnwfall                         ! compute change in the top snow layer due to throughfall and unloading
   USE volicePack_module,only:volicePack                         ! merge and sub-divide snow layers, if necessary
+  USE layerMerge_module,only:firnToIce                          ! turn firn at the bottom of the snow on glacier ice into glacier ice
   USE layerDivide_module,only:layerDivide                       ! sub-divide layers if they are too thick
   USE thermConductivity_module,only:init_thermConductivity      ! compute initialthermal conductivity of soil and snow layers  
   USE heat_Cp_Cm_module,only:init_heatCapacity                  ! compute initial heat capacity (Cp)
@@ -330,6 +331,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: use_lookup               ! flag to use the lookup table for soil enthalpy, otherwise use analytical solution
   real(rkind), allocatable             :: depthGlceTopLayer(:)     ! depth of the top glacier ice layers at the start of the time step (m)
   integer(i4b)                         :: noThetaChange            ! number of layers with no change in total water content (bottom layers)
+  integer(i4b)                         :: nFirnToIce               ! number of firn layers turned into glacier ice
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="coupled_em/"
@@ -349,6 +351,10 @@ subroutine coupled_em(&
   ! check if the aquifer is included
   includeAquifer = (model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket)
   if (indx_data%var(iLookINDEX%nGlce)%dat(1) > 0) includeAquifer = .false. ! no aquifer in glacier domain
+
+  ! firn at pore close-off becomes glacier ice before the step's storage is counted, so no balance sees the move
+  call firnToIce(prog_data,diag_data,flux_data,indx_data,nFirnToIce,err,cmessage)
+  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
   ! initialize variables
   call initialize_coupled_em

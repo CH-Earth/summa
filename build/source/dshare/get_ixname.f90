@@ -293,7 +293,7 @@ contains
   ! water flow through snow
   case('Fcapil'                   ); get_ixParam = iLookPARAM%Fcapil                 ! capillary retention as a fraction of the total pore volume (-)
   case('k_snow'                   ); get_ixParam = iLookPARAM%k_snow                 ! hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
-  case('mw_exp'                   ); get_ixParam = iLookPARAM%mw_exp                 ! exponent for meltwater flow (-)
+  case('mw_exp'                   ); get_ixParam = iLookPARAM%mw_exp                 ! exponent on relative saturation in meltwater drainage (-)
   ! turbulent heat fluxes
   case('z0Water'                  ); get_ixParam = iLookPARAM%z0Water                ! roughness length of open water (m)
   case('z0Ice'                    ); get_ixParam = iLookPARAM%z0Ice                  ! roughness length of ice (m) 
@@ -385,7 +385,7 @@ contains
   case('aquiferBaseflowRate'      ); get_ixParam = iLookPARAM%aquiferBaseflowRate    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   case('aquiferScaleFactor'       ); get_ixParam = iLookPARAM%aquiferScaleFactor     ! scaling factor for aquifer storage in the big bucket (m)
   case('aquiferBaseflowExp'       ); get_ixParam = iLookPARAM%aquiferBaseflowExp     ! baseflow exponent (-)
-  case('qSurfScale'               ); get_ixParam = iLookPARAM%qSurfScale             ! scaling factor in the surface runoff parameterization (-)
+  case('qSurfScale'               ); get_ixParam = iLookPARAM%qSurfScale             ! shape of the infiltration area (-)
   case('specificYield'            ); get_ixParam = iLookPARAM%specificYield          ! specific yield (-)
   case('specificStorage'          ); get_ixParam = iLookPARAM%specificStorage        ! specific storage coefficient (m-1)
   case('f_impede'                 ); get_ixParam = iLookPARAM%f_impede               ! ice impedence factor (-)
@@ -457,6 +457,7 @@ contains
   case('oudinPETScaleK1'          ); get_ixParam = iLookPARAM%oudinPETScaleK1        ! Oudin PET formula scaling factor (deg C)
   case('oudinPETTempThrK2'        ); get_ixParam = iLookPARAM%oudinPETTempThrK2      ! Oudin PET formula temperature threshold (deg C)
   case('tempLapseRate'            ); get_ixParam = iLookPARAM%tempLapseRate          ! air temperature decrease per metre above the HRU elevation (K m-1)
+  case('firnViscosity'            ); get_ixParam = iLookPARAM%firnViscosity          ! viscosity of glacier firn under its overburden, scaled by the remaining pore space (Pa s)
   ! get to here if cannot find the variable
   case default
    get_ixParam = integerMissing
