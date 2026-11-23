@@ -1072,7 +1072,6 @@ subroutine update_volFracLiq_derivatives
   ! **** updates the derivatives for volumetric fraction of liquid and ice water in each soil layer ****
   ! local variables
   integer(i4b)      :: nLayers         ! number of soil layers to process
-  logical(lgt)      :: doIce           ! flag indicating whether ice derivatives are needed
 
   associate(&
    ! input: model control
@@ -1090,43 +1089,27 @@ subroutine update_volFracLiq_derivatives
    message  => out_surfaceFlux % message  & ! error message
   &)
 
-   ! determine number of layers to process and whether ice derivatives are needed
-   if (surfRun_SE ==homegrown_SE) then ! need only root zone derivatives but need ice derivatives
+  ! decide how many layers to process for the derivatives
+   if (surfRun_SE == homegrown_SE .or. surfRun_SE == zero_SE) then ! only root zone derivatives needed
      nLayers = nRoots
-     doIce = .true.
-   else ! might need entire soil column (FUSE methods), might need ice derivatives (infiltration excess method)
-     if (ixInfRateMax_use == noInfiltrationExcess) then
-       if (surfRun_SE ==zero_SE) then ! no derivatives needed
-         nLayers = 0
-         doIce = .false.
-       else ! FUSE methods do not need ice derivatives
-         nLayers = nSoil
-         doIce = .false.
-       end if
-     else ! infiltration excess method needs ice derivatives in root zone
-       if (surfRun_SE == zero_SE) then ! only need root zone derivatives
-         nLayers = nRoots
-         doIce = .true.
-       else ! FUSE methods need soil column derivatives, will compute unused ice derivatives for layers beyond root zone 
-         nLayers = nSoil
-         doIce = .true.
-       end if
-     end if ! (if ixInfRateMax_use)
-   end if ! (if homegrown_SE)
+   else ! FUSE methods need soil column liquid derivatives, ice beyond root zone is unused
+     nLayers = nSoil
+   end if
 
+   ! compute the derivatives in volumetric fraction of liquid and ice water w.r.t. water and energy state variables
    if (nLayers > 0) then
      do iLayer=1,nLayers
        Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
        if (mLayerTemp(iLayer) < Tcrit) then
          dVolFracLiq_dWat(iLayer) = 0._rkind
-         if(doIce) dVolFracIce_dWat(iLayer) = dTheta_dPsi(iLayer)
+         dVolFracIce_dWat(iLayer) = dTheta_dPsi(iLayer)
        else
          dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
-         if(doIce) dVolFracIce_dWat(iLayer) = 0._rkind
+         dVolFracIce_dWat(iLayer) = 0._rkind
        end if
      end do
      dVolFracLiq_dTk(:) = dTheta_dTk(:) ! already zeroed out if not below critical temperature
-     if(doIce) dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) ! often can and will simplify one of these terms out
+     dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) ! often can and will simplify one of these terms out
    end if
 
   end associate
