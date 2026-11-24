@@ -714,6 +714,13 @@ contains
         timeValUnits=timeObsUnits
       endif
 
+      ! check start/end dates are configured
+      if(.not.allocated(config%calib%start_date) .or. &
+         .not.allocated(config%calib%end_date))then
+        message='score_target/calibration dates are not configured'
+        err=20; return
+      endif
+
       ! Align over the union of the evaluation and baseline periods.
       ! The simulated value for each observation is averaged over its
       ! own observation time bounds, including irregular GRACE periods.

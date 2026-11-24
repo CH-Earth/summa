@@ -1211,6 +1211,24 @@ contains
     err=0
     message='finalize_calibration_settings/'
 
+    ! Calibration dates are required when objective evaluation is configured.
+    if(has_observations .or. allocated(calib%targets))then
+
+      if(.not.allocated(calib%start_date) .or. &
+         .not.allocated(calib%end_date))then
+        message=trim(message)//'calibration.start_date and calibration.end_date '// &
+                'are required when observations or calibration targets are configured'
+        err=20; return
+      endif
+
+      if(len_trim(calib%start_date)==0 .or. len_trim(calib%end_date)==0)then
+        message=trim(message)//'calibration.start_date and calibration.end_date '// &
+                'must not be empty'
+        err=20; return
+      endif
+
+    endif
+
     ! Default objective-function metric.
     if(.not.allocated(calib%metric)) calib%metric='kge'
 
