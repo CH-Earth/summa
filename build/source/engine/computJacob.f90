@@ -435,6 +435,7 @@ subroutine fluxJacAdd(&
   ! * local variables
   ! --------------------------------------------------------------
   ! indices of model state variables
+  integer(i4b)                         :: jState                     ! index of state variable
   integer(i4b)                         :: qState                     ! index of cross-derivative state variable for baseflow
   integer(i4b)                         :: nrgState                   ! energy state variable
   integer(i4b)                         :: watState                   ! hydrology state variable
@@ -519,6 +520,7 @@ subroutine fluxJacAdd(&
     dSoilAdv_dqAbove             => deriv_data%var(iLookDERIV%dSoilAdv_dqAbove)%dat                ,& ! intent(in): [dp(:)]  derivative w.r.t. the water flux through the top of the layer
     dSoilAdv_dqBelow             => deriv_data%var(iLookDERIV%dSoilAdv_dqBelow)%dat                ,& ! intent(in): [dp(:)]  derivative w.r.t. the water flux through the base of the layer
     dCanopyAdv_dNet              => deriv_data%var(iLookDERIV%dCanopyAdv_dNet)%dat(1)              ,& ! intent(in): [dp]     derivative of the canopy advective energy source w.r.t. the net canopy liquid flux
+    dSoilAdv_dCanLiq             => deriv_data%var(iLookDERIV%dSoilAdv_dCanLiq)%dat(1)             ,& ! intent(in): [dp]     derivative of the top soil layer advective energy source w.r.t. canopy liquid water
     dSoilAdv_dTempBelow          => deriv_data%var(iLookDERIV%dSoilAdv_dTempBelow)%dat             ,& ! intent(in): [dp(:)]  derivative w.r.t. the temperature of the layer below
     ! derivatives in soil transpiration w.r.t. canopy state variables
     mLayerdTrans_dTCanair        => deriv_data%var(iLookDERIV%mLayerdTrans_dTCanair)%dat           ,& ! intent(in): [dp(:)]  derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
@@ -848,6 +850,9 @@ subroutine fluxJacAdd(&
             end select
             if(ixSoilOnlyHyd(1) - ixSnLaSoGlHyd(pLayer) <= kl .or. full) &
                 aJac(ixInd(full,ixSoilOnlyHyd(1),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = -(dt/mLayerDepth(nSnow+nLake+1))*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot*surfKeep + aJac(ixInd(full,ixSoilOnlyHyd(1),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
+            ! heat of the infiltrating water
+            if(ixSoilOnlyNrg(1)/=integerMissing .and. (ixSoilOnlyNrg(1) - ixSnLaSoGlHyd(pLayer) <= kl .or. full)) &
+                aJac(ixInd(full,ixSoilOnlyNrg(1),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = -dt*dSoilAdv_dqAbove(1)*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*convLiq2tot + aJac(ixInd(full,ixSoilOnlyNrg(1),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
           endif
         end do ! (looping through snow/lake layers above soil until non-dense layer)
       endif ! (if snow or lake present above soil)
@@ -863,6 +868,9 @@ subroutine fluxJacAdd(&
             end select
             if(ixSnLaSoGlHyd(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. full) &
                 aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(scalarSoilControlBot*iLayerLiqFluxSnLaGlDeriv(pLayer-1)*convLiq2tot) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
+            ! heat of the water entering from the ice
+            if(ixSoilOnlyNrg(nSoil)/=integerMissing .and. (ixSnLaSoGlHyd(pLayer) - ixSoilOnlyNrg(nSoil) <= ku .or. full)) &
+                aJac(ixInd(full,ixSoilOnlyNrg(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = -dt*dSoilAdv_dqBelow(nSoil)*scalarSoilControlBot*iLayerLiqFluxSnLaGlDeriv(pLayer-1)*convLiq2tot + aJac(ixInd(full,ixSoilOnlyNrg(nSoil),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
             if(ixSoilOnlyHyd(1)/=integerMissing .and. (ixSnLaSoGlHyd(pLayer) - ixSoilOnlyHyd(1) <= ku .or. full)) &
                 aJac(ixInd(full,ixSoilOnlyHyd(1),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer)) = -(dt/mLayerDepth(nSnow+nLake+1))*dExfil_dDrive*(scalarSoilControlBot*iLayerLiqFluxSnLaGlDeriv(pLayer-1)*convLiq2tot) + aJac(ixInd(full,ixSoilOnlyHyd(1),ixSnLaSoGlHyd(pLayer)),ixSnLaSoGlHyd(pLayer))
           endif
@@ -1004,6 +1012,9 @@ subroutine fluxJacAdd(&
           if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
             if(ixSoilOnlyHyd(1) - ixSnLaSoGlNrg(pLayer) <= kl .or. full) &
                 aJac(ixInd(full,ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = -(dt/mLayerDepth(nSnow+nLake+1))*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer)*surfKeep + aJac(ixInd(full,ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
+            ! heat of the infiltrating water
+            if(ixSoilOnlyNrg(1)/=integerMissing .and. (ixSoilOnlyNrg(1) - ixSnLaSoGlNrg(pLayer) <= kl .or. full)) &
+                aJac(ixInd(full,ixSoilOnlyNrg(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = -dt*dSoilAdv_dqAbove(1)*scalarSoilControl*iLayerLiqFluxSnLaGlDeriv(pLayer)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(full,ixSoilOnlyNrg(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
           endif
         end do ! (looping through snow/lake layers above soil until non-dense layer)
       endif ! (if snow or lake present above soil)
@@ -1014,6 +1025,9 @@ subroutine fluxJacAdd(&
           if(ixSnLaSoGlNrg(pLayer)/=integerMissing)then
             if(ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(nSoil) <= ku .or. full) &
                 aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = (dt/mLayerDepth(nSnow+nLake+nSoil))*(scalarSoilControlBot*iLayerLiqFluxSnLaGlDeriv(pLayer-1)*mLayerdTheta_dTk(pLayer)) + aJac(ixInd(full,ixSoilOnlyHyd(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
+            ! heat of the water entering from the ice
+            if(ixSoilOnlyNrg(nSoil)/=integerMissing .and. (ixSnLaSoGlNrg(pLayer) - ixSoilOnlyNrg(nSoil) <= ku .or. full)) &
+                aJac(ixInd(full,ixSoilOnlyNrg(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = -dt*dSoilAdv_dqBelow(nSoil)*scalarSoilControlBot*iLayerLiqFluxSnLaGlDeriv(pLayer-1)*mLayerdTheta_dTk(pLayer) + aJac(ixInd(full,ixSoilOnlyNrg(nSoil),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
             if(ixSoilOnlyHyd(1)/=integerMissing .and. (ixSnLaSoGlNrg(pLayer) - ixSoilOnlyHyd(1) <= ku .or. full)) &
                 aJac(ixInd(full,ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer)) = -(dt/mLayerDepth(nSnow+nLake+1))*dExfil_dDrive*(scalarSoilControlBot*iLayerLiqFluxSnLaGlDeriv(pLayer-1)*mLayerdTheta_dTk(pLayer)) + aJac(ixInd(full,ixSoilOnlyHyd(1),ixSnLaSoGlNrg(pLayer)),ixSnLaSoGlNrg(pLayer))
           endif
@@ -1027,64 +1041,66 @@ subroutine fluxJacAdd(&
     ! ----------------------------------------------------------------------------------
     if(nSoilOnlyNrg>0 .and. nSoilOnlyHyd>0)then
       do iLayer=1,nSoil
-        nrgState = ixSoilOnlyNrg(iLayer)
+        ! - define state indices
+        nrgState = ixSoilOnlyNrg(iLayer)         ! energy state index within the state subset
+        watState = ixSoilOnlyHyd(iLayer)         ! hydrology state index within the state subset
         if(nrgState==integerMissing) cycle
-        ! - water stored in the layer
-        call addFluxRow(nrgState,ixSoilOnlyHyd(iLayer),dSoilAdv_dNet(iLayer))
-        ! - water entering from above and from below
-        if(iLayer>1)then
-          call addElement(nrgState,ixSoilOnlyHyd(iLayer-1),-dt*dSoilAdv_dqAbove(iLayer)*dq_dHydStateAbove(iLayer-1))
-          call addElement(nrgState,ixSoilOnlyHyd(iLayer),  -dt*dSoilAdv_dqAbove(iLayer)*dq_dHydStateBelow(iLayer-1))
-          call addElement(nrgState,ixSoilOnlyNrg(iLayer-1),-dt*dSoilAdv_dqAbove(iLayer)*dq_dNrgStateAbove(iLayer-1))
-          call addElement(nrgState,nrgState,               -dt*dSoilAdv_dqAbove(iLayer)*dq_dNrgStateBelow(iLayer-1))
-        else if(all(dq_dHydStateLayerSurfVec/=realMissing) .and. all(dq_dNrgStateLayerSurfVec/=realMissing))then
-          ! NOTE: the heat of infiltration omits its sensitivity to snow, lake and canopy drainage through the layers above, which affects convergence only
-          do pLayer=1,nSoil
-            call addElement(nrgState,ixSoilOnlyHyd(pLayer),-dt*dSoilAdv_dqAbove(1)*dq_dHydStateLayerSurfVec(pLayer))
-            call addElement(nrgState,ixSoilOnlyNrg(pLayer),-dt*dSoilAdv_dqAbove(1)*dq_dNrgStateLayerSurfVec(pLayer))
+
+        ! - include derivatives of the water stored in the layer: the flux part of its hydrology row, so any column
+        if(watState/=integerMissing)then
+          do jState=merge(1,max(1,watState-kl),full),merge(size(dMat),min(size(dMat),watState+ku),full)
+            if((nrgState-jState<=kl .and. jState-nrgState<=ku) .or. full) &
+                aJac(ixInd(full,nrgState,jState),jState) = dSoilAdv_dNet(iLayer)*(aJac(ixInd(full,watState,jState),jState) - merge(dMat(watState),0._rkind,jState==watState)) + aJac(ixInd(full,nrgState,jState),jState)
           end do
         endif
-        call addElement(nrgState,ixSoilOnlyHyd(iLayer),-dt*dSoilAdv_dqBelow(iLayer)*dq_dHydStateAbove(iLayer))
-        call addElement(nrgState,nrgState,             -dt*dSoilAdv_dqBelow(iLayer)*dq_dNrgStateAbove(iLayer))
-        if(iLayer<nSoil)then
-          call addElement(nrgState,ixSoilOnlyHyd(iLayer+1),-dt*dSoilAdv_dqBelow(iLayer)*dq_dHydStateBelow(iLayer))
-          call addElement(nrgState,ixSoilOnlyNrg(iLayer+1),-dt*dSoilAdv_dqBelow(iLayer)*dq_dNrgStateBelow(iLayer))
+
+        ! - include derivatives of the water entering from above
+        if(iLayer>1)then
+          if(ixSoilOnlyHyd(iLayer-1)/=integerMissing) aJac(ixInd(full,nrgState,ixSoilOnlyHyd(iLayer-1)),ixSoilOnlyHyd(iLayer-1)) = -dt*dSoilAdv_dqAbove(iLayer)*dq_dHydStateAbove(iLayer-1) + aJac(ixInd(full,nrgState,ixSoilOnlyHyd(iLayer-1)),ixSoilOnlyHyd(iLayer-1))
+          if(watState/=integerMissing) aJac(ixInd(full,nrgState,watState),watState) = -dt*dSoilAdv_dqAbove(iLayer)*dq_dHydStateBelow(iLayer-1) + aJac(ixInd(full,nrgState,watState),watState)
+          if(ixSoilOnlyNrg(iLayer-1)/=integerMissing) aJac(ixInd(full,nrgState,ixSoilOnlyNrg(iLayer-1)),ixSoilOnlyNrg(iLayer-1)) = -dt*dSoilAdv_dqAbove(iLayer)*dq_dNrgStateAbove(iLayer-1) + aJac(ixInd(full,nrgState,ixSoilOnlyNrg(iLayer-1)),ixSoilOnlyNrg(iLayer-1))
+          aJac(ixInd(full,nrgState,nrgState),nrgState) = -dt*dSoilAdv_dqAbove(iLayer)*dq_dNrgStateBelow(iLayer-1) + aJac(ixInd(full,nrgState,nrgState),nrgState)
+        else if(all(dq_dHydStateLayerSurfVec/=realMissing) .and. all(dq_dNrgStateLayerSurfVec/=realMissing))then ! infiltration, depends on all layers
+          do pLayer=1,nSoil
+            if(ixSoilOnlyHyd(pLayer)/=integerMissing)then
+              if(ixSoilOnlyHyd(pLayer) - nrgState <= ku .or. full) &
+                  aJac(ixInd(full,nrgState,ixSoilOnlyHyd(pLayer)),ixSoilOnlyHyd(pLayer)) = -dt*dSoilAdv_dqAbove(1)*dq_dHydStateLayerSurfVec(pLayer) + aJac(ixInd(full,nrgState,ixSoilOnlyHyd(pLayer)),ixSoilOnlyHyd(pLayer))
+            endif
+            if(ixSoilOnlyNrg(pLayer)/=integerMissing)then
+              if(ixSoilOnlyNrg(pLayer) - nrgState <= ku .or. full) &
+                  aJac(ixInd(full,nrgState,ixSoilOnlyNrg(pLayer)),ixSoilOnlyNrg(pLayer)) = -dt*dSoilAdv_dqAbove(1)*dq_dNrgStateLayerSurfVec(pLayer) + aJac(ixInd(full,nrgState,ixSoilOnlyNrg(pLayer)),ixSoilOnlyNrg(pLayer))
+            endif
+          end do
         endif
-      end do
-    endif
+
+        ! - include derivatives of the water entering from below
+        if(watState/=integerMissing) aJac(ixInd(full,nrgState,watState),watState) = -dt*dSoilAdv_dqBelow(iLayer)*dq_dHydStateAbove(iLayer) + aJac(ixInd(full,nrgState,watState),watState)
+        aJac(ixInd(full,nrgState,nrgState),nrgState) = -dt*dSoilAdv_dqBelow(iLayer)*dq_dNrgStateAbove(iLayer) + aJac(ixInd(full,nrgState,nrgState),nrgState)
+        if(iLayer<nSoil)then
+          if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixInd(full,nrgState,ixSoilOnlyHyd(iLayer+1)),ixSoilOnlyHyd(iLayer+1)) = -dt*dSoilAdv_dqBelow(iLayer)*dq_dHydStateBelow(iLayer) + aJac(ixInd(full,nrgState,ixSoilOnlyHyd(iLayer+1)),ixSoilOnlyHyd(iLayer+1))
+          if(ixSoilOnlyNrg(iLayer+1)/=integerMissing) aJac(ixInd(full,nrgState,ixSoilOnlyNrg(iLayer+1)),ixSoilOnlyNrg(iLayer+1)) = -dt*dSoilAdv_dqBelow(iLayer)*dq_dNrgStateBelow(iLayer) + aJac(ixInd(full,nrgState,ixSoilOnlyNrg(iLayer+1)),ixSoilOnlyNrg(iLayer+1))
+        endif
+      end do ! (looping through soil layers)
+    endif ! (if there are state variables for both water and energy in the soil domain)
+
     if(computeVegFlux)then
-      if(ixVegNrg/=integerMissing) call addFluxRow(ixVegNrg,ixVegHyd,dCanopyAdv_dNet/canopyDepth)
-      ! - canopy drip infiltrating bare soil
-      if(nSoil>0 .and. nSnow+nLake==0)then
-        if(ixSoilOnlyNrg(1)/=integerMissing) call addElement(ixSoilOnlyNrg(1),ixVegNrg,-dt*dSoilAdv_dTempAbove(1))
+      ! - include derivatives of the water stored on the canopy
+      if(ixVegNrg/=integerMissing .and. ixVegHyd/=integerMissing)then
+        if(ixCasNrg/=integerMissing) aJac(ixInd(full,ixVegNrg,ixCasNrg),ixCasNrg) = (dCanopyAdv_dNet/canopyDepth)*aJac(ixInd(full,ixVegHyd,ixCasNrg),ixCasNrg) + aJac(ixInd(full,ixVegNrg,ixCasNrg),ixCasNrg)
+                                     aJac(ixInd(full,ixVegNrg,ixVegNrg),ixVegNrg) = (dCanopyAdv_dNet/canopyDepth)*aJac(ixInd(full,ixVegHyd,ixVegNrg),ixVegNrg) + aJac(ixInd(full,ixVegNrg,ixVegNrg),ixVegNrg)
+                                     aJac(ixInd(full,ixVegNrg,ixVegHyd),ixVegHyd) = (dCanopyAdv_dNet/canopyDepth)*(aJac(ixInd(full,ixVegHyd,ixVegHyd),ixVegHyd) - dMat(ixVegHyd)) + aJac(ixInd(full,ixVegNrg,ixVegHyd),ixVegHyd)
+        if(ixTopNrg/=integerMissing) aJac(ixInd(full,ixVegNrg,ixTopNrg),ixTopNrg) = (dCanopyAdv_dNet/canopyDepth)*aJac(ixInd(full,ixVegHyd,ixTopNrg),ixTopNrg) + aJac(ixInd(full,ixVegNrg,ixTopNrg),ixTopNrg)
       endif
-    endif
+      ! - include derivatives of the canopy drip infiltrating bare soil, its temperature and its rate
+      if(nSoil>0 .and. nSnow+nLake==0)then
+        if(ixSoilOnlyNrg(1)/=integerMissing)then
+          if(ixVegNrg/=integerMissing) aJac(ixInd(full,ixSoilOnlyNrg(1),ixVegNrg),ixVegNrg) = -dt*(dSoilAdv_dTempAbove(1) + dSoilAdv_dCanLiq*dCanLiq_dTcanopy) + aJac(ixInd(full,ixSoilOnlyNrg(1),ixVegNrg),ixVegNrg)
+          if(ixVegHyd/=integerMissing) aJac(ixInd(full,ixSoilOnlyNrg(1),ixVegHyd),ixVegHyd) = -dt*dSoilAdv_dCanLiq*scalarFracLiqVeg + aJac(ixInd(full,ixSoilOnlyNrg(1),ixVegHyd),ixVegHyd)
+        endif
+      endif
+    endif ! (if computing vegetation fluxes)
 
   end associate ! end association to variables in the data structures
-
-contains
-
- subroutine addElement(iRow,jCol,x)
-  ! add x to a Jacobian element, if it is in the state subset and the band
-  integer(i4b),intent(in) :: iRow,jCol ! row and column of the element
-  real(rkind),intent(in)  :: x         ! value to add
-  if(iRow==integerMissing .or. jCol==integerMissing) return
-  if(full .or. (iRow-jCol<=kl .and. jCol-iRow<=ku)) aJac(ixInd(full,iRow,jCol),jCol) = aJac(ixInd(full,iRow,jCol),jCol) + x
- end subroutine addElement
-
- subroutine addFluxRow(iRow,iHyd,x)
-  ! add x times the flux part of hydrology row iHyd to energy row iRow
-  integer(i4b),intent(in) :: iRow,iHyd ! energy and hydrology rows
-  real(rkind),intent(in)  :: x         ! heat carried per unit of water
-  integer(i4b)            :: jCol      ! column
-  real(rkind)             :: fluxTerm  ! flux part of the hydrology row
-  if(iHyd==integerMissing .or. x==0._rkind) return
-  do jCol=merge(1,max(1,iHyd-kl),full),merge(size(dMat),min(size(dMat),iHyd+ku),full)
-    fluxTerm = aJac(ixInd(full,iHyd,jCol),jCol)
-    if(jCol==iHyd) fluxTerm = fluxTerm - dMat(iHyd)
-    if(fluxTerm/=0._rkind) call addElement(iRow,jCol,x*fluxTerm)
-  end do
- end subroutine addFluxRow
 
 end subroutine fluxJacAdd
 

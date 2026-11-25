@@ -919,6 +919,7 @@ contains
   case('dSoilAdv_dqAbove'               ); get_ixDeriv = iLookDERIV%dSoilAdv_dqAbove                ! derivative of the soil advective energy source w.r.t. the water flux through the top of the layer
   case('dSoilAdv_dqBelow'               ); get_ixDeriv = iLookDERIV%dSoilAdv_dqBelow                ! derivative of the soil advective energy source w.r.t. the water flux through the base of the layer
   case('dCanopyAdv_dNet'                ); get_ixDeriv = iLookDERIV%dCanopyAdv_dNet                 ! derivative of the canopy advective energy source w.r.t. the net canopy liquid flux
+  case('dSoilAdv_dCanLiq'               ); get_ixDeriv = iLookDERIV%dSoilAdv_dCanLiq                ! derivative of the top soil layer advective energy source w.r.t. canopy liquid water
 
   case default
    get_ixDeriv = integerMissing

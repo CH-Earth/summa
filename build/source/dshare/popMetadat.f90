@@ -762,6 +762,7 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dSoilAdv_dqAbove)           = var_info('dSoilAdv_dqAbove'          , 'derivative of the soil advective energy source w.r.t. the water flux through the top of the layer', 'J m-4', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dSoilAdv_dqBelow)           = var_info('dSoilAdv_dqBelow'          , 'derivative of the soil advective energy source w.r.t. the water flux through the base of the layer', 'J m-4', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dCanopyAdv_dNet)           = var_info('dCanopyAdv_dNet'          , 'derivative of the canopy advective energy source w.r.t. the net canopy liquid flux', 'J kg-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dSoilAdv_dCanLiq)           = var_info('dSoilAdv_dCanLiq'          , 'derivative of the top soil layer advective energy source w.r.t. canopy liquid water', 'J kg-1 m-1 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------
