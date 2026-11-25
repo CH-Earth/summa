@@ -1038,6 +1038,7 @@ subroutine fluxJacAdd(&
           call addElement(nrgState,ixSoilOnlyNrg(iLayer-1),-dt*dSoilAdv_dqAbove(iLayer)*dq_dNrgStateAbove(iLayer-1))
           call addElement(nrgState,nrgState,               -dt*dSoilAdv_dqAbove(iLayer)*dq_dNrgStateBelow(iLayer-1))
         else if(all(dq_dHydStateLayerSurfVec/=realMissing) .and. all(dq_dNrgStateLayerSurfVec/=realMissing))then
+          ! NOTE: the heat of infiltration omits its sensitivity to snow, lake and canopy drainage through the layers above, which affects convergence only
           do pLayer=1,nSoil
             call addElement(nrgState,ixSoilOnlyHyd(pLayer),-dt*dSoilAdv_dqAbove(1)*dq_dHydStateLayerSurfVec(pLayer))
             call addElement(nrgState,ixSoilOnlyNrg(pLayer),-dt*dSoilAdv_dqAbove(1)*dq_dNrgStateLayerSurfVec(pLayer))
