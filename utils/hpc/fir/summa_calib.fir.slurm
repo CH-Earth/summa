@@ -16,18 +16,43 @@ set -euo pipefail
 # Command-line arguments
 # ----------------------------------------------------------------------
 
-if [ "$#" -ne 1 ]; then
-  echo "Usage: sbatch $0 <run_label>"
+if [ "$#" -ne 2 ]; then
+  echo "Usage: sbatch $0 <experiment_directory> <setup_script>"
   exit 1
 fi
 
-RUN_LABEL="$1"
+EXPERIMENT_DIR="$(realpath "$1")"
+SETUP_SCRIPT="$(realpath "$2")"
+
+if [ ! -d "$EXPERIMENT_DIR" ]; then
+  echo "ERROR: Experiment directory does not exist: $EXPERIMENT_DIR" >&2
+  exit 1
+fi
+
+if [ ! -f "$SETUP_SCRIPT" ]; then
+  echo "ERROR: Setup script does not exist: $SETUP_SCRIPT" >&2
+  exit 1
+fi
 
 # ----------------------------------------------------------------------
 # Experiment configuration
 # ----------------------------------------------------------------------
 
-MANIFEST="$HOME/data/century/MM/$RUN_LABEL/settings/manifest_century.toml"
+# Derive the run label from the experiment directory name.
+RUN_LABEL="$(basename "$EXPERIMENT_DIR")"
+
+MANIFEST="$EXPERIMENT_DIR/settings/manifest.toml"
+
+if [ ! -f "$MANIFEST" ]; then
+  echo "ERROR: Manifest does not exist: $MANIFEST" >&2
+  exit 1
+fi
+
+echo "Experiment directory: $EXPERIMENT_DIR"
+echo "Run label:            $RUN_LABEL"
+echo "Manifest:             $MANIFEST"
+echo "Setup script:         $SETUP_SCRIPT"
+echo
 
 # ----------------------------------------------------------------------
 # Runtime environment
@@ -53,7 +78,7 @@ echo "--------------------------------------------------"
 srun -N "$SLURM_JOB_NUM_NODES" \
      -n "$SLURM_JOB_NUM_NODES" \
      --ntasks-per-node=1 \
-     bash -lc 'source $HOME/models/summa/utils/hpc/fir/setup_summa.century.fir.bash'
+     bash -lc "source '$SETUP_SCRIPT'"
 
 # ----------------------------------------------------------------------
 # Run calibration
