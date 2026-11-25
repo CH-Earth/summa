@@ -242,6 +242,10 @@ subroutine vegNrgFlux(&
   real(rkind)                        :: dLatHeatCanopyTrans_dTCanair    ! derivative in the latent heat of canopy transpiration w.r.t. canopy air temperature
   real(rkind)                        :: dLatHeatCanopyTrans_dTCanopy    ! derivative in the latent heat of canopy transpiration w.r.t. canopy temperature
   real(rkind)                        :: dLatHeatCanopyTrans_dTGround    ! derivative in the latent heat of canopy transpiration w.r.t. ground temperature
+  ! heat advected with precipitation to the ground
+  real(rkind)                        :: rainRefTemp                     ! temperature the heat of the rain is relative to (K)
+  real(rkind)                        :: rainToGround,snowToGround       ! rain and snow whose heat enters through the ground surface (kg m-2 s-1)
+  real(rkind)                        :: dGroundAdvHeat_dTGround         ! derivative in the heat advected to the ground w.r.t. ground temperature (W m-2 K-1)
 
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structure
@@ -961,8 +965,16 @@ subroutine vegNrgFlux(&
         ! NOTE: fluxes are in kg m-2 s-1, so no need to use density of water/ice here
         scalarCanopyAdvectiveHeatFlux = -Cp_water*(scalarRainfall - scalarThroughfallRain)*(canopyTempTrial - scalarTwetbulb) + &
                                         (-Cp_ice)*(scalarSnowfall - scalarThroughfallSnow)*(canopyTempTrial - scalarTwetbulb)
-        scalarGroundAdvectiveHeatFlux = -Cp_water*scalarThroughfallRain*(groundTempTrial - scalarTwetbulb)         + &
-                                        (-Cp_ice)*scalarThroughfallSnow*(groundTempTrial - scalarTwetbulb)
+        ! rain on snow or ice brings its heat above freezing, the cold content is in the heat capacity of the layers
+        rainRefTemp = groundTempTrial
+        if (nSnow>0 .or. (nLake==0 .and. nSoil==0)) rainRefTemp = Tfreeze
+        rainToGround = scalarThroughfallRain
+        ! snow on a snow layer brings its heat as it is added to the layer
+        snowToGround = scalarThroughfallSnow
+        if (nSnow>0) snowToGround = 0._rkind
+        scalarGroundAdvectiveHeatFlux = -Cp_water*rainToGround*(rainRefTemp - scalarTwetbulb) - Cp_ice*snowToGround*(groundTempTrial - scalarTwetbulb)
+        dGroundAdvHeat_dTGround = -Cp_ice*snowToGround
+        if (.not.(nSnow>0 .or. (nLake==0 .and. nSoil==0))) dGroundAdvHeat_dTGround = dGroundAdvHeat_dTGround - Cp_water*rainToGround
 
         ! compute the mass flux associated with transpiration and evaporation/sublimation (J m-2 s-1 --> kg m-2 s-1)
         ! NOTE: remove water from the snow on the ground in preference to removing water from the water in soil pores
@@ -1028,7 +1040,7 @@ subroutine vegNrgFlux(&
         dCanopyNetFlux_dGroundTemp = dLWNetCanopy_dTGround + dTurbFluxCanopy_dTGround
         dGroundNetFlux_dCanairTemp = dTurbFluxGround_dTCanair
         dGroundNetFlux_dCanopyTemp = dLWNetGround_dTCanopy + dTurbFluxGround_dTCanopy
-        dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround - Cp_water*scalarThroughfallRain - Cp_ice*scalarThroughfallSnow
+        dGroundNetFlux_dGroundTemp = dLWNetGround_dTGround + dTurbFluxGround_dTGround + dGroundAdvHeat_dTGround
 
         ! check if evaporation or sublimation
         if (scalarLatHeatSubVapCanopy < LH_vap+verySmall) then ! evaporation
