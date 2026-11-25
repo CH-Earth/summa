@@ -319,7 +319,7 @@ AFTER tag of v4.0.0-exp-Sundials
 -80) A saturated liquid matric potential state passes its pressure to the total matric head in a mass split, commit a56ed482 Oct 21, 2026
  81) Parameter overrides and calibration parameters can target one domain type, name@upland etc., commit 11752915 Oct 21, 2026
 -82) Lateral soil inflow carries the temperature of the layer it left, and enters a column with no saturated layer instead of being dropped, commit 5ab0019c Oct 17, 2026
--83) Advective heat: soil layers gain the heat carried by water entering from the layer above or below, commit 3415be91 Oct 17, 2026
+-83) Soil and canopy water carries its enthalpy consistent with the Cm term, including infiltration and upflow from glacier ice, commit 0d303110 Nov 25, 2026
  84) Wetland domain as a linear-reservoir water column over soil, multi-calib commit fb35bd65 Oct 19, 2026, not in this branch
 -85) Smoothly turn off infiltration into over-pressured soil and condensation into saturated soil, commits 87967f22 Jul 22, a52791c6 Sep 24, 6702053d and bba9cca9 Oct 22, 6805ba8b and c9154ece Oct 26, 2026
      Infiltration area scales by a Gaussian of the depth-weighted mean squared positive head (root zone for homegrown_SE, else all soil layers), condensation by a Gaussian of top-layer positive head.
@@ -335,4 +335,3 @@ AFTER tag of v4.0.0-exp-Sundials
  94) A --param override sets the configured remainder from its sources, so rerun.sh replays a trial with silt the remainder, commit 4f1f839d Nov 19, 2026
 -95) New snow mixed into the top snow layer by enthalpy, not by depth-weighted temperature that refroze liquid without its latent heat, commit 7c19e008 Nov 25, 2026
 -96) Heat of precipitation: rain on snow or ice is relative to freezing, snowfall on snow counted once, commit befd26af Nov 25, 2026
--97) Soil and canopy water carries its enthalpy consistent with the Cm term, including infiltration and upflow from glacier ice, replaces -83, commit 0d303110 Nov 25, 2026
