@@ -963,12 +963,13 @@ subroutine vegNrgFlux(&
 
         ! compute the heat advected with precipitation (W m-2)
         ! NOTE: fluxes are in kg m-2 s-1, so no need to use density of water/ice here
-        scalarCanopyAdvectiveHeatFlux = -Cp_water*(scalarRainfall - scalarThroughfallRain)*(canopyTempTrial - scalarTwetbulb) + &
+        scalarCanopyAdvectiveHeatFlux = -Cp_water*(scalarRainfall - scalarThroughfallRain)*(max(canopyTempTrial,Tfreeze) - scalarTwetbulb) + & ! a cold canopy holds its cold content in its heat capacity
                                         (-Cp_ice)*(scalarSnowfall - scalarThroughfallSnow)*(canopyTempTrial - scalarTwetbulb)
         ! rain on snow or ice brings its heat above freezing, the cold content is in the heat capacity of the layers
         rainRefTemp = groundTempTrial
         if (nSnow>0 .or. (nLake==0 .and. nSoil==0)) rainRefTemp = Tfreeze
         rainToGround = scalarThroughfallRain
+        if (nSnow==0 .and. nLake==0 .and. nSoil>0) rainToGround = 0._rkind ! with the infiltration on bare soil
         ! snow on a snow layer brings its heat as it is added to the layer
         snowToGround = scalarThroughfallSnow
         if (nSnow>0) snowToGround = 0._rkind
@@ -1036,7 +1037,7 @@ subroutine vegNrgFlux(&
         dCanairNetFlux_dCanopyTemp = dTurbFluxCanair_dTCanopy
         dCanairNetFlux_dGroundTemp = dTurbFluxCanair_dTGround
         dCanopyNetFlux_dCanairTemp = dTurbFluxCanopy_dTCanair
-        dCanopyNetFlux_dCanopyTemp = dLWNetCanopy_dTCanopy + dTurbFluxCanopy_dTCanopy - Cp_water*(scalarRainfall - scalarThroughfallRain) - Cp_ice*(scalarSnowfall - scalarThroughfallSnow)
+        dCanopyNetFlux_dCanopyTemp = dLWNetCanopy_dTCanopy + dTurbFluxCanopy_dTCanopy - merge(Cp_water*(scalarRainfall - scalarThroughfallRain),0._rkind,canopyTempTrial>Tfreeze) - Cp_ice*(scalarSnowfall - scalarThroughfallSnow)
         dCanopyNetFlux_dGroundTemp = dLWNetCanopy_dTGround + dTurbFluxCanopy_dTGround
         dGroundNetFlux_dCanairTemp = dTurbFluxGround_dTCanair
         dGroundNetFlux_dCanopyTemp = dLWNetGround_dTCanopy + dTurbFluxGround_dTCanopy
