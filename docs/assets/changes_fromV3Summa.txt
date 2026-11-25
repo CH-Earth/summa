@@ -333,3 +333,6 @@ AFTER tag of v4.0.0-exp-Sundials
  92) Sand, silt and clay fractions must be non-negative and add to one, commit 080e1b6e Nov 10, 2026
  93) Parameters precipElevGrad and tempLapseRate added to lapse from the HRU elevation to domain elevation (including relative humidity and longwave solar radiation), commit 06e59ad2 Nov 11, 2026
  94) A --param override sets the configured remainder from its sources, so rerun.sh replays a trial with silt the remainder, commit 4f1f839d Nov 19, 2026
+-95) New snow mixed into the top snow layer by enthalpy, not by depth-weighted temperature that refroze liquid without its latent heat, commit 7c19e008 Nov 25, 2026
+-96) Heat of precipitation: rain on snow or ice is relative to freezing, snowfall on snow counted once, commit befd26af Nov 25, 2026
+-97) Soil and canopy water carries its enthalpy consistent with the Cm term, including infiltration and upflow from glacier ice, replaces -83, commit 0d303110 Nov 25, 2026
