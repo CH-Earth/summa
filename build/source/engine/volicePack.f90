@@ -41,6 +41,9 @@ USE var_lookup,only:iLookINDEX          ! named variables for structure elements
 
 ! physical constants
 USE multiconst,only:&
+                    Tfreeze,  & ! freezing point of pure water (K)
+                    Cp_ice,   & ! specific heat of ice        (J kg-1 K-1)
+                    LH_fus,   & ! latent heat of fusion       (J kg-1)
                     iden_ice, & ! intrinsic density of ice    (kg m-3)
                     iden_water  ! intrinsic density of water  (kg m-3)
 
@@ -155,6 +158,7 @@ contains
                        dt,                        & ! intent(in):    time step (seconds)
                        snowLayers,                & ! intent(in):    logical flag if snow layers exist
                        fc_param,                  & ! intent(in):    freeezing curve parameter for snow (K-1)
+                       lookup_data,               & ! intent(in):    lookup tables
                        ! input: diagnostic scalar variables
                        scalarSnowfallTemp,        & ! intent(in):    computed temperature of fresh snow (K)
                        scalarNewSnowDensity,      & ! intent(in):    computed density of new snow (kg m-3)
@@ -171,12 +175,15 @@ contains
                        err,message                ) ! intent(out):   error control
  ! computational modules
  USE snow_utils_module,only:fracliquid              ! functions to compute temperature/liquid water
+ USE convertEnthalpyTemp_module,only:enthalpy2T_snLaGlWat,T2enthalpy_snLaGlWat ! convert between temperature and liq+ice enthalpy of a snow layer
+ USE data_types,only:zLookup                        ! lookup tables
  ! add new snowfall to the system
  implicit none
  ! input: model control
  real(rkind),intent(in)                 :: dt                         ! time step (seconds)
  logical(lgt),intent(in)                :: snowLayers                 ! logical flag if snow layers exist
  real(rkind),intent(in)                 :: fc_param                   ! freeezing curve parameter for snow (K-1)
+ type(zLookup),intent(in)               :: lookup_data                ! lookup tables
  ! input: diagnostic scalar variables
  real(rkind),intent(in)                 :: scalarSnowfallTemp         ! computed temperature of fresh snow (K)
  real(rkind),intent(in)                 :: scalarNewSnowDensity       ! computed density of new snow (kg m-3)
@@ -198,6 +205,8 @@ contains
  real(rkind),parameter                  :: densityCanopySnow=200._rkind  ! density of snow on the vegetation canopy (kg m-3)
  real(rkind)                            :: totalMassIceSurfLayer      ! total mass of ice in the surface layer (kg m-2)
  real(rkind)                            :: totalDepthSurfLayer        ! total depth of the surface layer (m)
+ real(rkind)                            :: enthalpySurfLayer          ! enthalpy of the surface layer plus the new snow (J m-2)
+ character(len=256)                     :: cmessage                   ! error message of downwind routine
  real(rkind)                            :: volFracWater               ! volumetric fraction of total water, liquid and ice (-)
  real(rkind)                            :: fracLiq                    ! fraction of liquid water (-)
  real(rkind)                            :: SWE                        ! snow water equivalent after snowfall (kg m-2)
@@ -233,10 +242,15 @@ contains
   totalMassIceSurfLayer  = iden_ice*surfaceLayerVolFracIce*surfaceLayerDepth + newSnowfall*dt
   ! get the total snow depth
   totalDepthSurfLayer    = surfaceLayerDepth + newSnowDepth
-  ! compute the new temperature
-  surfaceLayerTemp       = (surfaceLayerTemp*surfaceLayerDepth + scalarSnowfallTemp*newSnowDepth) / totalDepthSurfLayer
+  ! enthalpy of the layer plus the new snow, which arrives as ice
+  enthalpySurfLayer      = surfaceLayerDepth*T2enthalpy_snLaGlWat(surfaceLayerTemp,tempSWE0/surfaceLayerDepth,fc_param) &
+                           + newSnowfall*dt*(Cp_ice*(min(scalarSnowfallTemp,Tfreeze) - Tfreeze) - LH_fus)
   ! compute new SWE for the upper layer (kg m-2)
   SWE = totalMassIceSurfLayer + iden_water*surfaceLayerVolFracLiq*surfaceLayerDepth
+  ! compute the new temperature
+  if(.not.associated(lookup_data%snow))then; err=20; message=trim(message)//'snow/ice lookup tables have not been built'; return; end if
+  call enthalpy2T_snLaGlWat(enthalpySurfLayer/totalDepthSurfLayer,SWE/totalDepthSurfLayer,fc_param,surfaceLayerTemp,.true.,lookup_data%snow,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   ! compute new volumetric fraction of liquid water and ice (-)
   volFracWater = (SWE/totalDepthSurfLayer)/iden_water
   fracLiq      = fracliquid(surfaceLayerTemp,fc_param)                              ! fraction of liquid water
