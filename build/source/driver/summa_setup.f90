@@ -83,6 +83,7 @@ subroutine summa_paramSetup(summa1_struc,param_name,param_value,calibration,err,
  USE time_utils_module,only:elapsedSec                              ! calculate the elapsed time
  USE read_trial_parameters_module, only: read_trial_parameters      ! read trial model parameter sets
  USE parameter_overrides_module, only: apply_parameter_overrides    ! apply user-specified trial parameters
+ USE parameter_overrides_module, only: apply_remainder_override     ! set a remainder parameter from its overridden sources
  USE summa_parameter_fields,only:summa_calibration_adapter          ! SUMMA-specific calibration adapter type
  USE summa_parameter_fields,only:apply_summa_calibration_adapter    ! apply calibrated physical parameter fields
  USE globalData,only:startSetup,endSetup                            ! date/time for the start and end of the parameter setup
@@ -97,6 +98,7 @@ subroutine summa_paramSetup(summa1_struc,param_name,param_value,calibration,err,
  character(*)                             , intent(out)   :: message            ! error message
  ! local variables
  character(len=256)                                       :: cmessage           ! error message of downwind routine
+ integer(i4b)                                             :: iRem,iPar          ! remainder dependency and override indices
  ! ---------------------------------------------------------------------------------------
  summaVars: associate(&
   idStruct           => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)            -- GRU/HRU identifiers for the local domain
@@ -144,6 +146,16 @@ subroutine summa_paramSetup(summa1_struc,param_name,param_value,calibration,err,
                                   mparStruct, bparStruct,             &
                                   err, cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   ! a remainder in the configuration follows its overridden sources, as a calibration trial sets it
+   if(.not.present(calibration) .and. allocated(summa1_struc%config%calib%remainder))then
+     do iRem=1,size(summa1_struc%config%calib%remainder)
+       associate(rem=>summa1_struc%config%calib%remainder(iRem))
+         if(.not.any([(any(rem%sources==summa1_struc%config%param_name(iPar)), iPar=1,size(summa1_struc%config%param_name))])) cycle
+         call apply_remainder_override(nGRU_local,rem%parameter,rem%sources,rem%total,mparStruct,err,cmessage)
+       end associate
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+     enddo
+   endif
  endif
 
  ! Apply calibrated physical parameter fields after reading the trial parameter file

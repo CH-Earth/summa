@@ -180,9 +180,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
     ! initialize error control
     err=0; message='snowLakeSoilGlceNrgFlux/'
 
-    ! set conductive and advective fluxes to missing in the upper boundary
+    ! conductive flux is missing at the upper boundary
     iLayerConductiveFlux(0) = realMissing
-    iLayerAdvectiveFlux(0)  = realMissing  !included in the ground heat flux
+    iLayerAdvectiveFlux(:)  = 0._rkind     ! set in the soil once the soil water fluxes are known
 
     ! get the indices for the layers
     if (scalarSolution) then
@@ -224,31 +224,9 @@ subroutine snowLakeSoilGlceNrgFlux(&
     if(ixBot==nLayers) scalarLowerBoundNrgFlux = iLayerConductiveFlux(nLayers)
 
     ! -------------------------------------------------------------------------------------------------------------------------
-    ! ***** compute the advective fluxes at layer interfaces *****
-    ! -------------------------------------------------------------------------------------------------------------------------
-    do iLayer=ixTop,ixBot
-      select case(layerType(iLayer)) ! get the liquid flux at layer interfaces
-        case(iname_snow,iname_lake,iname_glce); qFlux = iLayerLiqFluxSnLaGl(iLayer)
-        case(iname_soil);                       qFlux = iLayerLiqFluxSoil(iLayer-nSnow-nLake)
-        case default; err=20; message=trim(message)//'unable to identify layer type'; return
-      end select
-      ! surface ice melt, propagates upwards and if above layer not coupled, two fluxes here
-      if(mLayerTempTrial(iLayer)<=Tfreeze) then ! can't be unfrozen lake
-        if ((iLayer==nSnow+nLake+nSoil+1 .and. nSoil==0) .or. (iLayer==nSnow+nLake+1 .and. nLake>0)) qFlux = scalarSurfaceIceMelt
-      end if
-      if(iLayer==nLayers-noThetaChange .and. zeroFlux_noThetaBdry)then
-        iLayerAdvectiveFlux(iLayer) = 0._rkind ! all melt energy absorbed in top layers of glacier ice
-      elseif(iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
-        iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
-      else ! compute fluxes within the domain -- positive downwards
-        iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
-      end if
-    end do  ! end looping through layers
-
-    ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the total fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
-    ! NOTE: ignore advective fluxes for now
+    ! NOTE: heat carried by water is added in computFlux once the water fluxes are known; meltwater in snow and ice is at freezing and carries none
     iLayerNrgFlux(0)           = groundNetFlux ! from vegNrgFlux module
     iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
 

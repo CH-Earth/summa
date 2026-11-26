@@ -758,6 +758,11 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dSoilAdv_dTemp)                = var_info('dSoilAdv_dTemp'               , 'derivative of the soil advective energy source w.r.t. layer temperature', 'J m-3 s-1 K-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dSoilAdv_dTempAbove)           = var_info('dSoilAdv_dTempAbove'          , 'derivative of the soil advective energy source w.r.t. temperature of the layer above', 'J m-3 s-1 K-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dSoilAdv_dTempBelow)           = var_info('dSoilAdv_dTempBelow'          , 'derivative of the soil advective energy source w.r.t. temperature of the layer below', 'J m-3 s-1 K-1', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dSoilAdv_dNet)           = var_info('dSoilAdv_dNet'          , 'derivative of the soil advective energy source w.r.t. the net water source of the layer', 'J m-3', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dSoilAdv_dqAbove)           = var_info('dSoilAdv_dqAbove'          , 'derivative of the soil advective energy source w.r.t. the water flux through the top of the layer', 'J m-4', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dSoilAdv_dqBelow)           = var_info('dSoilAdv_dqBelow'          , 'derivative of the soil advective energy source w.r.t. the water flux through the base of the layer', 'J m-4', get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dCanopyAdv_dNet)           = var_info('dCanopyAdv_dNet'          , 'derivative of the canopy advective energy source w.r.t. the net canopy liquid flux', 'J kg-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dSoilAdv_dCanLiq)           = var_info('dSoilAdv_dCanLiq'          , 'derivative of the top soil layer advective energy source w.r.t. canopy liquid water', 'J kg-1 m-1 s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------

@@ -121,7 +121,7 @@ subroutine computJacobWithPrime(&
   ! -----------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
   use computJacob_module,only:fluxJacAdd
-  use computJacob_module,only:ixInd
+  use computJacob_module,only:ixInd,addElement
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
@@ -339,12 +339,12 @@ subroutine computJacobWithPrime(&
     ! * cross derivatives in the vegetation...
     ! ---------------------------------------------
     if(computeVegFlux)then ! (derivatives only defined when vegetation protrudes over the surface)
-      if(ixVegHyd/=integerMissing .and. ixVegNrg/=integerMissing)&
-          ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fu0/canopyDepth = J m-3; dLiq = kg m-2
-          aJac(ixInd(full,ixVegNrg,ixVegHyd),ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fu0/canopyDepth * cj &
-                                                   + dVolHtCapBulk_dCanWat * scalarCanopyTempPrime + scalarCanopyCm/canopyDepth * cj &
-                                                   - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
-                                                   + LH_fu0 * scalarCanopyTempPrime * dFracLiqVeg_dTkCanopy/canopyDepth
+      ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fu0/canopyDepth = J m-3; dLiq = kg m-2
+      call addElement(aJac,full,ixVegNrg,ixVegHyd,(-1._rkind + scalarFracLiqVeg)*LH_fu0/canopyDepth * cj &
+                      + dVolHtCapBulk_dCanWat * scalarCanopyTempPrime &
+                      + scalarCanopyCm/canopyDepth * cj &
+                      - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
+                      + LH_fu0 * scalarCanopyTempPrime * dFracLiqVeg_dTkCanopy/canopyDepth)
     endif  ! if there is a need to compute energy fluxes within vegetation
 
     ! -----
@@ -369,10 +369,11 @@ subroutine computJacobWithPrime(&
 
         if(watState/=integerMissing)then       ! (water state for the current layer is within the state subset)
           ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
-          aJac(ixInd(full,nrgState,watState),watState) = (-1._rkind + mLayerFracLiq(jLayer))*LH_fu0*iden_water * cj &
-                                      + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer) + mLayerCm(jLayer) * cj &
-                                      + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
-                                      + LH_fu0*iden_water * mLayerTempPrime(jLayer) * dFracLiqWat_dTk(jLayer)    ! (dF/dLiq)
+          call addElement(aJac,full,nrgState,watState,(-1._rkind + mLayerFracLiq(jLayer))*LH_fu0*iden_water * cj &
+                          + dVolHtCapBulk_dTheta(jLayer) * mLayerTempPrime(jLayer) &
+                          + mLayerCm(jLayer) * cj &
+                          + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)) &
+                          + LH_fu0*iden_water * mLayerTempPrime(jLayer) * dFracLiqWat_dTk(jLayer)) ! (dF/dLiq)
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through snow, lake, glce layers)
@@ -396,13 +397,13 @@ subroutine computJacobWithPrime(&
         ! only compute derivatives if the water state for the current layer is within the state subset
         if(watState/=integerMissing)then
           ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-          aJac(ixInd(full,nrgState,watState),watState) = (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
-          aJac(ixInd(full,nrgState,watState),watState) = mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
-                                                        + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer) &
-                                                        + aJac(ixInd(full,nrgState,watState),watState) 
-          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind))&  ! ice is present
-             aJac(ixInd(full,nrgState,watState),watState) = -LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
-                                                           - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer) + aJac(ixInd(full,nrgState,watState),watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+          call addElement(aJac,full,nrgState,watState,(dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer)))
+          call addElement(aJac,full,nrgState,watState,mLayerCm(jLayer) * dVolTot_dPsi0(iLayer) * cj &
+                          + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
+                          + dCm_dPsi0(iLayer) * mLayerVolFracWatPrime(jLayer) &
+                          + mLayerCm(jLayer) * d2VolTot_dPsi02(iLayer) * mLayerMatricHeadPrime(iLayer))
+          if(mLayerdTheta_dTk(jLayer) > tiny(1.0_rkind)) call addElement(aJac,full,nrgState,watState,-LH_fu0*iden_water * dVolTot_dPsi0(iLayer) * cj &
+                                                                         - LH_fu0*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_dPsi02(iLayer)) ! ice is present, dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
         endif ! (if the water state for the current layer is within the state subset)
 
       end do ! (looping through energy states in the soil domain)
@@ -440,7 +441,7 @@ subroutine computJacobWithPrime(&
 
       if(ixCasNrg/=integerMissing)then
         aJac(:,ixCasNrg) = aJac(:,ixCasNrg) * dCanairTemp_dEnthalpy
-        aJac(ixInd(full,ixCasNrg,ixCasNrg),ixCasNrg) = aJac(ixInd(full,ixCasNrg,ixCasNrg),ixCasNrg) + 1._rkind * cj
+        call addElement(aJac,full,ixCasNrg,ixCasNrg,cj)
       endif
       
       if(ixVegNrg/=integerMissing)then
@@ -450,7 +451,7 @@ subroutine computJacobWithPrime(&
           end do
         endif
         aJac(:,ixVegNrg) = aJac(:,ixVegNrg) * dCanopyTemp_dEnthalpy
-        aJac(ixInd(full,ixVegNrg,ixVegNrg),ixVegNrg) = aJac(ixInd(full,ixVegNrg,ixVegNrg),ixVegNrg) + 1._rkind * cj
+        call addElement(aJac,full,ixVegNrg,ixVegNrg,cj)
       endif
       
       if(nSnLaSoGlNrg>0)then
@@ -470,7 +471,7 @@ subroutine computJacobWithPrime(&
             endif
           endif
           aJac(:,nrgState) = aJac(:,nrgState) * dTemp_dEnthalpy(iLayer)
-          aJac(ixInd(full,nrgState,nrgState),nrgState) = aJac(ixInd(full,nrgState,nrgState),nrgState) + 1._rkind * cj
+          call addElement(aJac,full,nrgState,nrgState,cj)
         enddo
       endif
     else

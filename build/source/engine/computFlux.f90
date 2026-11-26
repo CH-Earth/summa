@@ -339,7 +339,13 @@ subroutine computFlux(&
     end if
   end associate
 
-  ! *** HEAT CARRIED BY THE WATER MOVING BETWEEN SOIL LAYERS ***
+  ! *** HEAT CARRIED BY THE WATER ENTERING AND LEAVING THE CANOPY AND THE SOIL LAYERS ***
+  deriv_data%var(iLookDERIV%dCanopyAdv_dNet)%dat(1) = 0._rkind ! no canopy advection at or below freezing
+  associate(&
+    ixVegNrg => indx_data%var(iLookINDEX%ixVegNrg)%dat(1), & ! intent(in): [i4b] index of canopy energy state variable
+    ixVegHyd => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)  ) ! intent(in): [i4b] index of canopy hydrology state variable (mass)
+    if (ixVegNrg/=integerMissing .and. ixVegHyd/=integerMissing .and. scalarCanopyTempTrial>Tfreeze) call canopyAdvection
+  end associate
   if (indx_data%var(iLookINDEX%nSnLaSoGlNrg)%dat(1)>0 .and. nSoil>0) call soilAdvection
 
   ! *** CALCULATE FLUXES FOR THE DEEP AQUIFER ***
@@ -462,30 +468,107 @@ contains
   end associate
  end subroutine zeroBaseflowFluxes
 
+ subroutine canopyAdvection
+  ! heat held by the change in canopy water, which the heat capacity of the canopy counts from freezing
+  associate(&
+   scalarCanopyNetLiqFlux => flux_data%var(iLookFLUX%scalarCanopyNetLiqFlux)%dat(1),           & ! intent(in):    [dp] net liquid water flux for the vegetation canopy (kg m-2 s-1)
+   scalarCanopyNetNrgFlux => flux_data%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1),           & ! intent(inout): [dp] net energy flux for the vegetation canopy (W m-2)
+   dCanopyNetFlux_dCanopyTemp => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanopyTemp)%dat(1), & ! intent(inout): [dp] derivative in net canopy flux w.r.t. canopy temperature
+   dCanopyAdv_dNet        => deriv_data%var(iLookDERIV%dCanopyAdv_dNet)%dat(1)                 ) ! intent(out):   [dp] derivative w.r.t. the net canopy liquid flux (J kg-1)
+   dCanopyAdv_dNet            = Cp_water*(scalarCanopyTempTrial - Tfreeze)
+   scalarCanopyNetNrgFlux     = scalarCanopyNetNrgFlux + dCanopyAdv_dNet*scalarCanopyNetLiqFlux
+   dCanopyNetFlux_dCanopyTemp = dCanopyNetFlux_dCanopyTemp + Cp_water*scalarCanopyNetLiqFlux
+  end associate
+ end subroutine canopyAdvection
+
  subroutine soilAdvection
-  ! water entering a soil layer from the layer above or below arrives at that layer's temperature, so it gains rho*c*q*(T_from - T);
-  ! water leaving at the layer's own temperature changes nothing, and the soil surface and base keep their boundary treatment
+  ! enthalpy of the water entering and leaving each soil layer, relative to liquid water at freezing (J m-3 s-1);
+  ! water enters at the temperature of where it came from and leaves at that of the layer, written as rho*c*(q*(T_from - T) + (T - Tfreeze)*net)
   integer(i4b) :: kLayer      ! index of soil layer
   real(rkind)  :: qDown,qUp   ! water entering from above, and from below (m s-1)
+  real(rkind)  :: tAbove      ! temperature of the water entering from above (K)
+  real(rkind)  :: tBelow      ! temperature of the water entering from below (K)
+  real(rkind)  :: dTAbove     ! derivative of tAbove w.r.t. the layer above, or the canopy for the top layer (-)
+  real(rkind)  :: dTBelow     ! derivative of tBelow w.r.t. the layer below (-)
+  real(rkind)  :: sfcWater    ! water arriving at the surface (kg m-2 s-1)
+  real(rkind)  :: netWater    ! net water source of the layer (s-1)
   associate(&
+   ixSoilOnlyHyd        => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat,       & ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil
+   ixVegHyd             => indx_data%var(iLookINDEX%ixVegHyd)%dat(1),         & ! intent(in):    [i4b] index of canopy hydrology state variable (mass)
+   scalarSoilControl    => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1), & ! intent(in):    [dp] soil control on infiltration for derivative
+   scalarThroughfallRainDeriv  => deriv_data%var(iLookDERIV%scalarThroughfallRainDeriv)%dat(1),   & ! intent(in): [dp] derivative in throughfall w.r.t. canopy liquid water (s-1)
+   scalarCanopyLiqDrainageDeriv=> deriv_data%var(iLookDERIV%scalarCanopyLiqDrainageDeriv)%dat(1), & ! intent(in): [dp] derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+   scalarCanopyLiqDeriv        => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv)%dat(1),         & ! intent(in): [dp] derivative in (throughfall + drainage) w.r.t. canopy liquid water (s-1)
+   scalarThroughfallRain=> flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),   & ! intent(in): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+   scalarCanopyLiqDrainage=> flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1), & ! intent(in): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+   scalarInfiltration   => flux_data%var(iLookFLUX%scalarInfiltration)%dat(1), & ! intent(in):    [dp] infiltration of water into the soil profile (m s-1)
+   scalarTwetbulb       => diag_data%var(iLookDIAG%scalarTwetbulb)%dat(1),    & ! intent(in):    [dp] wetbulb temperature (K)
+   mLayerLiqFluxSoil    => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat,    & ! intent(in):    [dp(:)] net liquid water flux for each soil layer (s-1)
+   mLayerTranspire      => flux_data%var(iLookFLUX%mLayerTranspire)%dat,      & ! intent(in):    [dp(:)] transpiration loss from each soil layer (m s-1)
+   mLayerBaseflow       => flux_data%var(iLookFLUX%mLayerBaseflow)%dat,       & ! intent(in):    [dp(:)] baseflow from each soil layer (m s-1)
    iLayerLiqFluxSoil    => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,    & ! intent(in):    [dp(0:)] liquid flux at soil layer interfaces, positive down (m s-1)
-   mLayerSoilAdvNrgFlux => flux_data%var(iLookFLUX%mLayerSoilAdvNrgFlux)%dat, & ! intent(out):   [dp(:)] energy source from water entering from above and below (J m-3 s-1)
+   iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat,  & ! intent(out):   [dp(0:)] advective energy flux at layer interfaces, above freezing (W m-2)
+   mLayerSoilAdvNrgFlux => flux_data%var(iLookFLUX%mLayerSoilAdvNrgFlux)%dat, & ! intent(out):   [dp(:)] energy source from water moving vertically and stored (J m-3 s-1)
    mLayerNrgFlux        => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat,        & ! intent(inout): [dp(:)] net energy flux for each layer (J m-3 s-1)
    dSoilAdv_dTemp       => deriv_data%var(iLookDERIV%dSoilAdv_dTemp)%dat,      & ! intent(out):   [dp(:)] derivative w.r.t. the layer temperature
-   dSoilAdv_dTempAbove  => deriv_data%var(iLookDERIV%dSoilAdv_dTempAbove)%dat, & ! intent(out):   [dp(:)] derivative w.r.t. the temperature of the layer above
+   dSoilAdv_dTempAbove  => deriv_data%var(iLookDERIV%dSoilAdv_dTempAbove)%dat, & ! intent(out):   [dp(:)] derivative w.r.t. the temperature of the layer above, the canopy for the top layer
    dSoilAdv_dTempBelow  => deriv_data%var(iLookDERIV%dSoilAdv_dTempBelow)%dat, & ! intent(out):   [dp(:)] derivative w.r.t. the temperature of the layer below
+   dSoilAdv_dNet        => deriv_data%var(iLookDERIV%dSoilAdv_dNet)%dat,       & ! intent(out):   [dp(:)] derivative w.r.t. the net water source of the layer
+   dSoilAdv_dqAbove     => deriv_data%var(iLookDERIV%dSoilAdv_dqAbove)%dat,    & ! intent(out):   [dp(:)] derivative w.r.t. the water flux through the top of the layer
+   dSoilAdv_dqBelow     => deriv_data%var(iLookDERIV%dSoilAdv_dqBelow)%dat,    & ! intent(out):   [dp(:)] derivative w.r.t. the water flux through the base of the layer
+   dSoilAdv_dCanLiq     => deriv_data%var(iLookDERIV%dSoilAdv_dCanLiq)%dat(1), & ! intent(out):   [dp] derivative of the top layer w.r.t. canopy liquid water, through the canopy drip
    mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat            ) ! intent(in):    [dp(:)] depth of each layer (m)
+   dSoilAdv_dCanLiq = 0._rkind
    mLayerSoilAdvNrgFlux(:) = 0._rkind; dSoilAdv_dTemp(:) = 0._rkind; dSoilAdv_dTempAbove(:) = 0._rkind; dSoilAdv_dTempBelow(:) = 0._rkind
+   dSoilAdv_dNet(:) = 0._rkind; dSoilAdv_dqAbove(:) = 0._rkind; dSoilAdv_dqBelow(:) = 0._rkind
    do kLayer=1,nSoil
-     qDown = 0._rkind; qUp = 0._rkind
-     if(kLayer>1)     qDown = max( iLayerLiqFluxSoil(kLayer-1), 0._rkind)
-     if(kLayer<nSoil) qUp   = max(-iLayerLiqFluxSoil(kLayer),   0._rkind)
      associate(T => mLayerTempTrial(nSnow+nLake+kLayer), scale => iden_water*Cp_water/mLayerDepth(nSnow+nLake+kLayer))
-       if(qDown>0._rkind) mLayerSoilAdvNrgFlux(kLayer) = mLayerSoilAdvNrgFlux(kLayer) + scale*qDown*(mLayerTempTrial(nSnow+nLake+kLayer-1) - T)
-       if(qUp  >0._rkind) mLayerSoilAdvNrgFlux(kLayer) = mLayerSoilAdvNrgFlux(kLayer) + scale*qUp  *(mLayerTempTrial(nSnow+nLake+kLayer+1) - T)
-       dSoilAdv_dTemp(kLayer)      = -scale*(qDown + qUp)
-       dSoilAdv_dTempAbove(kLayer) =  scale*qDown
-       dSoilAdv_dTempBelow(kLayer) =  scale*qUp
+       tAbove = T; dTAbove = 0._rkind; tBelow = T; dTBelow = 0._rkind
+       ! water entering from above
+       if(kLayer>1)then
+         qDown  = max(iLayerLiqFluxSoil(kLayer-1), 0._rkind)
+         tAbove = mLayerTempTrial(nSnow+nLake+kLayer-1); dTAbove = 1._rkind
+       else
+         qDown = max(scalarInfiltration, 0._rkind)
+         if(nSnow+nLake>0)then
+           tAbove = Tfreeze
+           if(nLake>0) tAbove = max(mLayerTempTrial(nSnow+nLake), Tfreeze)
+         else
+           sfcWater = scalarThroughfallRain + scalarCanopyLiqDrainage + drainageMeltPond
+           if(sfcWater>0._rkind)then
+             tAbove = (scalarThroughfallRain*max(scalarTwetbulb,Tfreeze) + drainageMeltPond*Tfreeze + scalarCanopyLiqDrainage*max(scalarCanopyTempTrial,Tfreeze))/sfcWater
+             if(scalarCanopyTempTrial>Tfreeze) dTAbove = scalarCanopyLiqDrainage/sfcWater
+           end if
+         end if
+       end if
+       ! water entering from below, at the base from melting glacier ice
+       qUp = max(-iLayerLiqFluxSoil(kLayer), 0._rkind)
+       if(kLayer<nSoil)then
+         tBelow = mLayerTempTrial(nSnow+nLake+kLayer+1); dTBelow = 1._rkind
+       else if(nGlce>0)then
+         tBelow = Tfreeze
+       end if
+       if(kLayer==1) iLayerAdvectiveFlux(nSnow+nLake) = iden_water*Cp_water*(qDown*(tAbove - Tfreeze) + (iLayerLiqFluxSoil(0) - qDown)*(T - Tfreeze))
+       iLayerAdvectiveFlux(nSnow+nLake+kLayer) = iden_water*Cp_water*(max(iLayerLiqFluxSoil(kLayer),0._rkind)*(T - Tfreeze) - qUp*(tBelow - Tfreeze))
+       mLayerSoilAdvNrgFlux(kLayer) = scale*(qDown*(tAbove - T) + qUp*(tBelow - T))
+       dSoilAdv_dTemp(kLayer)       = -scale*(qDown + qUp)
+       dSoilAdv_dTempAbove(kLayer)  =  scale*qDown*dTAbove
+       dSoilAdv_dTempBelow(kLayer)  =  scale*qUp*dTBelow
+       if(qDown>0._rkind) dSoilAdv_dqAbove(kLayer) =  scale*(tAbove - T)
+       if(qUp  >0._rkind) dSoilAdv_dqBelow(kLayer) = -scale*(tBelow - T)
+       ! canopy drip onto bare soil changes the infiltration rate and the mix of water temperatures
+       if(kLayer==1 .and. nSnow+nLake==0 .and. ixVegHyd/=integerMissing)then
+         if(ixSoilOnlyHyd(1)/=integerMissing) dSoilAdv_dCanLiq = dSoilAdv_dqAbove(1)*scalarSoilControl*scalarCanopyLiqDeriv/iden_water
+         if(sfcWater>0._rkind) dSoilAdv_dCanLiq = dSoilAdv_dCanLiq + scale*qDown*( (max(scalarTwetbulb,Tfreeze) - tAbove)*scalarThroughfallRainDeriv &
+                                                                                 + (max(scalarCanopyTempTrial,Tfreeze) - tAbove)*scalarCanopyLiqDrainageDeriv )/sfcWater
+       end if
+       ! water stored in the layer, only where its water is solved together with its energy
+       if(ixSoilOnlyHyd(kLayer)/=integerMissing)then
+         netWater = mLayerLiqFluxSoil(kLayer) + (mLayerTranspire(kLayer) - mLayerBaseflow(kLayer))/mLayerDepth(nSnow+nLake+kLayer)
+         dSoilAdv_dNet(kLayer)        = iden_water*Cp_water*(T - Tfreeze)
+         mLayerSoilAdvNrgFlux(kLayer) = mLayerSoilAdvNrgFlux(kLayer) + dSoilAdv_dNet(kLayer)*netWater
+         dSoilAdv_dTemp(kLayer)       = dSoilAdv_dTemp(kLayer) + iden_water*Cp_water*netWater
+       end if
      end associate
      mLayerNrgFlux(nSnow+nLake+kLayer) = mLayerNrgFlux(nSnow+nLake+kLayer) + mLayerSoilAdvNrgFlux(kLayer)
    end do

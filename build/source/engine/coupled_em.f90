@@ -1499,6 +1499,7 @@ subroutine coupled_em(&
                   data_step,                                                 & ! intent(in):    time step (seconds)
                   (nSnow>0),                                                 & ! intent(in):    logical flag if snow layers exist
                   snowfrz_scale,                                             & ! intent(in):    freeezing curve parameter for snow (K-1)
+                  lookup_data,                                               & ! intent(in):    lookup tables
                   ! input: diagnostic scalar variables
                   diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),        & ! intent(in):    computed temperature of fresh snow (K)
                   diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),      & ! intent(in):    computed density of new snow (kg m-3)
