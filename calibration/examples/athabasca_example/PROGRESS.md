@@ -266,16 +266,69 @@ Work since the last push to PR #651 (Oct 1, 2026). Newest last. Each step matche
 - Scheduling is not the problem: in all seven jobs, 0.9-1.3% of the time comes after the last dispatch
   and 0.4-0.8% of worker capacity is idle.
 
+## Nov 12-24: Fortran DDS on develop 8d15bc36 with revised ranges (runs A-D)
+
+- Code: SUMMA develop 8d15bc36 (Nov 12) with coupled mizuRoute, plus two local options: a default start
+  (as on Nov 9-10) and reflection at the bounds (`SUMMA_DDS_BOUNDARY=reflect`). The local patches for this
+  build are not in this branch yet. k_soil searched on a log scale; same 15 parameters, J() objective
+  (daily KGE at reach 222, 2016-2019).
+- Three ranges changed (set in each run's `[calibration.parameters]`): routingGammaScale upper 1e5 -> 1e6,
+  heightCanopyTop upper 100 -> 30 m, frozenPrecipMultip upper 5 -> 2. The other 12 are unchanged.
+- 2 x 2 design, seeds 42-44, 5,000 trials each, 49 workers on one node per seed. Jobs 22351442 (A),
+  22351443 (B), 22351662 (C), 22351663 (D): all completed, no failed trials.
+
+| Run | Start | Out-of-bounds step | Seed 42 | Seed 43 | Seed 44 | Mean | Spread | Job time |
+|---|---|---|---|---|---|---|---|---|
+| A | random | reject | 0.875 | 0.844 | 0.878 | 0.865 | 0.034 | 12.1 h |
+| B | defaults | reject | 0.880 | **0.897** | 0.887 | **0.888** | 0.017 | 19.5 h |
+| C | random | reflect | 0.875 | 0.864 | 0.882 | 0.874 | 0.018 | 13.1 h |
+| D | defaults | reflect | 0.844 | 0.885 | 0.870 | 0.867 | 0.041 | 21.6 h |
+
+- Default start + reject (B) is the best and most consistent setup: every B seed beat every A seed (about
+  1 in 20 by chance with 3 seeds each).
+- Reflect vs reject has no consistent effect: +0.009 with a random start (C vs A), -0.021 with the
+  defaults (D vs B), both within seed noise. Reflect did not reduce bound-hugging either (trials with a
+  parameter within 1% of a bound: A 87%, C 89%, B 68%, D 74%).
+- All 12 runs beat the October Fortran DDS (0.806). The routing trap that caught 2 of 4 October random
+  starts caught none of the 6 new ones, and the start matters much less (default - random: about 0.07 in
+  October, 0.023 now with reject, none with reflect).
+- The two starts end in different regions with similar KGE. Random starts: k_soil ~1e-7 m/s, vGn_n at its
+  upper bound (4), routing delay (shape x scale) ~20-23 days. Default starts: k_soil 1e-5 to 3e-3 m/s,
+  vGn_n 1.2-1.5, baseflow rate 10-50 times higher, routing delay ~6-13 days. The default-start sets look
+  more physical; validation and other data are needed to decide.
+- Every best set has routingGammaScale above the old 1e5 limit (246,000-999,000), so the old bound cut off
+  the optimum. heightCanopyTop (1-23 m) and frozenPrecipMultip (0.56-1.36) lie well inside the new caps.
+- Runs are about 2x faster than in October (median run 6-13 min, 11-22 h per seed), mainly because the
+  canopy cap removes the slow tall-canopy runs. Scheduling is unchanged: 0.6-1.4% drain, 0.3-0.9% idle.
+- Caveat: the SUMMA code also changed since October (frozen-ground switch from 07214a61; the defaults now
+  give KGE -0.29), so the October -> November gain is not a pure range effect.
+
+## Nov 21-24: Martyn's `feature/dds-original` branch
+
+- Branch `martynpclark/summa:feature/dds-original` at 97089fd7 (Nov 21). Its own changes against develop:
+  reject -> reflect in `parameter_search.f90` (an out-of-bounds step mirrors only that parameter back
+  inside, in transformed space) and his Fir cluster scripts. Start (random) and the feasibility check are
+  unchanged; it does not change any parameter ranges.
+- Run C uses the same rule (our reflect option; the two differ only when a step overshoots by more than
+  the whole range). His branch starts from develop of Nov 9, while runs A-D used develop of Nov 12.
+- On Athabasca, reflect does no harm but does not improve the calibration on its own (C vs A above). The
+  default start matters more.
+- The revised ranges are ours, not part of his branch. They are in line with SUMMA's own test cases
+  (`utils/test/test_calibration`): e.g. heightCanopyTop 2-50 m (Bow, Gulkana/Wolverine), 2-30 m in the docs
+  example; routingGammaScale up to 5e6 s (Gulkana/Wolverine); frozenPrecipMultip 0.5-2.5 (Bow).
+
 ## Next
 
 - Update this branch to current develop and bring in the develop version of `summa_c_api.f90`.
-- Repeat the develop calibration with 3-5 seeds (async DDS and SPOTPY DDS); raise the theta_sat lower
-  bound to ~0.39 and widen the routingGammaScale upper bound.
+- Add the local Fortran DDS patches used for runs A-D (default start and reflect on develop 8d15bc36).
+- Suggest to the SUMMA develop Fortran DDS: an option to start from the defaults (keep reflect), and
+  writing `_calibration.nc` during the run.
+- Rerun A with routingGammaScale capped at 1e5, to separate the range change from the code change.
+- Review with Martyn: lower bounds of routingGammaShape (at 2 in 11 of 12 seeds; Bow test allows 1) and
+  tempCritRain (at 272.16 K in most seeds; Bow allows 270.16 K); search aquiferBaseflowRate on a log scale.
+- Validate the best sets outside 2016-2019: B43 (0.897), D43 (0.885) and seed 43 from the defaults
+  (October, 0.902).
+- Repeat the develop calibration with 3-5 seeds (async DDS and SPOTPY DDS) and the GA with S3-type
+  settings on the revised ranges.
 - If SCE-UA is repeated: fewer complexes than workers, or a larger budget.
-- Repeat v2 and v1 with 3-5 seeds, and the GA with S3-type settings (2-3 seeds).
-- Cap frozenPrecipMultip at about 2 (about half of all KGE < -1 runs lie above 1.9).
-- Rerun the seven best sets with time-series output for a KGE breakdown (r, alpha, beta).
-- Cap heightCanopyTop at about 30 m (runs above 20 m take twice as long; the best sets use 2-4 m).
-- Suggest to the SUMMA develop Fortran DDS: an option to start from the defaults, and writing
-  `_calibration.nc` during the run. (Develop's Nov 9 update already sets the seed through `run_index`.)
-- Validate the best sets outside 2016-2019, starting with seed 43 from the defaults (0.902).
+- Rerun the best sets with time-series output for a KGE breakdown (r, alpha, beta).

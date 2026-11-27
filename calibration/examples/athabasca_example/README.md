@@ -143,3 +143,18 @@ Made with `scripts/compare_athabasca_optimizers.py`; the Fortran run was first c
 - Several best values sit at a bound (routingGammaScale at its upper bound in four runs; tempCritRain and
   Fcapil near their lower bounds), and similar KGE comes from quite different parameter sets (v1 vs v2
   k_soil 1.9e-4 vs 1.2e-6 m/s). The bounds should be revisited before repeat runs.
+
+## Fortran DDS on develop with revised ranges (Nov 12-24, runs A-D)
+
+SUMMA develop 8d15bc36, 15 parameters, 5,000 trials per seed, seeds 42-44, 49 workers per seed. Revised
+ranges: routingGammaScale <= 1e6, heightCanopyTop <= 30 m, frozenPrecipMultip <= 2. Details in `PROGRESS.md`.
+
+| Run | Start | Out-of-bounds step | Mean best KGE 2016-2019 | Best seed | Spread |
+|---|---|---|---|---|---|
+| A | random | reject | 0.865 | 0.878 | 0.034 |
+| **B** | **defaults** | **reject** | **0.888** | **0.897** | **0.017** |
+| C | random | reflect (as in `feature/dds-original`) | 0.874 | 0.882 | 0.018 |
+| D | defaults | reflect | 0.867 | 0.885 | 0.041 |
+
+- All 12 runs beat October's 0.806; every best set has routingGammaScale above the old 1e5 limit.
+- Starting from the defaults helps (B vs A); reflect vs reject makes no consistent difference.
